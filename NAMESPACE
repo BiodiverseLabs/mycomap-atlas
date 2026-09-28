@@ -1,5 +1,7 @@
 # Written by hand; this package does not use roxygen.
 
+export(atlas_allowed_origin)
+export(atlas_allowed_origins)
 export(atlas_assert_transport_safe)
 export(atlas_build_layer)
 export(atlas_build_layers)

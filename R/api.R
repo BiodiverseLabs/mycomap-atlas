@@ -1,6 +1,34 @@
 # Helpers behind the HTTP routes. The logic lives here rather than in the
 # plumber file so it can be tested without starting a server.
 
+# The development API answers a browser on the developer's own machine. A
+# wildcard would let any site that developer happens to visit read it, so an
+# origin is matched exactly — never by prefix, which would accept
+# http://localhost:5101.example.com.
+ATLAS_DEFAULT_ORIGINS <- c("http://localhost:5101", "http://127.0.0.1:5101")
+
+#' Origins the API will answer cross-site, from ATLAS_ALLOWED_ORIGINS.
+atlas_allowed_origins <- function() {
+  configured <- Sys.getenv("ATLAS_ALLOWED_ORIGINS", unset = "")
+  if (!nzchar(configured)) {
+    return(ATLAS_DEFAULT_ORIGINS)
+  }
+  origins <- trimws(strsplit(configured, ",", fixed = TRUE)[[1]])
+  origins[nzchar(origins)]
+}
+
+#' The origin to echo back, or NULL when it is not allowed.
+atlas_allowed_origin <- function(origin, allowed = atlas_allowed_origins()) {
+  if (is.null(origin) || !length(origin)) {
+    return(NULL)
+  }
+  origin <- as.character(origin)[[1]]
+  if (!nzchar(origin) || !origin %in% allowed) {
+    return(NULL)
+  }
+  origin
+}
+
 #' Decode a taxon name taken from a URL path.
 #'
 #' Plumber leaves path parameters percent-encoded, and every species name has a

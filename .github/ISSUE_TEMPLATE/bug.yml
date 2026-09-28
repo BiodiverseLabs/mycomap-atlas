@@ -1,0 +1,40 @@
+name: Bug report
+description: Something behaves differently than it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before you paste anything:** no collection coordinates, please —
+        not in logs, not in screenshots. Round to 0.1°, or name the state or
+        province. Trim tracebacks that carry record locations.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Error messages or logs, with any coordinates removed.
+      render: text
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "Output of `Rscript -e 'cat(R.version.string)'`, and your OS."
+      placeholder: R 4.6.1, Windows 11
+
+  - type: checkboxes
+    id: no-coordinates
+    attributes:
+      label: Confirmation
+      options:
+        - label: This report contains no collection coordinates
+          required: true

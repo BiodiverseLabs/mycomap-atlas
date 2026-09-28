@@ -8,6 +8,50 @@ test_that("an already-decoded name survives decoding", {
   expect_equal(atlas_decode_name(NULL), "")
 })
 
+test_that("the dev web app's origin is allowed", {
+  expect_equal(
+    atlas_allowed_origin("http://localhost:5101"),
+    "http://localhost:5101"
+  )
+  expect_equal(
+    atlas_allowed_origin("http://127.0.0.1:5101"),
+    "http://127.0.0.1:5101"
+  )
+})
+
+test_that("any other site is refused, so a page you visit cannot read the API", {
+  expect_null(atlas_allowed_origin("https://example.com"))
+  expect_null(atlas_allowed_origin("http://localhost:5100"))
+})
+
+test_that("a lookalike origin is refused, because matching is exact", {
+  expect_null(atlas_allowed_origin("http://localhost:5101.example.com"))
+  expect_null(atlas_allowed_origin("https://localhost:5101"))
+  expect_null(atlas_allowed_origin("http://localhost:51010"))
+})
+
+test_that("a request with no origin gets no header", {
+  expect_null(atlas_allowed_origin(NULL))
+  expect_null(atlas_allowed_origin(""))
+  expect_null(atlas_allowed_origin(character()))
+})
+
+test_that("ATLAS_ALLOWED_ORIGINS replaces the defaults", {
+  with_env(c(ATLAS_ALLOWED_ORIGINS = "https://atlas.example.org , https://other.example.org"), {
+    expect_equal(
+      atlas_allowed_origin("https://atlas.example.org"),
+      "https://atlas.example.org"
+    )
+    expect_null(atlas_allowed_origin("http://localhost:5101"))
+  })
+})
+
+test_that("an empty setting falls back to the defaults", {
+  with_env(c(ATLAS_ALLOWED_ORIGINS = ""), {
+    expect_equal(atlas_allowed_origins(), ATLAS_DEFAULT_ORIGINS)
+  })
+})
+
 test_that("a taxon that is not in the pull returns nothing", {
   taxa <- atlas_taxon_fingerprints(fake_occurrences())
   expect_null(atlas_taxon_row(taxa, "Boletus edulis"))

@@ -44,7 +44,14 @@ cached_taxa <- function() {
 
 #* @filter cors
 function(req, res) {
-  res$setHeader("Access-Control-Allow-Origin", "*")
+  # The web app reaches this through vite's proxy, which is same-origin, so
+  # nothing normal depends on these headers. They exist for a browser opened
+  # straight at the dev server, and only for origins on the allowlist.
+  origin <- atlas_allowed_origin(req$HTTP_ORIGIN)
+  if (!is.null(origin)) {
+    res$setHeader("Access-Control-Allow-Origin", origin)
+    res$setHeader("Vary", "Origin")
+  }
   if (identical(req$REQUEST_METHOD, "OPTIONS")) {
     res$setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
     res$setHeader("Access-Control-Allow-Headers", "Content-Type")
