@@ -183,6 +183,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   suitability <- atlas_predict_raster(model, stack, area)
 
   raster_path <- NULL
+  drawn <- NULL
   if (isTRUE(write)) {
     raster_path <- atlas_model_path(name, grid)
     dir.create(dirname(raster_path), recursive = TRUE, showWarnings = FALSE)
@@ -190,6 +191,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
       suitability, raster_path, overwrite = TRUE,
       gdal = c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
     )
+    # Draw it too, so a new fit shows up in the app without a second command.
+    drawn <- atlas_write_map_png(suitability, sub("[.]tif$", ".png", raster_path))
   }
 
   metrics <- list(
@@ -211,6 +214,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     boyce_sd = round(stats::sd(scores$boyce, na.rm = TRUE), 3),
     raster = if (is.null(raster_path)) NULL else basename(raster_path),
     md5 = if (is.null(raster_path)) NULL else unname(tools::md5sum(raster_path)),
+    map = if (is.null(drawn)) NULL else basename(drawn$path),
+    bounds = if (is.null(drawn)) NULL else drawn$bounds,
     built_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     r_version = as.character(getRversion()),
     maxnet_version = as.character(utils::packageVersion("maxnet")),

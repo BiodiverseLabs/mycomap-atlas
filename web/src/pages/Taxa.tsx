@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Link } from "wouter";
 
-import { getTaxa } from "@/lib/api";
+import { getModelledTaxa, getTaxa } from "@/lib/api";
 import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -19,6 +19,7 @@ export default function Taxa() {
     placeholderData: keepPreviousData,
   });
 
+  const modelled = useQuery({ queryKey: ["modelled"], queryFn: getModelledTaxa });
   const total = query.data?.total ?? 0;
 
   return (
@@ -97,6 +98,11 @@ export default function Taxa() {
                   >
                     {taxon.scientific_name}
                   </Link>
+                  {modelled.data?.has(taxon.scientific_name) && (
+                    <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                      mapped
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2 lining-nums">{formatNumber(taxon.records)}</td>
                 <td className="px-4 py-2 lining-nums">{formatNumber(taxon.localities)}</td>

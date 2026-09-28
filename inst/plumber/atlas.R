@@ -128,6 +128,38 @@ function(name, res) {
   row
 }
 
+#* Every fitted model, newest first.
+#* @param grid draft or production
+#* @get /api/models
+#* @serializer unboxedJSON
+function(grid = "draft") {
+  list(grid = grid, models = atlas_model_overview(grid))
+}
+
+#* One taxon's fitted model: its scores, settings and map bounds.
+#* @get /api/taxa/<name>/model
+#* @serializer unboxedJSON
+function(name, grid = "draft", res) {
+  path <- atlas_model_path(atlas_decode_name(name), grid, ".json")
+  if (!file.exists(path)) {
+    res$status <- 404L
+    return(list(error = "no model for this taxon yet"))
+  }
+  jsonlite::fromJSON(path, simplifyVector = FALSE)
+}
+
+#* A taxon's suitability map, ready to lay over a slippy map.
+#* @get /api/taxa/<name>/map.png
+#* @serializer contentType list(type = "image/png")
+function(name, grid = "draft", res) {
+  path <- atlas_model_path(atlas_decode_name(name), grid, ".png")
+  if (!file.exists(path)) {
+    res$status <- 404L
+    return(raw())
+  }
+  readBin(path, "raw", file.info(path)$size)
+}
+
 #* Where a taxon has been collected, aggregated to the public grid.
 #* @get /api/taxa/<name>/cells
 #* @serializer unboxedJSON

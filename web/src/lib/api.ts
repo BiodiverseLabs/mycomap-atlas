@@ -53,6 +53,39 @@ export interface LayersResponse {
   layers: Layer[];
 }
 
+export interface ModelFold {
+  fold: number;
+  presences: number;
+  auc: number | null;
+  boyce: number | null;
+}
+
+export interface ModelBounds {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
+export interface Model {
+  taxon: string;
+  grid: string;
+  presences: number;
+  background: number;
+  area_km2: number;
+  predictors: string[];
+  classes: string;
+  block_km: number;
+  folds: ModelFold[];
+  auc_mean: number;
+  auc_sd: number;
+  boyce_mean: number;
+  boyce_sd: number;
+  built_at: string;
+  map?: string;
+  bounds?: ModelBounds;
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path);
   if (!response.ok) {
@@ -96,4 +129,21 @@ export function getTaxon(name: string): Promise<Taxon> {
 
 export function getCells(name: string): Promise<Cells> {
   return get<Cells>(`/api/taxa/${encodeURIComponent(name)}/cells`);
+}
+
+/** The fitted model for a taxon, or null when it has not been fitted. */
+export async function getModel(name: string): Promise<Model | null> {
+  const response = await fetch(`/api/taxa/${encodeURIComponent(name)}/model`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return (await response.json()) as Model;
+}
+
+export function mapUrl(name: string): string {
+  return `/api/taxa/${encodeURIComponent(name)}/map.png`;
+}
+
+export async function getModelledTaxa(): Promise<Set<string>> {
+  const response = await get<{ models: Model[] }>("/api/models");
+  return new Set(response.models.map((model) => model.taxon));
 }
