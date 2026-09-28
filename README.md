@@ -134,10 +134,11 @@ measures how distinguishable a species is from where fungi get collected at
 all, so a generalist scores near 0.5 by construction. That is the honest
 answer, not a broken model. Measured on the draft grid:
 
-| Taxon | Presence cells | Blocked AUC |
-|---|---|---|
-| *Trametes versicolor*, everywhere there is wood | 294 | 0.58 |
-| *Armillaria nabsnona*, coastal Pacific Northwest | 47 | 0.51 |
+| Taxon | Presence cells | Predictors | Blocked AUC |
+|---|---|---|---|
+| *Mycena* sp. 'IN10' | 150 | 19 | 0.70 |
+| *Trametes versicolor*, everywhere there is wood | 294 | 18 | 0.57 |
+| *Armillaria nabsnona*, coastal Pacific Northwest | 47 | 11 | 0.58 |
 
 *A. nabsnona* scored 0.72 in an earlier run, and that number was wrong. Slope
 was empty on every coastal cell, so those records were dropped — from the
@@ -146,14 +147,36 @@ compared against an inland-only background is trivially separable. Fixing the
 terrain layer lowered the score, which is the direction of truth rather than a
 regression.
 
-On the same records, predictor sets compare like this — more predictors is not
-better, and a pruned set beats everything:
+## Choosing predictors
 
-| Predictors | *A. nabsnona* | *T. versicolor* |
-|---|---|---|
-| climate + terrain (22) | 0.464 | 0.587 |
-| everything (33) | 0.511 | 0.580 |
-| pruned (12) | 0.561 | 0.586 |
+Thirty-three predictors is a lot of rope for a taxon with forty-seven records,
+and the nineteen bioclim variables are near-copies of one another. Correlated
+predictors are pruned before fitting, keeping whichever of a pair comes first
+in a fixed **ecological** order — moisture, then temperature, then what the
+fungus grows on, then soil, then the shape of the ground. When two variables
+are interchangeable to the model, the one a mycologist would name survives,
+which also keeps the response curves readable. Correlations are measured on
+the background, never on the presences: forty-seven records cannot estimate a
+correlation matrix.
+
+How much that helps depends entirely on how many records there are. Blocked
+AUC across a threshold sweep:
+
+| Predictors kept | *A. nabsnona* (47) | *Mycena* 'IN10' (150) | *T. versicolor* (294) |
+|---|---|---|---|
+| ~10–13 (r < 0.5) | **0.610** | 0.689 | 0.552 |
+| ~14–17 (r < 0.6) | 0.594 | 0.690 | 0.566 |
+| ~17–19 (r < 0.7) | 0.552 | 0.700 | 0.574 |
+| all 33 | 0.512 | **0.706** | **0.580** |
+
+A sparse taxon gains a tenth of an AUC from a short list; a well-recorded one
+loses a little. So the count is capped in proportion to the presences, roughly
+one predictor per four records, and the cap stops binding once a taxon is well
+recorded. The ratio is the mechanism; the correlation threshold only decides
+which of two twins gets dropped.
+
+Three taxa is enough to see the direction, not to fix the constant. Re-measure
+when batch fitting gives hundreds.
 
 Below 20 presence cells a taxon is refused rather than modelled, and the
 threshold bites on record counts that look generous: *Lysurus mokusin* has 105

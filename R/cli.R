@@ -24,6 +24,8 @@ atlas_usage <- function() {
   message("      --folds=N                 spatial folds (default 5)")
   message("      --block-km=N              fold block size (default 200)")
   message("      --min-presences=N         refuse below this many cells (default 20)")
+  message("      --correlation=N           prune predictors above this correlation (default 0.7)")
+  message("      --keep-all-predictors     skip pruning")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -133,7 +135,9 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         buffer_km = atlas_flag_number(flags, "buffer_km", 500),
         folds = atlas_flag_number(flags, "folds", 5),
         block_km = atlas_flag_number(flags, "block_km", 200),
-        min_presences = atlas_flag_number(flags, "min_presences", 20)
+        min_presences = atlas_flag_number(flags, "min_presences", 20),
+        correlation = atlas_flag_number(flags, "correlation", 0.7),
+        prune = !isTRUE(flags$keep_all_predictors)
       )
       invisible(0L)
     },

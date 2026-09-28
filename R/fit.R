@@ -155,7 +155,8 @@ atlas_model_path <- function(name, grid = "draft", extension = ".tif") {
 #' Fit one taxon end to end: training data, blocked scores, map, metrics.
 atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             buffer_km = 500, folds = 5, block_km = 200,
-                            regmult = 1, min_presences = 20, write = TRUE,
+                            regmult = 1, min_presences = 20, correlation = 0.7,
+                            prune = TRUE, write = TRUE,
                             quiet = FALSE, points = NULL, stack = NULL) {
   stack <- stack %||% atlas_predictor_stack(grid)
   training <- atlas_build_training(
@@ -169,6 +170,14 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
          " presence cells on the ", grid, " grid, and a map needs ",
          min_presences, ". This taxon is a survey target, not a model.",
          call. = FALSE)
+  }
+
+  considered <- atlas_predictor_columns(training)
+  if (isTRUE(prune)) {
+    keep <- atlas_choose_predictors(training, threshold = correlation)
+    kept_attributes <- attributes(training)[c("area_km2", "seed", "dropped")]
+    training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
+    attributes(training)[names(kept_attributes)] <- kept_attributes
   }
 
   seed <- attr(training, "seed")
@@ -203,6 +212,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     area_km2 = round(attr(training, "area_km2")),
     cells_without_data = attr(training, "dropped"),
     predictors = as.list(atlas_predictor_columns(training)),
+    predictors_considered = length(considered),
+    correlation = if (isTRUE(prune)) correlation else NA,
     classes = atlas_feature_classes(presences),
     regmult = regmult,
     block_km = block_km,
@@ -229,6 +240,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     message(name)
     message("  presences (cells):  ", metrics$presences)
     message("  background:         ", metrics$background)
+    message("  predictors:         ", length(metrics$predictors), " of ",
+            metrics$predictors_considered)
     message("  blocked AUC:        ", metrics$auc_mean, " (sd ", metrics$auc_sd, ")")
     message("  blocked Boyce:      ", metrics$boyce_mean, " (sd ", metrics$boyce_sd, ")")
     message("  folds scored:       ", sum(!is.na(scores$auc)), " of ", nrow(scores))
