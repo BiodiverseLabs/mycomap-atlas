@@ -24,8 +24,8 @@ more carry provisional temp codes, which exist in no other dataset.
 | 1. Pull the eligible universe from .org | built |
 | 2. Environmental layers on the grid | climate, elevation and terrain built on the draft grid; soil and land cover registered |
 | 3. Target-group background from the same validated universe | built |
-| 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | |
-| 5. Evaluation: spatially blocked folds, Boyce index, ecological review | |
+| 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | maxnet built; xgboost next |
+| 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
 | 6. Release: rasters and metrics published together, with rollback | |
 
 ## Setup
@@ -116,6 +116,36 @@ species is not absent from Yukon merely because nobody looked there.
 
 The seed comes from the taxon's record-set fingerprint, so the same records
 always draw the same background, and changed records draw a new one.
+
+## Fitting and scoring
+
+```bash
+./atlas fit --taxon="Armillaria nabsnona"
+```
+
+Maxent is fitted through `maxnet`, the reference implementation by Maxent's own
+author. Folds are whole spatial blocks of 200 km, never a random split: fungal
+records are clustered — one foray yields thirty collections from one wood — and
+a random hold-out puts near neighbours on both sides, reporting a score that
+only says the model can interpolate 200 m.
+
+**Read AUC as comparative, not absolute.** Against a target-group background it
+measures how distinguishable a species is from where fungi get collected at
+all, so a generalist scores near 0.5 by construction. That is the honest
+answer, not a broken model. Measured on the draft grid:
+
+| Taxon | Presence cells | Blocked AUC |
+|---|---|---|
+| *Trametes versicolor*, everywhere there is wood | 271 | 0.58 |
+| *Pleurotus* sp. 'pulmonarius-PNW02' | 116 | 0.66 |
+| *Armillaria nabsnona*, coastal Pacific Northwest | 35 | 0.72 |
+
+*A. nabsnona*'s map puts it on the wet coastal strip (mean 0.32) rather than
+the dry interior (0.07), which is where the species actually lives.
+
+Below 20 presence cells a taxon is refused rather than modelled, and the
+threshold bites on record counts that look generous: *Lysurus mokusin* has 105
+records from 4 distinct cells — one urban population, collected over and over.
 
 ## Data
 
