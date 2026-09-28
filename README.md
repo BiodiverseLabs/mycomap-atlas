@@ -22,7 +22,7 @@ more carry provisional temp codes, which exist in no other dataset.
 | Stage | State |
 |---|---|
 | 1. Pull the eligible universe from .org | built |
-| 2. Environmental layers on the grid | climate, elevation and terrain built on the draft grid; soil and land cover registered |
+| 2. Environmental layers on the grid | built on the draft grid: climate, elevation, terrain, soil, land cover |
 | 3. Target-group background from the same validated universe | built |
 | 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | maxnet built; xgboost next |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
@@ -136,12 +136,24 @@ answer, not a broken model. Measured on the draft grid:
 
 | Taxon | Presence cells | Blocked AUC |
 |---|---|---|
-| *Trametes versicolor*, everywhere there is wood | 271 | 0.58 |
-| *Pleurotus* sp. 'pulmonarius-PNW02' | 116 | 0.66 |
-| *Armillaria nabsnona*, coastal Pacific Northwest | 35 | 0.72 |
+| *Trametes versicolor*, everywhere there is wood | 294 | 0.58 |
+| *Armillaria nabsnona*, coastal Pacific Northwest | 47 | 0.51 |
 
-*A. nabsnona*'s map puts it on the wet coastal strip (mean 0.32) rather than
-the dry interior (0.07), which is where the species actually lives.
+*A. nabsnona* scored 0.72 in an earlier run, and that number was wrong. Slope
+was empty on every coastal cell, so those records were dropped — from the
+presences and, more damagingly, from the background. A coastal species
+compared against an inland-only background is trivially separable. Fixing the
+terrain layer lowered the score, which is the direction of truth rather than a
+regression.
+
+On the same records, predictor sets compare like this — more predictors is not
+better, and a pruned set beats everything:
+
+| Predictors | *A. nabsnona* | *T. versicolor* |
+|---|---|---|
+| climate + terrain (22) | 0.464 | 0.587 |
+| everything (33) | 0.511 | 0.580 |
+| pruned (12) | 0.561 | 0.586 |
 
 Below 20 presence cells a taxon is refused rather than modelled, and the
 threshold bites on record counts that look generous: *Lysurus mokusin* has 105

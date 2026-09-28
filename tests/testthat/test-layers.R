@@ -109,6 +109,27 @@ test_that("bands that cannot be numbered are refused rather than guessed", {
   expect_error(atlas_rename_bioclim(odd), "cannot read bioclim band numbers")
 })
 
+test_that("terrain keeps the coast, where slope would otherwise vanish", {
+  skip_if_not_installed("terra")
+  # Land on the left, ocean (NA) on the right, as a coastline is.
+  elevation <- terra::rast(nrows = 6, ncols = 6, xmin = 0, xmax = 6000,
+                           ymin = 0, ymax = 6000, crs = ATLAS_CRS)
+  heights <- matrix(rep(c(300, 250, 200, 100, NA, NA), each = 6), nrow = 6, byrow = TRUE)
+  terra::values(elevation) <- as.vector(t(heights))
+
+  naive <- terra::terrain(elevation, v = "slope", unit = "degrees")
+  derived <- atlas_layer_registry()$terrain$derive(elevation)
+
+  land <- !is.na(terra::values(elevation)[, 1])
+  kept <- sum(is.finite(terra::values(derived)[land, "slope"]))
+  lost <- sum(is.finite(terra::values(naive)[land, 1]))
+  expect_gt(kept, lost)
+
+  # The sea has no elevation, so it keeps no slope either.
+  sea <- is.na(terra::values(elevation)[, 1])
+  expect_true(all(is.na(terra::values(derived)[sea, "slope"])))
+})
+
 test_that("the crop window holds everything the grid can show", {
   expect_lt(ATLAS_SOURCE_WINDOW[["xmin"]], -170)
   expect_gt(ATLAS_SOURCE_WINDOW[["xmax"]], -52)
@@ -126,6 +147,36 @@ test_that("a worldwide source is cut to the region before projecting", {
   expect_lte(terra::xmax(cropped), ATLAS_SOURCE_WINDOW[["xmax"]])
   expect_gte(terra::ymin(cropped), ATLAS_SOURCE_WINDOW[["ymin"]])
   expect_lt(terra::ncell(cropped), terra::ncell(world))
+})
+
+test_that("a source in its own projection is cropped too, not warped whole", {
+  skip_if_not_installed("terra")
+  # A stand-in for SoilGrids: global, and not in longitude/latitude.
+  world <- terra::rast(
+    xmin = -20000000, xmax = 20000000, ymin = -8000000, ymax = 8000000,
+    resolution = 50000, crs = "EPSG:3857"
+  )
+  cropped <- atlas_crop_to_region(world)
+  expect_lt(terra::ncell(cropped), terra::ncell(world) / 4)
+  expect_lt(terra::xmax(cropped), 0) # North America is west of the meridian
+  expect_gt(terra::ymax(cropped), 0)
+})
+
+test_that("the region window lands in the right place in another projection", {
+  skip_if_not_installed("terra")
+  window <- as.vector(atlas_region_window("EPSG:3857"))
+  expect_lt(window[["xmax"]], 0) # North America is west of the meridian
+  expect_gt(window[["xmin"]], -20100000)
+  expect_gt(window[["ymin"]], 0) # and north of the equator
+})
+
+test_that("a source that does not reach North America is refused", {
+  skip_if_not_installed("terra")
+  elsewhere <- terra::rast(
+    xmin = 100, xmax = 140, ymin = -40, ymax = -10,
+    resolution = 1, crs = "EPSG:4326"
+  )
+  expect_error(atlas_crop_to_region(elsewhere), "does not cover North America")
 })
 
 test_that("a raster already on the grid is left alone by the crop", {

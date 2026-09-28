@@ -73,10 +73,16 @@ atlas_layer_registry <- function() {
       citation = "Derived with terra::terrain()",
       method = "bilinear",
       depends = "elevation",
+      # Slope needs a cell's neighbours, so computed naively every coastal cell
+      # comes back empty — which cost 10.7% of the records, most of them on the
+      # British Columbia and Pacific coasts where the collecting is. Sea level
+      # is filled in as 0 first, so a shoreline has the slope it really has,
+      # and the land mask is restored afterwards.
       derive = function(elevation) {
-        out <- terra::terrain(elevation, v = c("slope", "TRI"), unit = "degrees")
+        at_sea_level <- terra::ifel(is.na(elevation), 0, elevation)
+        out <- terra::terrain(at_sea_level, v = c("slope", "TRI"), unit = "degrees")
         names(out) <- c("slope", "roughness")
-        out
+        terra::mask(out, elevation)
       }
     ),
     soil = list(
@@ -87,6 +93,11 @@ atlas_layer_registry <- function() {
       license = "CC BY 4.0",
       citation = "Poggio L et al. (2021) SoilGrids 2.0. SOIL 7:217-240",
       method = "bilinear",
+      # Downloaded rather than read remotely. SoilGrids' own service serves the
+      # native 250 m grid — 58,034 x 159,246 cells in Interrupted Goode
+      # Homolosine — and a continental window of that is a billion pixels to
+      # pull over HTTP for a 5 km layer. geodata's pre-aggregated copy is the
+      # right source for a grid this size.
       fetch = function(path, res) {
         vars <- c("phh2o", "soc", "clay", "sand", "cec")
         parts <- lapply(vars, function(v) {
@@ -100,10 +111,12 @@ atlas_layer_registry <- function() {
     landcover = list(
       id = "landcover",
       title = "Fractional land cover",
-      source = "Copernicus Global Land Service, via geodata",
-      url = "https://land.copernicus.eu/global/products/lc",
+      # geodata serves ESA WorldCover aggregated to 30 arc-seconds, not
+      # Copernicus Global Land Cover. Checked against the files it downloads.
+      source = "ESA WorldCover 2021 v200, aggregated to 30 arc-seconds by geodata",
+      url = "https://esa-worldcover.org",
       license = "CC BY 4.0",
-      citation = "Buchhorn M et al. (2020) Copernicus Global Land Cover Layers",
+      citation = "Zanaga D et al. (2022) ESA WorldCover 10 m 2021 v200",
       method = "bilinear",
       note = "Tree cover is a fraction, not host identity.",
       fetch = function(path, res) {
@@ -157,19 +170,46 @@ atlas_record_layer <- function(entry, grid = "draft") {
 # cut away.
 ATLAS_SOURCE_WINDOW <- c(xmin = -180, xmax = -40, ymin = 5, ymax = 85)
 
-#' Cut a longitude/latitude source down to the region before projecting.
+#' The region window, expressed in a source's own coordinate system.
+#'
+#' Sources are not all in longitude and latitude: SoilGrids is 58,034 x 159,246
+#' cells in Interrupted Goode Homolosine. Projecting the window into the
+#' source's own system is what makes a crop possible at all — without it, terra
+#' is asked to warp nine billion cells and simply grinds.
+atlas_region_window <- function(crs_out) {
+  longitudes <- seq(ATLAS_SOURCE_WINDOW[["xmin"]], ATLAS_SOURCE_WINDOW[["xmax"]], by = 2)
+  latitudes <- seq(ATLAS_SOURCE_WINDOW[["ymin"]], ATLAS_SOURCE_WINDOW[["ymax"]], by = 2)
+  edge <- rbind(
+    cbind(longitudes, ATLAS_SOURCE_WINDOW[["ymin"]]),
+    cbind(longitudes, ATLAS_SOURCE_WINDOW[["ymax"]]),
+    cbind(ATLAS_SOURCE_WINDOW[["xmin"]], latitudes),
+    cbind(ATLAS_SOURCE_WINDOW[["xmax"]], latitudes),
+    # Interrupted projections bend in the middle, so the interior counts too.
+    as.matrix(expand.grid(x = longitudes, y = latitudes))
+  )
+  colnames(edge) <- c("x", "y")
+  points <- terra::vect(edge, crs = "EPSG:4326")
+  terra::ext(terra::project(points, crs_out))
+}
+
+#' Cut a source down to the region before projecting it onto the grid.
 atlas_crop_to_region <- function(x) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed to build layers: install.packages('terra')", call. = FALSE)
   }
-  if (!terra::is.lonlat(x)) {
-    return(x)
+  window <- if (terra::is.lonlat(x)) {
+    terra::ext(
+      ATLAS_SOURCE_WINDOW[["xmin"]], ATLAS_SOURCE_WINDOW[["xmax"]],
+      ATLAS_SOURCE_WINDOW[["ymin"]], ATLAS_SOURCE_WINDOW[["ymax"]]
+    )
+  } else {
+    atlas_region_window(terra::crs(x))
   }
-  window <- terra::ext(
-    ATLAS_SOURCE_WINDOW[["xmin"]], ATLAS_SOURCE_WINDOW[["xmax"]],
-    ATLAS_SOURCE_WINDOW[["ymin"]], ATLAS_SOURCE_WINDOW[["ymax"]]
-  )
-  terra::crop(x, terra::intersect(window, terra::ext(x)), snap = "out")
+  overlap <- terra::intersect(window, terra::ext(x))
+  if (is.null(overlap)) {
+    stop("this source does not cover North America", call. = FALSE)
+  }
+  terra::crop(x, overlap, snap = "out")
 }
 
 #' Put a raster onto a named grid: same projection, extent and cell size.
