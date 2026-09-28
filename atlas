@@ -3,4 +3,16 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ATLAS_ROOT="$here" Rscript "$here/inst/run.R" "$@"
+
+# R's Windows installer does not add R to PATH, so fall back to the usual
+# install location before giving up.
+rscript="$(command -v Rscript || true)"
+if [ -z "$rscript" ]; then
+  rscript="$(ls -d "/c/Program Files/R"/R-*/bin/Rscript.exe 2>/dev/null | sort -V | tail -1 || true)"
+fi
+if [ -z "$rscript" ]; then
+  echo "Rscript not found. Install R 4.x: https://cran.r-project.org/bin/windows/base/" >&2
+  exit 1
+fi
+
+ATLAS_ROOT="$here" "$rscript" "$here/inst/run.R" "$@"

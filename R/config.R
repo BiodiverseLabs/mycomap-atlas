@@ -2,8 +2,17 @@
 # container is an environment variable, so the same code runs in both.
 
 #' Directory holding every pulled and derived file. Never committed.
+#'
+#' Anchored on ATLAS_ROOT rather than the working directory: plumber runs an
+#' API file from that file's own directory, so a relative "data" would resolve
+#' to inst/plumber/data and the server would report an empty dataset.
 atlas_data_dir <- function() {
-  Sys.getenv("ATLAS_DATA_DIR", unset = "data")
+  explicit <- Sys.getenv("ATLAS_DATA_DIR", unset = "")
+  if (nzchar(explicit)) {
+    return(explicit)
+  }
+  root <- Sys.getenv("ATLAS_ROOT", unset = "")
+  if (nzchar(root)) file.path(root, "data") else "data"
 }
 
 #' A path inside the data directory. With create = TRUE the parent is made.

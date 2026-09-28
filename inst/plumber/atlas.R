@@ -25,7 +25,19 @@ cached_occurrences <- function() {
 
 cached_taxa <- function() {
   if (is.null(cache$taxa)) {
-    cache$taxa <- atlas_taxon_fingerprints(cached_occurrences())
+    # The pull already wrote this; recomputing 17k fingerprints per boot is
+    # pure waste. Fall back to computing them if the file is missing or empty.
+    path <- atlas_path("occurrences", "taxa-latest.json")
+    from_file <- if (file.exists(path)) {
+      jsonlite::fromJSON(path, simplifyVector = TRUE)
+    } else {
+      NULL
+    }
+    cache$taxa <- if (is.data.frame(from_file) && nrow(from_file)) {
+      from_file
+    } else {
+      atlas_taxon_fingerprints(cached_occurrences())
+    }
   }
   cache$taxa
 }
@@ -50,14 +62,20 @@ function() {
   if (is.null(manifest)) {
     return(list(ready = FALSE))
   }
-  list(
+  out <- list(
     ready = TRUE,
     pulledAt = manifest$pulled_at,
     records = manifest$records,
     taxa = manifest$taxa,
-    fingerprint = manifest$fingerprint,
-    since = manifest$since
+    fingerprint = manifest$fingerprint
   )
+  # A full pull has no since date. Leave the field out rather than shipping an
+  # NA, which serialises as an empty object.
+  since <- manifest$since
+  if (length(since) && !is.na(since)) {
+    out$since <- as.character(since)
+  }
+  out
 }
 
 #* Taxa with their record and locality counts.
@@ -87,33 +105,19 @@ function(search = "", min_localities = 0, limit = 100, offset = 0) {
 #* @get /api/taxa/<name>
 #* @serializer unboxedJSON
 function(name, res) {
-  rows <- cached_taxa()
-  row <- rows[rows$scientific_name == name, , drop = FALSE]
-  if (!nrow(row)) {
+  row <- atlas_taxon_row(cached_taxa(), atlas_decode_name(name))
+  if (is.null(row)) {
     res$status <- 404L
     return(list(error = "no such taxon in the current pull"))
   }
-  as.list(row[1, ])
+  row
 }
 
 #* Where a taxon has been collected, aggregated to the public grid.
 #* @get /api/taxa/<name>/cells
 #* @serializer unboxedJSON
 function(name) {
-  records <- cached_occurrences()
-  subset <- records[records$scientific_name == name, , drop = FALSE]
-  if (!nrow(subset)) {
-    return(list(name = name, degrees = ATLAS_PUBLIC_DEGREES, cells = list()))
-  }
-  keys <- atlas_locality_key(subset$latitude, subset$longitude,
-                             degrees = ATLAS_PUBLIC_DEGREES)
-  counts <- table(keys)
-  parts <- do.call(rbind, strsplit(names(counts), ":", fixed = TRUE))
-  cells <- data.frame(
-    lat = (as.numeric(parts[, 1]) + 0.5) * ATLAS_PUBLIC_DEGREES,
-    lng = (as.numeric(parts[, 2]) + 0.5) * ATLAS_PUBLIC_DEGREES,
-    records = as.integer(counts),
-    stringsAsFactors = FALSE
-  )
-  list(name = name, degrees = ATLAS_PUBLIC_DEGREES, cells = cells)
+  decoded <- atlas_decode_name(name)
+  cells <- atlas_public_cells(cached_occurrences(), decoded)
+  list(name = decoded, degrees = ATLAS_PUBLIC_DEGREES, cells = cells)
 }
