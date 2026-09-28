@@ -17,7 +17,9 @@ records. See README.md for the pipeline and data layout.
   re-cluster, so invalidation keys on the record-set fingerprint.
 - **Never publish a coordinate.** `data/` is never committed. Anything drawn is
   aggregated to 0.1 degrees; anything published is 1 km or coarser; no training
-  points appear in any artifact.
+  points appear in any artifact. No taxon is singled out as sensitive at the
+  moment (Steve, 2026-09-28) — the resolution floor above applies to all of
+  them. Raise it again before the first public release of maps.
 - **Only the container publishes a release.** Iterate natively, but anything
   that reaches .org is built in the pinned Docker image.
 - **Releases are reproducible.** Each records the record-set fingerprint, layer

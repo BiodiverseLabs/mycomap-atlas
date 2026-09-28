@@ -29,7 +29,13 @@ resolution was technically within policy.
   the machine that pulled them. That directory is git-ignored, and CI refuses
   commits that would add data files.
 - **Published output** is aggregated: 0.1° for anything drawn, 1 km or coarser
-  for anything published, and no training points in any artifact.
+  for anything published, and no training points in any artifact. That floor
+  applies to every taxon, and it is the protection doing the work.
+- **No taxon is currently singled out as sensitive** (decided 2026-09-28).
+  There is no suppression list and no taxon gets extra coarsening. This is
+  revisited before the first public release of maps, and whenever a taxon in
+  the dataset becomes IUCN-listed or commercially collected. Report anything
+  that looks like it needs the policy sooner — see above.
 - **Credentials** are never in this repository. Records arrive through an SSH
   host configured on the operator's machine, and that route is read-only,
   enforced by the database rather than by this code.
