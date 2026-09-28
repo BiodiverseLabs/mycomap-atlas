@@ -78,6 +78,14 @@ function() {
   out
 }
 
+#* Environmental layers: what is registered, and what of it is built.
+#* @param grid draft or production
+#* @get /api/layers
+#* @serializer unboxedJSON
+function(grid = "draft") {
+  list(grid = grid, layers = atlas_layer_overview(grid))
+}
+
 #* Taxa with their record and locality counts.
 #* @param search Part of a scientific name
 #* @param min_localities Smallest number of independent localities

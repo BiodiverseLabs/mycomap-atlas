@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Overview" },
   { href: "/taxa", label: "Taxa" },
+  { href: "/layers", label: "Layers" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

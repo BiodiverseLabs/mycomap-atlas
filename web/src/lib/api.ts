@@ -34,6 +34,25 @@ export interface Cells {
   cells: Cell[];
 }
 
+export interface Layer {
+  id: string;
+  title: string;
+  source: string;
+  license: string;
+  citation: string;
+  note?: string;
+  built: boolean;
+  bands?: string[];
+  cellSizeM?: number;
+  sizeMb?: number;
+  builtAt?: string;
+}
+
+export interface LayersResponse {
+  grid: string;
+  layers: Layer[];
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path);
   if (!response.ok) {
@@ -65,6 +84,10 @@ export function getTaxa(params: {
 export async function getTaxaCount(minLocalities: number): Promise<number> {
   const page = await getTaxa({ minLocalities, limit: 1 });
   return page.total;
+}
+
+export function getLayers(grid = "draft"): Promise<LayersResponse> {
+  return get<LayersResponse>(`/api/layers?grid=${encodeURIComponent(grid)}`);
 }
 
 export function getTaxon(name: string): Promise<Taxon> {

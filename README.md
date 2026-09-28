@@ -22,7 +22,7 @@ more carry provisional temp codes, which exist in no other dataset.
 | Stage | State |
 |---|---|
 | 1. Pull the eligible universe from .org | built |
-| 2. Environmental layers (climate, soil, terrain, forest, host), versioned | next |
+| 2. Environmental layers on the grid | climate, elevation and terrain built on the draft grid; soil and land cover registered |
 | 3. Target-group background from the same validated universe | next |
 | 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | |
@@ -61,6 +61,36 @@ cd web && pnpm install && pnpm dev    # app on :5101
 
 The app follows mycomap.org's design tokens so the two navigate alike, since
 .org will link to it.
+
+## The grid
+
+Everything is modelled on North America Albers Equal Area Conic, so a cell
+covers the same ground in Oaxaca and in Nunavut. That matters twice: predicted
+habitat is reported in km², and spatial blocking needs real distances.
+
+Two grids share one extent and origin, and their cells nest exactly:
+
+| Grid | Cell | Cells | Purpose |
+|---|---|---|---|
+| `draft` | 5 km | 3.7 million | developing the pipeline |
+| `production` | 1 km | 94 million | releases |
+
+```bash
+./atlas build-layers --only=elevation,bioclim,terrain
+```
+
+```bash
+./atlas layers
+```
+
+Sources are global, because the obvious United States products (TreeMap, NLCD,
+PAD-US) stop at the lower 48 while British Columbia alone holds 8% of the
+records. What that costs: there is no continental tree-species layer, so v1
+carries tree cover as a fraction rather than host identity, and a model cannot
+be read as knowing which host a fungus needs.
+
+On the draft grid, 99.3% of pulled records land on a cell with climate data;
+five records fall outside the grid altogether.
 
 ## Data
 

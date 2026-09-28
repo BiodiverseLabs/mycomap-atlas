@@ -9,6 +9,11 @@ atlas_usage <- function() {
   message("      --chunk-size=N       records per query (default 20000)")
   message("      --max-rows=N         stop after N records (smoke test)")
   message("      --dry-run            print the SQL and exit")
+  message("  build-layers       build environmental layers onto a grid")
+  message("      --grid=draft|production   which grid (default draft, 5 km)")
+  message("      --only=a,b                build only these layers")
+  message("      --overwrite               rebuild layers already built")
+  message("  layers             which layers are registered and built")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -34,6 +39,10 @@ atlas_parse_flags <- function(args) {
     flags[[gsub("-", "_", key)]] <- value
   }
   flags
+}
+
+atlas_flag_grid <- function(flags) {
+  if (is.null(flags$grid)) "draft" else as.character(flags$grid)
 }
 
 atlas_flag_number <- function(flags, name, default) {
@@ -72,6 +81,23 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         max_rows = atlas_flag_number(flags, "max_rows", Inf),
         dry_run = isTRUE(flags$dry_run)
       )
+      invisible(0L)
+    },
+    "build-layers" = {
+      only <- if (is.null(flags$only)) {
+        NULL
+      } else {
+        trimws(strsplit(as.character(flags$only), ",", fixed = TRUE)[[1]])
+      }
+      atlas_build_layers(
+        ids = only,
+        grid = atlas_flag_grid(flags),
+        overwrite = isTRUE(flags$overwrite)
+      )
+      invisible(0L)
+    },
+    "layers" = {
+      print(atlas_layer_status(atlas_flag_grid(flags)), row.names = FALSE)
       invisible(0L)
     },
     "status" = {

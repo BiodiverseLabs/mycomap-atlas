@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 
 import Layout from "@/components/Layout";
+import Layers from "@/pages/Layers";
 import Overview from "@/pages/Overview";
 import Taxa from "@/pages/Taxa";
 import Taxon from "@/pages/Taxon";
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/" component={Overview} />
           <Route path="/taxa" component={Taxa} />
           <Route path="/taxa/:name" component={Taxon} />
+          <Route path="/layers" component={Layers} />
           <Route>
             <p className="text-muted-foreground">Page not found.</p>
           </Route>
