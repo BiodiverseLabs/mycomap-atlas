@@ -9,7 +9,7 @@ Description: Fits and publishes species distribution models for fungi from
     background drawn from the same validated universe, evaluates them with
     spatially blocked folds, and publishes versioned map and metric releases
     that mycomap.org and MycoMap Vision read over HTTP.
-License: file LICENSE
+License: GPL (>= 3)
 Encoding: UTF-8
 Imports:
     digest,

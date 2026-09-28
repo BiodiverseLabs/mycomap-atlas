@@ -86,3 +86,8 @@ Layers live in the registry in `R/layers.R`. A new entry needs:
 Keep them to one topic. Explain any new dependency — the web app's dependency
 tree is a supply-chain surface, and R packages are pulled at build time. Expect
 review before merge; nothing merges automatically.
+
+## Licence
+
+Contributions are licensed under GPL-3.0-or-later, the same as the project. By
+opening a pull request you confirm you can license your work that way.

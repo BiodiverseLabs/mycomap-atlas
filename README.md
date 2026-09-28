@@ -123,3 +123,13 @@ map is aggregated to 0.1 degrees, and published rasters are 1 km or coarser.
 ```bash
 Rscript -e "testthat::test_local()"
 ```
+
+## Licence
+
+GPL-3.0-or-later; see [LICENSE.md](LICENSE.md). The modelling stack Atlas is
+built on — terra, ENMeval, blockCV, ecospat — is GPL, so this is the licence
+that fits without an argument.
+
+Published maps and metrics are a separate question from the code. Their terms
+follow the source layers, and WorldClim's CC BY-SA 4.0 has to be settled before
+the first release.

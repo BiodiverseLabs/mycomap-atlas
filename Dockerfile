@@ -8,7 +8,7 @@ FROM rocker/geospatial:latest
 RUN R -e "install.packages(c('digest','jsonlite','plumber','targets','tarchetypes','maxnet','ENMeval','blockCV','ecospat','xgboost','testthat'), repos = 'https://cloud.r-project.org')"
 
 WORKDIR /atlas
-COPY DESCRIPTION NAMESPACE LICENSE _targets.R ./
+COPY DESCRIPTION NAMESPACE LICENSE.md _targets.R ./
 COPY R ./R
 COPY inst ./inst
 COPY tests ./tests
