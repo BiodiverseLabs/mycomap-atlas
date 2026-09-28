@@ -1,0 +1,215 @@
+# The phase 1 training universe: records mycomap.org has validated by DNA, with
+# coordinates good enough for a 1 km model, in North America.
+#
+# Eligibility (decided 2026-09-28):
+#   - green in at least one validation project, and red in none;
+#   - coordinates present, not obscured, accuracy within 1 km where recorded;
+#   - in North America (or a Puerto Rico record with a blank country);
+#   - a species-level name, provisional temp codes included.
+#
+# Records green only in a fourth or later project are missed, because .org
+# flattens three validation slots. MycoMap Vision has the same limitation, and
+# the fix for both is a shared view on .org rather than a change here.
+#
+# Unassessed records and eDNA are deliberately out of phase 1.
+
+ATLAS_OCCURRENCE_FIELDS <- c(
+  "id", "observation_id", "source", "scientific_name", "genus", "observed_on",
+  "latitude", "longitude", "state", "country", "sequence_id", "updated_at"
+)
+
+#' One page of the eligible universe, ordered by id for keyset paging.
+atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
+  stopifnot(length(after_id) == 1, is.numeric(after_id), after_id >= 0)
+  stopifnot(length(limit) == 1, is.numeric(limit), limit > 0)
+  if (!is.null(since) && !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", since)) {
+    stop("since must be a YYYY-MM-DD date", call. = FALSE)
+  }
+  since_clause <- if (is.null(since)) "" else {
+    sprintf("AND o.updated_at >= date '%s'", since)
+  }
+  countries <- paste(sprintf("'%s'", ATLAS_NA_COUNTRIES), collapse = ", ")
+  statuses <- paste(
+    "coalesce(o.validation_status_1, '')",
+    "coalesce(o.validation_status_2, '')",
+    "coalesce(o.validation_status_3, '')",
+    sep = ", "
+  )
+  sql <- sprintf(
+    "SELECT %s FROM observations o
+     WHERE 'yes' IN (%s)
+       AND 'no' NOT IN (%s)
+       AND o.latitude IS NOT NULL
+       AND o.longitude IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM observation_cache c
+         WHERE c.source = 'inat'
+           AND c.source_observation_id = o.observation_id
+           AND (c.coordinates_obscured = true OR c.positional_accuracy > %d))
+       AND (o.country IN (%s) OR o.state = 'Puerto Rico')
+       AND o.scientific_name IS NOT NULL
+       AND o.scientific_name NOT IN ('', 'Fungi', 'Unknown')
+       AND strpos(o.scientific_name, ' ') > 0
+       AND right(lower(o.scientific_name), 4) <> ' sp.'
+       AND right(lower(o.scientific_name), 3) <> ' sp'
+       %s
+       AND o.id > %d
+     ORDER BY o.id
+     LIMIT %d",
+    paste0("o.", ATLAS_OCCURRENCE_FIELDS, collapse = ", "),
+    statuses, statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
+    as.integer(after_id), as.integer(limit)
+  )
+  atlas_one_line(sql)
+}
+
+#' Pull the eligible universe in pages, keeping every page as fetched.
+atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
+                                   max_rows = Inf, host = atlas_sql_host(),
+                                   dry_run = FALSE, quiet = FALSE) {
+  if (isTRUE(dry_run)) {
+    cat(atlas_occurrence_sql(0, chunk_size, since), "\n", sep = "")
+    return(invisible(NULL))
+  }
+
+  stamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
+  raw_dir <- atlas_path("raw", "occurrences", stamp)
+  dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
+
+  chunks <- list()
+  after_id <- 0
+  total <- 0
+
+  repeat {
+    want <- if (is.finite(max_rows)) min(chunk_size, max_rows - total) else chunk_size
+    if (want <= 0) break
+
+    page <- atlas_parse_tsv(
+      atlas_run_sql(atlas_occurrence_sql(after_id, want, since), host = host)
+    )
+    if (!nrow(page)) break
+
+    n <- length(chunks) + 1L
+    atlas_write_tsv_gz(page, file.path(raw_dir, sprintf("chunk-%04d.tsv.gz", n)))
+    chunks[[n]] <- page
+    total <- total + nrow(page)
+    if (!quiet) {
+      message(sprintf("  page %d: %d records (%d so far)", n, nrow(page), total))
+    }
+
+    after_id <- max(as.numeric(page$id))
+    if (nrow(page) < want) break
+  }
+
+  occurrences <- if (length(chunks)) do.call(rbind, chunks) else atlas_empty_occurrences()
+  atlas_check_occurrences(occurrences)
+
+  combined <- atlas_path("occurrences", sprintf("occurrences-%s.tsv.gz", stamp),
+                         create = TRUE)
+  atlas_write_tsv_gz(occurrences, combined)
+
+  taxa <- atlas_taxon_fingerprints(occurrences)
+  manifest <- list(
+    stamp = stamp,
+    pulled_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    since = if (is.null(since)) NA_character_ else since,
+    host = host,
+    records = nrow(occurrences),
+    taxa = nrow(taxa),
+    fingerprint = atlas_fingerprint(occurrences),
+    file = basename(combined),
+    sql = atlas_occurrence_sql(0, chunk_size, since)
+  )
+  atlas_write_json(manifest, atlas_path("occurrences", "latest.json", create = TRUE))
+  atlas_write_json(taxa, atlas_path("occurrences", "taxa-latest.json", create = TRUE))
+
+  if (!quiet) {
+    message(sprintf("pulled %d records across %d taxa -> %s",
+                    nrow(occurrences), nrow(taxa), combined))
+  }
+  invisible(manifest)
+}
+
+#' An empty pull, with the columns a real one has.
+atlas_empty_occurrences <- function() {
+  out <- as.data.frame(
+    matrix(character(), nrow = 0, ncol = length(ATLAS_OCCURRENCE_FIELDS)),
+    stringsAsFactors = FALSE
+  )
+  names(out) <- ATLAS_OCCURRENCE_FIELDS
+  out
+}
+
+#' Refuse a pull that broke the eligibility rule on the way here.
+atlas_check_occurrences <- function(df) {
+  if (!nrow(df)) return(invisible(df))
+  missing <- setdiff(ATLAS_OCCURRENCE_FIELDS, names(df))
+  if (length(missing)) {
+    stop("pull is missing columns: ", paste(missing, collapse = ", "), call. = FALSE)
+  }
+  if (anyNA(df$latitude) || anyNA(df$longitude)) {
+    stop("pull contains a record without coordinates", call. = FALSE)
+  }
+  if (anyNA(df$scientific_name) || any(!nzchar(df$scientific_name))) {
+    stop("pull contains a record without a name", call. = FALSE)
+  }
+  if (anyDuplicated(df$id)) {
+    stop("pull contains duplicate record ids", call. = FALSE)
+  }
+  invisible(df)
+}
+
+atlas_write_tsv_gz <- function(df, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  con <- gzfile(path, open = "wt")
+  on.exit(close(con), add = TRUE)
+  utils::write.table(df, con, sep = "\t", row.names = FALSE, quote = FALSE, na = "")
+  invisible(path)
+}
+
+atlas_write_json <- function(x, path) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  writeLines(
+    jsonlite::toJSON(x, dataframe = "rows", auto_unbox = TRUE, pretty = TRUE,
+                     na = "null"),
+    path
+  )
+  invisible(path)
+}
+
+#' The manifest of the last pull, or NULL when nothing has been pulled.
+atlas_read_manifest <- function() {
+  path <- atlas_path("occurrences", "latest.json")
+  if (!file.exists(path)) return(NULL)
+  jsonlite::fromJSON(path, simplifyVector = TRUE)
+}
+
+#' The records from the last pull (or a given file).
+atlas_read_occurrences <- function(path = NULL) {
+  if (is.null(path)) {
+    manifest <- atlas_read_manifest()
+    if (is.null(manifest)) {
+      stop("nothing pulled yet: run ./atlas pull-occurrences", call. = FALSE)
+    }
+    path <- atlas_path("occurrences", manifest$file)
+  }
+  utils::read.delim(
+    gzfile(path), sep = "\t", quote = "", comment.char = "", na.strings = "",
+    colClasses = "character", check.names = FALSE, stringsAsFactors = FALSE
+  )
+}
+
+#' Print what the last pull holds.
+atlas_status <- function() {
+  manifest <- atlas_read_manifest()
+  if (is.null(manifest)) {
+    message("no pull yet. run: ./atlas pull-occurrences")
+    return(invisible(NULL))
+  }
+  message("last pull:   ", manifest$pulled_at)
+  message("records:     ", manifest$records)
+  message("taxa:        ", manifest$taxa)
+  message("fingerprint: ", substr(manifest$fingerprint, 1, 12))
+  message("file:        ", atlas_path("occurrences", manifest$file))
+  invisible(manifest)
+}

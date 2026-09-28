@@ -1,0 +1,32 @@
+Package: mycomapatlas
+Type: Package
+Title: MycoMap Atlas: Distribution Models from DNA-Validated Records
+Version: 0.0.0.9000
+Authors@R: person("MycoMap", role = c("aut", "cre"), email = "steve@biodiverselabs.io")
+Description: Fits and publishes species distribution models for fungi from
+    DNA-validated MycoMap records. Reads mycomap.org through its read-only SQL
+    route, fits Maxent (maxnet) and boosted-tree models against a target-group
+    background drawn from the same validated universe, evaluates them with
+    spatially blocked folds, and publishes versioned map and metric releases
+    that mycomap.org and MycoMap Vision read over HTTP.
+License: file LICENSE
+Encoding: UTF-8
+Imports:
+    digest,
+    jsonlite,
+    stats,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    plumber,
+    targets,
+    tarchetypes,
+    terra,
+    sf,
+    maxnet,
+    ENMeval,
+    blockCV,
+    ecospat,
+    xgboost,
+    paws.storage
+Config/testthat/edition: 3

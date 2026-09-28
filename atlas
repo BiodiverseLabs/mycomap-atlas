@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Command line for MycoMap Atlas (Git Bash, macOS, Linux).
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ATLAS_ROOT="$here" Rscript "$here/inst/run.R" "$@"

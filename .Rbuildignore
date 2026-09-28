@@ -1,0 +1,10 @@
+^web$
+^data$
+^_targets
+^Dockerfile$
+^atlas$
+^atlas\.ps1$
+^CLAUDE\.md$
+^\.github$
+^renv$
+^renv\.lock$

@@ -1,0 +1,27 @@
+# Pulled records, environmental layers, model artifacts, rasters. Never commit:
+# these hold exact coordinates of DNA-validated collections.
+data/
+_targets/
+
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+renv/library/
+renv/staging/
+renv/python/
+*.Rcheck/
+*.tar.gz
+
+# Rasters and model files, wherever they land
+*.tif
+*.tiff
+*.rds
+
+# Web
+node_modules/
+web/dist/
+
+.env
+.DS_Store
