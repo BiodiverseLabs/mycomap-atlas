@@ -14,6 +14,11 @@ atlas_usage <- function() {
   message("      --only=a,b                build only these layers")
   message("      --overwrite               rebuild layers already built")
   message("  layers             which layers are registered and built")
+  message("  training           build one taxon's presences, background and predictors")
+  message("      --taxon=\"Name\"            which taxon (required)")
+  message("      --grid=draft|production   which grid (default draft)")
+  message("      --background=N            background records to draw (default 10000)")
+  message("      --buffer-km=N             accessible area around the records (default 500)")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -98,6 +103,18 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "layers" = {
       print(atlas_layer_status(atlas_flag_grid(flags)), row.names = FALSE)
+      invisible(0L)
+    },
+    "training" = {
+      if (is.null(flags$taxon)) {
+        stop("training needs --taxon=\"Scientific name\"", call. = FALSE)
+      }
+      atlas_build_training(
+        name = as.character(flags$taxon),
+        grid = atlas_flag_grid(flags),
+        n_background = atlas_flag_number(flags, "background", 10000),
+        buffer_km = atlas_flag_number(flags, "buffer_km", 500)
+      )
       invisible(0L)
     },
     "status" = {

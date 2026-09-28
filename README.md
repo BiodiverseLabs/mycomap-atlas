@@ -23,7 +23,7 @@ more carry provisional temp codes, which exist in no other dataset.
 |---|---|
 | 1. Pull the eligible universe from .org | built |
 | 2. Environmental layers on the grid | climate, elevation and terrain built on the draft grid; soil and land cover registered |
-| 3. Target-group background from the same validated universe | next |
+| 3. Target-group background from the same validated universe | built |
 | 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | |
 | 6. Release: rasters and metrics published together, with rollback | |
@@ -91,6 +91,31 @@ be read as knowing which host a fungus needs.
 
 On the draft grid, 99.3% of pulled records land on a cell with climate data;
 five records fall outside the grid altogether.
+
+## Training data
+
+A taxon's training table is its presences — one row per occupied cell — plus a
+background drawn from the **target group**: every DNA-validated record of every
+taxon, inside that taxon's accessible area.
+
+```bash
+./atlas training --taxon="Trametes versicolor"
+```
+
+Why not a random background: six states and provinces hold 61% of the records,
+and Indiana alone holds 12%. Sampled at random from the continent, background
+points would report that Indiana's climate suits almost every fungus. The
+target group carries the same bias as the presences, so the model answers a
+better question — given that somebody collected and sequenced a fungus here,
+what makes it this species rather than another?
+
+Two details matter. The background keeps its density, so a cell collected from
+a hundred times counts a hundred times; that is the effort signal, not noise.
+And the accessible area is the taxon's own cells buffered by 500 km, because a
+species is not absent from Yukon merely because nobody looked there.
+
+The seed comes from the taxon's record-set fingerprint, so the same records
+always draw the same background, and changed records draw a new one.
 
 ## Data
 
