@@ -151,3 +151,187 @@ test_that("a map never asks the model about ground outside the accessible area",
   expect_gt(inside, 0L)
   expect_lt(seen, inside * 1.1)
 })
+
+test_that("folds are dealt so every fold holds a detection when that is possible", {
+  # Twenty blocks, detections in only five of them. A careless deal leaves
+  # folds with nothing to score; the balanced one does not.
+  block <- rep(0:19, each = 10)
+  x <- block * 1e5 + 5e4
+  y <- rep(0, length(x))
+  presence <- as.integer(block %in% c(0, 4, 8, 12, 16) & rep(c(1, rep(0, 9)), 20) == 1)
+  folds <- atlas_spatial_folds(x, y, k = 5, block_km = 100, seed = 3L, presence = presence)
+  expect_equal(sort(unique(folds[presence == 1L])), 1:5)
+  # Blocks still stay whole.
+  expect_true(all(tapply(folds, floor(x / 1e5), function(f) length(unique(f))) == 1L))
+  expect_equal(folds, atlas_spatial_folds(x, y, k = 5, block_km = 100, seed = 3L,
+                                          presence = presence))
+})
+
+test_that("Maxent fitted by appending presences matches maxnet's own way", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 300, n_presence = 40)
+  # The simulation copies presences from background rows; a site is never
+  # both, so nudge them apart as sites are.
+  found <- training$presence == 1L
+  training$v2[found] <- training$v2[found] + 1e-3
+  ours <- atlas_fit_maxnet(training, classes = "lq")
+  predictors <- training[, atlas_predictor_columns(training)]
+  theirs <- maxnet::maxnet(training$presence, predictors,
+                           maxnet::maxnet.formula(training$presence, predictors, classes = "lq"))
+  expect_equal(atlas_suitability(ours, predictors), atlas_suitability(theirs, predictors),
+               tolerance = 1e-6)
+})
+
+test_that("scores and maps hold effort at one value, whatever a site's effort was", {
+  score <- function(model, newdata) newdata$effort
+  held <- atlas_score_at_effort(score, effort_at = 1.5)
+  expect_equal(held(NULL, data.frame(v1 = 1:3, effort = c(0, 2, 7))), rep(1.5, 3))
+  # A raster block has no effort column at all; it is added.
+  expect_equal(held(NULL, data.frame(v1 = 1:2)), rep(1.5, 2))
+  # Without effort in the design the score is untouched.
+  expect_identical(atlas_score_at_effort(score, NULL), score)
+})
+
+test_that("the effort a map is drawn at is the median of the detection sites", {
+  training <- data.frame(presence = c(1L, 1L, 1L, 0L), effort = c(0, 1, 5, 9))
+  expect_equal(atlas_effort_level(training), 1)
+  expect_null(atlas_effort_level(data.frame(presence = 1L)))
+})
+
+test_that("collecting effort alone does not make a habitat map", {
+  skip_if_not_installed("maxnet")
+  # Sites in the east were worked far harder, and the species is nothing but
+  # a random share of what was collected: no habitat preference at all. A map
+  # that ignores effort puts the species in the east; holding effort fixed,
+  # the map should be nearly flat along v1.
+  set.seed(21)
+  n <- 3000
+  v1 <- stats::runif(n, 0, 10)
+  records <- 1 + stats::rpois(n, exp(0.35 * v1))
+  found <- stats::runif(n) < 1 - (1 - 0.01)^records
+  # v2 is noise; maxnet cannot fit a single predictor.
+  training <- data.frame(presence = as.integer(found), cell = seq_len(n), x = 0, y = 0,
+                         v1 = v1, v2 = stats::runif(n), effort = log(records))
+  grid <- data.frame(v1 = seq(0, 10, length.out = 50), v2 = 0.5)
+
+  with_effort <- atlas_fit_maxnet(training, classes = "l")
+  held <- atlas_score_at_effort(atlas_suitability, atlas_effort_level(training))
+  flat <- held(with_effort, grid)
+
+  without <- atlas_fit_maxnet(training[, setdiff(names(training), "effort")], classes = "l")
+  biased <- atlas_suitability(without, grid)
+
+  expect_gt(stats::cor(biased, grid$v1), 0.9)
+  expect_lt(abs(log(max(flat) / min(flat))), 0.25 * abs(log(max(biased) / min(biased))))
+})
+
+test_that("tuning picks the candidate that scores best on the folds it is given", {
+  training <- simulated_training(n_background = 300, n_presence = 60)
+  set.seed(2)
+  training$x <- stats::runif(nrow(training), 0, 1e6)
+  folds <- atlas_spatial_folds(training$x, training$y, k = 3, block_km = 100)
+  # A fake learner whose "model" is its setting: +1 ranks the simulated
+  # species the right way up, -1 upside down, 0 not at all.
+  algo <- list(
+    default = function(training) list(sign = 0),
+    grid = function(training) list(list(sign = -1), list(sign = 1), list(sign = 0)),
+    fit = function(train, params, seed = 1L, tuning = FALSE) params$sign,
+    score = function(model, newdata) model * -abs(newdata$v1 - 1)
+  )
+  tuned <- atlas_tune(training, folds, algo)
+  expect_equal(tuned$params$sign, 1)
+  expect_equal(length(tuned$tried), 3L)
+})
+
+test_that("nested tuning never lets a setting see the region it is scored on", {
+  training <- simulated_training(n_background = 300, n_presence = 60)
+  set.seed(5)
+  training$x <- stats::runif(nrow(training), 0, 1e6)
+  training$cell <- seq_len(nrow(training))
+  folds <- atlas_spatial_folds(training$x, training$y, k = 3, block_km = 100,
+                               presence = training$presence)
+  touched <- list()
+  algo <- list(
+    default = function(training) list(),
+    grid = function(training) list(list(a = 1), list(a = 2)),
+    fit = function(train, params, seed = 1L, tuning = FALSE) {
+      touched[[length(touched) + 1L]] <<- train$cell
+      0
+    },
+    score = function(model, newdata) stats::runif(nrow(newdata))
+  )
+  scores <- atlas_nested_cross_validate(training, folds, algo, block_km = 100)
+  expect_equal(nrow(scores), 3L)
+  # Fits come in fold order: fold 1's tuning fits and final fit, then fold
+  # 2's. Every one made for fold f used only sites outside fold f.
+  per_fold <- length(touched) / 3
+  for (f in 1:3) {
+    held <- training$cell[folds == f]
+    for (cells in touched[((f - 1) * per_fold + 1):(f * per_fold)]) {
+      expect_length(intersect(cells, held), 0L)
+    }
+  }
+})
+
+test_that("null detections are drawn from the sites, busier sites more often", {
+  training <- data.frame(presence = 0L, effort = log(c(rep(1, 900), rep(100, 100))))
+  hits <- vapply(1:40, function(i) {
+    p <- atlas_null_presence(training, 20, seed = i)
+    c(sum(p), sum(p[901:1000]))
+  }, numeric(2))
+  expect_true(all(hits[1, ] == 20))
+  # 100 sites with 100 records each against 900 with 1: most draws land busy.
+  expect_gt(mean(hits[2, ] / 20), 0.7)
+})
+
+test_that("a real habitat signal beats the nulls, and a random species does not", {
+  skip_if_not_installed("maxnet")
+  set.seed(8)
+  n <- 1500
+  v1 <- stats::runif(n, -3, 3)
+  training <- data.frame(presence = 0L, cell = seq_len(n),
+                         x = stats::runif(n, 0, 1e6), y = stats::runif(n, 0, 1e6),
+                         v1 = v1, v2 = stats::runif(n), effort = 0)
+  real <- training
+  real$presence[sample.int(n, 80, prob = exp(-((v1 - 1)^2) / 0.3))] <- 1L
+  random <- training
+  random$presence[sample.int(n, 80)] <- 1L
+  algo <- atlas_algorithm("maxnet")
+  params <- list(classes = "lq", regmult = 1)
+  test <- function(table) {
+    folds <- atlas_spatial_folds(table$x, table$y, k = 4, block_km = 250,
+                                 presence = table$presence)
+    scores <- atlas_cross_validate(table, folds, fit = function(t) algo$fit(t, params),
+                                   score = algo$score)
+    null <- atlas_null_test(table, folds, algo, params,
+                            observed_auc = mean(scores$auc, na.rm = TRUE),
+                            observed_boyce = mean(scores$boyce, na.rm = TRUE), reps = 9)
+    atlas_skill(null, mean(scores$boyce, na.rm = TRUE), alpha = 0.1)
+  }
+  expect_equal(test(real), "passed")
+  expect_equal(test(random), "failed")
+})
+
+test_that("skill needs both a beaten null and a positive Boyce index", {
+  expect_equal(atlas_skill(list(reps = 19, auc_p = 0.05), 0.3), "passed")
+  expect_equal(atlas_skill(list(reps = 19, auc_p = 0.05), -0.1), "failed")
+  expect_equal(atlas_skill(list(reps = 19, auc_p = 0.3), 0.6), "failed")
+  expect_equal(atlas_skill(list(reps = 0), 0.6), "untested")
+  expect_equal(atlas_skill(NULL, 0.6), "untested")
+})
+
+test_that("a taxon found in too few blocks is refused, not scored on nothing", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    condition <- tryCatch(
+      atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                      fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                      buffer_km = 300, quiet = TRUE, block_km = 1000, nulls = 0),
+      error = function(e) e
+    )
+    expect_s3_class(condition, "atlas_insufficient_evidence")
+    expect_match(conditionMessage(condition), "blocks")
+  })
+})

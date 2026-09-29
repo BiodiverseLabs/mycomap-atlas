@@ -121,6 +121,27 @@ export interface Model {
   /** "rank" when colours are by percentile within the map. */
   map_scale?: string;
   map_drawn_at?: string;
+  /** Whether the map beat its null models. Fits from before there were
+   * null models have none, and read as "untested". */
+  skill?: Skill;
+  null?: ModelNull;
+  /** Settings chosen by tuning in nested spatial folds. */
+  params?: Record<string, string | number>;
+  block_source?: "blockCV" | "fixed" | "fallback";
+  presence_blocks?: number;
+}
+
+export type Skill = "passed" | "failed" | "untested";
+
+/** A model scored against null models: the same number of sites drawn at
+ * random from the surveyed sites, fitted and scored the same way. */
+export interface ModelNull {
+  reps: number;
+  auc_mean?: number;
+  auc_sd?: number;
+  auc_p?: number;
+  boyce_mean?: number;
+  boyce_p?: number;
 }
 
 /** One row of /api/models: enough for a list. The full record is getModel. */
@@ -131,6 +152,7 @@ export interface ModelSummary {
   predictors: number;
   auc_mean?: number;
   boyce_mean?: number;
+  skill?: Skill;
   map: boolean;
   built_at: string;
 }

@@ -15,6 +15,10 @@
 # rate the place in its top half counting as zero: one keen model among three
 # indifferent ones does not put a species at the top of the list.
 #
+# Only maps that beat their null models go in (R/fit.R): a map that cannot
+# tell a fungus from a random handful of collections still has a top half, and
+# would put the species everywhere.
+#
 # The index holds ranks by cell, nothing about records, and is published
 # with the maps. "Recorded nearby" comes from the 0.1 degree public cells,
 # never from coordinates.
@@ -98,9 +102,11 @@ atlas_build_here_index <- function(grid = "draft", cell_km = ATLAS_HERE_CELL_KM,
                                    min_rank = ATLAS_HERE_MIN_RANK, quiet = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   models <- atlas_model_index(grid)
-  models <- models[models$map, c("taxon", "algorithm"), drop = FALSE]
+  # Only maps that beat their null models: one that cannot tell a fungus
+  # from a random handful of collections has nothing to say about a place.
+  models <- models[models$map & models$skill == "passed", c("taxon", "algorithm"), drop = FALSE]
   rownames(models) <- NULL
-  if (!nrow(models)) stop("no maps on the ", grid, " grid to index", call. = FALSE)
+  if (!nrow(models)) stop("no maps that beat their null models on the ", grid, " grid to index", call. = FALSE)
 
   pieces <- vector("list", nrow(models))
   started <- Sys.time()

@@ -1411,7 +1411,7 @@
           },
           "presences": {
             "type": "integer",
-            "description": "Occupied grid cells the model learned from."
+            "description": "Detection sites: survey sites (records gathered at a 5 km spacing) where the taxon was collected."
           },
           "background": {
             "type": "integer",
@@ -1440,7 +1440,7 @@
           },
           "block_km": {
             "type": "number",
-            "description": "Size of the spatial blocks folds hold out."
+            "description": "Width of the square blocks used for spatial cross-validation."
           },
           "folds": {
             "type": "array",
@@ -1535,6 +1535,55 @@
           },
           "package_version": {
             "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "untested"
+            ],
+            "description": "Whether the map beat null models (random draws of surveyed sites, busier sites more often) on blocked AUC at p <= 0.05 and has a positive blocked Boyce index. Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
+          },
+          "null": {
+            "type": "object",
+            "description": "Null-model comparison: reps, auc_mean, auc_sd, auc_p, boyce_mean, boyce_p.",
+            "properties": {
+              "reps": {
+                "type": "integer"
+              },
+              "auc_mean": {
+                "type": "number"
+              },
+              "auc_sd": {
+                "type": "number"
+              },
+              "auc_p": {
+                "type": "number"
+              },
+              "boyce_mean": {
+                "type": "number"
+              },
+              "boyce_p": {
+                "type": "number"
+              }
+            }
+          },
+          "params": {
+            "type": "object",
+            "description": "Settings chosen by tuning in spatial folds (Maxent: classes, regmult; boosted trees: max_depth, nrounds; random forest: mtry)."
+          },
+          "block_source": {
+            "type": "string",
+            "description": "blockCV when set from the autocorrelation range of detections, fixed when given, fallback when blockCV could not decide."
+          },
+          "presence_blocks": {
+            "type": "integer",
+            "description": "Blocks holding at least one detection site."
+          },
+          "effort_at": {
+            "type": "number",
+            "description": "log(records per site) the map and scores are drawn at."
           }
         }
       },
@@ -1571,6 +1620,15 @@
           "built_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "untested"
+            ],
+            "description": "Whether the map beat null models (random draws of surveyed sites, busier sites more often) on blocked AUC at p <= 0.05 and has a positive blocked Boyce index. Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
           }
         }
       },

@@ -3,10 +3,10 @@
 # rather than a minute per taxon. The last few run real fits on a synthetic
 # landscape.
 
-test_that("repeat records in one cell count as one presence cell", {
+test_that("repeat records at one site count as one detection site", {
   points <- data.frame(
     scientific_name = c("A a", "A a", "A a", "B b"),
-    cell = c(1, 1, 2, 3), x = 0, y = 0, stringsAsFactors = FALSE
+    cell = c(1, 1, 2, 3), x = c(0, 0, 20000, 40000), y = 0, stringsAsFactors = FALSE
   )
   counts <- atlas_presence_cell_counts(points)
   expect_equal(counts$scientific_name, c("A a", "B b"))

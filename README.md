@@ -133,9 +133,11 @@ five records fall outside the grid altogether.
 
 ## Training data
 
-A taxon's training table is its presences — one row per occupied cell — plus a
-background drawn from the **target group**: every DNA-validated record of every
-taxon, inside that taxon's accessible area.
+A taxon's training table has one row per **survey site** inside its accessible
+area: detected (the taxon was collected there) or not (other DNA-validated
+fungi were collected there, but not it), with the site's predictors and its
+**effort**, log(records at the site). The comparison is the **target group**:
+every DNA-validated record of every taxon.
 
 ```bash
 ./atlas training --taxon="Trametes versicolor"
@@ -148,13 +150,21 @@ target group carries the same bias as the presences, so the model answers a
 better question — given that somebody collected and sequenced a fungus here,
 what makes it this species rather than another?
 
-Two details matter. The background keeps its density, so a cell collected from
-a hundred times counts a hundred times; that is the effort signal, not noise.
-And the accessible area is the taxon's own cells buffered by 500 km, because a
-species is not absent from Yukon merely because nobody looked there.
+Sites (`R/sites.R`) are made once from the whole pull: cells with records are
+thinned by distance, busiest first, so no two sites are closer than 5 km, and
+every other record joins its nearest site. Both detections and non-detections
+count once per site. An earlier design counted presences per cell but drew the
+background per record, so a wood collected a hundred times counted a hundred
+times against every species found there, and well-surveyed ground looked worse
+than it was. Effort is now a predictor instead, held at the median of the
+taxon's detection sites whenever a map is drawn or scored (Warton, Renner &
+Ramp 2013; Fithian et al. 2015). The spacing is in km, not cells, so the 1 km
+grid does not turn one foray into five presences.
 
-The seed comes from the taxon's record-set fingerprint, so the same records
-always draw the same background, and changed records draw a new one.
+The accessible area is the taxon's own sites buffered by 500 km, because a
+species is not absent from Yukon merely because nobody looked there. The seed
+comes from the taxon's record-set fingerprint, so the same records always draw
+the same sites and folds, and changed records draw new ones.
 
 ## Fitting and scoring
 
@@ -163,10 +173,28 @@ always draw the same background, and changed records draw a new one.
 ```
 
 Maxent is fitted through `maxnet`, the reference implementation by Maxent's own
-author. Folds are whole spatial blocks of 200 km, never a random split: fungal
-records are clustered — one foray yields thirty collections from one wood — and
-a random hold-out puts near neighbours on both sides, reporting a score that
-only says the model can interpolate 200 m.
+author. Folds are whole spatial blocks, never a random split: fungal records
+are clustered — one foray yields thirty collections from one wood — and a
+random hold-out puts near neighbours on both sides, reporting a score that only
+says the model can interpolate 200 m.
+
+- **Block size** comes from blockCV: the range of a variogram of the taxon's
+  detections, rounded to 5 km and held between 50 and 300 km (`--block-km=N`
+  fixes it). Blocks holding detections are dealt to folds first, evenly. A
+  taxon needs detections in at least 5 blocks to be scored at all.
+- **Settings are tuned in nested spatial folds**: each held-out region is
+  scored by a model whose settings (Maxent's feature classes and regularisation
+  multiplier, the trees' depth and count, the forest's mtry) were chosen on
+  inner folds of the other regions only.
+- **Null models** (`--nulls=N`, default 19): the same number of sites drawn at
+  random from all surveyed sites, busier ones more often, fitted and scored the
+  same way. A map is `skill: passed` when its AUC beats every null (p ≤ 0.05)
+  and its Boyce index is above zero; failed maps are drawn faint, hidden from
+  the Maps list by default and left out of the Explore index and release
+  consumers.
+
+The measurements below were taken under the earlier design (per-cell presences,
+per-record background, fixed 200 km blocks, default settings).
 
 **Read AUC as comparative, not absolute.** Against a target-group background it
 measures how distinguishable a species is from where fungi get collected at

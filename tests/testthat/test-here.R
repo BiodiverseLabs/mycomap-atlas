@@ -11,12 +11,12 @@ here_raster <- function(rising = "east") {
   r
 }
 
-write_model <- function(taxon, algorithm, raster) {
+write_model <- function(taxon, algorithm, raster, skill = "passed") {
   dir.create(atlas_model_dir("draft", algorithm), recursive = TRUE, showWarnings = FALSE)
   terra::writeRaster(raster, atlas_model_path(taxon, "draft", ".tif", algorithm), overwrite = TRUE)
   atlas_write_json(list(taxon = taxon, algorithm = algorithm, presences = 30, predictors = list("bio1"),
                         auc_mean = 0.7, boyce_mean = 0.5, built_at = "2026-09-29T00:00:00Z",
-                        map = "x.png"),
+                        map = "x.png", skill = skill),
                    atlas_model_path(taxon, "draft", ".json", algorithm))
 }
 
@@ -84,6 +84,27 @@ test_that("a place lists the taxa its maps rate highly, agreement first", {
     expect_false("Western" %in% names)
     west <- vapply(atlas_here(index, WEST[["lat"]], WEST[["lng"]])$taxa, `[[`, character(1), "scientific_name")
     expect_true("Western" %in% west)
+  })
+})
+
+test_that("a map that did not beat its null models is left out", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    write_model("Eastern agreed", "maxnet", here_raster("east"))
+    write_model("Eastern by chance", "maxnet", here_raster("east"), skill = "failed")
+    write_model("Eastern untested", "rf", here_raster("east"), skill = NULL)
+    index <- atlas_build_here_index("draft", quiet = TRUE)
+    names <- vapply(atlas_here(index, EAST[["lat"]], EAST[["lng"]])$taxa, `[[`, character(1),
+                    "scientific_name")
+    expect_equal(names, "Eastern agreed")
+  })
+})
+
+test_that("with no map that beat its nulls there is nothing to index, and it says so", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    write_model("Eastern by chance", "maxnet", here_raster("east"), skill = "failed")
+    expect_error(atlas_build_here_index("draft", quiet = TRUE), "null models")
   })
 })
 

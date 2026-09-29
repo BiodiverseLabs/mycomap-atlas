@@ -17,22 +17,10 @@
 # One taxon failing never stops the run. Refusals (too few presence cells) and
 # failures (anything else) are counted separately in the batch summary.
 
-#' Presence cells per taxon on the grid, most first.
+#' Detection sites per taxon, most first. The column is still called cells:
+#' on the 5 km grid a site is a cell.
 atlas_presence_cell_counts <- function(points) {
-  if (is.null(points) || !nrow(points)) {
-    return(data.frame(scientific_name = character(), cells = integer(),
-                      stringsAsFactors = FALSE))
-  }
-  distinct <- points[!duplicated(points[, c("scientific_name", "cell")]), , drop = FALSE]
-  counts <- table(distinct$scientific_name)
-  out <- data.frame(
-    scientific_name = names(counts),
-    cells = as.integer(counts),
-    stringsAsFactors = FALSE
-  )
-  out <- out[order(-out$cells, out$scientific_name), , drop = FALSE]
-  rownames(out) <- NULL
-  out
+  atlas_presence_site_counts(points)
 }
 
 #' The taxa a batch will consider: enough presence cells, richest first.
@@ -241,10 +229,11 @@ atlas_worker_value <- function(result) {
 atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             force = FALSE, workers = 1L, min_presences = 20,
                             n_background = 10000, buffer_km = 500, folds = 5,
-                            block_km = 200, regmult = 1, correlation = 0.7,
+                            block_km = "auto", regmult = 1, correlation = 0.7,
                             prune = NULL, taxa = NULL, quiet = FALSE,
                             occurrences = NULL, points = NULL, stack = NULL,
                             layers = NULL, algorithm = "maxnet",
+                            nulls = ATLAS_NULL_REPS, tune = TRUE,
                             fit = atlas_fit_taxon) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
@@ -271,7 +260,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     grid = grid, n_background = n_background, buffer_km = buffer_km,
     folds = folds, block_km = block_km, regmult = regmult,
     correlation = correlation, prune = prune, layers = layers,
-    algorithm = algo$id
+    algorithm = algo$id, nulls = nulls, tune = tune
   )
 
   candidates <- atlas_batch_candidates(points, min_presences, limit, taxa)
@@ -288,7 +277,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
   }, logical(1))
   to_fit <- candidates$scientific_name[!current]
 
-  say(algo$label, ": ", nrow(candidates), " candidates with ", min_presences, "+ presence cells; ",
+  say(algo$label, ": ", nrow(candidates), " candidates with ", min_presences, "+ detection sites; ",
       sum(current), " current, ", length(to_fit), " to fit",
       if (workers > 1L) paste0(" on ", workers, " workers") else "")
 
@@ -303,7 +292,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     }
     if (length(removed)) {
       say("removed ", length(removed), " ", algo$label,
-          " models no longer eligible (fewer than ", min_presences, " cells, or gone)")
+          " models no longer eligible (fewer than ", min_presences, " sites, or gone)")
     }
   }
 
@@ -330,7 +319,8 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     grid = grid, n_background = n_background, buffer_km = buffer_km,
     folds = folds, block_km = block_km, regmult = regmult,
     min_presences = min_presences, correlation = correlation, prune = prune,
-    predict = predict, quiet = TRUE, layers = layers, algorithm = algo$id
+    predict = predict, quiet = TRUE, layers = layers, algorithm = algo$id,
+    nulls = nulls, tune = tune
   )
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row

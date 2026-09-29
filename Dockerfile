@@ -40,12 +40,13 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" \
  && apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" openssh-client \
  && rm -rf /var/lib/apt/lists/*
 
-# Only what Atlas uses. terra and sf come with the base image; paws.compute
+# Only what Atlas uses. terra and sf come with the base image (blockCV needs
+# sf); paws.compute
 # and curl are the nightly job's (EC2, and checking the workers' image).
 RUN . /etc/os-release \
  && install2.r --error --skipinstalled --ncpus -1 \
       -r "https://p3m.dev/cran/__linux__/${VERSION_CODENAME}/${CRAN_SNAPSHOT}" \
-      digest jsonlite plumber maxnet xgboost ranger paws.storage paws.compute curl openssl testthat targets \
+      digest jsonlite plumber maxnet xgboost ranger blockCV paws.storage paws.compute curl openssl testthat targets \
  && rm -rf /tmp/downloaded_packages
 
 WORKDIR /atlas
