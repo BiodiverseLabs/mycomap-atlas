@@ -161,6 +161,10 @@ ATLAS_BLOCK_FALLBACK_KM <- 200
 #' continent it runs to thousands of km for climate, which would leave no
 #' blocks at all. The estimate is rounded to 5 km and held between the floor
 #' and the ceiling; a variogram that does not settle gives the ceiling.
+#'
+#' In practice the ceiling binds: on a 40-taxon pilot (2026-09-29) the range
+#' was beyond 300 km for 38 taxa. Detections cluster at the scale of whole
+#' collecting regions, so blocks are as wide as the accessible area allows.
 atlas_block_size <- function(training, seed = 1L, floor_km = ATLAS_BLOCK_FLOOR_KM,
                              ceiling_km = ATLAS_BLOCK_CEILING_KM,
                              fallback_km = ATLAS_BLOCK_FALLBACK_KM) {

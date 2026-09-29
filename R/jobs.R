@@ -84,9 +84,13 @@ atlas_fetch_entries <- function(store, entries) {
 
 # ---- planning ------------------------------------------------------------
 
-# Rough relative cost of fitting and mapping one taxon, for balancing shards:
-# a forest's map is the expensive part, and a map's cost grows with its area.
-ATLAS_SHARD_WEIGHTS <- c(maxnet = 1, xgboost = 0.5, rf = 3)
+# Rough relative cost of fitting and mapping one taxon, for balancing shards.
+# Measured on a 40-taxon pilot of nested tuning plus 19 null models
+# (2026-09-29, draft grid, scores only): median Maxent 427 s, forest 29 s,
+# boosted trees 27 s. Maxent's glmnet path is fitted ~260 times per taxon;
+# a forest's map adds about 2.5 minutes for a widespread taxon. A map's cost
+# grows with its area.
+ATLAS_SHARD_WEIGHTS <- c(maxnet = 7, xgboost = 0.5, rf = 3)
 
 #' The relative cost of one task.
 atlas_task_cost <- function(algorithm, area_km2, typical_area = 5e6) {
