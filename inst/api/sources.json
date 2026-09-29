@@ -73,6 +73,69 @@
       "role": "Where the lower 48 are, so BIGMAP's empty cells can be told from the rest of the continent. Not a predictor."
     },
     {
+      "id": "nalcms",
+      "name": "NALCMS Land Cover 2020, 30 m",
+      "provider": "Commission for Environmental Cooperation (CCRS, USGS, CONABIO, CONAFOR, INEGI)",
+      "url": "https://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Candidate layer: share of each cell under needleleaf, broadleaf and mixed forest, counted from 30 m pixels.",
+      "citation": "Commission for Environmental Cooperation (2024) North American Environmental Atlas - Land Cover 2020 30m. NALCMS. Ed. 2.0."
+    },
+    {
+      "id": "usfs-basal-area",
+      "name": "Live tree species basal area of the contiguous United States (2000-2009)",
+      "provider": "USDA Forest Service",
+      "url": "https://doi.org/10.2737/RDS-2013-0013",
+      "license": "US Government work, free to use with citation",
+      "role": "Candidate layer: each host genus's share of live-tree basal area, US lower 48.",
+      "citation": "Wilson BT, Lister AJ, Riemann RI, Griffith DM (2013) Live tree species basal area of the contiguous United States (2000-2009). Newtown Square, PA: USDA Forest Service, Rocky Mountain Research Station.",
+      "doi": "10.2737/RDS-2013-0013"
+    },
+    {
+      "id": "nfi-knn",
+      "name": "Canada's forest attributes, kNN species composition 2011",
+      "provider": "Natural Resources Canada, Canadian Forest Service",
+      "url": "https://doi.org/10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990",
+      "license": "Open Government Licence - Canada",
+      "license_url": "https://open.canada.ca/en/open-government-licence-canada",
+      "role": "Candidate layer: each host genus's share of the stand, Canada.",
+      "citation": "Beaudoin A, Bernier PY, Villemaire P, Guindon L, Guo XJ (2017) Species composition, forest properties and land cover types across Canada's forests at 250m resolution for 2001 and 2011. Natural Resources Canada, Canadian Forest Service.",
+      "doi": "10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
+    },
+    {
+      "id": "adaptwest",
+      "name": "AdaptWest ClimateNA 1991-2020 normals, 1 km",
+      "provider": "AdaptWest Project",
+      "url": "https://adaptwest.databasin.org/pages/adaptwest-climatena/",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Candidate layer: climatic moisture deficit, autumn precipitation and temperature, frost-free period, precipitation as snow and relative humidity.",
+      "citation": "AdaptWest Project (2022) Gridded current and projected climate data for North America at 1km resolution, generated using the ClimateNA v7.30 software (Wang T et al. 2022). Wang T, Hamann A, Spittlehouse D, Carroll C (2016) Locally downscaled and spatially customizable climate data for historical and future periods for North America. PLoS One 11:e0156720.",
+      "doi": "10.1371/journal.pone.0156720"
+    },
+    {
+      "id": "terraclimate",
+      "name": "TerraClimate 1991-2020 climatology",
+      "provider": "Climatology Lab, University of California Merced",
+      "url": "https://www.climatologylab.org/terraclimate.html",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "role": "Candidate layer: annual actual evapotranspiration and mean vapour pressure deficit.",
+      "citation": "Abatzoglou JT, Dobrowski SZ, Parks SA, Hegewisch KC (2018) TerraClimate, a high-resolution global dataset of monthly climate and climatic water balance from 1958-2015. Scientific Data 5:170191.",
+      "doi": "10.1038/sdata.2017.191"
+    },
+    {
+      "id": "glim",
+      "name": "GLiM global lithological map",
+      "provider": "Universität Hamburg (Hartmann & Moosdorf)",
+      "url": "https://www.geo.uni-hamburg.de/en/geologie/forschung/aquatische-geochemie/glim.html",
+      "license": "Not stated by the authors; to be confirmed before any map built on it is published",
+      "role": "Candidate layer: share of each cell underlain by carbonate sedimentary rock.",
+      "citation": "Hartmann J, Moosdorf N (2012) The new global lithological map database GLiM: a representation of rock properties at the Earth surface. Geochemistry, Geophysics, Geosystems 13:Q12004.",
+      "doi": "10.1029/2012GC004370"
+    },
+    {
       "id": "osm",
       "name": "OpenStreetMap basemap",
       "provider": "OpenStreetMap contributors",

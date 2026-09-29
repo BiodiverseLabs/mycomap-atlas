@@ -5,11 +5,19 @@
 # the lower 48, and British Columbia alone holds 8% of the records — so the
 # registry uses global sources and accepts their coarser detail.
 #
-# The one exception is the host-tree layer (R/hosts.R). No continental map of
-# tree species exists, so it joins the two national forest inventories, the
-# United States' and Canada's, and leaves Alaska, Hawaii, Puerto Rico and
-# Mexico empty: those records drop out of fitting, a price paid for knowing
-# which trees grow where across the rest.
+# The exceptions are the two host-tree layers (R/hosts.R, R/layersources.R).
+# No continental map of tree species exists, so each joins a United States
+# inventory to Canada's, and neither inventory speaks for Alaska, Hawaii,
+# Puerto Rico or Mexico. A layer's gap must not take ground away from every
+# model, so there the shares are filled with 0 and a band beside them
+# (host_known, hostw_known) says the inventories were silent: the ground stays
+# in every fit and on every map, and a model can tell "no such trees" from
+# "nobody mapped the trees" (atlas_fill_outside).
+#
+# Layers after landcover are candidates, measured by atlas sweep-layers before
+# any of them is fitted on in production (R/layersweep.R). Building a layer is
+# what puts it into every fit on that grid, so candidates are built only into
+# a separate data directory until they are chosen.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -144,13 +152,98 @@ atlas_layer_registry <- function() {
       ),
       method = "share of genus in total trees; BIGMAP sampled at 250 m and block-averaged, NFI area-averaged",
       note = paste(
-        "Lower 48 and Canada only: Alaska, Hawaii, Puerto Rico and Mexico have no tree",
-        "inventory here, are empty, and are not modelled."
+        "Lower 48 and Canada only. Alaska, Hawaii, Puerto Rico and Mexico have no tree",
+        "inventory here: their shares are 0 and host_known is 0."
       ),
+      fill_outside = "host_known",
       # Built on the grid directly, not fetched and reprojected: BIGMAP is read
       # in the grid's own projection, and both inventories need summing by
       # genus before anything is averaged.
       build = function(raw_dir, grid) atlas_build_hosts(raw_dir, grid)
+    ),
+    landform = list(
+      id = "landform",
+      title = "Wetness, northness and heat load",
+      source = "Derived from the 1 km elevation layer",
+      url = NA_character_,
+      license = "Follows the elevation layer",
+      citation = paste(
+        "McCune B, Keon D (2002) Equations for potential annual direct incident",
+        "radiation and heat load. J Veg Sci 13:603-606; wetness index after",
+        "Beven KJ, Kirkby MJ (1979) Hydrol Sci Bull 24:43-69"
+      ),
+      # Averaged, not interpolated: a draft cell keeps the share of wet
+      # hollows and shaded slopes its 1 km cells had. See R/landform.R.
+      method = "average",
+      fetch = function(path, res) atlas_landform_source(path)
+    ),
+    foresttype = list(
+      id = "foresttype",
+      title = "Needleleaf, broadleaf and mixed forest",
+      source = "NALCMS Land Cover 2020 v2, 30 m (CEC)",
+      url = "https://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/",
+      license = "CC BY 4.0",
+      citation = paste(
+        "Commission for Environmental Cooperation (2024) North American Environmental",
+        "Atlas - Land Cover 2020 30m. NALCMS; CCRS, USGS, CONABIO, CONAFOR, INEGI. Ed. 2.0"
+      ),
+      note = "Share of each cell under each forest type, counted from 30 m pixels.",
+      method = "average",
+      fetch = function(path, res) atlas_nalcms_source(path)
+    ),
+    hosts_wilson = list(
+      id = "hosts_wilson",
+      title = "Host tree genera from basal area 2000-2009 (share of the stand)",
+      source = paste(
+        "USFS live tree species basal area 2000-2009 (US lower 48);",
+        "NFI kNN species composition 2011 (Canada)"
+      ),
+      url = "https://doi.org/10.2737/RDS-2013-0013",
+      license = "US Government work; Open Government Licence - Canada",
+      citation = paste(
+        "Wilson BT, Lister AJ, Riemann RI, Griffith DM (2013) Live tree species basal",
+        "area of the contiguous United States (2000-2009). USDA Forest Service,",
+        "doi:10.2737/RDS-2013-0013; Beaudoin A et al. (2017) Species composition,",
+        "forest properties and land cover types across Canada's forests at 250m",
+        "resolution for 2001 and 2011. NRCan, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
+      ),
+      note = paste(
+        "Two national products joined at the border: basal-area share in the US,",
+        "stand-composition share in Canada. Alaska, Mexico and the islands are in",
+        "neither: their shares are 0 and hostw_known is 0. An alternative to hosts,",
+        "kept to be measured against it."
+      ),
+      fill_outside = "hostw_known",
+      method = "average",
+      fetch = function(path, res) atlas_hosts_wilson_source(path)
+    ),
+    waterbalance = list(
+      id = "waterbalance",
+      title = "Moisture deficit, autumn climate, snow, humidity, AET and VPD",
+      source = "AdaptWest ClimateNA v7.3 normals 1991-2020, 1 km; TerraClimate 1991-2020",
+      url = "https://adaptwest.databasin.org/pages/adaptwest-climatena/",
+      license = "CC BY 4.0 (AdaptWest); CC0 (TerraClimate)",
+      citation = paste(
+        "AdaptWest Project (2022) Gridded current and projected climate data for North",
+        "America at 1km resolution, ClimateNA v7.30; Wang T, Hamann A, Spittlehouse D,",
+        "Carroll C (2016) PLoS One 11:e0156720; Abatzoglou JT et al. (2018)",
+        "TerraClimate. Scientific Data 5:170191"
+      ),
+      method = "average",
+      fetch = function(path, res) atlas_waterbalance_source(path)
+    ),
+    bedrock = list(
+      id = "bedrock",
+      title = "Carbonate bedrock (share of the cell)",
+      source = "GLiM global lithological map (Hartmann & Moosdorf 2012)",
+      url = "https://www.geo.uni-hamburg.de/en/geologie/forschung/aquatische-geochemie/glim.html",
+      license = "Not stated by the authors: confirm before publishing maps built on it",
+      citation = paste(
+        "Hartmann J, Moosdorf N (2012) The new global lithological map database GLiM.",
+        "Geochem Geophys Geosyst 13:Q12004"
+      ),
+      method = "average",
+      fetch = function(path, res) atlas_bedrock_source(path)
     )
   )
 }
@@ -289,6 +382,15 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     built <- atlas_project_to_grid(raw, grid, entry$method)
   }
 
+  if (!is.null(entry$fill_outside)) {
+    land_path <- atlas_layer_path("elevation", grid)
+    if (!file.exists(land_path)) {
+      stop(id, " is filled where its source is silent, up to the land the elevation ",
+           "layer knows: build elevation on the ", grid, " grid first", call. = FALSE)
+    }
+    built <- atlas_fill_outside(built, terra::rast(land_path), known = entry$fill_outside)
+  }
+
   terra::writeRaster(
     built, target, overwrite = TRUE,
     gdal = c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES", "BIGTIFF=IF_SAFER")
@@ -319,6 +421,27 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     message("  ", id, ": ", length(record$bands), " band(s), ", record$size_mb, " MB")
   }
   invisible(record)
+}
+
+#' Fill a layer where its source is silent but there is land.
+#'
+#' Cells the source describes keep their values and get known = 1. Land the
+#' source does not reach gets 0 in every band and known = 0. The sea, where
+#' land is NA, stays NA. Without this, one layer's gap removes that ground
+#' from every model fitted on the grid, whether or not the model needs the
+#' layer.
+atlas_fill_outside <- function(x, land, known = "known") {
+  bands <- names(x)
+  land <- land[[1]]
+  if (!terra::compareGeom(x, land, stopOnError = FALSE)) {
+    x <- terra::extend(terra::crop(x, land), land)
+  }
+  # Known where every band has a value: a cell half described is not known.
+  described <- !is.na(terra::app(x, "sum", na.rm = FALSE))
+  filled <- terra::ifel(described, x, 0)
+  out <- terra::mask(c(filled, described * 1), land)
+  names(out) <- c(bands, known)
+  out
 }
 
 #' Build several layers, in an order that satisfies what they derive from.
