@@ -47,6 +47,17 @@ atlas_usage <- function() {
   message("      --seed=N                  which sample (default 1)")
   message("  redraw-maps        redraw every map's PNG from its stored raster")
   message("      --workers=N               maps at once (default 1)")
+  message("  publish-release    publish what this machine computed as a new release")
+  message("      --store=URI               s3://bucket/prefix or a folder (default ATLAS_STORE)")
+  message("      --note=\"text\"            why this release was made")
+  message("      --no-promote              publish without making it current")
+  message("  pull-release       bring this machine up to a release, fetching only what changed")
+  message("      --store=URI               as above")
+  message("      --release=ID              a particular release (default: the current one)")
+  message("      --keep-local              keep local model files the release does not have")
+  message("  releases           list the releases in a store, marking the current one")
+  message("  promote-release    make a release current (rolling back is promoting an older one)")
+  message("      --release=ID              which release (required)")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -231,6 +242,42 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       atlas_rebuild_maps(
         grid = atlas_flag_grid(flags),
         workers = as.integer(atlas_flag_number(flags, "workers", 1))
+      )
+      invisible(0L)
+    },
+    "publish-release" = {
+      atlas_publish_release(
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        grid = atlas_flag_grid(flags),
+        note = if (is.null(flags$note)) NULL else as.character(flags$note),
+        promote = !isTRUE(flags$no_promote)
+      )
+      invisible(0L)
+    },
+    "pull-release" = {
+      atlas_pull_release(
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        grid = atlas_flag_grid(flags),
+        release = if (is.null(flags$release)) NULL else as.character(flags$release),
+        keep_local = isTRUE(flags$keep_local)
+      )
+      invisible(0L)
+    },
+    "releases" = {
+      store <- atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
+      grid <- atlas_flag_grid(flags)
+      current <- atlas_current_release(store, grid)$id
+      ids <- atlas_list_releases(store, grid)
+      if (!length(ids)) message("no releases for the ", grid, " grid")
+      for (id in ids) message(if (identical(id, current)) "* " else "  ", id)
+      invisible(0L)
+    },
+    "promote-release" = {
+      if (is.null(flags$release)) stop("promote-release needs --release=ID", call. = FALSE)
+      atlas_promote_release(
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        id = as.character(flags$release),
+        grid = atlas_flag_grid(flags)
       )
       invisible(0L)
     },

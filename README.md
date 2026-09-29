@@ -26,7 +26,7 @@ more carry provisional temp codes, which exist in no other dataset.
 | 3. Target-group background from the same validated universe | built |
 | 4. Fits: Maxent, boosted trees and a down-sampled random forest, side by side | built, with batch runs and a benchmark |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
-| 6. Release: rasters and metrics published together, with rollback | |
+| 6. Release: rasters and metrics published together, with rollback | release format built (S3 or a folder); remote compute next |
 
 ## Setup
 
@@ -317,6 +317,46 @@ the ground that model rates highest. Stored rasters keep the raw values.
 
 The Models page in the app shows the latest benchmark and, for the maps in
 production, how many taxa each model has mapped and their median scores.
+
+## Releases
+
+Atlas is computed remotely and pulled everywhere else. No machine is the
+source of truth; a store is: an S3 bucket in production, a plain folder on a
+laptop or in tests.
+
+```bash
+./atlas publish-release --store=s3://bucket/atlas --note="weekly refresh"
+./atlas pull-release    --store=s3://bucket/atlas      # only what changed
+./atlas releases        --store=s3://bucket/atlas      # * marks the current one
+./atlas promote-release --store=s3://bucket/atlas --release=<id>   # roll back
+```
+
+`ATLAS_STORE` saves repeating `--store`. Inside the store:
+
+```
+objects/<aa>/<sha256>          every file ever published, stored once by content
+releases/<grid>/<id>.json      a manifest: path -> sha256, plus provenance
+current/<grid>.json            which release is live
+```
+
+A release that changes 200 taxa uploads only their files, a pull downloads
+only files whose content changed and checks each against its hash, and rolling
+back rewrites one pointer. A publish identical to the current release is
+skipped. Each manifest records the code commit, package versions, the layer
+builds and the pull's fingerprint.
+
+What goes in is an allowlist: every algorithm's scores, rasters and maps, the
+per-taxon counts, a summary of the pull (without its SQL or host), the layer
+manifest, the newest benchmark, and where each taxon was collected as 0.1°
+cells. Raw pulls, training tables and exact coordinates are never published.
+A machine that only pulls releases, like the web server, answers every API
+route from them. A pull also removes local model files the release does not
+have, so the machine shows exactly what was published (`--keep-local` to
+keep them).
+
+On the draft grid today a release is 8,153 files and 2.4 GB: publishing it the
+first time took 54 s into a local folder, a first pull 2 min 14 s, and a pull
+with nothing new 17 s.
 
 ## Data
 

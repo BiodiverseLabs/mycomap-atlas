@@ -110,3 +110,37 @@ atlas_latest_study <- function(kind, grid = "draft", prefix = NULL) {
 atlas_algorithm_labels <- function() {
   lapply(ATLAS_ALGORITHMS, function(a) a$label)
 }
+
+#' What the status route reports: the pull's own manifest where this machine
+#' made the pull, and otherwise the summary a release carried.
+atlas_status_manifest <- function() {
+  manifest <- atlas_read_manifest()
+  if (!is.null(manifest)) return(manifest)
+  path <- atlas_public_pull_path()
+  if (!file.exists(path)) return(NULL)
+  jsonlite::fromJSON(path, simplifyVector = TRUE)
+}
+
+#' The published cells for every taxon, or NULL when this machine has none.
+atlas_read_public_cells <- function() {
+  path <- atlas_public_cells_path()
+  if (!file.exists(path)) return(NULL)
+  cells <- utils::read.delim(gzfile(path), sep = "\t", quote = "", comment.char = "",
+                             colClasses = c("character", "numeric", "numeric", "integer"),
+                             check.names = FALSE, stringsAsFactors = FALSE)
+  cells
+}
+
+#' One taxon's collection cells: aggregated from the pull when this machine
+#' has it, or read from what a release published.
+atlas_taxon_cells <- function(name, occurrences = NULL, public = NULL) {
+  if (!is.null(occurrences)) {
+    return(atlas_public_cells(occurrences, name))
+  }
+  if (is.null(public) || !nrow(public)) {
+    return(atlas_public_cells(NULL, name))
+  }
+  rows <- public[public$taxon == name, c("lat", "lng", "records"), drop = FALSE]
+  rownames(rows) <- NULL
+  rows
+}

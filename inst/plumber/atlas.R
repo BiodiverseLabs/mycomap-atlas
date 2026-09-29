@@ -23,6 +23,19 @@ cached_occurrences <- function() {
   cache$occurrences
 }
 
+# On a machine that holds a release but never made the pull, there are no
+# occurrences; the collection cells come from what the release published.
+cached_cells_source <- function() {
+  if (is.null(cache$cells_source)) {
+    occurrences <- tryCatch(cached_occurrences(), error = function(e) NULL)
+    cache$cells_source <- list(
+      occurrences = occurrences,
+      public = if (is.null(occurrences)) atlas_read_public_cells() else NULL
+    )
+  }
+  cache$cells_source
+}
+
 cached_taxa <- function() {
   if (is.null(cache$taxa)) {
     # The pull already wrote this; recomputing 17k fingerprints per boot is
@@ -65,7 +78,7 @@ function(req, res) {
 #* @get /api/status
 #* @serializer unboxedJSON
 function() {
-  manifest <- atlas_read_manifest()
+  manifest <- atlas_status_manifest()
   if (is.null(manifest)) {
     return(list(ready = FALSE))
   }
@@ -201,6 +214,7 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 #* @serializer unboxedJSON
 function(name) {
   decoded <- atlas_decode_name(name)
-  cells <- atlas_public_cells(cached_occurrences(), decoded)
+  source <- cached_cells_source()
+  cells <- atlas_taxon_cells(decoded, source$occurrences, source$public)
   list(name = decoded, degrees = ATLAS_PUBLIC_DEGREES, cells = cells)
 }
