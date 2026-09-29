@@ -132,7 +132,7 @@ atlas_index_current <- function(entry, fingerprint, settings, min_presences) {
 atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "all",
                            shards = 4L, min_presences = 20, n_background = 10000,
                            buffer_km = 500, folds = 5, block_km = 200, regmult = 1,
-                           correlation = 0.7, quiet = FALSE) {
+                           correlation = 0.7, tasks_per_shard = NULL, quiet = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
 
@@ -201,6 +201,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
 
   if (length(tasks)) {
     costs <- vapply(tasks, function(t) t$cost, numeric(1))
+    # With tasks_per_shard, shards is a ceiling: a small job gets one worker.
+    if (!is.null(tasks_per_shard)) shards <- atlas_shard_count(length(tasks), shards, tasks_per_shard)
     assignment <- atlas_assign_shards(costs, shards)
     for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
     shards <- max(assignment)
