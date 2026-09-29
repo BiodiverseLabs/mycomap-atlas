@@ -92,7 +92,8 @@ check() { # name, command run in the container
 }
 check "atlas has the image's uid, and no login shell" '[ "$(id -u atlas)" = 10001 ] && [ "$(getent passwd atlas | cut -d: -f7)" = /usr/sbin/nologin ]'
 check "atlas.env is root:atlas 640" '[ "$(stat -c %U:%G:%a /etc/atlas/atlas.env)" = root:atlas:640 ]'
-check "the data directory is atlas's alone" '[ "$(stat -c %U:%a /srv/atlas/data)" = atlas:750 ]'
+check "the data directory is atlas's alone" '[ "$(stat -c %U:%a /srv/atlas/data)" = atlas:750 ] && ! sudo -u www-data ls /srv/atlas/data'
+check "nginx's user can read the web app" 'echo app > /srv/atlas/web/index.html && [ "$(sudo -u www-data cat /srv/atlas/web/index.html)" = app ]'
 check "the SQL key is atlas's, mode 600" '[ "$(stat -c %U:%a /home/atlas/.ssh/atlas_sql)" = atlas:600 ]'
 check "the SQL host entry names the given host and atlas_ro" 'grep -q "HostName 127.0.0.1" /home/atlas/.ssh/config && grep -q "User atlas_ro" /home/atlas/.ssh/config'
 check "known_hosts holds exactly the host's own ed25519 key" \

@@ -53,8 +53,10 @@ systemctl restart docker
 
 echo "== the atlas account and its directories"
 id atlas >/dev/null 2>&1 || useradd --uid 10001 --create-home --shell /usr/sbin/nologin atlas
-install -d -o atlas -g atlas -m 750 /srv/atlas /srv/atlas/data
-install -d -o root -g root -m 755 /srv/atlas/web /usr/local/lib/atlas
+# /srv/atlas itself is open to all, so nginx (www-data) reaches web/; the
+# data directory in it, which holds the pull, stays atlas's alone.
+install -d -o root -g root -m 755 /srv/atlas /srv/atlas/web /usr/local/lib/atlas
+install -d -o atlas -g atlas -m 750 /srv/atlas/data
 install -d -o root -g atlas -m 750 /etc/atlas
 [ -f /etc/atlas/atlas.env ] || install -o root -g atlas -m 640 /dev/null /etc/atlas/atlas.env
 chown root:atlas /etc/atlas/atlas.env
