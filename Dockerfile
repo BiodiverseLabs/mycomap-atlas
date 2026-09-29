@@ -12,6 +12,20 @@
 #
 # To move to newer packages, change CRAN_SNAPSHOT and rebuild; Dependabot
 # proposes new base-image digests.
+#
+# The web app is built here too, in its own stage, so one image is one commit
+# of both the API and the app, and the server never builds anything.
+
+# node:22-bookworm-slim (Node 22.23.3), with the pnpm version CI uses.
+FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS web
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
+WORKDIR /src/web
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY web ./
+# The app imports the API description and the sources list from inst/api.
+COPY inst/api /src/inst/api
+RUN pnpm build
 
 # rocker/geospatial:4.6.1
 FROM rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
@@ -39,6 +53,9 @@ COPY DESCRIPTION NAMESPACE LICENSE.md _targets.R ./
 COPY R ./R
 COPY inst ./inst
 COPY tests ./tests
+# The built app, for the web server to serve (deploy/lightsail copies it out).
+# Outside /atlas: that is the package's source tree, whose tests read web/.
+COPY --from=web /src/web/dist /opt/atlas-web
 
 # Install, then run the whole suite inside the image: an image whose tests
 # fail is never built.

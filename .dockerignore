@@ -1,7 +1,9 @@
 # The build context is only what the image needs. data/ alone is gigabytes,
 # and must never end up in an image anyway.
 data/
-web/
+# The web app is built inside the image from its sources and lockfile.
+web/node_modules/
+web/dist/
 .git/
 .github/
 .Rproj.user/
