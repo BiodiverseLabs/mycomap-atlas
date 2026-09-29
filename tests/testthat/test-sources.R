@@ -48,6 +48,15 @@ test_that("every package the web app depends on is credited", {
   expect_equal(missing, character(0), label = "web packages missing from inst/api/sources.json")
 })
 
+test_that("no credited web package is one the app has stopped depending on", {
+  package <- file.path(sources_root(), "web", "package.json")
+  skip_if_not(file.exists(package), "the web app's sources are not here (release image)")
+  web <- jsonlite::fromJSON(package)
+  deps <- c(names(web$dependencies), names(web$devDependencies))
+  stale <- setdiff(software_names(read_sources(), "web"), deps)
+  expect_equal(stale, character(0), label = "credited web packages the app does not use")
+})
+
 test_that("no credited R package is one the code has stopped using", {
   stale <- setdiff(software_names(read_sources(), "r"), c(called_packages(sources_root()), "testthat"))
   expect_equal(stale, character(0), label = "credited packages nothing calls")

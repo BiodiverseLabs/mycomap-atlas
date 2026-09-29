@@ -200,14 +200,7 @@
       "group": "web",
       "license": "BSD-2-Clause",
       "url": "https://leafletjs.com",
-      "role": "The interactive maps."
-    },
-    {
-      "name": "react-leaflet",
-      "group": "web",
-      "license": "Hippocratic-2.1",
-      "url": "https://react-leaflet.js.org",
-      "role": "Leaflet maps as React components."
+      "role": "The interactive maps, drawn through a few small React components of Atlas's own."
     },
     {
       "name": "@tanstack/react-query",
