@@ -133,6 +133,19 @@ test_that("a training table is presences plus background, and says which", {
   expect_gt(attr(table, "area_km2"), 0)
 })
 
+test_that("a training table carries the fingerprint of the records it came from", {
+  skip_if_not_installed("terra")
+  points <- rbind(
+    fake_points(x = c(0, 20000), y = c(0, 0), names = "Focal species"),
+    fake_points(x = c(5000, 30000), y = c(0, 0), names = "Other species",
+                cells = c(10L, 11L))
+  )
+  table <- atlas_training_table("Focal species", points, n_background = 100,
+                                fingerprint = "0b4fd25712c2")
+  expect_equal(attr(table, "fingerprint"), "0b4fd25712c2")
+  expect_equal(attr(table, "seed"), atlas_seed_from_fingerprint("0b4fd25712c2"))
+})
+
 test_that("a taxon with no records on the grid is refused, not modelled", {
   skip_if_not_installed("terra")
   points <- fake_points(x = 0, y = 0, names = "Other species")

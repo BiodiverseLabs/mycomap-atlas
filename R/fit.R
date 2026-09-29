@@ -152,30 +152,97 @@ atlas_model_path <- function(name, grid = "draft", extension = ".tif") {
   atlas_path("models", grid, paste0(slug, extension))
 }
 
+#' A refusal to model, as opposed to a failure: the taxon is fine, there is
+#' just not enough of it. Classed so a batch run can count the two apart.
+atlas_insufficient_evidence <- function(name, presences, grid, min_presences) {
+  structure(
+    class = c("atlas_insufficient_evidence", "error", "condition"),
+    list(
+      message = paste0(
+        "insufficient evidence for ", name, ": ", presences,
+        " presence cells on the ", grid, " grid, and a map needs ",
+        min_presences, ". This taxon is a survey target, not a model."
+      ),
+      call = NULL,
+      presences = presences
+    )
+  )
+}
+
+#' Everything that decides a fit apart from the records themselves.
+#'
+#' A stored model is current only when both its record set and these match.
+#' The layers are in here because a model fitted before soil was built has the
+#' same records as one fitted after, and is still out of date.
+atlas_fit_settings <- function(grid = "draft", n_background = 10000,
+                               buffer_km = 500, folds = 5, block_km = 200,
+                               regmult = 1, correlation = 0.7, prune = TRUE,
+                               layers = atlas_layers_key(grid)) {
+  list(
+    grid = grid,
+    n_background = as.numeric(n_background),
+    buffer_km = as.numeric(buffer_km),
+    folds = as.numeric(folds),
+    block_km = as.numeric(block_km),
+    regmult = as.numeric(regmult),
+    correlation = if (isTRUE(prune)) as.numeric(correlation) else "none",
+    layers = layers
+  )
+}
+
+#' One string standing for a set of fit settings.
+atlas_settings_key <- function(settings) {
+  settings <- settings[order(names(settings))]
+  digest::digest(
+    as.character(jsonlite::toJSON(settings, auto_unbox = TRUE, digits = NA)),
+    algo = "sha256"
+  )
+}
+
+#' Which layers, and which build of each, a grid's stack is made of.
+atlas_layers_key <- function(grid = "draft", manifest = atlas_layer_manifest(grid)) {
+  if (!length(manifest)) {
+    return("none")
+  }
+  entries <- vapply(manifest, function(x) {
+    paste0(x$id, "=", x$md5 %||% x$built_at %||% "")
+  }, character(1))
+  digest::digest(paste(sort(entries), collapse = ";"), algo = "sha256")
+}
+
 #' Fit one taxon end to end: training data, blocked scores, map, metrics.
+#'
+#' With predict = FALSE the scores are still computed and written, but no map
+#' is drawn: that is the cheap way to score hundreds of taxa.
 atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             buffer_km = 500, folds = 5, block_km = 200,
                             regmult = 1, min_presences = 20, correlation = 0.7,
-                            prune = TRUE, write = TRUE,
-                            quiet = FALSE, points = NULL, stack = NULL) {
+                            prune = TRUE, write = TRUE, predict = TRUE,
+                            quiet = FALSE, points = NULL, stack = NULL,
+                            occurrences = NULL, fingerprint = NULL,
+                            layers = NULL) {
   stack <- stack %||% atlas_predictor_stack(grid)
+  settings <- atlas_fit_settings(
+    grid = grid, n_background = n_background, buffer_km = buffer_km,
+    folds = folds, block_km = block_km, regmult = regmult,
+    correlation = correlation, prune = prune,
+    layers = layers %||% atlas_layers_key(grid)
+  )
   training <- atlas_build_training(
     name, grid,
     n_background = n_background, buffer_km = buffer_km,
-    write = FALSE, quiet = TRUE, points = points, stack = stack
+    write = FALSE, quiet = TRUE, points = points, stack = stack,
+    occurrences = occurrences, fingerprint = fingerprint
   )
   presences <- sum(training$presence == 1L)
   if (presences < min_presences) {
-    stop("insufficient evidence for ", name, ": ", presences,
-         " presence cells on the ", grid, " grid, and a map needs ",
-         min_presences, ". This taxon is a survey target, not a model.",
-         call. = FALSE)
+    stop(atlas_insufficient_evidence(name, presences, grid, min_presences))
   }
 
   considered <- atlas_predictor_columns(training)
   if (isTRUE(prune)) {
     keep <- atlas_choose_predictors(training, threshold = correlation)
-    kept_attributes <- attributes(training)[c("area_km2", "seed", "dropped")]
+    kept_attributes <- attributes(training)[c("area_km2", "seed", "fingerprint", "dropped")]
     training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
     attributes(training)[names(kept_attributes)] <- kept_attributes
   }
@@ -187,13 +254,20 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   scores <- atlas_cross_validate(training, fold_ids, regmult = regmult)
   model <- atlas_fit_maxnet(training, regmult = regmult)
 
-  occupied <- training[training$presence == 1L, , drop = FALSE]
-  area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
-  suitability <- atlas_predict_raster(model, stack, area)
+  suitability <- NULL
+  if (isTRUE(predict)) {
+    occupied <- training[training$presence == 1L, , drop = FALSE]
+    area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
+    suitability <- atlas_predict_raster(model, stack, area)
+  } else if (isTRUE(write)) {
+    # A map left over from an older fit would be drawn beside scores it does
+    # not belong to, so it goes.
+    atlas_remove_map(name, grid)
+  }
 
   raster_path <- NULL
   drawn <- NULL
-  if (isTRUE(write)) {
+  if (isTRUE(write) && !is.null(suitability)) {
     raster_path <- atlas_model_path(name, grid)
     dir.create(dirname(raster_path), recursive = TRUE, showWarnings = FALSE)
     terra::writeRaster(
@@ -218,6 +292,9 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     regmult = regmult,
     block_km = block_km,
     seed = seed,
+    fingerprint = attr(training, "fingerprint"),
+    settings = settings,
+    settings_key = atlas_settings_key(settings),
     folds = lapply(seq_len(nrow(scores)), function(i) as.list(scores[i, ])),
     auc_mean = round(mean(scores$auc, na.rm = TRUE), 3),
     auc_sd = round(stats::sd(scores$auc, na.rm = TRUE), 3),
@@ -250,6 +327,51 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
   invisible(list(model = model, metrics = metrics, scores = scores,
                  suitability = suitability))
+}
+
+#' Delete a taxon's map, leaving its scores.
+atlas_remove_map <- function(name, grid = "draft") {
+  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml"))
+  unlink(paths[file.exists(paths)])
+  invisible(paths)
+}
+
+#' The stored metrics for a taxon, or NULL when it has never been fitted.
+atlas_read_metrics <- function(name, grid = "draft") {
+  path <- atlas_model_path(name, grid, ".json")
+  if (!file.exists(path)) {
+    return(NULL)
+  }
+  tryCatch(
+    jsonlite::fromJSON(path, simplifyVector = FALSE),
+    error = function(e) NULL
+  )
+}
+
+#' Whether a stored fit still stands for these records and these settings.
+#'
+#' The name alone never decides it: a provisional name can be kept while
+#' FungAI moves records in or out of it, and then the model is stale.
+atlas_fit_is_current <- function(metrics, fingerprint, settings, predict = TRUE) {
+  if (is.null(metrics) || is.null(fingerprint) || is.na(fingerprint)) {
+    return(FALSE)
+  }
+  if (!identical(as.character(metrics$fingerprint %||% ""), as.character(fingerprint))) {
+    return(FALSE)
+  }
+  if (!identical(as.character(metrics$settings_key %||% ""), atlas_settings_key(settings))) {
+    return(FALSE)
+  }
+  if (isTRUE(predict)) {
+    # A fit without a map stores its raster as an empty JSON object, which
+    # comes back as an empty list rather than NULL.
+    raster <- metrics$raster
+    if (!is.character(raster) || length(raster) != 1L || !nzchar(raster) ||
+        !file.exists(atlas_path("models", settings$grid %||% "draft", raster))) {
+      return(FALSE)
+    }
+  }
+  TRUE
 }
 
 #' Predict suitability across the accessible area.

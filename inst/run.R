@@ -12,4 +12,9 @@ if (requireNamespace("mycomapatlas", quietly = TRUE)) {
   }
 }
 
-invisible(atlas_main(commandArgs(trailingOnly = TRUE)))
+status <- atlas_main(commandArgs(trailingOnly = TRUE))
+# Pass the command's result on as the exit code, so a scheduler can tell a
+# run with failures from a clean one.
+if (is.numeric(status) && length(status) == 1L && status != 0) {
+  quit(save = "no", status = as.integer(status))
+}

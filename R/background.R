@@ -111,6 +111,7 @@ atlas_training_table <- function(name, points, n_background = 10000,
   rownames(out) <- NULL
   attr(out, "area_km2") <- unname(terra::expanse(area, unit = "km"))
   attr(out, "seed") <- seed
+  attr(out, "fingerprint") <- if (is.null(fingerprint)) NA_character_ else fingerprint
   out
 }
 
@@ -122,19 +123,26 @@ atlas_training_path <- function(name, grid = "draft") {
 }
 
 #' Pull, project, draw the background and attach the predictors, for one taxon.
+#'
+#' A batch run passes in the projected points, the stack and the taxon's
+#' fingerprint, all computed once, so nothing here rereads the pull.
 atlas_build_training <- function(name, grid = "draft", n_background = 10000,
                                  buffer_km = 500, write = TRUE, quiet = FALSE,
-                                 points = NULL, stack = NULL) {
-  occurrences <- atlas_read_occurrences()
-  focal <- occurrences[occurrences$scientific_name == name, , drop = FALSE]
-  if (!nrow(focal)) {
-    stop("no records for ", name, " in the current pull", call. = FALSE)
+                                 points = NULL, stack = NULL,
+                                 occurrences = NULL, fingerprint = NULL) {
+  if (is.null(points) || is.null(fingerprint)) {
+    occurrences <- occurrences %||% atlas_read_occurrences()
+    focal <- occurrences[occurrences$scientific_name == name, , drop = FALSE]
+    if (!nrow(focal)) {
+      stop("no records for ", name, " in the current pull", call. = FALSE)
+    }
+    fingerprint <- fingerprint %||% atlas_fingerprint(focal)
+    points <- points %||% atlas_occurrence_points(occurrences, grid)
   }
-  points <- points %||% atlas_occurrence_points(occurrences, grid)
   table <- atlas_training_table(
     name, points,
     n_background = n_background, buffer_km = buffer_km,
-    fingerprint = atlas_fingerprint(focal)
+    fingerprint = fingerprint
   )
   table <- atlas_add_predictors(table, grid, stack = stack)
 
@@ -184,6 +192,7 @@ atlas_add_predictors <- function(table, grid = "draft", stack = NULL) {
   rownames(out) <- NULL
   attr(out, "area_km2") <- attr(table, "area_km2")
   attr(out, "seed") <- attr(table, "seed")
+  attr(out, "fingerprint") <- attr(table, "fingerprint")
   attr(out, "dropped") <- sum(!complete)
   out
 }

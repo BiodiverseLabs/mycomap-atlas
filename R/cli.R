@@ -26,6 +26,13 @@ atlas_usage <- function() {
   message("      --min-presences=N         refuse below this many cells (default 20)")
   message("      --correlation=N           prune predictors above this correlation (default 0.7)")
   message("      --keep-all-predictors     skip pruning")
+  message("  fit-all            fit every taxon with enough presence cells")
+  message("      --limit=N                 only the N richest candidates (trial runs)")
+  message("      --no-predict              score only; draw no maps")
+  message("      --force                   refit even taxa whose records have not changed")
+  message("      --workers=N               fit N taxa at once (default 1)")
+  message("      (also --grid, --background, --buffer-km, --folds, --block-km,")
+  message("       --min-presences, --correlation, --keep-all-predictors, as for fit)")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -140,6 +147,24 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         prune = !isTRUE(flags$keep_all_predictors)
       )
       invisible(0L)
+    },
+    "fit-all" = {
+      summary <- atlas_fit_batch(
+        grid = atlas_flag_grid(flags),
+        limit = atlas_flag_number(flags, "limit", Inf),
+        predict = !isTRUE(flags$no_predict),
+        force = isTRUE(flags$force),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        n_background = atlas_flag_number(flags, "background", 10000),
+        buffer_km = atlas_flag_number(flags, "buffer_km", 500),
+        folds = atlas_flag_number(flags, "folds", 5),
+        block_km = atlas_flag_number(flags, "block_km", 200),
+        min_presences = atlas_flag_number(flags, "min_presences", 20),
+        correlation = atlas_flag_number(flags, "correlation", 0.7),
+        prune = !isTRUE(flags$keep_all_predictors)
+      )
+      # A run with failures exits non-zero, so a scheduler notices.
+      invisible(if (summary$counts$failed > 0L) 1L else 0L)
     },
     "status" = {
       atlas_status()

@@ -48,6 +48,10 @@ records. See README.md for the pipeline and data layout.
   `./atlas` (Git Bash) or `./atlas.ps1` (PowerShell).
 - Call other packages as `pkg::fun()`. The command line can run from sources
   without installing, and that only works with explicit namespaces.
+- Batch workers are separate R processes (`parallel`, PSOCK). A function sent
+  to one carries its enclosing frame, so set its environment to `globalenv()`
+  or every worker receives a copy of the pull; and a terra raster cannot be
+  sent at all, so each worker opens the stack itself.
 - Windows host: Git Bash or PowerShell, not WSL.
 - The web app in `web/` follows mycomap.org's design tokens. When .org's
   palette or header changes, update `web/tailwind.config.ts` and

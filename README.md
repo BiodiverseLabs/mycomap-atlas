@@ -24,7 +24,7 @@ more carry provisional temp codes, which exist in no other dataset.
 | 1. Pull the eligible universe from .org | built |
 | 2. Environmental layers on the grid | built on the draft grid: climate, elevation, terrain, soil, land cover |
 | 3. Target-group background from the same validated universe | built |
-| 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | maxnet built; xgboost next |
+| 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | maxnet built, batch runs built; xgboost next |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
 | 6. Release: rasters and metrics published together, with rollback | |
 
@@ -181,6 +181,50 @@ when batch fitting gives hundreds.
 Below 20 presence cells a taxon is refused rather than modelled, and the
 threshold bites on record counts that look generous: *Lysurus mokusin* has 105
 records from 4 distinct cells — one urban population, collected over and over.
+
+## Fitting every taxon
+
+```bash
+./atlas fit-all --limit=24 --workers=12   # a trial on the 24 richest taxa
+./atlas fit-all --workers=12              # every taxon with 20+ presence cells
+./atlas fit-all --no-predict              # scores only, no maps
+```
+
+A batch reads and projects the pull once and opens the predictor stack once,
+then fits each taxon in turn, richest first. It refits only what changed: a
+stored model is skipped when its record-set fingerprint **and** its settings
+match, and the settings include which build of each layer it was fitted on. A
+nightly run after a quiet day fits almost nothing; a run after a layer rebuild
+fits everything. `--force` refits regardless, which is what to use after a
+change to the fitting code itself.
+
+One taxon failing never stops the run. A refusal (too few presence cells once
+cells without predictor data are dropped) and a failure (anything else) are
+counted apart. Progress goes to `data/batches/<grid>/batch-<stamp>.log`, flushed
+line by line, and the summary to `batch-<stamp>.json` and `latest.json`,
+rewritten after every taxon so a stopped run still says what it finished. A
+run with any failure exits non-zero.
+
+Where the time goes, measured on the draft grid:
+
+| Stage | *A. nabsnona* (47 cells) | *T. versicolor* (294 cells) |
+|---|---|---|
+| Read and project the pull (once per batch) | 15 s | — |
+| Training table and predictors | 0.7 s | 1.4 s |
+| Five blocked cross-validation fits | 27.7 s | 63.2 s |
+| Final fit | 9.7 s | 12.6 s |
+| Predict, write and draw the map | 5.3 s | 13.0 s |
+
+The fitting is the cost, not the map, so `--no-predict` saves only about a
+tenth. What makes a full run practical is `--workers`: each worker is a
+separate R process holding its own stack, fitting one taxon at a time and
+taking the next as soon as it finishes. A worker holds 0.8–1 GB.
+
+On a 24-core machine, the 24 richest taxa (107 to 294 cells) took 217 s on 12
+workers, against roughly 40 minutes one after another. Fits slow down when
+they share the machine — *T. versicolor* took 140 s instead of 90 — but
+throughput still rose elevenfold. Smaller taxa are quicker, so ~800 taxa on 12
+workers is on the order of an hour or two.
 
 ## Data
 
