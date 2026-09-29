@@ -495,3 +495,48 @@ test_that("the same release always packs to the same bytes", {
     expect_equal(hashes(first), hashes(second))
   })
 })
+
+three_band_raster <- function(path) {
+  r <- terra::rast(nrows = 20, ncols = 30, nlyrs = 3, xmin = 0, xmax = 30, ymin = 0, ymax = 20,
+                   crs = "EPSG:5070")
+  terra::values(r) <- cbind(1:600, (1:600) * 2.5, rev(1:600) / 3)
+  names(r) <- c("bio1", "bio12", "bio17")
+  terra::writeRaster(r, path, overwrite = TRUE)
+  r
+}
+
+test_that("a layer file over the limit is archived one band per file, values intact", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    dir.create(atlas_layer_dir("draft"), recursive = TRUE)
+    original <- three_band_raster(file.path(atlas_layer_dir("draft"), "bioclim.tif"))
+    writeLines("small", file.path(atlas_layer_dir("draft"), "terrain.tif"))
+    atlas_write_json(list(list(id = "bioclim", md5 = "a", built_at = "2026-09-29T00:00:00Z")),
+                     file.path(atlas_layer_dir("draft"), "manifest.json"))
+    # A limit of 1 KB splits the three-band file but not the tiny one.
+    bundle <- atlas_archive_layers_bundle("draft", split_mb = 1 / 1024)
+    expect_setequal(names(bundle$sources), c("bioclim-bio1.tif", "bioclim-bio12.tif", "bioclim-bio17.tif",
+                                             "terrain.tif", "layers-manifest.json"))
+    for (band in names(original)) {
+      part <- terra::rast(bundle$sources[[paste0("bioclim-", band, ".tif")]])
+      expect_equal(terra::values(part)[, 1], terra::values(original[[band]])[, 1], tolerance = 1e-6)
+    }
+  })
+})
+
+test_that("split files are written once, so a resumed upload sees the same bytes", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    dir.create(atlas_layer_dir("draft"), recursive = TRUE)
+    three_band_raster(file.path(atlas_layer_dir("draft"), "bioclim.tif"))
+    atlas_write_json(list(list(id = "bioclim", md5 = "a", built_at = "2026-09-29T00:00:00Z")),
+                     file.path(atlas_layer_dir("draft"), "manifest.json"))
+    first <- atlas_archive_layers_bundle("draft", split_mb = 1 / 1024)
+    before <- vapply(first$sources, atlas_sha256, character(1))
+    stamps <- file.info(first$sources)$mtime
+    Sys.sleep(1.1)
+    second <- atlas_archive_layers_bundle("draft", split_mb = 1 / 1024)
+    expect_equal(vapply(second$sources, atlas_sha256, character(1)), before)
+    expect_equal(file.info(second$sources)$mtime, stamps)
+  })
+})

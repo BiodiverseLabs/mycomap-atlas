@@ -186,7 +186,36 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
 }
 
 #' Build the layers bundle from this machine's built layers.
-atlas_archive_layers_bundle <- function(grid = "draft", dir = tempfile("atlas-archive-")) {
+# A layer file bigger than this is archived one band per file. zenodo.org's
+# gateway cut off the 1.26 GB climate stack part way (502) at home upload
+# speeds; single-variable files of a few tens of MB each go through, and
+# someone who wants only annual rainfall downloads only that.
+ATLAS_ARCHIVE_SPLIT_MB <- 400
+
+#' One GeoTIFF per band of a multi-band raster, named <file>-<band>.tif, in
+#' out_dir. Written once: a file already there is reused, so a resumed upload
+#' sees the same bytes it sent before.
+atlas_archive_split_raster <- function(path, out_dir) {
+  r <- terra::rast(path)
+  stem <- sub("[.]tif$", "", basename(path))
+  dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  files <- character()
+  for (i in seq_len(terra::nlyr(r))) {
+    band <- names(r)[[i]]
+    file <- file.path(out_dir, paste0(stem, "-", band, ".tif"))
+    if (!file.exists(file)) {
+      part <- paste0(file, ".part")
+      terra::writeRaster(r[[i]], part, overwrite = TRUE, filetype = "GTiff",
+                         gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
+      file.rename(part, file)
+    }
+    files[[basename(file)]] <- file
+  }
+  files
+}
+
+atlas_archive_layers_bundle <- function(grid = "draft", dir = tempfile("atlas-archive-"),
+                                        split_mb = ATLAS_ARCHIVE_SPLIT_MB) {
   layer_dir <- atlas_layer_dir(grid)
   manifest_file <- file.path(layer_dir, "manifest.json")
   if (!file.exists(manifest_file)) stop("no layers are built for the ", grid, " grid", call. = FALSE)
@@ -202,9 +231,25 @@ atlas_archive_layers_bundle <- function(grid = "draft", dir = tempfile("atlas-ar
     kind = "layers", grid = grid, dir = out,
     version = paste0(grid, "-", if (nzchar(day)) day else "undated", "-", substr(key, 1, 8)),
     key = key, layers = manifest,
-    sources = c(stats::setNames(file.path(layer_dir, rasters), rasters),
+    sources = c(atlas_archive_layer_sources(layer_dir, rasters, key, grid, split_mb),
                 "layers-manifest.json" = manifest_file)
   )
+}
+
+#' The files a layers version uploads: small rasters as built, big ones split
+#' into single bands kept under data/archives/staging, per layer build.
+atlas_archive_layer_sources <- function(layer_dir, rasters, key, grid, split_mb) {
+  sources <- character()
+  for (name in rasters) {
+    path <- file.path(layer_dir, name)
+    if (file.info(path)$size > split_mb * 1024^2) {
+      staging <- atlas_path("archives", "staging", grid, substr(key, 1, 16))
+      sources <- c(sources, atlas_archive_split_raster(path, staging))
+    } else {
+      sources[[name]] <- path
+    }
+  }
+  sources
 }
 
 #' Refuse a bundle Zenodo would refuse, before uploading gigabytes of it.
