@@ -123,6 +123,8 @@ atlas_model_summary <- function(metrics) {
     predictors = length(metrics$predictors),
     auc_mean = number(metrics$auc_mean),
     boyce_mean = number(metrics$boyce_mean),
+    # Fits from before null models were run have no verdict.
+    skill = if (is.character(metrics$skill) && length(metrics$skill) == 1L) metrics$skill else "untested",
     map = is.character(metrics$map) && length(metrics$map) == 1L,
     built_at = as.character(metrics$built_at %||% ""),
     stringsAsFactors = FALSE

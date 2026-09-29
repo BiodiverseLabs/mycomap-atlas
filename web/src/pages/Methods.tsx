@@ -15,7 +15,7 @@ const SECTIONS: { id: string; title: string }[] = [
   { id: "records", title: "Records" },
   { id: "grid", title: "The grid" },
   { id: "predictors", title: "Environmental predictors" },
-  { id: "background", title: "Background" },
+  { id: "background", title: "Sites and effort" },
   { id: "selection", title: "Choosing predictors" },
   { id: "models", title: "Three models" },
   { id: "evaluation", title: "Evaluation" },
@@ -120,9 +120,10 @@ export default function Methods() {
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
                 <li>Describe every cell of North America (5 km now, 1 km for releases) with 33 environmental predictors.</li>
-                <li>Compare each species with every other sequenced collection near it, so the model learns habitat, not where people collect.</li>
-                <li>Fit Maxent, boosted trees and a random forest on the same records and background.</li>
-                <li>Score each on whole 200 km regions it never saw.</li>
+                <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
+                <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
+                <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
+                <li>Test each map against null models, random handfuls of collections fitted the same way; a map that cannot beat them is marked and kept out of Explore.</li>
                 <li>Publish maps and scores as a versioned, reproducible release.</li>
               </ol>
             </Section>
@@ -208,36 +209,52 @@ export default function Methods() {
               </p>
             </Section>
 
-            <Section id="background" title="Background">
+            <Section id="background" title="Sites and effort">
               <p>
-                A presence-only model compares where a species was found with a sample of where it
-                could have been. The choice of that sample decides what the model learns.
+                A model compares where a species was found with where it could have been found.
+                The choice of that comparison decides what the model learns.
               </p>
               <p>
                 Six states and provinces hold 61% of MycoMap's records, and Indiana alone holds 12%.
                 Against random points across the continent, almost every fungus would appear to love
-                Indiana's climate, because that is where the sequencing happened. So Atlas uses a{" "}
-                <B>target-group background</B> (Phillips et al. 2009): 10,000 cells drawn from every
-                other DNA-validated collection. Those carry the same bias as the presences, and the
-                model answers a better question — given that someone collected and sequenced a
-                fungus here, what makes it this one?
+                Indiana's climate, because that is where the sequencing happened. So Atlas compares
+                each species with <B>the other places people collected and sequenced fungi</B>{" "}
+                (a target group; Phillips et al. 2009), and asks a better question: given that people
+                collected here, was this species among what they found?
               </p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>
-                  The background keeps its density: a cell collected from a hundred times counts a
-                  hundred times. That is the effort signal, not noise.
+                  <B>Survey sites.</B> Every record is gathered into a site. Places with records are
+                  thinned by distance, busiest first, so no two sites are closer than 5 km, and every
+                  other record joins its nearest site. The spacing is in kilometres, not cells, so a
+                  foray is one site on the 1 km grid just as on the 5 km one.
                 </li>
                 <li>
-                  It is drawn only from the <B>accessible area</B>, the species' own cells buffered
-                  by 500 km. A fungus is not absent from Yukon because nobody looked there.
+                  <B>Detection or not.</B> For each species, a site is a detection when any of its
+                  records is that species, and a non-detection otherwise. Both are counted once per
+                  site. An earlier version counted presences once per cell but the comparison once
+                  per record, so a wood collected a hundred times counted a hundred times against
+                  every species found there, and the best-surveyed ground looked worse than it was.
+                </li>
+                <li>
+                  <B>Effort as a predictor.</B> How hard a site was worked (the log of its records)
+                  goes into every model, and is held at one level, the median of the species'
+                  detection sites, whenever a map is drawn or scored. Effort explains what effort
+                  explains, and the map shows the rest (Warton, Renner &amp; Ramp 2013; Fithian et
+                  al. 2015).
+                </li>
+                <li>
+                  Sites are drawn only from the <B>accessible area</B>, the species' own sites
+                  buffered by 500 km. A fungus is not absent from Yukon because nobody looked there.
                 </li>
                 <li>
                   The random seed comes from the record-set fingerprint, so the same records always
-                  draw the same background.
+                  draw the same sites and folds.
                 </li>
               </ul>
               <p>
-                Code: <Ext href={`${GITHUB_URL}/blob/main/R/background.R`}>R/background.R</Ext>.
+                Code: <Ext href={`${GITHUB_URL}/blob/main/R/sites.R`}>R/sites.R</Ext> and{" "}
+                <Ext href={`${GITHUB_URL}/blob/main/R/background.R`}>R/background.R</Ext>.
               </p>
             </Section>
 
@@ -249,17 +266,22 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>
-                  Correlation is measured <B>on the background</B>, which describes the environment
-                  available to the species. Forty presences cannot estimate a correlation matrix.
+                  Correlation is measured <B>on the non-detection sites</B>, which describe the
+                  environment available to the species. Forty detections cannot estimate a
+                  correlation matrix.
                 </li>
                 <li>
                   Of any pair with |r| ≥ 0.7, the one earlier in a fixed <B>ecological order</B>{" "}
-                  survives: moisture, then temperature, then cover, then soil, then terrain. When
-                  two variables are interchangeable, the one a mycologist would name is kept, and
-                  the response curves stay readable.
+                  survives: soil pH first, among the strongest known drivers of where fungi occur
+                  (Tedersoo et al. 2014), then moisture, temperature, cover, the rest of the soil,
+                  and terrain. When two variables are interchangeable, the one a mycologist would
+                  name is kept, and the response curves stay readable.
                 </li>
                 <li>
-                  The count is capped at about <B>one predictor per four presence cells</B>.
+                  The count is capped at about <B>one predictor per four detection sites</B>.
+                </li>
+                <li>
+                  Effort is never pruned or counted against the cap; every model gets it.
                 </li>
               </ol>
               <p>
@@ -278,31 +300,50 @@ export default function Methods() {
 
             <Section id="models" title="Three models">
               <p>
-                Every taxon is fitted three ways, from the same training table, against the same
-                background, on the same folds. Only the learner differs. None is right by default:
-                where the three agree, the pattern is in the records; where they part, the map is
-                saying more about the model than the fungus.
+                Every taxon is fitted three ways, from the same sites, on the same folds. Only the
+                learner differs. None is right by default: where the three agree, the pattern is in
+                the records; where they part, the map is saying more about the model than the
+                fungus.
               </p>
               <Table
-                head={["Model", "Package", "Settings"]}
+                head={["Model", "Package", "Settings (tuned ones in bold)"]}
                 rows={[
                   [
                     <B>Maxent</B>,
                     <Ext href="https://github.com/mrmaxent/maxnet">maxnet</Ext>,
-                    "Linear and quadratic features, plus hinge from 30 presence cells; regularisation multiplier 1; pruned predictors; cloglog output, clamped outside the training range.",
+                    <>
+                      <B>Feature classes</B> linear+quadratic or linear+quadratic+hinge;{" "}
+                      <B>regularisation multiplier</B> 0.5, 1, 2 or 4 (as ENMeval tunes them);
+                      pruned predictors; cloglog output, clamped outside the training range.
+                    </>,
                   ],
                   [
                     <B>Boosted trees</B>,
                     <Ext href="https://github.com/dmlc/xgboost">xgboost</Ext>,
-                    "Learning rate 0.05, depth 3, min child weight 5, row sample 0.75, column sample 0.8; presences and background weighted equally; tree count by early stopping on spatial folds inside the training data only. Fitted only from 50 presence cells.",
+                    <>
+                      <B>Tree depth</B> 2, 3 or 5, with the <B>tree count</B> by early stopping;
+                      learning rate 0.05, min child weight 5, row sample 0.75, column sample 0.8;
+                      detections and non-detections weighted equally. Fitted only from 50 detection
+                      sites.
+                    </>,
                   ],
                   [
                     <B>Random forest</B>,
                     <Ext href="https://github.com/imbs-hl/ranger">ranger</Ext>,
-                    "1,000 probability trees, each grown on as many background cells as presences, drawn afresh per tree (down-sampling; Valavi et al. 2021).",
+                    <>
+                      1,000 probability trees, each grown on as many non-detection sites as
+                      detections, drawn afresh per tree (down-sampling; Valavi et al. 2021);{" "}
+                      <B>predictors tried at each split</B> 2, √p or p/3.
+                    </>,
                   ],
                 ]}
               />
+              <p>
+                Settings are chosen by <B>nested spatial cross-validation</B>: for each held-out
+                region, the candidates are compared on inner spatial folds of the other regions
+                only, so the choice never sees the ground it is scored on. The final model is tuned
+                the same way on all the folds.
+              </p>
               <p>
                 The random forest is one of the three final models. No model is used to prepare a
                 layer or pick records for another; each learns directly from the training table.
@@ -326,13 +367,25 @@ export default function Methods() {
               <p>
                 Collections come in clusters: one foray can yield thirty from a single wood. A random
                 hold-out leaves near neighbours on both sides and reports only that the model can
-                interpolate 200 m (Roberts et al. 2017). Instead the continent is cut into{" "}
-                <B>200 km blocks</B>, the blocks are dealt into <B>five folds</B>, and each model is
-                scored on whole blocks it was not trained on.
+                interpolate 200 m (Roberts et al. 2017). Instead the continent is cut into square
+                blocks, the blocks are dealt into <B>five folds</B>, and each model is scored on whole
+                blocks it was not trained on.
               </p>
               <p>
-                <B>Blocked AUC</B> is how well a map separates this fungus from other collections;
-                0.5 is chance. Against a target-group background it is comparative, not absolute: a
+                <B>Block size comes from the species.</B>{" "}
+                <Ext href="https://github.com/rvalavi/blockCV">blockCV</Ext> fits a variogram to its
+                detections and non-detections; beyond that range two sites say little about each
+                other, so a block that wide keeps the held-out region honest (Valavi et al. 2019).
+                The size is held between 50 and 300 km: below 50 a foray's cluster could straddle a
+                boundary, above 300 a 500 km accessible area holds too few blocks. Widespread
+                species usually reach the 300 km ceiling. The autocorrelation of the predictors
+                themselves was measured too, and over a continent it runs to thousands of
+                kilometres for climate, which would leave no blocks at all. Blocks holding
+                detections are dealt first, spread evenly, so no fold is left with nothing to score.
+              </p>
+              <p>
+                <B>Blocked AUC</B> is how well a map separates the sites where this fungus was found
+                from the other surveyed sites; 0.5 is chance. It is comparative, not absolute: a
                 generalist that grows wherever people look scores near 0.5 by construction, and that
                 is the honest answer.
               </p>
@@ -341,24 +394,34 @@ export default function Methods() {
                 asks whether higher-rated ground holds proportionally more held-out records. It is
                 the rank correlation of that ratio with suitability: 1 is consistent, 0 no better
                 than the background, negative upside down. Atlas uses 100 windows each a tenth of
-                the range wide. It is unsteady below about 50 presences.
+                the range wide. It is unsteady below about 50 detections.
               </p>
               <p>
-                Across all 1,224 mapped taxa the median blocked scores are Maxent AUC 0.649 / Boyce
-                0.263 and random forest 0.669 / 0.291.
+                <B>Null models.</B> A score alone cannot say whether a map knows anything: where
+                collecting is patchy, even a made-up species can score above 0.5. So every model is
+                refitted 19 times on a <B>null species</B> — the same number of sites drawn at random
+                from all surveyed sites, busier sites more often, as a random handful of collections
+                would fall — with the same settings and folds (Raes &amp; ter Steege 2007; the null
+                models of ENMeval 2.0, Kass et al. 2021). A map <B>passes</B> when its blocked AUC
+                beats every null (p ≤ 0.05) and its Boyce index is above zero. A map that fails is
+                drawn faint, hidden from the Maps list unless asked for, and left out of Explore and
+                of anything mycomap.org reads from a release.
               </p>
             </Section>
 
             <Section id="thresholds" title="How much data a map needs">
               <p>
-                A map needs presences in <B>at least 20 separate grid cells</B>; boosted trees need
-                50. Record counts mislead: <Sci>Lysurus mokusin</Sci> has 105 records from 4
-                distinct 5 km cells — one urban population, collected over and over. Below the line a
-                taxon is refused rather than modelled, and it becomes a survey target: every
-                sequenced collection from a new place brings its map closer.
+                A map needs <B>at least 20 detection sites</B>, in <B>at least 5 blocks</B> so that
+                every fold has something to score; boosted trees need 50 sites. Record counts
+                mislead: <Sci>Lysurus mokusin</Sci> has 105 records from 4 distinct places — one
+                urban population, collected over and over. Below the line a taxon is refused rather
+                than modelled, and it becomes a survey target: every sequenced collection from a new
+                place brings its map closer. Clearing the line does not mean a map is trusted; the
+                null models decide that.
               </p>
               <p>
-                Of the 17,590 taxa, 1,266 clear 20 cells on the draft grid and 268 clear 50.
+                On the draft grid, 1,274 taxa have 20 detection sites and 285 have 50; the block
+                rule removes about 8 more, taxa whose finds all sit in a few blocks.
               </p>
             </Section>
 
@@ -374,6 +437,11 @@ export default function Methods() {
                 each map is <B>coloured by percentile within its own area</B>. The darkest green is
                 the ground that model rates highest. The stored rasters keep the raw values. Maps are
                 reprojected to Web Mercator for display; collections are drawn as 0.1° cells.
+              </p>
+              <p>
+                Because every map has a darkest tenth, colour alone cannot show a map that knows
+                nothing. That is what the null models are for: a map that did not beat them is drawn
+                faint, with a note saying so.
               </p>
             </Section>
 

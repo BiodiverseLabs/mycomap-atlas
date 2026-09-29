@@ -126,6 +126,24 @@
       "doi": "10.18637/jss.v077.i01"
     },
     {
+      "name": "blockCV",
+      "group": "r",
+      "license": "GPL-3",
+      "url": "https://github.com/rvalavi/blockCV",
+      "role": "Measures how far each taxon's detections are spatially autocorrelated, which sets the block size for cross-validation.",
+      "citation": "Valavi R, Elith J, Lahoz-Monfort JJ, Guillera-Arroita G (2019) blockCV: an R package for generating spatially or environmentally separated folds for k-fold cross-validation of species distribution models. Methods in Ecology and Evolution 10:225-232.",
+      "doi": "10.1111/2041-210X.13107"
+    },
+    {
+      "name": "sf",
+      "group": "r",
+      "license": "GPL-2 | MIT",
+      "url": "https://r-spatial.github.io/sf/",
+      "role": "Hands survey sites to blockCV as spatial points.",
+      "citation": "Pebesma E (2018) Simple Features for R: standardized support for spatial vector data. The R Journal 10(1):439-446.",
+      "doi": "10.32614/RJ-2018-009"
+    },
+    {
       "name": "plumber",
       "group": "r",
       "license": "MIT",
@@ -343,6 +361,31 @@
       "citation": "Dormann CF, Elith J, Bacher S, et al. (2013) Collinearity: a review of methods to deal with it and a simulation study evaluating their performance. Ecography 36:27-46.",
       "doi": "10.1111/j.1600-0587.2012.07348.x",
       "used_for": "Pruning correlated predictors before Maxent."
+    },
+    {
+      "citation": "Warton DI, Renner IW, Ramp D (2013) Model-based control of observer bias for the analysis of presence-only data in ecology. PLoS ONE 8:e79168.",
+      "doi": "10.1371/journal.pone.0079168",
+      "used_for": "Collecting effort as a predictor, held at one level when a map is drawn."
+    },
+    {
+      "citation": "Fithian W, Elith J, Hastie T, Keith DA (2015) Bias correction in species distribution models: pooling survey and collection data for multiple species. Methods in Ecology and Evolution 6:424-438.",
+      "doi": "10.1111/2041-210X.12242",
+      "used_for": "Treating other species' collections as the surveys a species could have turned up in."
+    },
+    {
+      "citation": "Raes N, ter Steege H (2007) A null-model for significance testing of presence-only species distribution models. Ecography 30:727-736.",
+      "doi": "10.1111/j.2007.0906-7590.05041.x",
+      "used_for": "Testing every map against null models before it is trusted."
+    },
+    {
+      "citation": "Kass JM, Muscarella R, Galante PJ, et al. (2021) ENMeval 2.0: redesigned for customizable and reproducible modeling of species' niches and distributions. Methods in Ecology and Evolution 12:1602-1608.",
+      "doi": "10.1111/2041-210X.13628",
+      "used_for": "Tuning Maxent's feature classes and regularisation, and null-model significance, as ENMeval does them."
+    },
+    {
+      "citation": "Tedersoo L, Bahram M, Põlme S, et al. (2014) Global diversity and geography of soil fungi. Science 346:1256688.",
+      "doi": "10.1126/science.1256688",
+      "used_for": "Soil pH first in Maxent's predictor order."
     }
   ],
   "products": [

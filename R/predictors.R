@@ -8,8 +8,11 @@
 #
 # So predictors are pruned by correlation before fitting, keeping whichever of
 # a correlated pair comes first in a fixed order. The order is ecological
-# rather than statistical: for fungi, moisture first, then temperature, then
-# what they grow on, then the soil, then the shape of the ground. When two
+# rather than statistical: for fungi, soil pH first — among the strongest known
+# drivers of where fungi occur (Tedersoo et al. 2014), and before this order
+# put it first it reached only 29% of Maxent models with 30-49 sites — then
+# moisture, then temperature, then what they grow on, then the rest of the
+# soil, then the shape of the ground. When two
 # variables are interchangeable to the model, the one a mycologist would name
 # is the one that survives, which also makes a response curve readable.
 #
@@ -17,14 +20,16 @@
 # the species — not on the presences, which are too few to estimate them.
 
 ATLAS_PREDICTOR_PRIORITY <- c(
+  # Soil pH: which fungi a soil holds follows its acidity more than its climate.
+  "soil_phh2o",
   # Moisture: the first thing that decides whether a fungus fruits at all.
   "bio12", "bio17", "bio15", "bio14",
   # Temperature: means, then the extremes that set a range's edges.
   "bio1", "bio6", "bio5", "bio4",
   # What it grows on or with.
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
-  # The soil it sits in.
-  "soil_phh2o", "soil_soc", "soil_clay", "soil_sand", "soil_cec",
+  # The rest of the soil.
+  "soil_soc", "soil_clay", "soil_sand", "soil_cec",
   # The shape of the ground.
   "elevation", "slope", "roughness"
 )
@@ -83,7 +88,10 @@ atlas_prune_correlated <- function(data, threshold = 0.7,
 atlas_choose_predictors <- function(training, threshold = 0.7,
                                     priority = ATLAS_PREDICTOR_PRIORITY,
                                     per_presence = 4, minimum = 5) {
-  available <- atlas_predictor_columns(training)
+  # Effort is not habitat: it is never pruned against a habitat variable,
+  # never counts against the cap, and always goes in.
+  available <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
+  effort <- intersect(ATLAS_EFFORT_COLUMN, atlas_predictor_columns(training))
   background <- training[training$presence == 0L, available, drop = FALSE]
   kept <- if (nrow(background)) {
     atlas_prune_correlated(background, threshold = threshold, priority = priority)
@@ -101,5 +109,5 @@ atlas_choose_predictors <- function(training, threshold = 0.7,
     # primary variables and drops the tail.
     kept <- kept[seq_len(cap)]
   }
-  kept
+  c(kept, effort)
 }

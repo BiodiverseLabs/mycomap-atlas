@@ -248,7 +248,10 @@ atlas_model_index_entry <- function(metrics, algorithm) {
     settings_key = text(metrics$settings_key),
     presences = number(metrics$presences),
     area_km2 = number(metrics$area_km2),
-    map = is.character(metrics$raster) && length(metrics$raster) == 1L
+    map = is.character(metrics$raster) && length(metrics$raster) == 1L,
+    # Whether the map beat its null models; anything reading a release to
+    # use a map (mycomap.org, Vision) should take only "passed".
+    skill = text(metrics$skill)
   )
   Filter(Negate(is.null), entry)
 }

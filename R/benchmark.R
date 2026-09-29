@@ -54,7 +54,8 @@ atlas_benchmark_taxon <- function(name, fingerprint, points, stack,
     table <- training[, c(bookkeeping, keep), drop = FALSE]
     scores <- atlas_cross_validate(
       table, fold_ids,
-      fit = function(train) algo$fit(train, regmult = regmult, seed = seed, block_km = block_km),
+      # Studies compare learners at their default settings; production tunes.
+      fit = function(train) algo$fit(train, algo$default(train), seed),
       score = algo$score
     )
     list(

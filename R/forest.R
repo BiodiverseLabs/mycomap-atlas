@@ -14,8 +14,18 @@
 
 ATLAS_RF_TREES <- 1000
 
-#' Fit a down-sampled random forest to a training table.
-atlas_fit_rf <- function(training, num_trees = ATLAS_RF_TREES, seed = 1L) {
+#' ranger's own default for a forest over p predictors.
+atlas_rf_default_mtry <- function(p) max(1L, floor(sqrt(p)))
+
+#' The mtry values tuning tries: 2, ranger's default and a third of the
+#' predictors, fewest first, each at least 1 and at most p.
+atlas_rf_mtry_candidates <- function(p) {
+  sort(unique(pmin(p, pmax(1L, as.integer(c(2, atlas_rf_default_mtry(p), floor(p / 3)))))))
+}
+
+#' Fit a down-sampled random forest to a training table. mtry NULL is
+#' ranger's default.
+atlas_fit_rf <- function(training, num_trees = ATLAS_RF_TREES, seed = 1L, mtry = NULL) {
   if (!requireNamespace("ranger", quietly = TRUE)) {
     stop("ranger is needed to fit: install.packages('ranger')", call. = FALSE)
   }
@@ -33,6 +43,7 @@ atlas_fit_rf <- function(training, num_trees = ATLAS_RF_TREES, seed = 1L) {
   model <- ranger::ranger(
     dependent.variable.name = "presence", data = data,
     num.trees = num_trees, probability = TRUE, replace = TRUE,
+    mtry = mtry,
     sample.fraction = c(fraction, fraction),
     # One thread per fit: a batch already runs one fit per core.
     num.threads = 1, seed = seed

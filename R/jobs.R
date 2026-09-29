@@ -131,8 +131,9 @@ atlas_index_current <- function(entry, fingerprint, settings, min_presences) {
 #' nothing to do.
 atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "all",
                            shards = 4L, min_presences = 20, n_background = 10000,
-                           buffer_km = 500, folds = 5, block_km = 200, regmult = 1,
-                           correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE) {
+                           buffer_km = 500, folds = 5, block_km = "auto", regmult = 1,
+                           correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE,
+                           nulls = ATLAS_NULL_REPS, tune = TRUE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
   if (!is.numeric(limit) || length(limit) != 1L || is.na(limit) || limit < 1) {
@@ -166,7 +167,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   typical <- if (any(is.finite(areas))) stats::median(areas, na.rm = TRUE) else 5e6
 
   fit <- list(min_presences = min_presences, n_background = n_background, buffer_km = buffer_km,
-              folds = folds, block_km = block_km, regmult = regmult, correlation = correlation)
+              folds = folds, block_km = block_km, regmult = regmult, correlation = correlation,
+              nulls = nulls, tune = tune)
   tasks <- list()
   retire <- list()
   for (algorithm in algorithms) {
@@ -175,7 +177,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     settings <- atlas_fit_settings(
       grid = grid, n_background = n_background, buffer_km = buffer_km, folds = folds,
       block_km = block_km, regmult = regmult, correlation = correlation,
-      prune = algo$prune, layers = layers_key, algorithm = algo$id
+      prune = algo$prune, layers = layers_key, algorithm = algo$id,
+      nulls = nulls, tune = tune
     )
     candidates <- atlas_batch_candidates(points, minimum)$scientific_name
     fingerprints <- atlas_fingerprints_for(occurrences, candidates)
@@ -297,7 +300,9 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       grid = grid, force = TRUE, workers = workers, taxa = taxa, algorithm = algorithm,
       min_presences = job$fit$min_presences, n_background = job$fit$n_background,
       buffer_km = job$fit$buffer_km, folds = job$fit$folds, block_km = job$fit$block_km,
-      regmult = job$fit$regmult, correlation = job$fit$correlation, quiet = TRUE, fit = fit
+      regmult = job$fit$regmult, correlation = job$fit$correlation,
+      nulls = job$fit$nulls %||% ATLAS_NULL_REPS, tune = job$fit$tune %||% TRUE,
+      quiet = TRUE, fit = fit
     )
     rows <- stats::setNames(batch$taxa, vapply(batch$taxa, function(r) r$taxon, ""))
     fingerprints <- stats::setNames(

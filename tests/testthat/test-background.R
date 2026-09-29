@@ -1,15 +1,4 @@
-# A synthetic pool on the grid: cell centres in the projected CRS, so no test
-# here needs a layer, a network or the real pull.
-fake_points <- function(x, y, names = "Target group", cells = NULL) {
-  data.frame(
-    scientific_name = rep_len(names, length(x)),
-    cell = if (is.null(cells)) seq_along(x) else cells,
-    x = x, y = y,
-    stringsAsFactors = FALSE
-  )
-}
-
-test_that("repeat visits to one cell become one presence", {
+test_that("repeat visits to one place become one site", {
   skip_if_not_installed("terra")
   # Three records 200 m apart, well inside one 5 km cell, plus one 40 km away.
   points <- atlas_occurrence_points(
@@ -22,7 +11,8 @@ test_that("repeat visits to one cell become one presence", {
     grid = "draft"
   )
   expect_equal(nrow(points), 4L)
-  expect_equal(nrow(atlas_thin_to_cells(points)), 2L)
+  expect_equal(nrow(attr(points, "sites")), 2L)
+  expect_equal(sort(attr(points, "sites")$records), c(1L, 3L))
 })
 
 test_that("records off the grid are dropped rather than snapped to its edge", {
@@ -64,19 +54,32 @@ test_that("a pool smaller than the request returns everything it has", {
   expect_equal(nrow(atlas_background_sample(pool, area, n = 10000)), 3L)
 })
 
-test_that("background keeps sampling effort, so a much-visited cell dominates", {
+test_that("a much-visited site counts once, and says how busy it was", {
   skip_if_not_installed("terra")
-  # 900 records at one site, 100 at another: the draw should follow that.
-  pool <- fake_points(
-    x = c(rep(0, 900), rep(100000, 100)),
-    y = rep(0, 1000),
-    cells = c(rep(1L, 900), rep(2L, 100))
+  # 900 records at one site, 100 at another, one focal record at a third. The
+  # old design drew background per record, so the busy site outweighed the
+  # focal species nine hundred to one; now every site is one row, with its
+  # effort alongside.
+  points <- rbind(
+    fake_points(x = 50000, y = 0, names = "Focal species", cells = 3L),
+    fake_points(x = c(rep(0, 900), rep(100000, 100)), y = rep(0, 1000),
+                names = "Other species", cells = c(rep(1L, 900), rep(2L, 100)))
   )
-  area <- atlas_accessible_area(0, 0, buffer_km = 500)
-  drawn <- atlas_background_sample(pool, area, n = 500, seed = 42L)
-  share <- mean(drawn$cell == 1L)
-  expect_gt(share, 0.8)
-  expect_lt(share, 0.98)
+  table <- atlas_training_table("Focal species", points, n_background = 500)
+  expect_equal(nrow(table), 3L)
+  expect_equal(sort(table$effort[table$presence == 0L]), log(c(100, 900)))
+  expect_equal(table$effort[table$presence == 1L], log(1))
+})
+
+test_that("a detection site is never also a non-detection", {
+  skip_if_not_installed("terra")
+  points <- rbind(
+    fake_points(x = c(0, 0), y = c(0, 0), names = "Focal species", cells = c(1L, 1L)),
+    fake_points(x = c(0, 30000), y = c(0, 0), names = "Other species", cells = c(1L, 2L))
+  )
+  table <- atlas_training_table("Focal species", points, n_background = 500)
+  expect_equal(table$presence, c(1L, 0L))
+  expect_equal(table$effort[1], log(3))
 })
 
 test_that("the same data always draws the same background", {
