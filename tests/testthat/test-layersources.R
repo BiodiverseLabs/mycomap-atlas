@@ -81,6 +81,20 @@ test_that("treeless ground is share 0, and ground outside the map stays missing"
   expect_true(is.na(v[4, "host_pinus"]))
 })
 
+test_that("the USFS species table is read by position, despite its trailing commas", {
+  # The real file's shape: data rows carry one field more than the header,
+  # and a common name can hold a quoted comma.
+  lines <- c(
+    "Common Name, Scientific Name, Spp code, Plots_pct, Avg_ba,, AC_200",
+    "fir spp.,Abies spp.,10,0.001,1.1,,0.96,",
+    "\"American hornbeam, musclewood\",Carpinus caroliniana,391,0.5,2,,0.9,",
+    "white oak,Quercus alba,802,6.956,40,,0.99,"
+  )
+  species <- atlas_parse_wilson_species(lines)
+  expect_equal(species$code, c(10L, 391L, 802L))
+  expect_equal(species$genus, c("Abies", "Carpinus", "Quercus"))
+})
+
 test_that("a Canadian genus is its unidentified class plus every named species", {
   skip_if_not_installed("terra")
   dir <- tempfile("knn-")

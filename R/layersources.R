@@ -218,12 +218,28 @@ atlas_host_band <- function(genus) paste0("host_", tolower(genus))
 
 #' FIA species codes of the US rasters, with the genus each belongs to.
 atlas_wilson_species <- function(data_zip) {
-  lines <- readLines(unz(data_zip, "Data/agreement_metrics_200k.csv"), warn = FALSE)
-  table <- utils::read.csv(text = lines, stringsAsFactors = FALSE, check.names = FALSE)
-  names(table) <- trimws(names(table))
+  atlas_parse_wilson_species(
+    readLines(unz(data_zip, "Data/agreement_metrics_200k.csv"), warn = FALSE)
+  )
+}
+
+#' The species table's lines as code and genus.
+#'
+#' Read by position, not by header: every data row ends in a comma, one field
+#' more than the header, and read.csv answers that by turning the first
+#' column into row names and shifting every other column one to the left.
+atlas_parse_wilson_species <- function(lines) {
+  table <- utils::read.csv(text = lines[-1], header = FALSE, stringsAsFactors = FALSE,
+                           colClasses = "character")
+  header <- trimws(strsplit(lines[[1]], ",", fixed = TRUE)[[1]])
+  code_col <- which(header == "Spp code")
+  name_col <- which(header == "Scientific Name")
+  if (length(code_col) != 1L || length(name_col) != 1L) {
+    stop("the USFS species table has no 'Spp code' / 'Scientific Name' columns", call. = FALSE)
+  }
   data.frame(
-    code = as.integer(table[["Spp code"]]),
-    genus = sub(" .*$", "", trimws(table[["Scientific Name"]])),
+    code = as.integer(table[[code_col]]),
+    genus = sub(" .*$", "", trimws(table[[name_col]])),
     stringsAsFactors = FALSE
   )
 }
