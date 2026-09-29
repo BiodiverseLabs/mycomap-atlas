@@ -119,7 +119,7 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 33 environmental predictors.</li>
+                <li>Describe every cell of North America (5 km now, 1 km for releases) with 53 environmental predictors, including which trees grow there.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
@@ -179,9 +179,10 @@ export default function Methods() {
 
             <Section id="predictors" title="Environmental predictors">
               <p>
-                Thirty-three predictors, all from sources that cover the whole continent. The
-                obvious United States products (TreeMap, NLCD, PAD-US) stop at the border, and
-                British Columbia alone holds 8% of the records.
+                Fifty-three predictors. All but the host trees come from sources that cover the
+                whole continent: the obvious United States products (TreeMap, NLCD, PAD-US) stop at
+                the border, and British Columbia alone holds 8% of the records. No continental map of
+                tree species exists, so the host trees join the two national forest inventories.
               </p>
               <Table
                 head={["Group", "Predictors", "Source"]}
@@ -199,8 +200,28 @@ export default function Methods() {
                     "fraction of each cell under trees, shrubs, grass, wetland, open water, built-up",
                     <DatasetLink id="worldcover" />,
                   ],
+                  [
+                    "Host trees",
+                    "share of a cell's trees that are each of 19 host genera (pine, oak, spruce, fir, Douglas-fir, hemlock, birch, poplar, beech, larch, chestnut, tanoak, hickory, alder, willow, basswood, hornbeam, hophornbeam, madrone), and the share that are conifers",
+                    <span>
+                      <DatasetLink id="bigmap" /> (lower 48), <DatasetLink id="nfi" /> (Canada)
+                    </span>,
+                  ],
                 ]}
               />
+              <p>
+                The two inventories measure different things, so both are brought to one unit:{" "}
+                <B>the share of a cell's trees in each genus</B>, from 0 to 1. BIGMAP maps the
+                biomass of each tree species at 30 m; it is read at 250 m points and averaged, and a
+                genus's share is its biomass over the biomass of all species. The Canadian inventory
+                maps each species' percentage of the trees at 250 m; a genus's share is its species'
+                percentages, unidentified members of the genus included, over the needleleaf and
+                broadleaf groups together. A cell with no trees has a share of 0.{" "}
+                <B>Alaska, Hawaii, Puerto Rico and Mexico are in neither inventory</B>: their cells are
+                empty, so those records (about 2.5%) do not train models and those places are not
+                mapped. Hazel has no layer in BIGMAP and is left out. Code:{" "}
+                <Ext href={`${GITHUB_URL}/blob/main/R/hosts.R`}>R/hosts.R</Ext>.
+              </p>
               <p>
                 Each source is cropped to the region before it is reprojected, then resampled onto
                 the grid. Sea level is filled as 0 before slope is computed; without that, every
@@ -260,7 +281,7 @@ export default function Methods() {
 
             <Section id="selection" title="Choosing predictors">
               <p>
-                Thirty-three predictors is a lot of rope for a taxon with forty records, and the
+                Fifty-three predictors is a lot of rope for a taxon with forty records, and the
                 bioclim variables are near-copies of one another. For Maxent, correlated predictors
                 are pruned before fitting:
               </p>
@@ -278,6 +299,14 @@ export default function Methods() {
                   name is kept, and the response curves stay readable.
                 </li>
                 <li>
+                  Where the host trees go depends on the fungus. Its genus is looked up in
+                  FungalTraits (Põlme et al. 2020): for an <B>ectomycorrhizal</B> genus, which
+                  cannot fruit without its partner tree, the host trees come straight after soil pH;
+                  for every other guild, and for genera FungalTraits does not list, they come after
+                  temperature and before land cover. The conifer share leads the host bands. Each
+                  model records the guild and the order it was given.
+                </li>
+                <li>
                   The count is capped at about <B>one predictor per four detection sites</B>.
                 </li>
                 <li>
@@ -292,7 +321,7 @@ export default function Methods() {
                 cap stops binding.
               </p>
               <p>
-                The two tree models get all 33 predictors. Trees are not confused by correlated
+                The two tree models get all 53 predictors, in any order. Trees are not confused by correlated
                 inputs the way a regression is, and in the benchmark boosted trees did worse when
                 restricted to Maxent's list (−0.011 ± 0.003 AUC).
               </p>
@@ -470,10 +499,12 @@ export default function Methods() {
             <Section id="limits" title="What the maps are not">
               <p>
                 They are <B>habitat suitability, not occurrence</B>: a high value means a place
-                resembles where the species has been found, not that it is there. No continental map
-                of tree species exists, so the models know how wooded a place is but not which trees
-                grow there — a real gap for mycorrhizal fungi. Climate is a 1970–2000 average. And the
-                maps can only be as good as where people have collected and sequenced.
+                resembles where the species has been found, not that it is there. Which trees grow
+                where comes from two national forest inventories, so it stops at their borders:
+                Alaska, Hawaii, Puerto Rico and Mexico are not modelled at all. The inventories are
+                themselves models, from 2011 (Canada) and 2018 (United States), at a genus level
+                that cannot tell one oak from another. Climate is a 1970–2000 average. And the maps
+                can only be as good as where people have collected and sequenced.
               </p>
             </Section>
 

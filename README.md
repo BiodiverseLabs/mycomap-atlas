@@ -124,9 +124,31 @@ Two grids share one extent and origin, and their cells nest exactly:
 
 Sources are global, because the obvious United States products (TreeMap, NLCD,
 PAD-US) stop at the lower 48 while British Columbia alone holds 8% of the
-records. What that costs: there is no continental tree-species layer, so v1
-carries tree cover as a fraction rather than host identity, and a model cannot
-be read as knowing which host a fungus needs.
+records.
+
+The exception is the host-tree layer (`hosts`, R/hosts.R): 20 bands, the
+share of a cell's trees in each of 19 ectomycorrhizal host genera
+(`host_pinus`, `host_quercus`, ...) and the share that are conifers
+(`host_conifer`), 0 to 1. No continental tree-species map exists, so it joins
+the two national forest inventories:
+
+| Where | Source | Read as |
+|---|---|---|
+| Lower 48 | USFS FIA BIGMAP 2018 species biomass (public domain), from its ImageServer | 250 m point samples, averaged; genus biomass over the biomass of all species |
+| Canada | NFI kNN 2011 species composition, 250 m (Open Government Licence - Canada) | species percentages summed by genus (an NFI `_Spp` file is unidentified members of the genus, not a total), over needleleaf + broadleaf |
+
+Where there are no trees the share is 0. Alaska, Hawaii, Puerto Rico and
+Mexico are in neither inventory, so they are NA there: those records (about
+2.5%) drop out of fitting and those places are not mapped. BIGMAP's own
+`SPCD_0000_Total` is not used as the denominator: it is modelled apart from
+the species and runs about 15% above their sum. Both inventories are summed
+onto 1 km cells once, under `data/layers/raw/hosts/`, and each grid is built
+from those sums (a first build reads all 327 BIGMAP species, about two to
+three hours, and 2 GB of NFI files).
+
+```bash
+./atlas build-layers --only=hosts --grid=draft
+```
 
 On the draft grid, 99.3% of pulled records land on a cell with climate data;
 five records fall outside the grid altogether.
@@ -219,8 +241,16 @@ regression.
 Thirty-three predictors is a lot of rope for a taxon with forty-seven records,
 and the nineteen bioclim variables are near-copies of one another. Correlated
 predictors are pruned before fitting, keeping whichever of a pair comes first
-in a fixed **ecological** order — moisture, then temperature, then what the
-fungus grows on, then soil, then the shape of the ground. When two variables
+in a fixed **ecological** order — soil pH, moisture, then temperature, then what the
+fungus grows on, then soil, then the shape of the ground. Where the host trees
+go depends on the guild of the fungus's genus in FungalTraits (Põlme et al.
+2020): straight after soil pH for ectomycorrhizal genera, after temperature for
+everything else, and each model records its guild and the order it was given.
+FungalTraits' licence is unclear, so the table is used for lookup only: fetch
+it into the data directory with `./atlas fetch-guilds`; it is never committed,
+released or served. Without it every guild reads "unknown". A changed table
+makes every Maxent model stale (its hash is in the settings); the tree models
+take every predictor and are unaffected. When two variables
 are interchangeable to the model, the one a mycologist would name survives,
 which also keeps the response curves readable. Correlations are measured on
 the background, never on the presences: forty-seven records cannot estimate a
@@ -586,6 +616,10 @@ spot workers it launches for the job, one per shard:
 ./atlas run-job-ec2 --job=<id>       # run an already planned job
 ./atlas pull-release --no-rasters    # the box keeps maps and scores; rasters stay in S3
 ```
+
+The box plans with whatever FungalTraits table it holds (`./atlas
+fetch-guilds`, once) and ships it to the workers as a job input, never as a
+release file. A worker whose table differs from the plan's refuses its shard.
 
 A worker boots Amazon Linux, pulls the release image built from the box's own
 commit (CI publishes one for every commit on main), runs its shard and shuts
