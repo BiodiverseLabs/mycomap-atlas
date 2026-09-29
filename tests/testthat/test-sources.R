@@ -36,7 +36,11 @@ test_that("every R package the code calls is credited", {
 })
 
 test_that("every package the web app depends on is credited", {
-  web <- jsonlite::fromJSON(file.path(sources_root(), "web", "package.json"))
+  # The release image carries the R package, not the web app's sources; CI's
+  # R tests, which have the whole checkout, check this on every change.
+  package <- file.path(sources_root(), "web", "package.json")
+  skip_if_not(file.exists(package), "the web app's sources are not here (release image)")
+  web <- jsonlite::fromJSON(package)
   deps <- c(names(web$dependencies), names(web$devDependencies))
   # Type definitions are build-time scaffolding, not software the site runs on.
   deps <- deps[!startsWith(deps, "@types/")]
