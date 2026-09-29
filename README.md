@@ -377,6 +377,38 @@ On the draft grid today a release is 8,153 files and 2.4 GB: publishing it the
 first time took 54 s into a local folder, a first pull 2 min 14 s, and a pull
 with nothing new 17 s.
 
+## Jobs: one refit, split across machines
+
+A job recomputes whatever changed, on as many machines as are to hand. Three
+steps, each on whatever machine suits it:
+
+```bash
+./atlas publish-layers --store=$S                      # once per layer build
+./atlas plan-job   --store=$S --shards=8               # the small always-on box
+./atlas run-shard  --store=$S --job=<id> --shard=3     # each worker, from an empty disk
+./atlas job-status --store=$S --job=<id>
+./atlas finish-job --store=$S --job=<id>               # back on the small box
+```
+
+- **plan** compares each taxon's record set with the current release's model
+  index, lists the (taxon, model) pairs to fit, splits them into shards of
+  similar cost (a forest's map, and a big range, cost most), and puts the job
+  and its inputs — the pull and the layers — in the store. It reads the
+  release's index rather than its models, so it needs no model files. With
+  nothing changed there is nothing to plan.
+- **run** fetches the inputs, fits exactly its share, uploads the results, and
+  writes the shard's record last, so a record means the shard finished.
+- **finish** checks every shard reported and that no other release became
+  current meanwhile, then builds the new release from the old one: refitted
+  models replaced, retired and refused ones removed, public files refreshed. A
+  model that failed keeps its previous version and is planned again next time.
+  A refusal is recorded against its record set, so it is not retried until the
+  records change.
+
+On the draft grid, a real two-shard job — each worker starting from an empty
+data directory — fetched 103 MB of inputs, fitted its model and uploaded it in
+40–66 s, and finishing assembled the 8,153-file release from the previous one.
+
 ## Data
 
 Everything lives under `data/`, which is never committed (override with

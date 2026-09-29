@@ -58,6 +58,17 @@ atlas_usage <- function() {
   message("  releases           list the releases in a store, marking the current one")
   message("  promote-release    make a release current (rolling back is promoting an older one)")
   message("      --release=ID              which release (required)")
+  message("  publish-layers     put this machine's built layers in the store for workers")
+  message("  plan-job           list what needs refitting and split it into shards")
+  message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
+  message("      --shards=N                how many workers will share it (default 4)")
+  message("  run-shard          fit one shard of a job and upload the results")
+  message("      --job=ID --shard=N        which (both required)")
+  message("      --workers=N               fits at once on this machine (default 1)")
+  message("  job-status         which shards of a job have reported")
+  message("  finish-job         build and promote the release once every shard reported")
+  message("      --job=ID                  which job (required)")
+  message("      --no-promote              publish without making it current")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -93,6 +104,11 @@ atlas_parse_constants <- function(value) {
     stop("--constants must be positive numbers or none, such as 2,4,none", call. = FALSE)
   }
   numbers
+}
+
+#' The store named by --store, or ATLAS_STORE.
+atlas_flag_store <- function(flags) {
+  atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
 }
 
 #' --keep-all-predictors forces pruning off; otherwise each algorithm decides.
@@ -279,6 +295,45 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         id = as.character(flags$release),
         grid = atlas_flag_grid(flags)
       )
+      invisible(0L)
+    },
+    "publish-layers" = {
+      atlas_publish_layers(atlas_flag_store(flags), grid = atlas_flag_grid(flags))
+      invisible(0L)
+    },
+    "plan-job" = {
+      atlas_plan_job(
+        atlas_flag_store(flags), grid = atlas_flag_grid(flags),
+        algorithms = flags$algorithms %||% "all",
+        shards = as.integer(atlas_flag_number(flags, "shards", 4)),
+        min_presences = atlas_flag_number(flags, "min_presences", 20)
+      )
+      invisible(0L)
+    },
+    "run-shard" = {
+      if (is.null(flags$job) || is.null(flags$shard)) {
+        stop("run-shard needs --job=ID and --shard=N", call. = FALSE)
+      }
+      record <- atlas_run_shard(
+        atlas_flag_store(flags), id = as.character(flags$job),
+        shard = as.integer(atlas_flag_number(flags, "shard", NA)),
+        grid = atlas_flag_grid(flags),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1))
+      )
+      invisible(if ((record$counts$failed %||% 0) > 0) 1L else 0L)
+    },
+    "job-status" = {
+      if (is.null(flags$job)) stop("job-status needs --job=ID", call. = FALSE)
+      status <- atlas_job_status(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags))
+      message("job ", status$job, ": ", length(status$done), " of ", status$shards, " shards reported",
+              if (length(status$missing)) paste0("; waiting on ", paste(status$missing, collapse = ", ")) else "",
+              if (isTRUE(status$finished)) "; finished" else "")
+      invisible(0L)
+    },
+    "finish-job" = {
+      if (is.null(flags$job)) stop("finish-job needs --job=ID", call. = FALSE)
+      atlas_finish_job(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
+                       promote = !isTRUE(flags$no_promote))
       invisible(0L)
     },
     "status" = {

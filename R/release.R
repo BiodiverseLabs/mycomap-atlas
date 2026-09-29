@@ -223,6 +223,173 @@ atlas_code_commit <- function() {
   if (length(out) == 1L && grepl("^[0-9a-f]{40}$", out)) out else NA_character_
 }
 
+#' A model's published paths, relative to the data directory.
+atlas_model_relpaths <- function(name, grid = "draft", algorithm = "maxnet",
+                                 extensions = c(".json", ".tif", ".png")) {
+  slug <- gsub("(^-|-$)", "", gsub("[^a-z0-9]+", "-", tolower(name)))
+  folder <- if (identical(algorithm, "maxnet")) file.path("models", grid) else file.path("models", grid, algorithm)
+  file.path(folder, paste0(slug, extensions))
+}
+
+#' What a release knows about each model without opening it: enough to decide
+#' whether it is still current, and to plan who fits what.
+atlas_model_index_entry <- function(metrics, algorithm) {
+  number <- function(x) if (is.numeric(x) && length(x) == 1L && is.finite(x)) x else NULL
+  text <- function(x) if (is.character(x) && length(x) == 1L) x else NULL
+  # A field that is absent is left out, not written as null: JSON would bring
+  # it back as an empty list.
+  entry <- list(
+    taxon = as.character(metrics$taxon),
+    algorithm = algorithm,
+    fingerprint = text(metrics$fingerprint),
+    settings_key = text(metrics$settings_key),
+    presences = number(metrics$presences),
+    area_km2 = number(metrics$area_km2),
+    map = is.character(metrics$raster) && length(metrics$raster) == 1L
+  )
+  Filter(Negate(is.null), entry)
+}
+
+#' A refusal as an index entry: no model, but a record that this record set
+#' under these settings was too sparse, so planning does not try it again
+#' until either changes.
+atlas_refusal_entry <- function(taxon, algorithm, fingerprint, settings_key, presences = NULL) {
+  Filter(Negate(is.null), list(
+    taxon = taxon, algorithm = algorithm, refused = TRUE,
+    fingerprint = if (is.character(fingerprint) && length(fingerprint) == 1L) fingerprint else NULL,
+    settings_key = if (is.character(settings_key) && length(settings_key) == 1L) settings_key else NULL,
+    presences = if (is.numeric(presences) && length(presences) == 1L) presences else NULL
+  ))
+}
+
+#' Refusals recorded by this machine's latest batch of each algorithm.
+atlas_batch_refusals <- function(grid = "draft") {
+  out <- list()
+  for (algorithm in names(ATLAS_ALGORITHMS)) {
+    name <- if (algorithm == "maxnet") "latest.json" else paste0("latest-", algorithm, ".json")
+    path <- atlas_path("batches", grid, name)
+    if (!file.exists(path)) next
+    batch <- tryCatch(jsonlite::fromJSON(path, simplifyVector = FALSE), error = function(e) NULL)
+    for (row in batch$taxa %||% list()) {
+      if (!identical(row$status, "refused")) next
+      out[[length(out) + 1L]] <- atlas_refusal_entry(
+        row$taxon, algorithm, row$fingerprint, batch$settings_key, row$presences
+      )
+    }
+  }
+  out
+}
+
+#' The index of every model on this machine for a grid, and of the refusals
+#' its latest batches recorded.
+atlas_models_index <- function(grid = "draft", taxa = NULL, refusals = TRUE) {
+  out <- list()
+  for (algorithm in names(ATLAS_ALGORITHMS)) {
+    files <- list.files(atlas_model_dir(grid, algorithm), pattern = "[.]json$", full.names = TRUE)
+    for (file in files) {
+      metrics <- tryCatch(jsonlite::fromJSON(file, simplifyVector = FALSE), error = function(e) NULL)
+      if (!is.list(metrics) || is.null(metrics$taxon)) next
+      if (!is.null(taxa) && !metrics$taxon %in% taxa) next
+      out[[length(out) + 1L]] <- atlas_model_index_entry(metrics, algorithm)
+    }
+  }
+  if (isTRUE(refusals)) {
+    have <- vapply(out, function(e) paste(e$algorithm, e$taxon), "")
+    for (entry in atlas_batch_refusals(grid)) {
+      if (!is.null(taxa) && !entry$taxon %in% taxa) next
+      if (!paste(entry$algorithm, entry$taxon) %in% have) out[[length(out) + 1L]] <- entry
+    }
+  }
+  out
+}
+
+#' Hash and size a list of files under the data directory.
+atlas_file_entries <- function(paths) {
+  full <- file.path(atlas_data_dir(), paths)
+  lapply(seq_along(paths), function(i) {
+    list(path = paths[[i]], sha256 = atlas_sha256(full[[i]]), bytes = file.info(full[[i]])$size)
+  })
+}
+
+#' Upload whichever of these files the store does not already hold.
+atlas_upload_objects <- function(store, entries, stored = store$list("objects/")) {
+  keys <- vapply(entries, function(e) atlas_object_key(e$sha256), character(1))
+  missing <- which(!duplicated(keys) & !keys %in% stored)
+  for (i in missing) store$put(keys[[i]], file.path(atlas_data_dir(), entries[[i]]$path))
+  list(count = length(missing),
+       bytes = sum(vapply(entries[missing], function(e) as.numeric(e$bytes), numeric(1))))
+}
+
+#' One string standing for a model index, whatever order it was built in.
+atlas_index_key <- function(models_index) {
+  keys <- vapply(models_index, function(e) {
+    paste(e$algorithm, e$taxon, e$fingerprint %||% "", e$settings_key %||% "",
+          isTRUE(e$refused), isTRUE(e$map), sep = "|")
+  }, "")
+  digest::digest(paste(sort(keys), collapse = "
+"), algo = "sha256")
+}
+
+#' Write a release manifest from files already in the store, and promote it.
+#'
+#' Both ways of making a release end here: publishing a machine's data
+#' directory, and finishing a job whose shards ran elsewhere.
+atlas_write_release <- function(store, grid, files, models_index, previous = NULL,
+                                note = NULL, pull = NULL, layers_key = NULL,
+                                promote = TRUE, quiet = FALSE, extra = list()) {
+  files <- files[order(vapply(files, function(f) f$path, character(1)))]
+  files_key <- digest::digest(
+    paste(vapply(files, function(f) f$path, ""), vapply(files, function(f) f$sha256, ""), collapse = "\n"),
+    algo = "sha256"
+  )
+  counts <- lapply(stats::setNames(nm = names(ATLAS_ALGORITHMS)), function(algorithm) {
+    sum(vapply(models_index, function(m) identical(m$algorithm, algorithm) && !isTRUE(m$refused), logical(1)))
+  })
+  id <- atlas_release_id(files_key)
+  index_key <- atlas_index_key(models_index)
+  release <- c(list(
+    id = id,
+    grid = grid,
+    created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    previous = previous,
+    note = note,
+    commit = atlas_code_commit(),
+    versions = list(
+      r = as.character(getRversion()),
+      packages = lapply(stats::setNames(nm = c("terra", "maxnet", "xgboost", "ranger")), function(p) {
+        tryCatch(as.character(utils::packageVersion(p)), error = function(e) NULL)
+      })
+    ),
+    layers_key = layers_key,
+    pull = pull,
+    models = counts
+  ), extra, list(
+    files_key = files_key,
+    index_key = index_key,
+    index = models_index,
+    files = files
+  ))
+  atlas_store_json(store, paste0("releases/", grid, "/", id, ".json"), release)
+  atlas_write_json(release, atlas_path("releases", grid, paste0(id, ".json")))
+  if (!isTRUE(quiet)) message("release ", id, ": ", length(files), " files")
+  if (isTRUE(promote)) atlas_promote_release(store, id, grid, quiet = quiet)
+  invisible(release)
+}
+
+#' Refresh the public files a release carries from this machine's pull: the
+#' collection cells at the public resolution, and the cut-down pull summary.
+atlas_refresh_public_files <- function() {
+  manifest <- atlas_read_manifest()
+  occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
+  if (!is.null(occurrences)) {
+    atlas_write_tsv_gz(atlas_public_cells_table(occurrences), atlas_public_cells_path())
+    # The pull's own manifest keeps its SQL and host; the published summary
+    # is a separate, cut-down copy.
+    atlas_write_json(atlas_release_pull_summary(manifest), atlas_public_pull_path())
+  }
+  invisible(manifest)
+}
+
 #' Publish what this machine has computed as a new release.
 #'
 #' Refreshes the pull summary and public cells first (from the pull, when this
@@ -232,69 +399,33 @@ atlas_code_commit <- function() {
 atlas_publish_release <- function(store = atlas_store(), grid = "draft", note = NULL,
                                   promote = TRUE, quiet = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
-
-  manifest <- atlas_read_manifest()
-  occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
-  if (!is.null(occurrences)) {
-    atlas_write_tsv_gz(atlas_public_cells_table(occurrences), atlas_public_cells_path())
-    # The pull's own manifest keeps its SQL and host; the published summary
-    # is a separate, cut-down copy.
-    atlas_write_json(atlas_release_pull_summary(manifest), atlas_public_pull_path())
-  }
+  manifest <- atlas_refresh_public_files()
 
   paths <- atlas_release_files(grid)
   if (!length(paths)) stop("nothing to publish for the ", grid, " grid", call. = FALSE)
-  full <- file.path(atlas_data_dir(), paths)
-  hashes <- vapply(full, atlas_sha256, character(1), USE.NAMES = FALSE)
-  sizes <- file.info(full)$size
-  files_key <- digest::digest(paste(paths, hashes, collapse = "\n"), algo = "sha256")
+  entries <- atlas_file_entries(paths)
+  files_key <- digest::digest(
+    paste(paths, vapply(entries, function(e) e$sha256, ""), collapse = "\n"), algo = "sha256"
+  )
 
+  index <- atlas_models_index(grid)
   current <- atlas_current_release(store, grid)
-  if (!is.null(current) && identical(current$files_key, files_key)) {
+  if (!is.null(current) && identical(current$files_key, files_key) &&
+      identical(current$index_key, atlas_index_key(index))) {
     say("nothing changed since release ", current$id, "; not publishing")
     return(invisible(current))
   }
 
-  stored <- store$list("objects/")
-  keys <- vapply(hashes, atlas_object_key, character(1), USE.NAMES = FALSE)
-  missing <- which(!duplicated(keys) & !keys %in% stored)
-  for (i in missing) store$put(keys[[i]], full[[i]])
-  say("uploaded ", length(missing), " of ", length(paths), " files (",
-      round(sum(sizes[missing]) / 1048576, 1), " MB); the rest were already stored")
+  uploaded <- atlas_upload_objects(store, entries)
+  say("uploaded ", uploaded$count, " of ", length(paths), " files (",
+      round(uploaded$bytes / 1048576, 1), " MB); the rest were already stored")
 
-  # Models per algorithm: Maxent's sit in models/<grid>, the others one level down.
-  models <- lapply(stats::setNames(nm = names(ATLAS_ALGORITHMS)), function(algorithm) {
-    folder <- if (algorithm == "maxnet") file.path("models", grid) else file.path("models", grid, algorithm)
-    sum(grepl("[.]json$", paths) & dirname(paths) == folder)
-  })
-
-  id <- atlas_release_id(files_key)
-  release <- list(
-    id = id,
-    grid = grid,
-    created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-    previous = current$id,
-    note = note,
-    commit = atlas_code_commit(),
-    versions = list(
-      r = as.character(getRversion()),
-      packages = lapply(stats::setNames(nm = c("terra", "maxnet", "xgboost", "ranger")), function(p) {
-        tryCatch(as.character(utils::packageVersion(p)), error = function(e) NULL)
-      })
-    ),
-    layers_key = atlas_layers_key(grid),
+  atlas_write_release(
+    store, grid, entries, index,
+    previous = current$id, note = note,
     pull = atlas_release_pull_summary(manifest),
-    models = models,
-    files_key = files_key,
-    files = lapply(seq_along(paths), function(i) {
-      list(path = paths[[i]], sha256 = hashes[[i]], bytes = sizes[[i]])
-    })
+    layers_key = atlas_layers_key(grid), promote = promote, quiet = quiet
   )
-  atlas_store_json(store, paste0("releases/", grid, "/", id, ".json"), release)
-  atlas_write_json(release, atlas_path("releases", grid, paste0(id, ".json")))
-  say("release ", id, ": ", length(paths), " files")
-  if (isTRUE(promote)) atlas_promote_release(store, id, grid, quiet = quiet)
-  invisible(release)
 }
 
 #' Make a release the one everyone pulls. Rolling back is promoting an older one.
@@ -340,22 +471,9 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
   if (is.null(manifest)) stop("nothing has been published for the ", grid, " grid", call. = FALSE)
 
   root <- atlas_data_dir()
-  fetched <- 0L
-  bytes <- 0
-  for (entry in manifest$files) {
-    dest <- file.path(root, entry$path)
-    if (file.exists(dest) && identical(atlas_sha256(dest), entry$sha256)) next
-    staging <- paste0(dest, ".part")
-    store$get(atlas_object_key(entry$sha256), staging)
-    if (!identical(atlas_sha256(staging), entry$sha256)) {
-      unlink(staging)
-      stop("the store's copy of ", entry$path, " does not match its hash; nothing replaced",
-           call. = FALSE)
-    }
-    file.rename(staging, dest)
-    fetched <- fetched + 1L
-    bytes <- bytes + as.numeric(entry$bytes)
-  }
+  got <- atlas_fetch_entries(store, manifest$files)
+  fetched <- got$fetched
+  bytes <- got$bytes
 
   removed <- 0L
   if (!isTRUE(keep_local)) {
