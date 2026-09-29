@@ -18,8 +18,10 @@
 
 ATLAS_BENCHMARK_ARMS <- c("maxnet", "xgboost", "xgboost-pruned", "rf")
 
-# Richer bands than the sweep's: the benchmark starts at 50 presence cells.
-ATLAS_BENCHMARK_BANDS <- c(50, 100, 200)
+# Bands of presence cells. The first benchmark started at 50, where boosted
+# trees tied Maxent; in production their median Boyce over every taxon was
+# about zero, so the sparse bands are here to see where they fall apart.
+ATLAS_BENCHMARK_BANDS <- c(20, 30, 50, 100, 200)
 
 #' Score one taxon under every arm, on one set of folds.
 atlas_benchmark_taxon <- function(name, fingerprint, points, stack,

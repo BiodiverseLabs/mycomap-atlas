@@ -1,8 +1,8 @@
 # Boosted trees against Maxent, on shared folds.
 
-test_that("the benchmark's bands start at 50 presence cells", {
-  expect_equal(atlas_presence_band(c(55, 150, 400), ATLAS_BENCHMARK_BANDS),
-               c("50-99", "100-199", "200+"))
+test_that("the benchmark's bands reach down to the sparsest mappable taxa", {
+  expect_equal(atlas_presence_band(c(22, 35, 55, 150, 400), ATLAS_BENCHMARK_BANDS),
+               c("20-29", "30-49", "50-99", "100-199", "200+"))
 })
 
 test_that("band counts are listed smallest band first", {
