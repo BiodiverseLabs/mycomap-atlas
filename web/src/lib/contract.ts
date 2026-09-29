@@ -102,6 +102,7 @@ export interface Operation {
 }
 
 export interface OpenApi {
+  "x-rate-limits": { anonymous: number; standard: number; bulk: number };
   info: { title: string; version: string; summary?: string; description?: string };
   servers: { url: string; description?: string }[];
   tags: { name: string; description?: string }[];

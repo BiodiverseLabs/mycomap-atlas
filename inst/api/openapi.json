@@ -4,7 +4,7 @@
     "title": "MycoMap Atlas API",
     "version": "0.1.0-dev",
     "summary": "Habitat models for North American fungi, built only from DNA-validated MycoMap records.",
-    "description": "Every route is a read. Nothing here returns an exact collection coordinate: collection points are aggregated to 0.1 degree cells, and published rasters are 1 km or coarser.\n\nThis file is the contract. The web app's developer page is drawn from it, and a test in tests/testthat/test-openapi.R fails when a route in inst/plumber/atlas.R and this file disagree, so the documentation cannot drift from the code.",
+    "description": "Every route is a read. Nothing here returns an exact collection coordinate: collection points are aggregated to 0.1 degree cells, and published rasters are 1 km or coarser.\n\nThis file is the contract. The web app's developer page is drawn from it, and a test in tests/testthat/test-openapi.R fails when a route in inst/plumber/atlas.R and this file disagree, so the documentation cannot drift from the code.\n\nReads are open: no token is needed. Every caller is rate limited — anonymous callers per address, token holders per token — and a token raises the limit. Tokens are issued through a mycomap.org account at https://mycomap.org/atlas-tokens and sent in the X-API-Key header. A token mycomap.org does not recognise, or has revoked, is refused with 401 rather than served at the anonymous rate.",
     "license": {
       "name": "GPL-3.0-or-later (code). Terms for published maps follow their source layers.",
       "identifier": "GPL-3.0-or-later"
@@ -15,76 +15,200 @@
     }
   },
   "servers": [
-    { "url": "https://atlas.mycomap.org", "description": "Public site" },
-    { "url": "http://127.0.0.1:5100", "description": "Your own copy, started with ./atlas api" }
+    {
+      "url": "https://atlas.mycomap.org",
+      "description": "Public site"
+    },
+    {
+      "url": "http://127.0.0.1:5100",
+      "description": "Your own copy, started with ./atlas api"
+    }
   ],
   "tags": [
-    { "name": "Status", "description": "What the data behind the API is, and when it was pulled." },
-    { "name": "Taxa", "description": "Every taxon in the validated universe, with its record and locality counts." },
-    { "name": "Models", "description": "Fitted habitat models: scores, settings and maps." },
-    { "name": "Data", "description": "Environmental layers and benchmarks." }
+    {
+      "name": "Status",
+      "description": "What the data behind the API is, and when it was pulled."
+    },
+    {
+      "name": "Taxa",
+      "description": "Every taxon in the validated universe, with its record and locality counts."
+    },
+    {
+      "name": "Models",
+      "description": "Fitted habitat models: scores, settings and maps."
+    },
+    {
+      "name": "Data",
+      "description": "Environmental layers and benchmarks."
+    }
   ],
   "paths": {
     "/api/openapi.json": {
       "get": {
-        "tags": ["Status"],
+        "tags": [
+          "Status"
+        ],
         "operationId": "getOpenApi",
         "summary": "This description of the API",
         "description": "The OpenAPI 3.1 document you are reading. Point a client generator at it.",
         "responses": {
           "200": {
             "description": "The OpenAPI document.",
-            "content": { "application/json": { "schema": { "type": "object" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/sources": {
       "get": {
-        "tags": ["Data"],
+        "tags": [
+          "Data"
+        ],
         "operationId": "getSources",
         "summary": "Datasets, software, papers and data products",
         "description": "Every dataset and package Atlas is built on, with links, licences and citations; the papers behind each method; and every file the pipeline produces, with whether and where it is published.",
         "responses": {
           "200": {
             "description": "The sources.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Sources" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sources"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/status": {
       "get": {
-        "tags": ["Status"],
+        "tags": [
+          "Status"
+        ],
         "operationId": "getStatus",
         "summary": "What the current pull holds",
         "description": "The size and fingerprint of the record set every model on this server was fitted from. The fingerprint changes whenever any record changes, so it is the thing to cite alongside a map.",
         "responses": {
           "200": {
             "description": "The current pull, or ready: false when none has been made.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Status" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/layers": {
       "get": {
-        "tags": ["Data"],
+        "tags": [
+          "Data"
+        ],
         "operationId": "getLayers",
         "summary": "Environmental layers",
         "description": "Every registered environmental layer with its source, licence and citation, and whether it is built on the requested grid.",
-        "parameters": [{ "$ref": "#/components/parameters/grid" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The layers on that grid.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LayersResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LayersResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/taxa": {
       "get": {
-        "tags": ["Taxa"],
+        "tags": [
+          "Taxa"
+        ],
         "operationId": "listTaxa",
         "summary": "Search and list taxa",
         "description": "Taxa in the validated universe, whether or not they have a map yet. A name match is a case-insensitive substring match.",
@@ -93,128 +217,328 @@
             "name": "search",
             "in": "query",
             "description": "Part of a scientific name.",
-            "schema": { "type": "string", "default": "" },
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
             "example": "Mycena"
           },
           {
             "name": "min_localities",
             "in": "query",
             "description": "Only taxa with at least this many independent (about 1 km) localities.",
-            "schema": { "type": "integer", "minimum": 0, "default": 0 },
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
             "example": 20
           },
           {
             "name": "limit",
             "in": "query",
             "description": "Page size.",
-            "schema": { "type": "integer", "minimum": 1, "default": 100 },
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 100
+            },
             "example": 10
           },
           {
             "name": "offset",
             "in": "query",
             "description": "Rows to skip, for paging.",
-            "schema": { "type": "integer", "minimum": 0, "default": 0 }
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
           }
         ],
         "responses": {
           "200": {
             "description": "One page of taxa and the total that matched.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TaxaPage" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxaPage"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/taxa/{name}": {
       "get": {
-        "tags": ["Taxa"],
+        "tags": [
+          "Taxa"
+        ],
         "operationId": "getTaxon",
         "summary": "One taxon's counts",
-        "parameters": [{ "$ref": "#/components/parameters/name" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The taxon.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Taxon" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Taxon"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         }
       }
     },
     "/api/taxa/{name}/cells": {
       "get": {
-        "tags": ["Taxa"],
+        "tags": [
+          "Taxa"
+        ],
         "operationId": "getTaxonCells",
         "summary": "Where a taxon has been collected",
         "description": "Validated collections grouped into 0.1 degree cells, each with the number of records in it. The centre of the cell is given, never a collection point. An unknown name returns an empty list.",
-        "parameters": [{ "$ref": "#/components/parameters/name" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The occupied cells.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Cells" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cells"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/taxa/{name}/model": {
       "get": {
-        "tags": ["Models"],
+        "tags": [
+          "Models"
+        ],
         "operationId": "getTaxonModel",
         "summary": "One taxon's fitted model",
         "description": "Scores on every spatial fold, the predictors used, the settings and the map's bounds.",
         "parameters": [
-          { "$ref": "#/components/parameters/name" },
-          { "$ref": "#/components/parameters/grid" },
-          { "$ref": "#/components/parameters/algorithm" }
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          },
+          {
+            "$ref": "#/components/parameters/algorithm"
+          }
         ],
         "responses": {
           "200": {
             "description": "The model.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Model" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
           },
-          "400": { "$ref": "#/components/responses/BadAlgorithm" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "400": {
+            "$ref": "#/components/responses/BadAlgorithm"
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         }
       }
     },
     "/api/taxa/{name}/map.png": {
       "get": {
-        "tags": ["Models"],
+        "tags": [
+          "Models"
+        ],
         "operationId": "getTaxonMap",
         "summary": "A taxon's habitat map as an image",
         "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks within the model's own accessible area, darkest green highest; outside that area the image is transparent. Add any v= query value to bust a cache.",
         "parameters": [
-          { "$ref": "#/components/parameters/name" },
-          { "$ref": "#/components/parameters/grid" },
-          { "$ref": "#/components/parameters/algorithm" }
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          },
+          {
+            "$ref": "#/components/parameters/algorithm"
+          }
         ],
         "responses": {
           "200": {
             "description": "The map.",
-            "content": { "image/png": { "schema": { "type": "string", "format": "binary" } } }
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
           },
-          "400": { "description": "Unknown algorithm. The body is empty." },
-          "404": { "description": "No map for this taxon and model. The body is empty." }
+          "400": {
+            "description": "Unknown algorithm. The body is empty."
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "description": "No map for this taxon and model. The body is empty."
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         }
       }
     },
     "/api/models": {
       "get": {
-        "tags": ["Models"],
+        "tags": [
+          "Models"
+        ],
         "operationId": "listModels",
         "summary": "Every fitted model",
         "description": "One light row per taxon and model, newest first. Fetch a single model for its folds and settings.",
-        "parameters": [{ "$ref": "#/components/parameters/grid" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The models on that grid.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ModelsResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/algorithms": {
       "get": {
-        "tags": ["Models"],
+        "tags": [
+          "Models"
+        ],
         "operationId": "listAlgorithms",
         "summary": "The models Atlas fits",
         "description": "Each algorithm's id, as used in the algorithm parameter, mapped to the label people see.",
@@ -223,27 +547,84 @@
             "description": "Algorithm ids and labels.",
             "content": {
               "application/json": {
-                "schema": { "type": "object", "additionalProperties": { "type": "string" } },
-                "example": { "maxnet": "Maxent", "xgboost": "Boosted trees", "rf": "Random forest" }
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "example": {
+                  "maxnet": "Maxent",
+                  "xgboost": "Boosted trees",
+                  "rf": "Random forest"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
           }
         }
       }
     },
     "/api/benchmarks/latest": {
       "get": {
-        "tags": ["Data"],
+        "tags": [
+          "Data"
+        ],
         "operationId": "getLatestBenchmark",
         "summary": "The newest model benchmark",
         "description": "Every model scored on the same spatial folds for the same taxa, with paired differences from Maxent by band of presence cells.",
-        "parameters": [{ "$ref": "#/components/parameters/grid" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
         "responses": {
           "200": {
             "description": "The benchmark.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Benchmark" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Benchmark"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
         }
       }
     }
@@ -255,212 +636,632 @@
         "in": "path",
         "required": true,
         "description": "Scientific name exactly as Atlas lists it, percent-encoded. Provisional names keep their quotes, e.g. Mycena sp. 'IN10'.",
-        "schema": { "type": "string" },
+        "schema": {
+          "type": "string"
+        },
         "example": "Trametes versicolor"
       },
       "grid": {
         "name": "grid",
         "in": "query",
         "description": "draft is 5 km; production is 1 km.",
-        "schema": { "type": "string", "enum": ["draft", "production"], "default": "draft" }
+        "schema": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "production"
+          ],
+          "default": "draft"
+        }
       },
       "algorithm": {
         "name": "algorithm",
         "in": "query",
         "description": "Which model: maxnet (Maxent), xgboost (boosted trees) or rf (down-sampled random forest).",
-        "schema": { "type": "string", "enum": ["maxnet", "xgboost", "rf"], "default": "maxnet" }
+        "schema": {
+          "type": "string",
+          "enum": [
+            "maxnet",
+            "xgboost",
+            "rf"
+          ],
+          "default": "maxnet"
+        }
       }
     },
     "responses": {
       "NotFound": {
         "description": "Nothing under that name.",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
       },
       "BadAlgorithm": {
         "description": "The algorithm is not one Atlas fits.",
-        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Over the rate limit. Wait Retry-After seconds, or use a token.",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "retry_after": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "InvalidToken": {
+        "description": "The X-API-Key token is not valid: unknown, pending approval, disabled, revoked, or its account is inactive.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "unknown",
+                    "pending",
+                    "disabled",
+                    "revoked",
+                    "account_inactive",
+                    "wrong_service"
+                  ]
+                }
+              }
+            }
+          }
+        }
       }
     },
     "schemas": {
       "Error": {
         "type": "object",
-        "required": ["error"],
-        "properties": { "error": { "type": "string", "description": "What went wrong, in words." } }
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "What went wrong, in words."
+          }
+        }
       },
       "Status": {
         "type": "object",
-        "required": ["ready"],
+        "required": [
+          "ready"
+        ],
         "properties": {
-          "ready": { "type": "boolean", "description": "False until a pull or release is present." },
-          "pulledAt": { "type": "string", "format": "date-time", "description": "When the records were read from mycomap.org." },
-          "records": { "type": "integer", "description": "Validated records in the pull." },
-          "taxa": { "type": "integer", "description": "Distinct taxa in the pull." },
-          "fingerprint": { "type": "string", "description": "Hash of the whole record set." },
-          "since": { "type": "string", "description": "For an incremental pull, the date it started from. Absent for a full pull." }
+          "ready": {
+            "type": "boolean",
+            "description": "False until a pull or release is present."
+          },
+          "pulledAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the records were read from mycomap.org."
+          },
+          "records": {
+            "type": "integer",
+            "description": "Validated records in the pull."
+          },
+          "taxa": {
+            "type": "integer",
+            "description": "Distinct taxa in the pull."
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Hash of the whole record set."
+          },
+          "since": {
+            "type": "string",
+            "description": "For an incremental pull, the date it started from. Absent for a full pull."
+          }
         }
       },
       "Layer": {
         "type": "object",
-        "required": ["id", "title", "source", "license", "citation", "built"],
+        "required": [
+          "id",
+          "title",
+          "source",
+          "license",
+          "citation",
+          "built"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "title": { "type": "string" },
-          "source": { "type": "string", "description": "Where the raw data comes from." },
-          "url": { "type": "string", "format": "uri", "description": "The provider's download page. Absent for layers derived on the grid." },
-          "license": { "type": "string" },
-          "citation": { "type": "string" },
-          "note": { "type": "string" },
-          "built": { "type": "boolean", "description": "Whether the layer exists on this grid." },
-          "bands": { "type": "array", "items": { "type": "string" }, "description": "Predictor names the layer provides." },
-          "cellSizeM": { "type": "number", "description": "Cell size in metres." },
-          "sizeMb": { "type": "number" },
-          "builtAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the raw data comes from."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The provider's download page. Absent for layers derived on the grid."
+          },
+          "license": {
+            "type": "string"
+          },
+          "citation": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "built": {
+            "type": "boolean",
+            "description": "Whether the layer exists on this grid."
+          },
+          "bands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Predictor names the layer provides."
+          },
+          "cellSizeM": {
+            "type": "number",
+            "description": "Cell size in metres."
+          },
+          "sizeMb": {
+            "type": "number"
+          },
+          "builtAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "LayersResponse": {
         "type": "object",
-        "required": ["grid", "layers"],
+        "required": [
+          "grid",
+          "layers"
+        ],
         "properties": {
-          "grid": { "type": "string" },
-          "layers": { "type": "array", "items": { "$ref": "#/components/schemas/Layer" } }
+          "grid": {
+            "type": "string"
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Layer"
+            }
+          }
         }
       },
       "Taxon": {
         "type": "object",
-        "required": ["scientific_name", "records", "localities", "fingerprint"],
+        "required": [
+          "scientific_name",
+          "records",
+          "localities",
+          "fingerprint"
+        ],
         "properties": {
-          "scientific_name": { "type": "string" },
-          "records": { "type": "integer", "description": "Validated records under this name." },
-          "localities": { "type": "integer", "description": "Distinct places about 1 km apart. A better guide than records to what a model can learn." },
-          "fingerprint": { "type": "string", "description": "Hash of this taxon's record set. A model is refitted when it changes." }
+          "scientific_name": {
+            "type": "string"
+          },
+          "records": {
+            "type": "integer",
+            "description": "Validated records under this name."
+          },
+          "localities": {
+            "type": "integer",
+            "description": "Distinct places about 1 km apart. A better guide than records to what a model can learn."
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Hash of this taxon's record set. A model is refitted when it changes."
+          }
         }
       },
       "TaxaPage": {
         "type": "object",
-        "required": ["total", "items"],
+        "required": [
+          "total",
+          "items"
+        ],
         "properties": {
-          "total": { "type": "integer", "description": "Taxa that matched, across all pages." },
-          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Taxon" } }
+          "total": {
+            "type": "integer",
+            "description": "Taxa that matched, across all pages."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Taxon"
+            }
+          }
         }
       },
       "Cell": {
         "type": "object",
-        "required": ["lat", "lng", "records"],
+        "required": [
+          "lat",
+          "lng",
+          "records"
+        ],
         "properties": {
-          "lat": { "type": "number", "description": "Latitude of the cell's centre." },
-          "lng": { "type": "number", "description": "Longitude of the cell's centre." },
-          "records": { "type": "integer" }
+          "lat": {
+            "type": "number",
+            "description": "Latitude of the cell's centre."
+          },
+          "lng": {
+            "type": "number",
+            "description": "Longitude of the cell's centre."
+          },
+          "records": {
+            "type": "integer"
+          }
         }
       },
       "Cells": {
         "type": "object",
-        "required": ["name", "degrees", "cells"],
+        "required": [
+          "name",
+          "degrees",
+          "cells"
+        ],
         "properties": {
-          "name": { "type": "string" },
-          "degrees": { "type": "number", "description": "Cell size in degrees." },
-          "cells": { "type": "array", "items": { "$ref": "#/components/schemas/Cell" } }
+          "name": {
+            "type": "string"
+          },
+          "degrees": {
+            "type": "number",
+            "description": "Cell size in degrees."
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Cell"
+            }
+          }
         }
       },
       "ModelFold": {
         "type": "object",
         "properties": {
-          "fold": { "type": "integer" },
-          "presences": { "type": "integer", "description": "Presence cells held out in this fold." },
-          "auc": { "type": ["number", "null"], "description": "Null when the fold held too few presences to score." },
-          "boyce": { "type": ["number", "null"] }
+          "fold": {
+            "type": "integer"
+          },
+          "presences": {
+            "type": "integer",
+            "description": "Presence cells held out in this fold."
+          },
+          "auc": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Null when the fold held too few presences to score."
+          },
+          "boyce": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
         }
       },
       "ModelBounds": {
         "type": "object",
         "properties": {
-          "south": { "type": "number" },
-          "west": { "type": "number" },
-          "north": { "type": "number" },
-          "east": { "type": "number" }
+          "south": {
+            "type": "number"
+          },
+          "west": {
+            "type": "number"
+          },
+          "north": {
+            "type": "number"
+          },
+          "east": {
+            "type": "number"
+          }
         }
       },
       "Model": {
         "type": "object",
-        "required": ["taxon", "grid", "presences", "background", "predictors", "folds", "auc_mean", "boyce_mean", "built_at"],
+        "required": [
+          "taxon",
+          "grid",
+          "presences",
+          "background",
+          "predictors",
+          "folds",
+          "auc_mean",
+          "boyce_mean",
+          "built_at"
+        ],
         "properties": {
-          "taxon": { "type": "string" },
-          "algorithm": { "type": "string", "enum": ["maxnet", "xgboost", "rf"], "description": "Absent on the oldest Maxent models, which are Maxent." },
-          "algorithm_label": { "type": "string" },
-          "grid": { "type": "string" },
-          "presences": { "type": "integer", "description": "Occupied grid cells the model learned from." },
-          "background": { "type": "integer", "description": "Background cells drawn from other validated collections." },
-          "area_km2": { "type": "number", "description": "The accessible area: the taxon's cells buffered by 500 km." },
-          "predictors": { "type": "array", "items": { "type": "string" } },
-          "predictors_considered": { "type": "integer" },
-          "classes": { "type": "string", "description": "Maxent feature classes, e.g. lqh." },
-          "nrounds": { "type": "integer", "description": "Boosted trees: the tree count early stopping chose." },
-          "block_km": { "type": "number", "description": "Size of the spatial blocks folds hold out." },
-          "folds": { "type": "array", "items": { "$ref": "#/components/schemas/ModelFold" } },
-          "auc_mean": { "type": "number", "description": "Mean blocked AUC. 0.5 is chance." },
-          "auc_sd": { "type": "number" },
-          "boyce_mean": { "type": "number", "description": "Mean blocked Boyce index, from -1 to 1." },
-          "boyce_sd": { "type": "number" },
-          "built_at": { "type": "string", "format": "date-time" },
-          "map": { "type": "string", "description": "Present when a map was drawn." },
-          "bounds": { "$ref": "#/components/schemas/ModelBounds" },
-          "map_scale": { "type": "string", "description": "rank: colours are percentiles within the map." },
-          "map_drawn_at": { "type": "string", "format": "date-time" },
-          "cells_without_data": { "type": "integer", "description": "Cells in the accessible area with a missing predictor, left out of fitting and prediction." },
-          "correlation": { "type": ["number", "null"], "description": "Correlation above which predictors were pruned; null when the model uses all of them." },
-          "regmult": { "type": "number", "description": "Maxent regularisation multiplier." },
-          "seed": { "type": "integer", "description": "Random seed, derived from the record-set fingerprint." },
-          "fingerprint": { "type": "string", "description": "Hash of the record set the model was fitted on." },
-          "settings": { "type": "object", "description": "Every setting that decides the fit apart from the records, including the layer builds." },
-          "settings_key": { "type": "string", "description": "Hash of settings. With fingerprint, it decides whether the model is current." },
-          "raster": { "type": "string", "description": "File name of the raw suitability GeoTIFF in a release." },
-          "md5": { "type": "string", "description": "MD5 of that GeoTIFF." },
-          "r_version": { "type": "string" },
-          "terra_version": { "type": "string" },
-          "maxnet_version": { "type": "string" },
-          "package": { "type": "string", "description": "The R package that fitted the model." },
-          "package_version": { "type": "string" }
+          "taxon": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": [
+              "maxnet",
+              "xgboost",
+              "rf"
+            ],
+            "description": "Absent on the oldest Maxent models, which are Maxent."
+          },
+          "algorithm_label": {
+            "type": "string"
+          },
+          "grid": {
+            "type": "string"
+          },
+          "presences": {
+            "type": "integer",
+            "description": "Occupied grid cells the model learned from."
+          },
+          "background": {
+            "type": "integer",
+            "description": "Background cells drawn from other validated collections."
+          },
+          "area_km2": {
+            "type": "number",
+            "description": "The accessible area: the taxon's cells buffered by 500 km."
+          },
+          "predictors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "predictors_considered": {
+            "type": "integer"
+          },
+          "classes": {
+            "type": "string",
+            "description": "Maxent feature classes, e.g. lqh."
+          },
+          "nrounds": {
+            "type": "integer",
+            "description": "Boosted trees: the tree count early stopping chose."
+          },
+          "block_km": {
+            "type": "number",
+            "description": "Size of the spatial blocks folds hold out."
+          },
+          "folds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelFold"
+            }
+          },
+          "auc_mean": {
+            "type": "number",
+            "description": "Mean blocked AUC. 0.5 is chance."
+          },
+          "auc_sd": {
+            "type": "number"
+          },
+          "boyce_mean": {
+            "type": "number",
+            "description": "Mean blocked Boyce index, from -1 to 1."
+          },
+          "boyce_sd": {
+            "type": "number"
+          },
+          "built_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "map": {
+            "type": "string",
+            "description": "Present when a map was drawn."
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/ModelBounds"
+          },
+          "map_scale": {
+            "type": "string",
+            "description": "rank: colours are percentiles within the map."
+          },
+          "map_drawn_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cells_without_data": {
+            "type": "integer",
+            "description": "Cells in the accessible area with a missing predictor, left out of fitting and prediction."
+          },
+          "correlation": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Correlation above which predictors were pruned; null when the model uses all of them."
+          },
+          "regmult": {
+            "type": "number",
+            "description": "Maxent regularisation multiplier."
+          },
+          "seed": {
+            "type": "integer",
+            "description": "Random seed, derived from the record-set fingerprint."
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Hash of the record set the model was fitted on."
+          },
+          "settings": {
+            "type": "object",
+            "description": "Every setting that decides the fit apart from the records, including the layer builds."
+          },
+          "settings_key": {
+            "type": "string",
+            "description": "Hash of settings. With fingerprint, it decides whether the model is current."
+          },
+          "raster": {
+            "type": "string",
+            "description": "File name of the raw suitability GeoTIFF in a release."
+          },
+          "md5": {
+            "type": "string",
+            "description": "MD5 of that GeoTIFF."
+          },
+          "r_version": {
+            "type": "string"
+          },
+          "terra_version": {
+            "type": "string"
+          },
+          "maxnet_version": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string",
+            "description": "The R package that fitted the model."
+          },
+          "package_version": {
+            "type": "string"
+          }
         }
       },
       "ModelSummary": {
         "type": "object",
         "properties": {
-          "taxon": { "type": "string" },
-          "algorithm": { "type": "string", "enum": ["maxnet", "xgboost", "rf"] },
-          "presences": { "type": "integer" },
-          "predictors": { "type": "integer", "description": "How many predictors the model used." },
-          "auc_mean": { "type": "number" },
-          "boyce_mean": { "type": "number" },
-          "map": { "type": "boolean" },
-          "built_at": { "type": "string", "format": "date-time" }
+          "taxon": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": [
+              "maxnet",
+              "xgboost",
+              "rf"
+            ]
+          },
+          "presences": {
+            "type": "integer"
+          },
+          "predictors": {
+            "type": "integer",
+            "description": "How many predictors the model used."
+          },
+          "auc_mean": {
+            "type": "number"
+          },
+          "boyce_mean": {
+            "type": "number"
+          },
+          "map": {
+            "type": "boolean"
+          },
+          "built_at": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "ModelsResponse": {
         "type": "object",
-        "required": ["grid", "models"],
+        "required": [
+          "grid",
+          "models"
+        ],
         "properties": {
-          "grid": { "type": "string" },
-          "models": { "type": "array", "items": { "$ref": "#/components/schemas/ModelSummary" } }
+          "grid": {
+            "type": "string"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelSummary"
+            }
+          }
         }
       },
       "Sources": {
         "type": "object",
-        "required": ["datasets", "software", "references", "products"],
+        "required": [
+          "datasets",
+          "software",
+          "references",
+          "products"
+        ],
         "properties": {
           "datasets": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["id", "name", "url", "license", "role"],
+              "required": [
+                "id",
+                "name",
+                "url",
+                "license",
+                "role"
+              ],
               "properties": {
-                "id": { "type": "string" },
-                "name": { "type": "string" },
-                "provider": { "type": "string" },
-                "url": { "type": "string", "format": "uri" },
-                "license": { "type": "string" },
-                "license_url": { "type": "string", "format": "uri" },
-                "role": { "type": "string" },
-                "citation": { "type": "string" },
-                "doi": { "type": "string" }
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "license": {
+                  "type": "string"
+                },
+                "license_url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "citation": {
+                  "type": "string"
+                },
+                "doi": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -468,16 +1269,44 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["name", "group", "license", "url", "role"],
+              "required": [
+                "name",
+                "group",
+                "license",
+                "url",
+                "role"
+              ],
               "properties": {
-                "name": { "type": "string" },
-                "group": { "type": "string", "enum": ["platform", "r", "web"] },
-                "version": { "type": "string" },
-                "license": { "type": "string" },
-                "url": { "type": "string", "format": "uri" },
-                "role": { "type": "string" },
-                "citation": { "type": "string" },
-                "doi": { "type": "string" }
+                "name": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string",
+                  "enum": [
+                    "platform",
+                    "r",
+                    "web"
+                  ]
+                },
+                "version": {
+                  "type": "string"
+                },
+                "license": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "citation": {
+                  "type": "string"
+                },
+                "doi": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -485,11 +1314,20 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["citation", "used_for"],
+              "required": [
+                "citation",
+                "used_for"
+              ],
               "properties": {
-                "citation": { "type": "string" },
-                "doi": { "type": "string" },
-                "used_for": { "type": "string" }
+                "citation": {
+                  "type": "string"
+                },
+                "doi": {
+                  "type": "string"
+                },
+                "used_for": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -497,14 +1335,38 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["stage", "name", "detail", "availability"],
+              "required": [
+                "stage",
+                "name",
+                "detail",
+                "availability"
+              ],
               "properties": {
-                "stage": { "type": "string" },
-                "name": { "type": "string" },
-                "detail": { "type": "string" },
-                "availability": { "type": "string", "enum": ["published", "in releases", "planned", "at source", "withheld"] },
-                "where": { "type": "string" },
-                "why": { "type": "string" }
+                "stage": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                },
+                "availability": {
+                  "type": "string",
+                  "enum": [
+                    "published",
+                    "in releases",
+                    "planned",
+                    "at source",
+                    "withheld"
+                  ]
+                },
+                "where": {
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string"
+                }
               }
             }
           }
@@ -514,13 +1376,70 @@
         "type": "object",
         "description": "Settings, a summary by band of presence cells, and each taxon's scores under every model.",
         "properties": {
-          "started_at": { "type": "string", "format": "date-time" },
-          "baseline": { "type": "string" },
-          "settings": { "type": "object" },
-          "summary": { "type": "array", "items": { "type": "object" } },
-          "taxa": { "type": "array", "items": { "type": "object" } }
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "baseline": {
+            "type": "string"
+          },
+          "settings": {
+            "type": "object"
+          },
+          "summary": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "taxa": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "atlasToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Optional. An Atlas token from https://mycomap.org/atlas-tokens raises your rate limit."
+      }
+    },
+    "headers": {
+      "X-RateLimit-Limit": {
+        "description": "Requests per minute allowed for this caller.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "X-RateLimit-Remaining": {
+        "description": "Requests left before the limit.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "X-Atlas-Tier": {
+        "description": "anonymous, standard or bulk.",
+        "schema": {
+          "type": "string"
         }
       }
     }
-  }
+  },
+  "x-rate-limits": {
+    "unit": "requests per minute",
+    "anonymous": 120,
+    "standard": 1200,
+    "bulk": 6000
+  },
+  "security": [
+    {},
+    {
+      "atlasToken": []
+    }
+  ]
 }

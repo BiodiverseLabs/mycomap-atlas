@@ -66,6 +66,7 @@
     { "name": "plumber", "group": "r", "license": "MIT", "url": "https://www.rplumber.io", "role": "Serves the API." },
     { "name": "jsonlite", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/jsonlite", "role": "Reads and writes every manifest and model record." },
     { "name": "digest", "group": "r", "license": "GPL (>= 2)", "url": "https://github.com/eddelbuettel/digest", "role": "Record-set fingerprints and content hashes for releases." },
+    { "name": "curl", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/curl", "role": "Asks mycomap.org whether an API token is live." },
     { "name": "paws.storage", "group": "r", "license": "Apache-2.0", "url": "https://github.com/paws-r/paws", "role": "Publishes and pulls releases through Amazon S3." },
     { "name": "testthat", "group": "r", "license": "MIT", "url": "https://testthat.r-lib.org", "role": "The test suite." },
 

@@ -33,7 +33,7 @@ jobs:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install test dependencies
-        run: install2.r --error --skipinstalled digest jsonlite plumber testthat maxnet xgboost ranger
+        run: install2.r --error --skipinstalled digest jsonlite plumber testthat maxnet xgboost ranger curl
       - name: terra and every model package must be present
         # Without them the grid, layer and fitting tests skip, and the run
         # still goes green.

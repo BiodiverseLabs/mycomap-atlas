@@ -17,6 +17,8 @@ import {
 } from "@/lib/contract";
 
 const PUBLIC_BASE = OPENAPI.servers[0]?.url ?? "https://atlas.mycomap.org";
+const RATES = OPENAPI["x-rate-limits"];
+const TOKEN_REQUEST_URL = "https://mycomap.org/atlas-tokens";
 
 interface Endpoint {
   path: string;
@@ -189,11 +191,13 @@ function Fields({ schema }: { schema?: Schema }) {
 interface TryResult {
   status: number;
   ms: number;
+  tier?: string | null;
+  remaining?: string | null;
   body?: string;
   image?: string;
 }
 
-function TryIt({ endpoint }: { endpoint: Endpoint }) {
+function TryIt({ endpoint, token }: { endpoint: Endpoint; token: string }) {
   const [values, setValues] = useState(() => initialValues(endpoint.params));
   const [result, setResult] = useState<TryResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -203,11 +207,13 @@ function TryIt({ endpoint }: { endpoint: Endpoint }) {
     setBusy(true);
     const started = performance.now();
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, token ? { headers: { "X-API-Key": token } } : undefined);
       const ms = Math.round(performance.now() - started);
+      const tier = response.headers.get("X-Atlas-Tier");
+      const remaining = response.headers.get("X-RateLimit-Remaining");
       const type = response.headers.get("content-type") ?? "";
       if (type.startsWith("image/") && response.ok) {
-        setResult({ status: response.status, ms, image: URL.createObjectURL(await response.blob()) });
+        setResult({ status: response.status, ms, tier, remaining, image: URL.createObjectURL(await response.blob()) });
       } else {
         const text = await response.text();
         let body = text;
@@ -220,6 +226,8 @@ function TryIt({ endpoint }: { endpoint: Endpoint }) {
         setResult({
           status: response.status,
           ms,
+          tier,
+          remaining,
           body: body.length > limit ? `${body.slice(0, limit)}\n… ${body.length - limit} more characters` : body || "(empty)",
         });
       }
@@ -275,6 +283,12 @@ function TryIt({ endpoint }: { endpoint: Endpoint }) {
               <>
                 <Badge variant={result.status < 400 ? "default" : "destructive"}>{result.status}</Badge>{" "}
                 in {result.ms} ms
+                {result.tier && (
+                  <>
+                    {" · "}
+                    {result.tier}, {result.remaining} left this minute
+                  </>
+                )}
               </>
             ) : null}
           </div>
@@ -289,7 +303,7 @@ function TryIt({ endpoint }: { endpoint: Endpoint }) {
   );
 }
 
-function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
+function EndpointCard({ endpoint, token }: { endpoint: Endpoint; token: string }) {
   const { op, path, params } = endpoint;
   const example = buildUrl(path, params, initialValues(params), PUBLIC_BASE);
   return (
@@ -371,7 +385,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
         <details className="rounded-md border border-[#A87146]/15 p-3">
           <summary className="cursor-pointer text-sm font-medium text-[#4a3728]">Try it against this server</summary>
           <div className="mt-3">
-            <TryIt endpoint={endpoint} />
+            <TryIt endpoint={endpoint} token={token} />
           </div>
         </details>
       </CardContent>
@@ -380,6 +394,8 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
 }
 
 export default function Developers() {
+  // Held only in this page's memory, for Try it; never stored.
+  const [token, setToken] = useState("");
   const byTag = OPENAPI.tags.map((tag) => ({
     ...tag,
     endpoints: ENDPOINTS.filter((e) => e.op.tags?.[0] === tag.name),
@@ -442,25 +458,74 @@ export default function Developers() {
               <QuickStart />
             </section>
 
-            <section id="tokens" className="scroll-mt-24">
+            <section id="tokens" className="scroll-mt-24 space-y-4">
               <SectionTitle>Access and tokens</SectionTitle>
-              <Card className="border-dashed">
+              <div className="max-w-3xl space-y-3 text-sm text-[#5c4a3a] leading-relaxed">
+                <p>
+                  <strong className="text-[#4a3728]">Reading is open: you do not need a token.</strong>{" "}
+                  Every caller has a rate limit, so one busy script cannot slow the site for everyone
+                  else. Anonymous callers are counted per address; a token is counted on its own and
+                  gets a much higher limit.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full max-w-xl text-sm">
+                  <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-b">
+                      <th className="px-3 py-2 text-left font-medium">Caller</th>
+                      <th className="px-3 py-2 text-right font-medium">Requests per minute</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["No token", RATES.anonymous, "per address"],
+                      ["Token", RATES.standard, "per token"],
+                      ["Bulk token", RATES.bulk, "on request, for big jobs"],
+                    ].map(([label, rate, note]) => (
+                      <tr key={String(label)} className="border-b last:border-0">
+                        <td className="px-3 py-2 text-[#4a3728]">
+                          {label} <span className="text-xs text-muted-foreground">{note}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{Number(rate).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Card>
                 <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
                   <KeyRound className="h-8 w-8 shrink-0 text-myco-green" />
-                  <div className="space-y-2 text-sm text-[#5c4a3a] leading-relaxed">
+                  <div className="min-w-0 space-y-3 text-sm text-[#5c4a3a] leading-relaxed">
                     <p>
-                      <strong className="text-[#4a3728]">No token is needed today.</strong> While Atlas is
-                      in development every route is open to read.
+                      Tokens are issued through your <strong className="text-[#4a3728]">mycomap.org</strong>{" "}
+                      account, so there is no separate Atlas login. Say what you will use it for, a
+                      MycoMap admin approves it, and you send it with each request:
                     </p>
+                    <Code>{`curl -H "X-API-Key: atlas_…" "${PUBLIC_BASE}/api/models"`}</Code>
                     <p>
-                      Tokens will be issued through your mycomap.org account, so there is no separate
-                      Atlas login: you request one there, a MycoMap admin approves it, and you send it
-                      here as an <code>X-API-Key</code> header. Requests open when atlas.mycomap.org
-                      launches.
+                      Every response says where you stand in <code>X-RateLimit-Limit</code>,{" "}
+                      <code>X-RateLimit-Remaining</code> and <code>X-Atlas-Tier</code>. Over the limit
+                      you get <code>429</code> with <code>Retry-After</code> in seconds. A token that is
+                      unknown, still pending, disabled or revoked gets <code>401</code> with the reason,
+                      rather than being quietly served at the anonymous rate.
                     </p>
-                    <Button size="sm" variant="outline" disabled>
-                      Request a token — coming soon
-                    </Button>
+                    <a
+                      href={TOKEN_REQUEST_URL}
+                      className="inline-flex items-center gap-2 rounded-md bg-myco-green px-4 py-2 font-semibold text-white hover:bg-myco-green/90"
+                    >
+                      Request a token on mycomap.org <ArrowUpRight className="h-4 w-4" />
+                    </a>
+                    <label className="block pt-2 text-xs text-muted-foreground">
+                      Have one? Paste it to use it in the Try it panels below. It stays in this tab only.
+                      <input
+                        type="password"
+                        autoComplete="off"
+                        value={token}
+                        onChange={(event) => setToken(event.target.value.trim())}
+                        placeholder="atlas_…"
+                        className="mt-1 h-9 w-full max-w-sm rounded-md border border-input bg-white px-2 font-mono text-sm text-foreground"
+                      />
+                    </label>
                   </div>
                 </CardContent>
               </Card>
@@ -473,7 +538,7 @@ export default function Developers() {
                   {tag.description && <p className="-mt-2 text-sm text-muted-foreground">{tag.description}</p>}
                 </div>
                 {tag.endpoints.map((e) => (
-                  <EndpointCard key={e.path} endpoint={e} />
+                  <EndpointCard key={e.path} endpoint={e} token={token} />
                 ))}
               </section>
             ))}

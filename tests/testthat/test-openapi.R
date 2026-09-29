@@ -59,7 +59,7 @@ test_that("each route documents exactly the parameters its handler takes", {
 test_that("every reference in the spec points at something", {
   spec <- read_spec()
   text <- readLines(file.path(repo_root(), "inst", "api", "openapi.json"), warn = FALSE)
-  refs <- unique(unlist(regmatches(text, gregexpr("#/components/[A-Za-z]+/[A-Za-z]+", text))))
+  refs <- unique(unlist(regmatches(text, gregexpr("#/components/[A-Za-z]+/[A-Za-z-]+", text))))
   expect_true(length(refs) > 5)
   for (ref in refs) {
     expect_false(is.null(resolve_ref(spec, list(`$ref` = ref))), label = ref)
@@ -98,4 +98,21 @@ test_that("the server finds the spec in a source checkout", {
   path <- atlas_openapi_path(repo_root())
   expect_true(file.exists(path))
   expect_equal(jsonlite::fromJSON(path)$info$title, "MycoMap Atlas API")
+})
+
+test_that("the rate limits the spec promises are the ones the server applies", {
+  documented <- read_spec()[["x-rate-limits"]]
+  for (tier in names(ATLAS_RATE_DEFAULTS)) {
+    expect_equal(documented[[tier]], ATLAS_RATE_DEFAULTS[[tier]], label = paste("documented", tier, "limit"))
+  }
+})
+
+test_that("every route documents the token refusal and the rate limit", {
+  spec <- read_spec()
+  for (path in names(spec$paths)) {
+    responses <- spec$paths[[path]]$get$responses
+    expect_false(is.null(responses[["401"]]), label = paste("401 on", path))
+    expect_false(is.null(responses[["429"]]), label = paste("429 on", path))
+  }
+  expect_equal(spec$components$securitySchemes$atlasToken$name, "X-API-Key")
 })

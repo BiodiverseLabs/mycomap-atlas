@@ -18,15 +18,30 @@ atlas_allowed_origins <- function() {
 }
 
 #' The origin to echo back, or NULL when it is not allowed.
+#'
+#' "*" in the allowlist opens the API to every site. That is safe for the
+#' public server because nothing here uses cookies or changes anything: a
+#' token travels in a header the calling page must send itself.
 atlas_allowed_origin <- function(origin, allowed = atlas_allowed_origins()) {
   if (is.null(origin) || !length(origin)) {
     return(NULL)
   }
   origin <- as.character(origin)[[1]]
-  if (!nzchar(origin) || !origin %in% allowed) {
+  if (!nzchar(origin)) {
+    return(NULL)
+  }
+  if ("*" %in% allowed) {
+    return("*")
+  }
+  if (!origin %in% allowed) {
     return(NULL)
   }
   origin
+}
+
+#' Response headers a page on another site may read.
+atlas_exposed_headers <- function() {
+  "X-RateLimit-Limit, X-RateLimit-Remaining, Retry-After, X-Atlas-Tier"
 }
 
 #' Where the OpenAPI description lives: the source tree when running from it,

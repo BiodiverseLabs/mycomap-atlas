@@ -23,6 +23,7 @@ Suggests:
     tarchetypes,
     terra,
     geodata,
+    curl,
     sf,
     maxnet,
     ENMeval,

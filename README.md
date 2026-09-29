@@ -369,6 +369,33 @@ On the draft grid today a release is 8,153 files and 2.4 GB: publishing it the
 first time took 54 s into a local folder, a first pull 2 min 14 s, and a pull
 with nothing new 17 s.
 
+## Access and tokens
+
+Reads are open. Every caller is rate limited instead: anonymous callers per
+address, token holders per token, with a higher limit. Tokens identify a
+caller; they do not protect the server, since a flood arrives before any key
+can be checked. Caching does that work: responses carry `Cache-Control`, and a
+map requested with its version (`?v=`) never changes at that address, so a CDN
+in front of the API answers repeat requests without reaching it.
+
+Tokens are issued by mycomap.org, per account, and approved there by an
+admin (`https://mycomap.org/atlas-tokens`). Atlas never sees the account: it
+asks .org's introspection route whether a token is live and caches the answer
+for five minutes (a minute for a rejection), keyed by a hash of the token. A
+token .org rejects gets `401` with the reason; if .org cannot be reached, the
+caller is served at the anonymous rate rather than locked out. The code is in
+`R/access.R`; the settings are environment variables, so the secret never
+enters the repository:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ATLAS_KEY_INTROSPECT_URL` | unset | .org's `/api/service-keys/introspect`. Unset, tokens are ignored and everyone is anonymous. |
+| `ATLAS_KEY_INTROSPECT_SECRET` | unset | Shared secret for that route. Both must be set. |
+| `ATLAS_RATE_ANONYMOUS` / `_STANDARD` / `_BULK` | 120 / 1,200 / 6,000 | Requests per minute. The spec's `x-rate-limits` must match the defaults (a test checks). |
+| `ATLAS_REQUIRE_TOKEN` | off | `true` makes every route token-only. |
+| `ATLAS_CLIENT_IP_HEADER` | unset | The header the proxy writes the caller's address into, e.g. `CF-Connecting-IP`. Behind a proxy without it, every caller shares one allowance. Only name a header the proxy always overwrites. |
+| `ATLAS_ALLOWED_ORIGINS` | the dev app | `*` on the public server, so any site can call the API from a browser. |
+
 ## Data
 
 Everything lives under `data/`, which is never committed (override with

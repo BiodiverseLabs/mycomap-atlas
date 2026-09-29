@@ -58,19 +58,48 @@ cached_taxa <- function() {
 #* @filter cors
 function(req, res) {
   # The web app reaches this through vite's proxy, which is same-origin, so
-  # nothing normal depends on these headers. They exist for a browser opened
-  # straight at the dev server, and only for origins on the allowlist.
+  # nothing normal depends on these headers. On a laptop they exist for a
+  # browser opened straight at the dev server, and only for origins on the
+  # allowlist; the public server sets ATLAS_ALLOWED_ORIGINS=* so any site can
+  # build on the API.
   origin <- atlas_allowed_origin(req$HTTP_ORIGIN)
   if (!is.null(origin)) {
     res$setHeader("Access-Control-Allow-Origin", origin)
+    res$setHeader("Access-Control-Expose-Headers", atlas_exposed_headers())
     res$setHeader("Vary", "Origin")
   }
   if (identical(req$REQUEST_METHOD, "OPTIONS")) {
     res$setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
-    res$setHeader("Access-Control-Allow-Headers", "Content-Type")
+    res$setHeader("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
     res$status <- 200L
     return(list())
   }
+  plumber::forward()
+}
+
+access_config <- atlas_access_config()
+access_state <- atlas_access_state()
+
+#* @filter access
+function(req, res) {
+  if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
+    return(plumber::forward())
+  }
+  access_state$served <- if (is.null(access_state$served)) 1 else access_state$served + 1
+  if (access_state$served %% 1000 == 0) atlas_rate_sweep(access_state)
+
+  decision <- atlas_access_decision(req, access_state, access_config)
+  for (name in names(decision$headers)) {
+    res$setHeader(name, decision$headers[[name]])
+  }
+  if (!is.null(decision$status)) {
+    res$status <- decision$status
+    res$setHeader("Content-Type", "application/json")
+    res$body <- as.character(jsonlite::toJSON(decision$body, auto_unbox = TRUE))
+    return(res)
+  }
+  cache_control <- atlas_cache_control(req$PATH_INFO, req$QUERY_STRING)
+  if (!is.null(cache_control)) res$setHeader("Cache-Control", cache_control)
   plumber::forward()
 }
 
