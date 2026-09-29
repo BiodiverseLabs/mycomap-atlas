@@ -76,8 +76,10 @@ atlas_prune_correlated <- function(data, threshold = 0.7,
 #' does not bind once a taxon is well recorded. The ratio is the mechanism;
 #' the correlation threshold only decides which of two twins is dropped.
 #'
-#' Provisional: three taxa is enough to see the direction, not to fix the
-#' constant. Re-measure when batch fitting gives hundreds.
+#' Re-measured on 153 taxa (atlas_predictor_sweep, 2026-09-28): the gain is
+#' smaller than those three suggested — about 0.02 AUC for 20-29 cells — and
+#' shows mostly in the Boyce index, which drops by 0.07-0.09 without a cap.
+#' One per four was within noise of the best ratio on both, so it stays.
 atlas_choose_predictors <- function(training, threshold = 0.7,
                                     priority = ATLAS_PREDICTOR_PRIORITY,
                                     per_presence = 4, minimum = 5) {

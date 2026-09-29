@@ -181,8 +181,25 @@ one predictor per four records, and the cap stops binding once a taxon is well
 recorded. The ratio is the mechanism; the correlation threshold only decides
 which of two twins gets dropped.
 
-Three taxa is enough to see the direction, not to fix the constant. Re-measure
-when batch fitting gives hundreds.
+Those three taxa overstated it. A sweep over 153 taxa (`./atlas
+sweep-predictors`, up to 40 per band of presence cells) scored each taxon at
+several ratios on one set of folds, so every comparison is a taxon against
+itself. Differences from one per four, with standard errors:
+
+| Ratio | AUC, 20–29 cells | Boyce, 20–29 | Boyce, 30–49 | Boyce, all |
+|---|---|---|---|---|
+| 1 per 2 | +0.003 ± 0.010 | −0.030 ± 0.026 | −0.062 ± 0.026 | −0.024 ± 0.010 |
+| 1 per 3 | +0.002 ± 0.006 | +0.012 ± 0.026 | −0.015 ± 0.021 | −0.002 ± 0.009 |
+| 1 per 6 | 0.000 ± 0.002 | +0.006 ± 0.006 | +0.024 ± 0.022 | +0.015 ± 0.008 |
+| no cap | −0.016 ± 0.012 | −0.089 ± 0.033 | −0.070 ± 0.027 | −0.041 ± 0.012 |
+
+The cap earns its place, but not through AUC: across sparse taxa it is worth
+about 0.02 of AUC, not the tenth *A. nabsnona* suggested. Where it shows is
+Boyce — whether higher suitability really holds more records — which falls
+clearly without a cap. One per four sits within noise of the best on both
+measures; one per six trades a little AUC for a little Boyce, and one per two
+is worse. The ratio stays at four. Above about 100 presence cells no ratio
+binds, since correlation pruning alone leaves 18 predictors.
 
 Below 20 presence cells a taxon is refused rather than modelled, and the
 threshold bites on record counts that look generous: *Lysurus mokusin* has 105
