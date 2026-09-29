@@ -47,6 +47,8 @@ atlas_usage <- function() {
   message("      --seed=N                  which sample (default 1)")
   message("  redraw-maps        redraw every map's PNG from its stored raster")
   message("      --workers=N               maps at once (default 1)")
+  message("  build-here-index   index every map by 20 km cell, for \"what could grow here\"")
+  message("      --cell-km=N               cell size (default 20)")
   message("  publish-release    publish what this machine computed as a new release")
   message("      --store=URI               s3://bucket/prefix or a folder (default ATLAS_STORE)")
   message("      --note=\"text\"            why this release was made")
@@ -255,6 +257,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         min_presences = atlas_flag_number(flags, "min_presences", 50),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "build-here-index" = {
+      atlas_build_here_index(
+        grid = atlas_flag_grid(flags),
+        cell_km = atlas_flag_number(flags, "cell_km", ATLAS_HERE_CELL_KM)
       )
       invisible(0L)
     },

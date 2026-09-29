@@ -307,3 +307,35 @@ export function searchTaxa(q: string, limit = 8): Promise<SearchResult> {
   const query = new URLSearchParams({ q, limit: String(limit) });
   return get<SearchResult>(`/api/search?${query.toString()}`);
 }
+
+/** One taxon a place suits. models holds only the models rating it in their top half. */
+export interface HereTaxon {
+  scientific_name: string;
+  score: number;
+  models: Partial<Record<Algorithm, number>>;
+  fitted: Algorithm[];
+  agree: number;
+  nearby_records: number;
+  localities: number;
+}
+
+export interface HereAnswer {
+  point: { lat: number; lng: number };
+  cell_km: number;
+  in_grid: boolean;
+  nearby_km: number;
+  total: number;
+  taxa: HereTaxon[];
+  recorded_unmapped: { scientific_name: string; nearby_records: number }[];
+}
+
+/** What could grow at a place. Throws with status 503 when the index is missing. */
+export async function getHere(lat: number, lng: number, minScore = 0, limit = 100): Promise<HereAnswer> {
+  const query = new URLSearchParams({
+    lat: lat.toFixed(4),
+    lng: lng.toFixed(4),
+    min_score: String(minScore),
+    limit: String(limit),
+  });
+  return get<HereAnswer>(`/api/here?${query.toString()}`);
+}

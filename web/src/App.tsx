@@ -4,6 +4,7 @@ import { Redirect, Route, Switch } from "wouter";
 import Layout, { Page, PageHeader } from "@/components/Layout";
 import Data from "@/pages/Data";
 import Developers from "@/pages/Developers";
+import Here from "@/pages/Here";
 import Home from "@/pages/Home";
 import Maps from "@/pages/Maps";
 import Methods from "@/pages/Methods";
@@ -25,6 +26,7 @@ export default function App() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/maps" component={Maps} />
+          <Route path="/here" component={Here} />
           <Route path="/models" component={Models} />
           <Route path="/taxa" component={Taxa} />
           <Route path="/taxa/:name" component={Taxon} />

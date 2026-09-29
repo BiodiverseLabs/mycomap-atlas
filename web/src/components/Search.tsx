@@ -312,7 +312,7 @@ export function SearchButton({ onOpen }: { onOpen: () => void }) {
       <button
         type="button"
         onClick={onOpen}
-        className="hidden md:inline-flex h-9 w-56 items-center gap-2 rounded-md border border-[#A87146]/20 bg-[#f8f5f0]/60 px-3 text-sm text-muted-foreground hover:border-myco-green/50"
+        className="hidden md:inline-flex h-9 w-56 xl:w-44 2xl:w-56 items-center gap-2 rounded-md border border-[#A87146]/20 bg-[#f8f5f0]/60 px-3 text-sm text-muted-foreground hover:border-myco-green/50"
         aria-label="Search"
       >
         <SearchIcon className="h-4 w-4" />

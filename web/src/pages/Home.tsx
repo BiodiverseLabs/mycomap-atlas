@@ -5,7 +5,7 @@ import { ImageOverlay, MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   ArrowRight,
-  BookOpen,
+  Crosshair,
   Braces,
   Database,
   Dna,
@@ -163,11 +163,11 @@ const USES: { icon: Icon; title: string; text: string; href: string; cta: string
     cta: "Data and sources",
   },
   {
-    icon: BookOpen,
-    title: "Check the method",
-    text: "Every choice written down with the measurement behind it, from background sampling to how colour is scaled.",
-    href: "/methods",
-    cta: "Read the methods",
+    icon: Crosshair,
+    title: "What could grow here?",
+    text: "Pick any place and see every mapped fungus its habitat suits, and which have been collected nearby.",
+    href: "/here",
+    cta: "Explore a place",
   },
   {
     icon: GithubMark,
@@ -238,6 +238,12 @@ export default function Home() {
                 className="inline-flex items-center gap-2 rounded-md bg-myco-green px-4 py-2 font-semibold text-white hover:bg-myco-green/90"
               >
                 Explore the maps <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/here"
+                className="inline-flex items-center gap-2 rounded-md border border-[#A87146]/30 bg-white px-4 py-2 font-semibold text-[#4a3728] hover:border-myco-green"
+              >
+                <Crosshair className="h-4 w-4 text-myco-green" /> What could grow here?
               </Link>
               <Link
                 href="/methods"

@@ -13,6 +13,7 @@ import { GITHUB_URL } from "@/lib/contract";
 
 const NAV = [
   { href: "/maps", label: "Maps" },
+  { href: "/here", label: "Explore" },
   { href: "/models", label: "Models" },
   { href: "/taxa", label: "Taxa" },
   { href: "/methods", label: "Methods" },

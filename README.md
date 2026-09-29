@@ -372,6 +372,29 @@ On the draft grid today a release is 8,153 files and 2.4 GB: publishing it the
 first time took 54 s into a local folder, a first pull 2 min 14 s, and a pull
 with nothing new 17 s.
 
+## What could grow here
+
+The Explore page (`/here`, route `/api/here`) answers a click on the map with
+every mapped fungus whose maps rate that place highly. Asking 2,700 rasters
+about a point takes a minute, so it answers from an index built once from the
+maps (`R/here.R`):
+
+```bash
+./atlas build-here-index            # after a batch of fits or a redraw
+```
+
+The continent is cut into 20 km squares aligned with the grid. For each model
+the index keeps the squares where it ranks the ground in the top half of its
+own accessible area, as the same percentile the maps are coloured by. A
+taxon's score at a place is the mean of its models' ranks there, a model that
+does not rate it in its top half counting as zero, so one keen model among
+three indifferent ones does not top the list. Taxa collected within 25 km are
+marked, counted from the 0.1° public cells, and taxa collected nearby with no
+map yet are listed apart as survey targets. The index holds ranks by square
+and nothing about records; it ships with every release. The API projects a
+click onto the grid in plain R (Snyder's Albers formulas, tested against
+terra to within a metre), so the web server needs no GDAL.
+
 ## Archives on Zenodo
 
 Big downloads live on Zenodo, versioned, each version with its own DOI.

@@ -195,7 +195,9 @@ atlas_release_files <- function(grid = "draft") {
     atlas_public_pull_path(),
     atlas_public_cells_path(),
     file.path(atlas_layer_dir(grid), "manifest.json"),
-    utils::tail(benchmarks, 1)
+    utils::tail(benchmarks, 1),
+    # Ranks by 20 km cell for "what could grow here", built from the maps above.
+    atlas_here_index_path(grid)
   )
   files <- files[file.exists(files)]
   rel <- substring(normalizePath(files, winslash = "/"),
