@@ -5,7 +5,7 @@ import type { LatLng, Map as LeafletMap } from "leaflet";
 import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
 
 import { Help, Th } from "@/components/Common";
-import { CircleMarker, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
+import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -157,14 +157,15 @@ function ModelMap({
       </CardHeader>
       <div className={`relative ${expanded ? "h-[70vh] min-h-[420px]" : "h-[380px]"}`}>
         <MapContainer
+          // North America until the model arrives; FitBounds then fits its range.
           center={[44, -100]}
           zoom={3}
-          bounds={view ?? undefined}
           className="h-full w-full"
           // Otherwise scrolling the page over a map zooms it instead.
           scrollWheelZoom={false}
         >
           <SyncWith group={group} id={algorithm} />
+          <FitBounds bounds={view} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

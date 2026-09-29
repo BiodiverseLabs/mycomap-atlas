@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
 import { Crosshair, MapPin, X } from "lucide-react";
 
-import { Circle, CircleMarker, ImageOverlay, MapContainer, TileLayer, useMapEvents } from "@/components/Leaflet";
+import { Circle, CircleMarker, ImageOverlay, MapContainer, PanTo, TileLayer, useMapEvents } from "@/components/Leaflet";
 import { PageHeader } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import {
@@ -144,6 +144,9 @@ export default function Here() {
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [locating, setLocating] = useState<string | null>(null);
+  // Where "Use my location" found you: the map moves there. A click on the
+  // map picks a place already on screen, so it leaves the map where it is.
+  const [found, setFound] = useState<{ lat: number; lng: number; seq: number } | null>(null);
 
   const pick = (p: Point) => {
     setSelected(null);
@@ -176,7 +179,9 @@ export default function Here() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocating(null);
-        pick({ lat: position.coords.latitude, lng: position.coords.longitude });
+        const here = { lat: position.coords.latitude, lng: position.coords.longitude };
+        pick(here);
+        setFound((last) => ({ ...here, seq: (last?.seq ?? 0) + 1 }));
       },
       () => setLocating("Location was not shared. Click the map instead."),
       { enableHighAccuracy: false, timeout: 10000 },
@@ -206,6 +211,7 @@ export default function Here() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <ClickToPick onPick={pick} />
+                <PanTo target={found} minZoom={7} />
                 {selectedTaxon && <SelectedOverlay taxon={selectedTaxon} />}
                 {point && (
                   <>
