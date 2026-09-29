@@ -91,6 +91,35 @@ access_config <- atlas_access_config()
 access_state <- atlas_access_state()
 for (alert in c(signin_config$problems, atlas_access_alerts(access_config))) message(alert)
 
+# Read the taxa and every model's summary once at boot, so the first person
+# to search is not the one who waits while thousands of files are read.
+# Plumber answers one request at a time; a slow first search stalls everyone.
+invisible(tryCatch({
+  cache$search_index <- atlas_search_index(cached_taxa())
+  cache$models_draft <- new.env(parent = emptyenv())
+  cache$search_mapped <- atlas_search_mapped(atlas_model_index("draft", cache$models_draft))
+  cache$search_mapped_at <- as.numeric(Sys.time())
+}, error = function(e) NULL))
+
+# Every taxon's 0.1 degree collection cells, for "recorded nearby": built from
+# the pull on a machine that has it, read from the release everywhere else.
+cached_all_cells <- function() {
+  if (is.null(cache$all_cells)) {
+    source <- cached_cells_source()
+    cache$all_cells <- if (!is.null(source$occurrences)) {
+      atlas_public_cells_table(source$occurrences)
+    } else {
+      source$public
+    }
+  }
+  cache$all_cells
+}
+
+invisible(tryCatch({
+  cache$here_index <- atlas_read_here_index("draft")
+  cached_all_cells()
+}, error = function(e) NULL))
+
 #* @filter access
 function(req, res) {
   if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
@@ -160,6 +189,13 @@ function() {
   readBin(path, "raw", file.info(path)$size)
 }
 
+#* The versioned archives on Zenodo: every version of each series, with DOIs.
+#* @get /api/downloads
+#* @serializer unboxedJSON
+function() {
+  list(series = atlas_archive_ledgers())
+}
+
 #* What the last pull holds.
 #* @get /api/status
 #* @serializer unboxedJSON
@@ -190,6 +226,65 @@ function() {
 #* @serializer unboxedJSON
 function(grid = "draft") {
   list(grid = grid, layers = atlas_layer_overview(grid))
+}
+
+#* Find taxa and genera by what someone typed, forgiving typos and spellings.
+#* @param q What was typed
+#* @param limit Most species to return
+#* @get /api/search
+#* @serializer unboxedJSON
+function(q = "", limit = 10) {
+  if (is.null(cache$search_index)) {
+    cache$search_index <- atlas_search_index(cached_taxa())
+  }
+  # Which taxa have maps changes only when a batch or a release lands, and
+  # checking thousands of model files takes a second or two on every
+  # keystroke. So it is refreshed at most once a minute.
+  now <- as.numeric(Sys.time())
+  if (is.null(cache$search_mapped) || now - cache$search_mapped_at > 60) {
+    if (is.null(cache$models_draft)) {
+      cache$models_draft <- new.env(parent = emptyenv())
+    }
+    cache$search_mapped <- atlas_search_mapped(atlas_model_index("draft", cache$models_draft))
+    cache$search_mapped_at <- now
+  }
+  limit <- min(50L, max(1L, suppressWarnings(as.integer(limit)), na.rm = TRUE))
+  atlas_search(cache$search_index, substr(as.character(q), 1L, 200L), cache$search_mapped, limit = limit)
+}
+
+#* What could grow here: every mapped taxon a place suits, best first.
+#* @param lat Latitude
+#* @param lng Longitude
+#* @param limit Most taxa to return
+#* @param min_score Leave out taxa scoring below this, from 0 to 1
+#* @param nearby_km How far to look for collections
+#* @get /api/here
+#* @serializer unboxedJSON
+function(lat, lng, limit = 50, min_score = 0, nearby_km = 25, res) {
+  if (is.null(cache$here_index)) {
+    cache$here_index <- atlas_read_here_index("draft")
+  }
+  if (is.null(cache$here_index)) {
+    res$status <- 503L
+    return(list(error = "the place index has not been built: ./atlas build-here-index"))
+  }
+  number <- function(x, default) {
+    value <- suppressWarnings(as.numeric(x))
+    if (length(value) != 1L || !is.finite(value)) default else value
+  }
+  lat <- number(lat, NA_real_)
+  lng <- number(lng, NA_real_)
+  if (!is.finite(lat) || !is.finite(lng) || abs(lat) > 90 || abs(lng) > 180) {
+    res$status <- 400L
+    return(list(error = "lat and lng must be a point on Earth"))
+  }
+  atlas_here(
+    cache$here_index, lat, lng,
+    cells = cached_all_cells(), taxa = cached_taxa(),
+    limit = as.integer(min(1000, max(1, number(limit, 50)))),
+    min_score = min(1, max(0, number(min_score, 0))),
+    nearby_km = min(100, max(1, number(nearby_km, 25)))
+  )
 }
 
 #* Taxa with their record and locality counts.

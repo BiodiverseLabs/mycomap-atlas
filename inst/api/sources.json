@@ -54,42 +54,259 @@
     }
   ],
   "software": [
-    { "name": "R", "group": "platform", "version": "4.6", "license": "GPL-2 | GPL-3", "url": "https://www.r-project.org", "role": "Everything from the pull to the published release." },
-    { "name": "rocker/geospatial", "group": "platform", "license": "GPL-2 or later", "url": "https://rocker-project.org/images/versioned/rstudio.html", "role": "The container image releases are built in, so every map can be rebuilt exactly." },
-    { "name": "Node.js and pnpm", "group": "platform", "license": "MIT", "url": "https://pnpm.io", "role": "Builds this website." },
-
-    { "name": "terra", "group": "r", "license": "GPL (>= 3)", "url": "https://rspatial.github.io/terra/", "role": "Every raster and vector operation: projecting layers onto the grid, terrain, masks, prediction and map drawing.", "citation": "Hijmans RJ. terra: Spatial Data Analysis. R package." },
-    { "name": "geodata", "group": "r", "license": "GPL (>= 3)", "url": "https://rspatial.github.io/geodata/", "role": "Downloads WorldClim, SoilGrids and WorldCover." },
-    { "name": "maxnet", "group": "r", "license": "MIT", "url": "https://github.com/mrmaxent/maxnet", "role": "Fits Maxent, the first of the three models.", "citation": "Phillips SJ, Anderson RP, Dudík M, Schapire RE, Blair ME (2017) Opening the black box: an open-source release of Maxent. Ecography 40:887-893.", "doi": "10.1111/ecog.03049" },
-    { "name": "xgboost", "group": "r", "license": "Apache-2.0", "url": "https://github.com/dmlc/xgboost", "role": "Fits boosted trees, the second model.", "citation": "Chen T, Guestrin C (2016) XGBoost: a scalable tree boosting system. KDD '16.", "doi": "10.1145/2939672.2939785" },
-    { "name": "ranger", "group": "r", "license": "GPL-3", "url": "https://github.com/imbs-hl/ranger", "role": "Fits the down-sampled random forest, the third model.", "citation": "Wright MN, Ziegler A (2017) ranger: a fast implementation of random forests for high dimensional data in C++ and R. Journal of Statistical Software 77(1).", "doi": "10.18637/jss.v077.i01" },
-    { "name": "plumber", "group": "r", "license": "MIT", "url": "https://www.rplumber.io", "role": "Serves the API." },
-    { "name": "jsonlite", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/jsonlite", "role": "Reads and writes every manifest and model record." },
-    { "name": "digest", "group": "r", "license": "GPL (>= 2)", "url": "https://github.com/eddelbuettel/digest", "role": "Record-set fingerprints and content hashes for releases." },
-    { "name": "curl", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/curl", "role": "Asks mycomap.org whether an API token is live, and checks a release image exists before workers pull it." },
-    { "name": "openssl", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/openssl", "role": "Checks the Ed25519 signature on a mycomap.org sign-in, and signs Atlas's own session cookie." },
-    { "name": "paws.storage", "group": "r", "license": "Apache-2.0", "url": "https://github.com/paws-r/paws", "role": "Publishes and pulls releases through Amazon S3, and signs short-lived download links." },
-    { "name": "paws.compute", "group": "r", "license": "Apache-2.0", "url": "https://github.com/paws-r/paws", "role": "Launches and ends the EC2 spot workers that fit models, for the nightly job." },
-    { "name": "testthat", "group": "r", "license": "MIT", "url": "https://testthat.r-lib.org", "role": "The test suite." },
-
-    { "name": "react", "group": "web", "license": "MIT", "url": "https://react.dev", "role": "This website." },
-    { "name": "react-dom", "group": "web", "license": "MIT", "url": "https://react.dev", "role": "Renders the website in the browser." },
-    { "name": "leaflet", "group": "web", "license": "BSD-2-Clause", "url": "https://leafletjs.com", "role": "The interactive maps." },
-    { "name": "react-leaflet", "group": "web", "license": "Hippocratic-2.1", "url": "https://react-leaflet.js.org", "role": "Leaflet maps as React components." },
-    { "name": "@tanstack/react-query", "group": "web", "license": "MIT", "url": "https://tanstack.com/query", "role": "Fetches and caches API responses." },
-    { "name": "wouter", "group": "web", "license": "Unlicense", "url": "https://github.com/molefrog/wouter", "role": "Page routing." },
-    { "name": "lucide-react", "group": "web", "license": "ISC", "url": "https://lucide.dev", "role": "Icons." },
-    { "name": "@radix-ui/react-slot", "group": "web", "license": "MIT", "url": "https://www.radix-ui.com/primitives", "role": "Button composition, as in shadcn/ui." },
-    { "name": "class-variance-authority", "group": "web", "license": "Apache-2.0", "url": "https://github.com/joe-bell/cva", "role": "Component variants." },
-    { "name": "clsx", "group": "web", "license": "MIT", "url": "https://github.com/lukeed/clsx", "role": "Class names." },
-    { "name": "tailwind-merge", "group": "web", "license": "MIT", "url": "https://github.com/dcastil/tailwind-merge", "role": "Class names." },
-    { "name": "tailwindcss", "group": "web", "license": "MIT", "url": "https://tailwindcss.com", "role": "Styling, with mycomap.org's colour tokens." },
-    { "name": "tailwindcss-animate", "group": "web", "license": "MIT", "url": "https://github.com/jamiebuilds/tailwindcss-animate", "role": "Styling." },
-    { "name": "postcss", "group": "web", "license": "MIT", "url": "https://postcss.org", "role": "Builds the stylesheet." },
-    { "name": "autoprefixer", "group": "web", "license": "MIT", "url": "https://github.com/postcss/autoprefixer", "role": "Builds the stylesheet." },
-    { "name": "vite", "group": "web", "license": "MIT", "url": "https://vite.dev", "role": "Builds and serves the website." },
-    { "name": "@vitejs/plugin-react", "group": "web", "license": "MIT", "url": "https://github.com/vitejs/vite-plugin-react", "role": "Builds the website." },
-    { "name": "typescript", "group": "web", "license": "Apache-2.0", "url": "https://www.typescriptlang.org", "role": "Type-checks the website." }
+    {
+      "name": "R",
+      "group": "platform",
+      "version": "4.6",
+      "license": "GPL-2 | GPL-3",
+      "url": "https://www.r-project.org",
+      "role": "Everything from the pull to the published release."
+    },
+    {
+      "name": "rocker/geospatial",
+      "group": "platform",
+      "license": "GPL-2 or later",
+      "url": "https://rocker-project.org/images/versioned/rstudio.html",
+      "role": "The container image releases are built in, so every map can be rebuilt exactly."
+    },
+    {
+      "name": "Node.js and pnpm",
+      "group": "platform",
+      "license": "MIT",
+      "url": "https://pnpm.io",
+      "role": "Builds this website."
+    },
+    {
+      "name": "Zenodo",
+      "group": "platform",
+      "license": "Open service run by CERN",
+      "url": "https://zenodo.org",
+      "role": "Keeps every archived version of the maps and layers, each with its own DOI, for the life of the repository."
+    },
+    {
+      "name": "terra",
+      "group": "r",
+      "license": "GPL (>= 3)",
+      "url": "https://rspatial.github.io/terra/",
+      "role": "Every raster and vector operation: projecting layers onto the grid, terrain, masks, prediction and map drawing.",
+      "citation": "Hijmans RJ. terra: Spatial Data Analysis. R package."
+    },
+    {
+      "name": "geodata",
+      "group": "r",
+      "license": "GPL (>= 3)",
+      "url": "https://rspatial.github.io/geodata/",
+      "role": "Downloads WorldClim, SoilGrids and WorldCover."
+    },
+    {
+      "name": "maxnet",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://github.com/mrmaxent/maxnet",
+      "role": "Fits Maxent, the first of the three models.",
+      "citation": "Phillips SJ, Anderson RP, Dudík M, Schapire RE, Blair ME (2017) Opening the black box: an open-source release of Maxent. Ecography 40:887-893.",
+      "doi": "10.1111/ecog.03049"
+    },
+    {
+      "name": "xgboost",
+      "group": "r",
+      "license": "Apache-2.0",
+      "url": "https://github.com/dmlc/xgboost",
+      "role": "Fits boosted trees, the second model.",
+      "citation": "Chen T, Guestrin C (2016) XGBoost: a scalable tree boosting system. KDD '16.",
+      "doi": "10.1145/2939672.2939785"
+    },
+    {
+      "name": "ranger",
+      "group": "r",
+      "license": "GPL-3",
+      "url": "https://github.com/imbs-hl/ranger",
+      "role": "Fits the down-sampled random forest, the third model.",
+      "citation": "Wright MN, Ziegler A (2017) ranger: a fast implementation of random forests for high dimensional data in C++ and R. Journal of Statistical Software 77(1).",
+      "doi": "10.18637/jss.v077.i01"
+    },
+    {
+      "name": "plumber",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://www.rplumber.io",
+      "role": "Serves the API."
+    },
+    {
+      "name": "jsonlite",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://jeroen.r-universe.dev/jsonlite",
+      "role": "Reads and writes every manifest and model record."
+    },
+    {
+      "name": "digest",
+      "group": "r",
+      "license": "GPL (>= 2)",
+      "url": "https://github.com/eddelbuettel/digest",
+      "role": "Record-set fingerprints and content hashes for releases."
+    },
+    {
+      "name": "curl",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://jeroen.r-universe.dev/curl",
+      "role": "Asks mycomap.org whether an API token is live, and checks a release image exists before workers pull it."
+    },
+    {
+      "name": "openssl",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://jeroen.r-universe.dev/openssl",
+      "role": "Checks the Ed25519 signature on a mycomap.org sign-in, and signs Atlas's own session cookie."
+    },
+    {
+      "name": "paws.storage",
+      "group": "r",
+      "license": "Apache-2.0",
+      "url": "https://github.com/paws-r/paws",
+      "role": "Publishes and pulls releases through Amazon S3, and signs short-lived download links."
+    },
+    {
+      "name": "paws.compute",
+      "group": "r",
+      "license": "Apache-2.0",
+      "url": "https://github.com/paws-r/paws",
+      "role": "Launches and ends the EC2 spot workers that fit models, for the nightly job."
+    },
+    {
+      "name": "testthat",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://testthat.r-lib.org",
+      "role": "The test suite."
+    },
+    {
+      "name": "react",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://react.dev",
+      "role": "This website."
+    },
+    {
+      "name": "react-dom",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://react.dev",
+      "role": "Renders the website in the browser."
+    },
+    {
+      "name": "leaflet",
+      "group": "web",
+      "license": "BSD-2-Clause",
+      "url": "https://leafletjs.com",
+      "role": "The interactive maps."
+    },
+    {
+      "name": "react-leaflet",
+      "group": "web",
+      "license": "Hippocratic-2.1",
+      "url": "https://react-leaflet.js.org",
+      "role": "Leaflet maps as React components."
+    },
+    {
+      "name": "@tanstack/react-query",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://tanstack.com/query",
+      "role": "Fetches and caches API responses."
+    },
+    {
+      "name": "wouter",
+      "group": "web",
+      "license": "Unlicense",
+      "url": "https://github.com/molefrog/wouter",
+      "role": "Page routing."
+    },
+    {
+      "name": "lucide-react",
+      "group": "web",
+      "license": "ISC",
+      "url": "https://lucide.dev",
+      "role": "Icons."
+    },
+    {
+      "name": "@radix-ui/react-slot",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://www.radix-ui.com/primitives",
+      "role": "Button composition, as in shadcn/ui."
+    },
+    {
+      "name": "class-variance-authority",
+      "group": "web",
+      "license": "Apache-2.0",
+      "url": "https://github.com/joe-bell/cva",
+      "role": "Component variants."
+    },
+    {
+      "name": "clsx",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://github.com/lukeed/clsx",
+      "role": "Class names."
+    },
+    {
+      "name": "tailwind-merge",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://github.com/dcastil/tailwind-merge",
+      "role": "Class names."
+    },
+    {
+      "name": "tailwindcss",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://tailwindcss.com",
+      "role": "Styling, with mycomap.org's colour tokens."
+    },
+    {
+      "name": "tailwindcss-animate",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://github.com/jamiebuilds/tailwindcss-animate",
+      "role": "Styling."
+    },
+    {
+      "name": "postcss",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://postcss.org",
+      "role": "Builds the stylesheet."
+    },
+    {
+      "name": "autoprefixer",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://github.com/postcss/autoprefixer",
+      "role": "Builds the stylesheet."
+    },
+    {
+      "name": "vite",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://vite.dev",
+      "role": "Builds and serves the website."
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "group": "web",
+      "license": "MIT",
+      "url": "https://github.com/vitejs/vite-plugin-react",
+      "role": "Builds the website."
+    },
+    {
+      "name": "typescript",
+      "group": "web",
+      "license": "Apache-2.0",
+      "url": "https://www.typescriptlang.org",
+      "role": "Type-checks the website."
+    }
   ],
   "references": [
     {
@@ -162,7 +379,7 @@
       "name": "Predictor stack on the Atlas grid",
       "detail": "All 33 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
       "availability": "planned",
-      "why": "Built and versioned today; the manifest is published, the rasters are not yet. They carry WorldClim's ShareAlike licence."
+      "why": "Archived on Zenodo as the layers series, a new version with its own DOI whenever a layer is rebuilt. The first version is waiting to be published; it will appear under Downloads. The stack carries WorldClim's ShareAlike licence."
     },
     {
       "stage": "3. Training",
@@ -196,8 +413,8 @@
       "stage": "5. Maps",
       "name": "Suitability rasters",
       "detail": "Each model's raw suitability as a GeoTIFF on the Atlas grid, inside the 500 km accessible area.",
-      "availability": "in releases",
-      "why": "In every release; a download route on the API is next."
+      "availability": "published",
+      "where": "/api/taxa/{name}/raster.tif, for anyone signed in with a mycomap.org account or holding a token. Releases chosen for archiving go to Zenodo as the models series, each version with its own DOI (see Downloads)."
     },
     {
       "stage": "5. Maps",
@@ -218,7 +435,7 @@
       "name": "Release manifests",
       "detail": "Every published file with its SHA-256, plus the code commit, package versions, layer builds and pull fingerprint.",
       "availability": "planned",
-      "why": "Written with every release; a public listing comes with the public store."
+      "why": "Written with every release, and included as release.json in each Zenodo models version."
     }
   ]
 }

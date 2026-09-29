@@ -1,0 +1,46 @@
+{
+  "about": "Metadata for the Zenodo records Atlas archives to (R/archive.R). {grid} is replaced with the grid name. Creators, licence and community are settled here, in the open, and apply to every future version.",
+  "common": {
+    "upload_type": "dataset",
+    "access_right": "open",
+    "license": "cc-by-sa-4.0",
+    "creators": [
+      { "name": "Russell, Stephen D.", "affiliation": "Mycota", "orcid": "0000-0001-7191-2451" },
+      { "name": "MycoMap.org", "affiliation": "MycoMap" }
+    ],
+    "keywords": [
+      "fungi",
+      "species distribution models",
+      "habitat suitability",
+      "North America",
+      "DNA barcoding",
+      "MaxEnt",
+      "random forest",
+      "boosted regression trees",
+      "MycoMap"
+    ],
+    "communities": [],
+    "related_identifiers": [
+      { "identifier": "https://github.com/BiodiverseLabs/mycomap-atlas", "relation": "isSupplementTo", "scheme": "url" },
+      { "identifier": "https://atlas.mycomap.org/methods", "relation": "isDocumentedBy", "scheme": "url" }
+    ]
+  },
+  "models": {
+    "title": "MycoMap Atlas: habitat models for North American fungi ({grid} grid)",
+    "summary": "Habitat suitability maps and scores for every North American fungus with enough DNA-validated MycoMap collections to model, fitted three ways (Maxent, boosted trees, down-sampled random forest) against a target-group background and scored on spatially blocked folds.",
+    "related_identifiers": [
+      { "identifier": "10.1890/07-2153.1", "relation": "references", "scheme": "doi" },
+      { "identifier": "10.1111/ecog.05615", "relation": "references", "scheme": "doi" },
+      { "identifier": "10.1016/j.ecolmodel.2006.05.017", "relation": "references", "scheme": "doi" }
+    ]
+  },
+  "layers": {
+    "title": "MycoMap Atlas: environmental predictors for North America ({grid} grid)",
+    "summary": "The 33 environmental predictors every Atlas model is fitted on (climate, elevation, terrain, topsoil and land cover), reprojected onto one North America Albers Equal Area grid.",
+    "related_identifiers": [
+      { "identifier": "10.1002/joc.5086", "relation": "isDerivedFrom", "scheme": "doi" },
+      { "identifier": "10.5194/soil-7-217-2021", "relation": "isDerivedFrom", "scheme": "doi" },
+      { "identifier": "10.5281/zenodo.7254221", "relation": "isDerivedFrom", "scheme": "doi" }
+    ]
+  }
+}

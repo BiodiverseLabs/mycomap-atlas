@@ -81,7 +81,10 @@ cd web && pnpm install && pnpm dev    # app on :5101
 The app carries mycomap.org's look the way MycoMap Vision does — the same
 header, logo, footer, colour tokens, cream page-title band and shadcn
 components — so someone moving between the three sites feels they never left.
-Its pages: the home page (what Atlas is, a species search and a live map),
+Search is on every page (the header box, or `/` and Ctrl+K): it forgives typos,
+word order and the many spellings of a provisional code, offers genera, and
+puts taxa with maps first (`R/search.R`, `/api/search`). Its pages: the home
+page (what Atlas is, a species search and a live map),
 **Maps** (every fitted model), **Models** (the benchmark), **Taxa** (everything
 in the validated universe), **Methods** (the method in full), **Data**
 (training records and layers), **Sources** (every dataset, package and paper,
@@ -387,6 +390,67 @@ keep them).
 On the draft grid today a release is 8,153 files and 2.4 GB: publishing it the
 first time took 54 s into a local folder, a first pull 2 min 14 s, and a pull
 with nothing new 17 s.
+
+## What could grow here
+
+The Explore page (`/here`, route `/api/here`) answers a click on the map with
+every mapped fungus whose maps rate that place highly. Asking 2,700 rasters
+about a point takes a minute, so it answers from an index built once from the
+maps (`R/here.R`):
+
+```bash
+./atlas build-here-index            # after a batch of fits or a redraw
+```
+
+The continent is cut into 20 km squares aligned with the grid. For each model
+the index keeps the squares where it ranks the ground in the top half of its
+own accessible area, as the same percentile the maps are coloured by. A
+taxon's score at a place is the mean of its models' ranks there, a model that
+does not rate it in its top half counting as zero, so one keen model among
+three indifferent ones does not top the list. Taxa collected within 25 km are
+marked, counted from the 0.1° public cells, and taxa collected nearby with no
+map yet are listed apart as survey targets. The index holds ranks by square
+and nothing about records; it ships with every release. The API projects a
+click onto the grid in plain R (Snyder's Albers formulas, tested against
+terra to within a metre), so the web server needs no GDAL.
+
+## Archives on Zenodo
+
+Big downloads live on Zenodo, versioned, each version with its own DOI.
+Two records per grid, each a series of versions under one concept DOI:
+
+| Series | Holds | New version when |
+|---|---|---|
+| `layers-<grid>` | the predictor GeoTIFFs and their manifest | a layer is rebuilt |
+| `models-<grid>` | per-model map archives, all scores, taxon counts, 0.1° collection cells, the release manifest | a release is archived |
+
+Every version carries a README and `CHECKSUMS.sha256`. A models version names
+the layers version it was fitted on (matched by the layer builds, not by
+date) and links it as `isDerivedFrom`. An unchanged release or layer build is
+never deposited twice.
+
+```bash
+./atlas archive-release --sandbox --dry-run          # what would go up, and how big
+./atlas archive-release --sandbox                    # a draft on sandbox.zenodo.org
+./atlas archive-publish --series=models-draft-sandbox
+./atlas archive-release --publish                    # the real thing, DOIs minted
+./atlas archives                                     # every version and its DOI
+```
+
+A run leaves a draft unless given `--publish`, because publishing mints the
+DOI and can never be undone; check the draft on Zenodo, then
+`archive-publish` (or `archive-discard`). The token is `ZENODO_TOKEN`, a
+personal access token with `deposit:write` and `deposit:actions`; the sandbox
+needs its own token from sandbox.zenodo.org. Which release went to which DOI
+is kept in `archives/<series>.json` in the store, pulled with every release,
+and served at `/api/downloads`. Sandbox series end in `-sandbox` and never
+mix with real ones. Creators, licence, keywords and related identifiers are
+in `inst/archive/zenodo.json`.
+
+A record holds at most 100 files and 50 GB, which is why maps are packed per
+model. The draft grid's models come to about 2.3 GB and the 1 km layers to
+2.2 GB; 1 km models will be far larger, and the archive refuses anything over
+the limit before uploading.
 
 ## Access, sign-in and tokens
 

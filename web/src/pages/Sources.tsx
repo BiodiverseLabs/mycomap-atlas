@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, Download } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
+import { getDownloads, type ArchiveSeries } from "@/lib/api";
 import { GITHUB_URL, SOURCES, type Availability, type Software } from "@/lib/contract";
+import { formatWhen } from "@/lib/utils";
 
 function Ext({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -63,6 +66,115 @@ const GROUPS: { id: Software["group"]; title: string; note: string }[] = [
   { id: "web", title: "This website", note: "" },
 ];
 
+/** What a series is, for people: models-production -> Habitat models, 1 km grid. */
+function seriesLabel(series: string): { title: string; grid: string; sandbox: boolean } {
+  const [kind, grid = "", sandbox] = series.split("-");
+  const gridLabel = grid === "production" ? "1 km grid" : grid === "draft" ? "5 km grid" : `${grid} grid`;
+  return {
+    title: kind === "layers" ? "Environmental predictors" : "Habitat models",
+    grid: gridLabel,
+    sandbox: sandbox === "sandbox",
+  };
+}
+
+function size(bytes?: number) {
+  if (bytes == null) return "";
+  return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+}
+
+function SeriesCard({ series }: { series: ArchiveSeries }) {
+  const label = seriesLabel(series.series);
+  const versions = [...series.versions].reverse();
+  const latest = versions.find((v) => v.state === "published");
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-5 text-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="font-semibold text-[#4a3728]">
+            {label.title} <span className="font-normal text-muted-foreground">· {label.grid}</span>
+          </h3>
+          {series.concept_doi && (
+            <Ext href={doiUrl(series.concept_doi)}>All versions: doi:{series.concept_doi}</Ext>
+          )}
+        </div>
+        {latest?.doi && latest.url && (
+          <a
+            href={latest.url}
+            className="inline-flex items-center gap-2 rounded-md bg-myco-green px-3 py-2 font-semibold text-white hover:bg-myco-green/90"
+          >
+            <Download className="h-4 w-4" /> Download version {latest.version} ({size(latest.bytes)})
+          </a>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b">
+                <th className="py-1.5 pr-3 text-left font-medium">Version</th>
+                <th className="py-1.5 pr-3 text-left font-medium">Published</th>
+                <th className="py-1.5 pr-3 text-right font-medium">Size</th>
+                <th className="py-1.5 text-left font-medium">DOI (cite this)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {versions.map((v) => (
+                <tr key={v.version} className="border-b last:border-0 align-top">
+                  <td className="py-1.5 pr-3 font-mono text-[#4a3728]">
+                    {v.version}
+                    {v.layers_version && (
+                      <div className="font-sans text-muted-foreground">fitted on predictors {v.layers_version}</div>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3 whitespace-nowrap">
+                    {v.state === "published" ? formatWhen(v.published_at).split(",")[0] : "not yet"}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right tabular-nums whitespace-nowrap">{size(v.bytes)}</td>
+                  <td className="py-1.5">
+                    {v.doi ? <Ext href={doiUrl(v.doi)}>{v.doi}</Ext> : <span className="text-muted-foreground">draft, waiting to be published</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Downloads() {
+  const downloads = useQuery({ queryKey: ["downloads"], queryFn: getDownloads });
+  const real = (downloads.data ?? []).filter((s) => !seriesLabel(s.series).sandbox);
+  return (
+    <section id="downloads" className="scroll-mt-24">
+      <SectionTitle>Downloads</SectionTitle>
+      <p className="mb-4 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+        Everything big is archived on{" "}
+        <Ext href="https://zenodo.org">Zenodo</Ext>, CERN&rsquo;s open repository, so it stays
+        citable and downloadable independently of this site. There are two records, each with
+        many versions. <strong className="text-[#4a3728]">Habitat models</strong> gets a new
+        version whenever a release is archived; <strong className="text-[#4a3728]">environmental
+        predictors</strong> only when a layer is rebuilt, and every models version says which
+        predictors it was fitted on. Each version has its own DOI, fixed to exactly those files
+        forever: cite that one. The &ldquo;all versions&rdquo; DOI always leads to the newest.
+      </p>
+      {downloads.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {downloads.data && !real.length && (
+        <Card className="border-dashed">
+          <CardContent className="p-5 text-sm text-[#5c4a3a]">
+            Nothing is archived yet. The first versions will appear here, with their DOIs, once
+            they are published on Zenodo.
+          </CardContent>
+        </Card>
+      )}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {real.map((series) => (
+          <SeriesCard key={series.series} series={series} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Sources() {
   const stages = [...new Set(SOURCES.products.map((p) => p.stage))];
 
@@ -74,6 +186,8 @@ export default function Sources() {
         along the way, with whether you can get it and where.
       </PageHeader>
       <Page>
+        <Downloads />
+
         <section>
           <SectionTitle>Datasets</SectionTitle>
           <div className="grid gap-4 md:grid-cols-2">

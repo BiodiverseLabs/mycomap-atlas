@@ -196,7 +196,9 @@ atlas_release_files <- function(grid = "draft") {
     atlas_public_pull_path(),
     atlas_public_cells_path(),
     file.path(atlas_layer_dir(grid), "manifest.json"),
-    utils::tail(benchmarks, 1)
+    utils::tail(benchmarks, 1),
+    # Ranks by 20 km cell for "what could grow here", built from the maps above.
+    atlas_here_index_path(grid)
   )
   files <- files[file.exists(files)]
   rel <- substring(normalizePath(files, winslash = "/"),
@@ -495,6 +497,12 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
     if (!isTRUE(rasters)) stale <- union(stale, local[is_raster(local) & grepl("^models/", local)])
     unlink(file.path(root, stale))
     removed <- length(stale)
+  }
+
+  # Which releases went to Zenodo, and under which DOIs, so the API can list
+  # the downloads. Small files, always fetched whole.
+  for (key in store$list("archives/")) {
+    if (grepl("^archives/[^/]+[.]json$", key)) store$get(key, file.path(root, key))
   }
 
   atlas_write_json(list(release = manifest$id, grid = grid,

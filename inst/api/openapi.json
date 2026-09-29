@@ -125,6 +125,45 @@
         }
       }
     },
+    "/api/downloads": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "operationId": "getDownloads",
+        "summary": "Versioned downloads on Zenodo",
+        "description": "Every archived version of each series, with its DOI. Each series is one Zenodo record: models-<grid> gets a new version when a release is archived, layers-<grid> only when a layer is rebuilt. A version DOI always points at exactly those files; the concept DOI points at the newest version. Cite the version you used.",
+        "responses": {
+          "200": {
+            "description": "The archive series.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Downloads"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
     "/api/status": {
       "get": {
         "tags": [
@@ -243,6 +282,187 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "tags": [
+          "Taxa"
+        ],
+        "operationId": "search",
+        "summary": "Find a taxon by what was typed",
+        "description": "For a search box. Forgives case, the quotes and sp. of provisional codes (Mycena sp. 'IN10', Mycena \"sp-IN10\" and mycena in10 all match), word order, half-typed words and small typos. Letters and digits are never changed, so IN1 and IN01 stay different. Results come best match first: exact, then prefix, then every word, then anywhere, then near misses; within those, a match on the genus before one on the epithet, the closest name, and taxa with maps first. A one-word query also returns matching genera.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "What was typed.",
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
+            "example": "tramates versicolor"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Most species to return, up to 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            },
+            "example": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Species and genera, best first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/here": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "whatCouldGrowHere",
+        "summary": "What could grow here",
+        "description": "Every mapped taxon whose maps rate a place highly, best first. The answer comes from an index of every map by 20 km cell: for each model, the cells where it ranks the ground in the top half of its own accessible area, as a percentile (the same rank the maps are coloured by). A taxon's score is the mean of its models' ranks there, a model that does not rate the place in its top half counting as zero. Taxa collected within nearby_km are marked with how many records, counted from 0.1 degree cells; taxa collected nearby that have no map yet are listed apart. Habitat suitability, not occurrence.",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "description": "Latitude, WGS84.",
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "example": 40.9
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "description": "Longitude, WGS84.",
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "example": -86.9
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Most taxa to return, up to 1,000.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 50
+            }
+          },
+          {
+            "name": "min_score",
+            "in": "query",
+            "description": "Leave out taxa scoring below this, from 0 to 1. 0.9 keeps taxa whose models put this place in their top tenth.",
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0
+            }
+          },
+          {
+            "name": "nearby_km",
+            "in": "query",
+            "description": "How far to look for collections, up to 100 km.",
+            "schema": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The taxa this place suits.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HereAnswer"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "400": {
+            "description": "lat and lng are not a point on Earth.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "503": {
+            "description": "The place index has not been built on this server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -1594,6 +1814,319 @@
           "signInAvailable": {
             "type": "boolean",
             "description": "Whether this server can sign people in."
+          }
+        }
+      },
+      "ArchiveFile": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "ArchiveVersion": {
+        "type": "object",
+        "required": [
+          "version",
+          "state"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "The Atlas release id for models, or <grid>-<date>-<layer key> for layers."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "description": "Only published versions have a DOI and can be downloaded."
+          },
+          "doi": {
+            "type": "string",
+            "description": "This version's DOI, fixed to exactly these files."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The record on Zenodo."
+          },
+          "release": {
+            "type": "string",
+            "description": "Models only: the Atlas release archived."
+          },
+          "layers_version": {
+            "type": "string",
+            "description": "Models only: the layers version these models were fitted on."
+          },
+          "key": {
+            "type": "string",
+            "description": "Hash of the content; an unchanged release is never archived twice."
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveFile"
+            }
+          }
+        }
+      },
+      "ArchiveSeries": {
+        "type": "object",
+        "required": [
+          "series",
+          "versions"
+        ],
+        "properties": {
+          "series": {
+            "type": "string",
+            "description": "models-<grid> or layers-<grid>; a -sandbox suffix marks test archives."
+          },
+          "concept_doi": {
+            "type": "string",
+            "description": "Resolves to the newest version, whichever it is."
+          },
+          "concept_recid": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveVersion"
+            }
+          }
+        }
+      },
+      "Downloads": {
+        "type": "object",
+        "required": [
+          "series"
+        ],
+        "properties": {
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveSeries"
+            }
+          }
+        }
+      },
+      "SearchSpecies": {
+        "type": "object",
+        "required": [
+          "scientific_name",
+          "records",
+          "localities",
+          "models",
+          "match"
+        ],
+        "properties": {
+          "scientific_name": {
+            "type": "string"
+          },
+          "records": {
+            "type": "integer"
+          },
+          "localities": {
+            "type": "integer"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "maxnet",
+                "xgboost",
+                "rf"
+              ]
+            },
+            "description": "Models with a map for this taxon; empty when it has none yet."
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "prefix",
+              "words",
+              "contains",
+              "similar"
+            ],
+            "description": "How the name matched. similar means a near miss: worth a \"did you mean\"."
+          }
+        }
+      },
+      "SearchGenus": {
+        "type": "object",
+        "properties": {
+          "genus": {
+            "type": "string"
+          },
+          "taxa": {
+            "type": "integer"
+          },
+          "mapped": {
+            "type": "integer",
+            "description": "Taxa in the genus with a map."
+          },
+          "records": {
+            "type": "integer"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "required": [
+          "query",
+          "species",
+          "genera"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "species": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchSpecies"
+            }
+          },
+          "genera": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchGenus"
+            }
+          }
+        }
+      },
+      "HereTaxon": {
+        "type": "object",
+        "required": [
+          "scientific_name",
+          "score",
+          "models",
+          "fitted",
+          "agree",
+          "nearby_records"
+        ],
+        "properties": {
+          "scientific_name": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "description": "Mean of the taxon's models' percentile ranks here, 0 to 1; a model not rating it in its top half counts as 0."
+          },
+          "models": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Rank here by each model that puts this place in its top half, e.g. {\"rf\": 0.97}."
+          },
+          "fitted": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "maxnet",
+                "xgboost",
+                "rf"
+              ]
+            },
+            "description": "Every model with a map for this taxon."
+          },
+          "agree": {
+            "type": "integer",
+            "description": "How many models rank this place in their top tenth."
+          },
+          "nearby_records": {
+            "type": "integer",
+            "description": "Validated records within nearby_km, from 0.1 degree cells."
+          },
+          "localities": {
+            "type": "integer"
+          }
+        }
+      },
+      "HereAnswer": {
+        "type": "object",
+        "required": [
+          "point",
+          "cell_km",
+          "in_grid",
+          "taxa",
+          "recorded_unmapped",
+          "total"
+        ],
+        "properties": {
+          "point": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number"
+              },
+              "lng": {
+                "type": "number"
+              }
+            }
+          },
+          "cell_km": {
+            "type": "number",
+            "description": "Size of the index cell the answer is for."
+          },
+          "in_grid": {
+            "type": "boolean",
+            "description": "False outside the area Atlas models."
+          },
+          "nearby_km": {
+            "type": "number"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Taxa that scored at least min_score, before limit."
+          },
+          "taxa": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HereTaxon"
+            }
+          },
+          "recorded_unmapped": {
+            "type": "array",
+            "description": "Taxa collected within nearby_km that have no map yet: survey targets.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scientific_name": {
+                  "type": "string"
+                },
+                "nearby_records": {
+                  "type": "integer"
+                }
+              }
+            }
           }
         }
       }

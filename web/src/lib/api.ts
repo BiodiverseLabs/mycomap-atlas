@@ -283,3 +283,91 @@ export async function getModels(): Promise<ModelSummary[]> {
   const response = await get<{ models: ModelSummary[] }>("/api/models");
   return response.models;
 }
+
+/** One archived version on Zenodo. Only published versions have a DOI. */
+export interface ArchiveVersion {
+  version: string;
+  state: "draft" | "published";
+  doi?: string;
+  url?: string;
+  release?: string;
+  layers_version?: string;
+  bytes?: number;
+  created_at?: string;
+  published_at?: string;
+  files?: { name: string; bytes: number; sha256: string }[];
+}
+
+/** One Zenodo record with all its versions: models-<grid> or layers-<grid>. */
+export interface ArchiveSeries {
+  series: string;
+  concept_doi?: string;
+  versions: ArchiveVersion[];
+}
+
+export async function getDownloads(): Promise<ArchiveSeries[]> {
+  const response = await get<{ series: ArchiveSeries[] }>("/api/downloads");
+  return response.series ?? [];
+}
+
+/** One species a search found, best first. */
+export interface SearchSpecies {
+  scientific_name: string;
+  records: number;
+  localities: number;
+  /** Models with a map; empty when the taxon has none yet. */
+  models: Algorithm[];
+  /** similar is a near miss: show it as "did you mean". */
+  match: "exact" | "prefix" | "words" | "contains" | "similar";
+}
+
+export interface SearchGenus {
+  genus: string;
+  taxa: number;
+  mapped: number;
+  records: number;
+}
+
+export interface SearchResult {
+  query: string;
+  species: SearchSpecies[];
+  genera: SearchGenus[];
+}
+
+/** Forgiving search: typos, provisional-code spellings, word order. */
+export function searchTaxa(q: string, limit = 8): Promise<SearchResult> {
+  const query = new URLSearchParams({ q, limit: String(limit) });
+  return get<SearchResult>(`/api/search?${query.toString()}`);
+}
+
+/** One taxon a place suits. models holds only the models rating it in their top half. */
+export interface HereTaxon {
+  scientific_name: string;
+  score: number;
+  models: Partial<Record<Algorithm, number>>;
+  fitted: Algorithm[];
+  agree: number;
+  nearby_records: number;
+  localities: number;
+}
+
+export interface HereAnswer {
+  point: { lat: number; lng: number };
+  cell_km: number;
+  in_grid: boolean;
+  nearby_km: number;
+  total: number;
+  taxa: HereTaxon[];
+  recorded_unmapped: { scientific_name: string; nearby_records: number }[];
+}
+
+/** What could grow at a place. Throws with status 503 when the index is missing. */
+export async function getHere(lat: number, lng: number, minScore = 0, limit = 100): Promise<HereAnswer> {
+  const query = new URLSearchParams({
+    lat: lat.toFixed(4),
+    lng: lng.toFixed(4),
+    min_score: String(minScore),
+    limit: String(limit),
+  });
+  return get<HereAnswer>(`/api/here?${query.toString()}`);
+}

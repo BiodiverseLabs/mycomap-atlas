@@ -1,22 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 
 import { ApiDown, Th } from "@/components/Common";
 import { Page, PageHeader } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getModels, getTaxa } from "@/lib/api";
+import { getModels, getTaxa, searchTaxa } from "@/lib/api";
 import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 const FILTERS = [0, 5, 10, 20, 30, 50];
 
 export default function Taxa() {
-  const [search, setSearch] = useState("");
+  // ?q= comes from the header search: a genus, or every match for what was typed.
+  const urlQuery = new URLSearchParams(useSearch()).get("q") ?? "";
+  const [search, setSearch] = useState(urlQuery);
   const [minLocalities, setMinLocalities] = useState(0);
   const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    setSearch(urlQuery);
+    setOffset(0);
+  }, [urlQuery]);
 
   const query = useQuery({
     queryKey: ["taxa", search, minLocalities, offset],
@@ -26,6 +32,14 @@ export default function Taxa() {
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
   const mapped = new Set((models.data ?? []).filter((m) => m.map).map((m) => m.taxon));
   const total = query.data?.total ?? 0;
+  // The list matches names literally. When that finds nothing, ask the
+  // forgiving search what was probably meant.
+  const empty = query.data?.total === 0 && search.trim().length >= 2;
+  const suggestions = useQuery({
+    queryKey: ["search", search.trim(), "suggest"],
+    enabled: empty,
+    queryFn: () => searchTaxa(search.trim(), 6),
+  });
 
   return (
     <>
@@ -109,7 +123,25 @@ export default function Taxa() {
                   {query.data?.items.length === 0 && (
                     <tr>
                       <td className="px-4 py-3 text-muted-foreground" colSpan={3}>
-                        Nothing matches that filter.
+                        {suggestions.data?.species.length ? (
+                          <>
+                            No name contains &ldquo;{search.trim()}&rdquo;. Did you mean{" "}
+                            {suggestions.data.species.map((s, i) => (
+                              <span key={s.scientific_name}>
+                                {i > 0 && ", "}
+                                <Link
+                                  href={`/taxa/${encodeURIComponent(s.scientific_name)}`}
+                                  className="sci text-myco-green hover:underline"
+                                >
+                                  {s.scientific_name}
+                                </Link>
+                              </span>
+                            ))}
+                            ?
+                          </>
+                        ) : (
+                          "Nothing matches that filter."
+                        )}
                       </td>
                     </tr>
                   )}

@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { ArrowUpRight, LogIn, Menu, X } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
+import { SearchButton, SearchPalette, useSearchPalette } from "@/components/Search";
 import { GITHUB_URL } from "@/lib/contract";
 import { signInHere, useMe, useSignOut } from "@/lib/session";
 
@@ -13,6 +14,7 @@ import { signInHere, useMe, useSignOut } from "@/lib/session";
 
 const NAV = [
   { href: "/maps", label: "Maps" },
+  { href: "/here", label: "Explore" },
   { href: "/models", label: "Models" },
   { href: "/taxa", label: "Taxa" },
   { href: "/methods", label: "Methods" },
@@ -34,14 +36,17 @@ export default function Layout({ children }: { children: ReactNode }) {
 function Header() {
   const [location] = useLocation();
   const [open, setOpen] = useState(false);
+  // Search opens from here, or with / or Ctrl+K on any page.
+  const palette = useSearchPalette();
   const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
   const cls = (href: string) =>
-    `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+    `px-3 xl:px-2 2xl:px-3 py-2 rounded-md text-sm font-medium transition-colors ${
       isActive(href)
         ? "bg-myco-green/10 text-myco-green"
         : "text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
     }`;
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b border-myco-brown/10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
@@ -62,6 +67,7 @@ function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-2">
+            <SearchButton onOpen={() => palette.setOpen(true)} />
             <a
               href={GITHUB_URL}
               className="p-2 rounded-md text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
@@ -72,7 +78,8 @@ function Header() {
             </a>
             <a
               href="https://mycomap.org"
-              className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
+              // Room for the search box: this link is in the menu and footer too.
+              className="hidden 2xl:inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
             >
               mycomap.org <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
@@ -100,6 +107,9 @@ function Header() {
         )}
       </div>
     </header>
+    {/* Outside the header: its backdrop blur would pin a fixed overlay inside it. */}
+    <SearchPalette open={palette.open} onClose={() => palette.setOpen(false)} />
+    </>
   );
 }
 
