@@ -1,21 +1,21 @@
 # Who may read the API and how often: anonymous callers at a modest rate per
-# address, token holders at a higher one per token, a rejected token refused,
-# and .org being unreachable never locking anyone out.
+# address, signed-in people and token holders at a higher one each, bulk
+# tokens higher still, a rejected token refused, and .org being unreachable
+# never locking anyone out of reading (only out of downloading).
 
 access_config <- function(anonymous = 3, standard = 10, bulk = 50, require_token = FALSE,
-                          introspect = TRUE, header = "") {
+                          introspect = TRUE) {
   list(
     rates = c(anonymous = anonymous, standard = standard, bulk = bulk),
     require_token = require_token,
     introspect_url = if (introspect) "https://org.example/api/service-keys/introspect" else "",
-    introspect_secret = if (introspect) "secret" else "",
-    client_ip_header = header
+    introspect_secret = if (introspect) "secret" else ""
   )
 }
 
 request <- function(ip = "203.0.113.5", key = NULL, ...) {
   req <- list(REMOTE_ADDR = ip, ...)
-  if (!is.null(key)) req$HTTP_X_API_KEY <- key
+  if (!is.null(key)) req$HTTP_AUTHORIZATION <- paste("Bearer", key)
   req
 }
 
@@ -156,16 +156,20 @@ test_that("a revoked token stops working once its cached answer expires", {
   expect_equal(later$status, 401L)
 })
 
-test_that("an outage is re-checked soon rather than cached for long", {
+test_that("an outage is never cached, so .org is asked again on the next request", {
   calls <- 0
   down <- function(key, url, secret) {
     calls <<- calls + 1
     NULL
   }
   state <- atlas_access_state()
+  expect_equal(atlas_check_key("k", state, access_config(), now = 1, transport = down)$reason, "unavailable")
   atlas_check_key("k", state, access_config(), now = 1, transport = down)
-  atlas_check_key("k", state, access_config(), now = 1 + ATLAS_KEY_TTL_UNAVAILABLE + 1, transport = down)
   expect_equal(calls, 2)
+  expect_length(ls(state$keys, all.names = TRUE), 0)
+  # A transport that throws reads as an outage too.
+  boom <- function(key, url, secret) stop("connection reset")
+  expect_equal(atlas_check_key("k", state, access_config(), now = 1, transport = boom)$reason, "unavailable")
 })
 
 test_that("tokens are never kept in memory as they were sent", {
@@ -186,14 +190,110 @@ test_that("a token-only server refuses anonymous callers and serves token holder
   expect_null(holder$status)
 })
 
-test_that("the address comes from the proxy's header only when one is named", {
-  req <- list(REMOTE_ADDR = "10.0.0.1", HTTP_CF_CONNECTING_IP = "203.0.113.9",
-              HTTP_X_FORWARDED_FOR = "198.51.100.7, 10.0.0.1")
-  expect_equal(atlas_client_ip(req), "10.0.0.1")
-  expect_equal(atlas_client_ip(req, "CF-Connecting-IP"), "203.0.113.9")
-  expect_equal(atlas_client_ip(req, "X-Forwarded-For"), "198.51.100.7")
-  # A named header that is missing falls back to the connection's address.
-  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "10.0.0.1"), "CF-Connecting-IP"), "10.0.0.1")
+test_that("X-Forwarded-For is believed only from this machine, and only its right-most entry", {
+  forwarded <- "198.51.100.7, 192.0.2.44"
+  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "127.0.0.1", HTTP_X_FORWARDED_FOR = forwarded)), "192.0.2.44")
+  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "::1", HTTP_X_FORWARDED_FOR = forwarded)), "192.0.2.44")
+  # From anywhere else the header is the caller's own invention.
+  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "203.0.113.9", HTTP_X_FORWARDED_FOR = forwarded)), "203.0.113.9")
+  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "10.0.0.1", HTTP_X_FORWARDED_FOR = "127.0.0.1")), "10.0.0.1")
+  # Loopback without the header is the machine itself.
+  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "127.0.0.1")), "127.0.0.1")
+  expect_equal(atlas_client_ip(list(REMOTE_ADDR = "127.0.0.1", HTTP_X_FORWARDED_FOR = " , ")), "127.0.0.1")
+  expect_equal(atlas_client_ip(list()), "unknown")
+})
+
+test_that("a caller cannot pick a fresh allowance by sending X-Forwarded-For", {
+  state <- atlas_access_state()
+  config <- access_config(anonymous = 1)
+  spoof <- function(i) request("203.0.113.9", HTTP_X_FORWARDED_FOR = paste0("198.51.100.", i))
+  expect_null(atlas_access_decision(spoof(1), state, config, now = 1)$status)
+  expect_equal(atlas_access_decision(spoof(2), state, config, now = 1)$status, 429L)
+})
+
+test_that("behind nginx on this machine each visitor has their own allowance", {
+  state <- atlas_access_state()
+  config <- access_config(anonymous = 1)
+  via_nginx <- function(ip) request("127.0.0.1", HTTP_X_FORWARDED_FOR = ip)
+  expect_null(atlas_access_decision(via_nginx("198.51.100.1"), state, config, now = 1)$status)
+  expect_equal(atlas_access_decision(via_nginx("198.51.100.1"), state, config, now = 1)$status, 429L)
+  expect_null(atlas_access_decision(via_nginx("198.51.100.2"), state, config, now = 1)$status)
+})
+
+test_that("a token is read from Authorization: Bearer only", {
+  expect_equal(atlas_request_token(list(HTTP_AUTHORIZATION = "Bearer atlas_abc")), "atlas_abc")
+  expect_equal(atlas_request_token(list(HTTP_AUTHORIZATION = "bearer  atlas_abc ")), "atlas_abc")
+  expect_equal(atlas_request_token(list(HTTP_AUTHORIZATION = "Basic dXNlcjpwdw==")), "")
+  expect_equal(atlas_request_token(list(HTTP_AUTHORIZATION = "Bearer a b")), "")
+  expect_equal(atlas_request_token(list(HTTP_X_API_KEY = "atlas_abc")), "")
+  expect_equal(atlas_request_token(list()), "")
+})
+
+test_that("a signed-in person gets the standard allowance, counted per person", {
+  keys <- test_bridge_keys()
+  signin <- signin_config_for(keys)
+  cookie <- function(sub) {
+    value <- atlas_sign_payload(list(k = "session", sub = sub, name = "A", exp = 1e10), TEST_SECRET)
+    paste0(ATLAS_SESSION_COOKIE, "=", value)
+  }
+  state <- atlas_access_state()
+  config <- access_config(anonymous = 1, standard = 3)
+  for (i in 1:3) {
+    decision <- atlas_access_decision(request(paste0("192.0.2.", i), HTTP_COOKIE = cookie("9")), state, config,
+                                      now = 1, signin = signin)
+    expect_null(decision$status)
+    expect_equal(decision$identity$via, "session")
+    expect_equal(decision$headers$`X-Atlas-Tier`, "standard")
+  }
+  refused <- atlas_access_decision(request("192.0.2.9", HTTP_COOKIE = cookie("9")), state, config,
+                                   now = 1, signin = signin)
+  expect_equal(refused$status, 429L)
+  expect_true(as.numeric(refused$headers$`Retry-After`) > 0)
+  # Someone else signed in has their own.
+  expect_null(atlas_access_decision(request("192.0.2.9", HTTP_COOKIE = cookie("10")), state, config,
+                                    now = 1, signin = signin)$status)
+})
+
+test_that("anonymous, signed-in and bulk callers get limits in that order, each refused past its own", {
+  keys <- test_bridge_keys()
+  signin <- signin_config_for(keys)
+  org <- fake_org(list(big = modifyList(LIVE, list(tier = "bulk", keyId = "8"))))
+  session <- paste0(ATLAS_SESSION_COOKIE, "=",
+                    atlas_sign_payload(list(k = "session", sub = "1", exp = 1e10), TEST_SECRET))
+  config <- access_config(anonymous = 2, standard = 4, bulk = 8)
+  served <- function(req) {
+    state <- atlas_access_state()
+    n <- 0
+    repeat {
+      decision <- atlas_access_decision(req, state, config, now = 1, transport = org$transport, signin = signin)
+      if (!is.null(decision$status)) break
+      n <- n + 1
+    }
+    expect_equal(decision$status, 429L)
+    expect_false(is.null(decision$headers$`Retry-After`))
+    n
+  }
+  expect_equal(served(request()), 2)
+  expect_equal(served(request(HTTP_COOKIE = session)), 4)
+  expect_equal(served(request(key = "big")), 8)
+})
+
+test_that("an unknown token costs its address an anonymous request before .org is asked", {
+  org <- fake_org()
+  state <- atlas_access_state()
+  config <- access_config(anonymous = 2)
+  for (i in 1:2) {
+    expect_equal(atlas_access_decision(request(key = paste0("made-up-", i)), state, config, now = 1,
+                                       transport = org$transport)$status, 401L)
+  }
+  flood <- atlas_access_decision(request(key = "made-up-3"), state, config, now = 1, transport = org$transport)
+  expect_equal(flood$status, 429L)
+  expect_equal(org$calls$n, 2)
+})
+
+test_that("answers about the caller are never kept by a shared cache", {
+  expect_equal(atlas_cache_control("/api/me"), "private, no-store")
+  expect_equal(atlas_cache_control("/api/taxa/X/raster.tif", "algorithm=rf"), "private, no-store")
 })
 
 test_that("idle buckets are forgotten so the table cannot grow without bound", {
@@ -206,12 +306,24 @@ test_that("idle buckets are forgotten so the table cannot grow without bound", {
 
 test_that("settings come from the environment, and a URL without a secret checks nothing", {
   with_env(c(ATLAS_RATE_ANONYMOUS = "30", ATLAS_REQUIRE_TOKEN = "true",
-             ATLAS_KEY_INTROSPECT_URL = "https://org.example/x", ATLAS_KEY_INTROSPECT_SECRET = NA), {
+             ATLAS_KEY_INTROSPECT_URL = "https://org.example/x", ATLAS_INTROSPECTION_SECRET = NA), {
     config <- atlas_access_config()
     expect_equal(config$rates[["anonymous"]], 30)
     expect_equal(config$rates[["standard"]], ATLAS_RATE_DEFAULTS[["standard"]])
     expect_true(config$require_token)
     expect_equal(config$introspect_url, "")
+    expect_match(atlas_access_alerts(config), "^\\[CONFIG-ALERT\\] ATLAS_INTROSPECTION_SECRET")
+  })
+  # With only the secret, the route is the issuer's.
+  with_env(c(ATLAS_INTROSPECTION_SECRET = "shh", ATLAS_KEY_INTROSPECT_URL = NA, ATLAS_SIGNIN_ISSUER = NA), {
+    config <- atlas_access_config()
+    expect_equal(config$introspect_url, "https://mycomap.org/api/service-keys/introspect")
+    expect_equal(config$introspect_secret, "shh")
+    expect_length(atlas_access_alerts(config), 0)
+  })
+  with_env(c(ATLAS_INTROSPECTION_SECRET = "shh", ATLAS_KEY_INTROSPECT_URL = NA,
+             ATLAS_SIGNIN_ISSUER = "https://org.example"), {
+    expect_equal(atlas_access_config()$introspect_url, "https://org.example/api/service-keys/introspect")
   })
   with_env(c(ATLAS_RATE_ANONYMOUS = "nonsense", ATLAS_REQUIRE_TOKEN = NA), {
     config <- atlas_access_config()

@@ -67,7 +67,8 @@
     { "name": "jsonlite", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/jsonlite", "role": "Reads and writes every manifest and model record." },
     { "name": "digest", "group": "r", "license": "GPL (>= 2)", "url": "https://github.com/eddelbuettel/digest", "role": "Record-set fingerprints and content hashes for releases." },
     { "name": "curl", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/curl", "role": "Asks mycomap.org whether an API token is live." },
-    { "name": "paws.storage", "group": "r", "license": "Apache-2.0", "url": "https://github.com/paws-r/paws", "role": "Publishes and pulls releases through Amazon S3." },
+    { "name": "openssl", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/openssl", "role": "Checks the Ed25519 signature on a mycomap.org sign-in, and signs Atlas's own session cookie." },
+    { "name": "paws.storage", "group": "r", "license": "Apache-2.0", "url": "https://github.com/paws-r/paws", "role": "Publishes and pulls releases through Amazon S3, and signs short-lived download links." },
     { "name": "testthat", "group": "r", "license": "MIT", "url": "https://testthat.r-lib.org", "role": "The test suite." },
 
     { "name": "react", "group": "web", "license": "MIT", "url": "https://react.dev", "role": "This website." },

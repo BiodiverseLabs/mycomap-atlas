@@ -114,5 +114,15 @@ test_that("every route documents the token refusal and the rate limit", {
     expect_false(is.null(responses[["401"]]), label = paste("401 on", path))
     expect_false(is.null(responses[["429"]]), label = paste("429 on", path))
   }
-  expect_equal(spec$components$securitySchemes$atlasToken$name, "X-API-Key")
+  expect_equal(spec$components$securitySchemes$atlasToken$scheme, "bearer")
+})
+
+test_that("the spec says a raster download needs a session or a token, and where to sign in", {
+  spec <- read_spec()
+  raster <- spec$paths[["/api/taxa/{name}/raster.tif"]]$get
+  schemes <- unlist(lapply(raster$security, names))
+  expect_setequal(schemes, c("atlasToken", "atlasSession"))
+  expect_false(is.null(raster$responses[["302"]]))
+  expect_equal(spec$components$securitySchemes$atlasSession$name, ATLAS_SESSION_COOKIE)
+  expect_true(grepl(ATLAS_SIGNIN_PATH, spec$components$responses$SignInRequired$content$`application/json`$schema$properties$signIn$description, fixed = TRUE))
 })

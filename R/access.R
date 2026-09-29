@@ -10,31 +10,56 @@
 # it anyway.
 #
 # Tokens are issued by mycomap.org, per account, and approved there by an
-# admin. Atlas never sees the account: it asks .org's introspection route
-# whether a token is live and gets back only its status, id and tier. The
-# route and a shared secret come from the environment, so this code stays
-# open while the secret does not. A copy of Atlas without them reads tokens as
-# absent and serves everyone at the anonymous rate.
+# admin (https://mycomap.org/atlas-tokens). A script sends one as
+# "Authorization: Bearer <token>". Atlas never sees the account: it asks .org's
+# introspection route whether a token is live and gets back only its status,
+# id and tier. The shared secret for that route comes from the environment, so
+# this code stays open while the secret does not. A copy of Atlas without it
+# reads tokens as absent and serves everyone at the anonymous rate.
+#
+# A person signed in through mycomap.org (R/auth.R) counts like a standard
+# token, per person. A live token or a session also unlocks downloads.
 
-# Requests per minute. A page of the site makes about ten requests.
-ATLAS_RATE_DEFAULTS <- c(anonymous = 120, standard = 1200, bulk = 6000)
+# Requests per minute. Measured on the site (2026-09-29): the home page makes
+# 6 API requests, a taxon page 9 (three models and their maps), and typing a
+# name into the taxa search up to one per letter. 300 lets a quick reader open
+# a taxon page every couple of seconds for a minute, several people behind
+# one address included, and still stops a script well short of the signed-in
+# allowance.
+ATLAS_RATE_DEFAULTS <- c(anonymous = 300, standard = 1200, bulk = 6000)
 
 # How long an introspection answer is trusted, in seconds. A revoked token
 # stops working within this long; a rejected one is re-asked sooner, so a
-# token approved a moment ago starts working quickly.
+# token approved a moment ago starts working quickly. When .org cannot be
+# asked nothing is cached: the caller is treated as anonymous for that request
+# and .org is asked again on the next.
 ATLAS_KEY_TTL_ACTIVE <- 300
 ATLAS_KEY_TTL_INACTIVE <- 60
-ATLAS_KEY_TTL_UNAVAILABLE <- 30
+
+# The longest token worth asking .org about; real ones are 49 characters.
+ATLAS_KEY_MAX_LENGTH <- 512
+
+# .org's introspection route, below ATLAS_SIGNIN_ISSUER.
+ATLAS_INTROSPECT_PATH <- "/api/service-keys/introspect"
 
 #' Access settings from the environment.
+#'
+#' Tokens are checked only when ATLAS_INTROSPECTION_SECRET is set. The route
+#' is ATLAS_SIGNIN_ISSUER's (https://mycomap.org by default) unless
+#' ATLAS_KEY_INTROSPECT_URL names another, such as a stand-in for testing.
 atlas_access_config <- function() {
   number <- function(name, default) {
     value <- suppressWarnings(as.numeric(Sys.getenv(name, unset = "")))
     if (is.na(value) || value <= 0) default else value
   }
   flag <- function(name) tolower(Sys.getenv(name, unset = "")) %in% c("1", "true", "yes")
+  secret <- Sys.getenv("ATLAS_INTROSPECTION_SECRET", unset = "")
   url <- Sys.getenv("ATLAS_KEY_INTROSPECT_URL", unset = "")
-  secret <- Sys.getenv("ATLAS_KEY_INTROSPECT_SECRET", unset = "")
+  if (!nzchar(url)) {
+    issuer_text <- Sys.getenv("ATLAS_SIGNIN_ISSUER", unset = "")
+    issuer <- atlas_origin_of(if (nzchar(issuer_text)) issuer_text else "https://mycomap.org")
+    url <- if (is.null(issuer)) "" else paste0(issuer, ATLAS_INTROSPECT_PATH)
+  }
   list(
     rates = c(
       anonymous = number("ATLAS_RATE_ANONYMOUS", ATLAS_RATE_DEFAULTS[["anonymous"]]),
@@ -44,9 +69,16 @@ atlas_access_config <- function() {
     require_token = flag("ATLAS_REQUIRE_TOKEN"),
     # Only both together can check a token.
     introspect_url = if (nzchar(url) && nzchar(secret)) url else "",
-    introspect_secret = secret,
-    client_ip_header = Sys.getenv("ATLAS_CLIENT_IP_HEADER", unset = "")
+    introspect_secret = secret
   )
+}
+
+#' [CONFIG-ALERT] lines for access settings, printed when the API starts.
+atlas_access_alerts <- function(config) {
+  if (nzchar(config$introspect_url)) {
+    return(character())
+  }
+  "[CONFIG-ALERT] ATLAS_INTROSPECTION_SECRET is not set: API tokens are ignored and cannot unlock downloads."
 }
 
 #' Mutable state the access filter keeps between requests.
@@ -89,22 +121,46 @@ atlas_rate_sweep <- function(state, now = as.numeric(Sys.time()), idle = 600) {
   invisible(state)
 }
 
+#' Whether an address is this machine.
+atlas_is_loopback <- function(address) {
+  address <- tolower(address %||% "")
+  grepl("^127[.]", address) || address %in% c("::1", "::ffff:127.0.0.1", "0:0:0:0:0:0:0:1")
+}
+
 #' The address a request came from.
 #'
-#' Behind a proxy every request arrives from the proxy, so a deployment names
-#' the header its proxy writes the real address into (CF-Connecting-IP behind
-#' Cloudflare). Only name one the proxy always overwrites: a header a caller
-#' can set would let anyone pick their own bucket.
-atlas_client_ip <- function(req, header = "") {
-  if (nzchar(header)) {
-    key <- paste0("HTTP_", toupper(gsub("-", "_", header, fixed = TRUE)))
-    value <- req[[key]]
-    if (length(value) && nzchar(value[[1]])) {
-      return(trimws(strsplit(value[[1]], ",", fixed = TRUE)[[1]][[1]]))
-    }
+#' Behind nginx on the same machine every request arrives from 127.0.0.1, and
+#' nginx appends the address that connected to it to X-Forwarded-For. So that
+#' header is believed only when the request came from this machine, and only
+#' its right-most entry, the one nginx wrote: anything to the left of it is
+#' whatever the caller sent, and would let anyone pick their own bucket. A
+#' request straight from another machine is counted by its own address. (Behind
+#' Cloudflare, nginx's real_ip module has to restore the visitor's address
+#' first, or every visitor arriving through one Cloudflare edge would share an
+#' allowance.)
+atlas_client_ip <- function(req) {
+  peer <- req$REMOTE_ADDR
+  peer <- if (length(peer) && !is.na(peer[[1]]) && nzchar(peer[[1]])) peer[[1]] else "unknown"
+  if (!atlas_is_loopback(peer)) {
+    return(peer)
   }
-  value <- req$REMOTE_ADDR
-  if (length(value) && nzchar(value[[1]])) value[[1]] else "unknown"
+  forwarded <- req$HTTP_X_FORWARDED_FOR
+  if (!length(forwarded) || is.na(forwarded[[1]]) || !nzchar(forwarded[[1]])) {
+    return(peer)
+  }
+  entries <- trimws(strsplit(forwarded[[1]], ",", fixed = TRUE)[[1]])
+  entries <- entries[nzchar(entries)]
+  if (!length(entries)) peer else entries[[length(entries)]]
+}
+
+#' The token a request carries in "Authorization: Bearer <token>", or "".
+atlas_request_token <- function(req) {
+  header <- req$HTTP_AUTHORIZATION
+  if (!length(header) || is.na(header[[1]])) {
+    return("")
+  }
+  match <- regmatches(header[[1]], regexec("^[Bb][Ee][Aa][Rr][Ee][Rr] +([^ ]+) *$", header[[1]]))[[1]]
+  if (length(match) == 2L) match[[2]] else ""
 }
 
 #' Ask mycomap.org whether a token is live. Returns the parsed answer, or
@@ -131,95 +187,136 @@ atlas_introspect_http <- function(key, url, secret, timeout = 5) {
   )
 }
 
+atlas_key_id <- function(key) digest::digest(key, algo = "sha256", serialize = FALSE)
+
+#' Whether a token's answer is already known, so checking it costs nothing.
+atlas_key_cached <- function(key, state, now = as.numeric(Sys.time())) {
+  cached <- state$keys[[atlas_key_id(key)]]
+  !is.null(cached) && cached$expires > now
+}
+
 #' What a token is: its tier when live, or why not.
 #'
-#' Answers are cached by a hash of the token, never the token itself.
+#' Answers are cached by a hash of the token, never the token itself. When
+#' .org cannot be asked the answer is "unavailable" and is not cached.
 #' transport is the call to .org, replaced in tests.
 atlas_check_key <- function(key, state, config, now = as.numeric(Sys.time()),
                             transport = atlas_introspect_http) {
   if (!nzchar(config$introspect_url)) {
     return(list(active = FALSE, reason = "not_checked"))
   }
-  id <- digest::digest(key, algo = "sha256", serialize = FALSE)
+  if (nchar(key) > ATLAS_KEY_MAX_LENGTH) {
+    return(list(active = FALSE, reason = "unknown"))
+  }
+  id <- atlas_key_id(key)
   cached <- state$keys[[id]]
   if (!is.null(cached) && cached$expires > now) {
     return(cached$answer)
   }
-  reply <- transport(key, config$introspect_url, config$introspect_secret)
-  answer <- if (is.null(reply) || is.null(reply$active)) {
-    list(active = FALSE, reason = "unavailable")
-  } else if (isTRUE(reply$active) && identical(reply$service, "atlas")) {
+  reply <- tryCatch(transport(key, config$introspect_url, config$introspect_secret),
+                    error = function(e) NULL)
+  if (!is.list(reply) || !is.logical(reply$active) || length(reply$active) != 1L ||
+      is.na(reply$active)) {
+    return(list(active = FALSE, reason = "unavailable"))
+  }
+  answer <- if (isTRUE(reply$active) && identical(reply$service, "atlas")) {
     tier <- as.character(reply$tier %||% "standard")
     list(active = TRUE, tier = tier, key_id = as.character(reply$keyId %||% ""))
+  } else if (isTRUE(reply$active)) {
+    list(active = FALSE, reason = "wrong_service")
   } else {
     list(active = FALSE, reason = as.character(reply$reason %||% "unknown"))
   }
-  ttl <- if (isTRUE(answer$active)) {
-    ATLAS_KEY_TTL_ACTIVE
-  } else if (identical(answer$reason, "unavailable")) {
-    ATLAS_KEY_TTL_UNAVAILABLE
-  } else {
-    ATLAS_KEY_TTL_INACTIVE
-  }
+  ttl <- if (isTRUE(answer$active)) ATLAS_KEY_TTL_ACTIVE else ATLAS_KEY_TTL_INACTIVE
   assign(id, list(answer = answer, expires = now + ttl), envir = state$keys)
   answer
 }
 
 #' Decide one request: let it through, refuse the token, or slow it down.
 #'
-#' Returns status (NULL to proceed), the headers to send, and a body for a
-#' refusal. A token .org rejects is refused outright rather than served at the
+#' Returns status (NULL to proceed), the headers to send, a body for a
+#' refusal, and the caller's identity for the routes: via "token", "session"
+#' or "anonymous", with the tier its allowance comes from.
+#'
+#' A token .org rejects is refused outright rather than served at the
 #' anonymous rate, so a caller learns their token is wrong instead of quietly
 #' getting less. When .org cannot be asked, or tokens cannot be checked on
-#' this copy, the caller is served at the anonymous rate.
+#' this copy, the caller is anonymous: served at the anonymous rate, and not
+#' allowed to download. A token not yet known costs its address one anonymous
+#' request before .org is asked, so a stream of made-up tokens cannot make
+#' Atlas call .org faster than the anonymous rate.
 atlas_access_decision <- function(req, state, config, now = as.numeric(Sys.time()),
-                                  transport = atlas_introspect_http) {
-  key <- req$HTTP_X_API_KEY
-  key <- if (length(key) && nzchar(key[[1]])) key[[1]] else ""
-  tier <- "anonymous"
-  bucket <- paste0("ip:", atlas_client_ip(req, config$client_ip_header))
+                                  transport = atlas_introspect_http, signin = NULL) {
+  key <- atlas_request_token(req)
+  identity <- list(via = "anonymous", tier = "anonymous")
+  ip_bucket <- paste0("ip:", atlas_client_ip(req))
+  bucket <- ip_bucket
+
+  slow_down <- function(taken, tier) {
+    list(
+      status = 429L,
+      headers = list(
+        `X-RateLimit-Limit` = as.character(taken$limit),
+        `X-RateLimit-Remaining` = as.character(taken$remaining),
+        `X-Atlas-Tier` = tier,
+        `Retry-After` = as.character(taken$retry_after),
+        `Cache-Control` = "no-store"
+      ),
+      body = list(
+        error = "Too many requests. Slow down, or sign in or use a token for a higher limit.",
+        retry_after = taken$retry_after
+      ),
+      identity = identity
+    )
+  }
 
   if (nzchar(key)) {
+    if (nzchar(config$introspect_url) && !atlas_key_cached(key, state, now)) {
+      taken <- atlas_rate_take(state, ip_bucket, config$rates[["anonymous"]], now)
+      if (!taken$allowed) return(slow_down(taken, "anonymous"))
+    }
     checked <- atlas_check_key(key, state, config, now, transport)
     if (isTRUE(checked$active)) {
       tier <- if (checked$tier %in% names(config$rates)) checked$tier else "standard"
+      identity <- list(via = "token", tier = tier)
       bucket <- paste0("key:", checked$key_id)
     } else if (!checked$reason %in% c("unavailable", "not_checked")) {
       return(list(
         status = 401L,
-        headers = list(`Cache-Control` = "no-store"),
-        body = list(error = "This token is not valid.", reason = checked$reason)
+        headers = list(`Cache-Control` = "no-store", `WWW-Authenticate` = "Bearer"),
+        body = list(error = "This token is not valid.", reason = checked$reason),
+        identity = identity
       ))
     }
   }
 
-  if (config$require_token && identical(tier, "anonymous")) {
+  if (identical(identity$via, "anonymous") && !is.null(signin)) {
+    session <- atlas_request_session(req, signin, now)
+    if (!is.null(session)) {
+      identity <- list(via = "session", tier = "standard", name = session$name)
+      bucket <- paste0("user:", session$sub)
+    }
+  }
+
+  if (config$require_token && identical(identity$via, "anonymous")) {
     return(list(
       status = 401L,
-      headers = list(`Cache-Control` = "no-store"),
-      body = list(error = "This server needs a token. Send it as an X-API-Key header.")
+      headers = list(`Cache-Control` = "no-store", `WWW-Authenticate` = "Bearer"),
+      body = list(error = "This server needs a token. Send it as an Authorization: Bearer header."),
+      identity = identity
     ))
   }
 
-  taken <- atlas_rate_take(state, bucket, config$rates[[tier]], now)
+  taken <- atlas_rate_take(state, bucket, config$rates[[identity$tier]], now)
+  if (!taken$allowed) {
+    return(slow_down(taken, identity$tier))
+  }
   headers <- list(
     `X-RateLimit-Limit` = as.character(taken$limit),
     `X-RateLimit-Remaining` = as.character(taken$remaining),
-    `X-Atlas-Tier` = tier
+    `X-Atlas-Tier` = identity$tier
   )
-  if (!taken$allowed) {
-    headers$`Retry-After` <- as.character(taken$retry_after)
-    headers$`Cache-Control` <- "no-store"
-    return(list(
-      status = 429L,
-      headers = headers,
-      body = list(
-        error = "Too many requests. Slow down, or use a token for a higher limit.",
-        retry_after = taken$retry_after
-      )
-    ))
-  }
-  list(status = NULL, headers = headers, body = NULL)
+  list(status = NULL, headers = headers, body = NULL, identity = identity)
 }
 
 #' How long a shared cache may keep a response.
@@ -231,6 +328,11 @@ atlas_access_decision <- function(req, state, config, now = as.numeric(Sys.time(
 atlas_cache_control <- function(path, query = "") {
   if (!startsWith(path, "/api/")) {
     return(NULL)
+  }
+  # Who is asking decides these answers, so no shared cache may keep them: a
+  # CDN that kept a download's redirect would hand it to anyone.
+  if (identical(path, "/api/me") || endsWith(path, "/raster.tif")) {
+    return("private, no-store")
   }
   if (endsWith(path, "/map.png") && grepl("(^|&)v=", sub("^[?]", "", query))) {
     return("public, max-age=31536000, immutable")

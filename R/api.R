@@ -20,8 +20,10 @@ atlas_allowed_origins <- function() {
 #' The origin to echo back, or NULL when it is not allowed.
 #'
 #' "*" in the allowlist opens the API to every site. That is safe for the
-#' public server because nothing here uses cookies or changes anything: a
-#' token travels in a header the calling page must send itself.
+#' public server because no answer here is sent with
+#' Access-Control-Allow-Credentials, so a browser never lets another site's
+#' page use a visitor's Atlas session: cross-site calls are anonymous unless
+#' the calling page sends a token itself.
 atlas_allowed_origin <- function(origin, allowed = atlas_allowed_origins()) {
   if (is.null(origin) || !length(origin)) {
     return(NULL)
@@ -63,7 +65,9 @@ atlas_sources_path <- function(root = Sys.getenv("ATLAS_ROOT", unset = ".")) {
   system.file("api", "sources.json", package = "mycomapatlas")
 }
 
-#' The GET routes a plumber file declares, with the parameters each takes.
+#' The GET routes under /api/ a plumber file declares, with the parameters
+#' each takes. The sign-in routes under /auth/ are pages a browser visits, not
+#' API, and are left out.
 #'
 #' Read from the file's text, so the documentation test needs no server. A
 #' route's parameters are its handler's arguments, less plumber's req and res;
@@ -82,7 +86,7 @@ atlas_plumber_routes <- function(path) {
     list(path = route, params = args)
   })
   names(routes) <- vapply(routes, `[[`, character(1), "path")
-  routes
+  routes[startsWith(names(routes), "/api/")]
 }
 
 #' Decode a taxon name taken from a URL path.

@@ -70,15 +70,26 @@ function(req, res) {
   }
   if (identical(req$REQUEST_METHOD, "OPTIONS")) {
     res$setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
-    res$setHeader("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
+    res$setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
     res$status <- 200L
     return(list())
   }
   plumber::forward()
 }
 
+# Tests replace what reaches the network or the clock by defining
+# atlas_service_overrides in the environment this file is read into:
+# introspect (the call to .org), now, and the download services.
+overrides <- get0("atlas_service_overrides", ifnotfound = list())
+introspect <- overrides$introspect %||% atlas_introspect_http
+clock <- overrides$now %||% function() as.numeric(Sys.time())
+download_services <- atlas_download_services(overrides$download %||% list())
+release_cache <- new.env(parent = emptyenv())
+
+signin_config <- atlas_signin_config()
 access_config <- atlas_access_config()
 access_state <- atlas_access_state()
+for (alert in c(signin_config$problems, atlas_access_alerts(access_config))) message(alert)
 
 #* @filter access
 function(req, res) {
@@ -88,7 +99,9 @@ function(req, res) {
   access_state$served <- if (is.null(access_state$served)) 1 else access_state$served + 1
   if (access_state$served %% 1000 == 0) atlas_rate_sweep(access_state)
 
-  decision <- atlas_access_decision(req, access_state, access_config)
+  decision <- atlas_access_decision(req, access_state, access_config, now = clock(),
+                                    transport = introspect, signin = signin_config)
+  req$atlas_identity <- decision$identity
   for (name in names(decision$headers)) {
     res$setHeader(name, decision$headers[[name]])
   }
@@ -101,6 +114,34 @@ function(req, res) {
   cache_control <- atlas_cache_control(req$PATH_INFO, req$QUERY_STRING)
   if (!is.null(cache_control)) res$setHeader("Cache-Control", cache_control)
   plumber::forward()
+}
+
+# ---- signing in ------------------------------------------------------------
+# Browser routes, outside /api: they redirect and set cookies (R/auth.R).
+
+#* Start signing in: go to mycomap.org, which sends the browser back to the callback.
+#* @get /auth/dev-bridge/start
+function(req, res, returnTo = "/") {
+  atlas_send(res, atlas_signin_start(signin_config, returnTo, now = clock()))
+}
+
+#* Back from mycomap.org with a signed token: check it, start a session.
+#* @get /auth/dev-bridge/callback
+function(req, res, token = "") {
+  atlas_send(res, atlas_signin_callback(req, signin_config, token, now = clock()))
+}
+
+#* Sign out: clear this site's session cookie.
+#* @post /auth/logout
+function(req, res) {
+  atlas_send(res, atlas_signout(req, signin_config))
+}
+
+#* Whether the caller is signed in, and how.
+#* @get /api/me
+#* @serializer unboxedJSON
+function(req) {
+  atlas_me(req$atlas_identity, signin_config)
 }
 
 #* This API's OpenAPI description: the file the developer page is drawn from.
@@ -252,6 +293,16 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
     return(raw())
   }
   readBin(path, "raw", file.info(path)$size)
+}
+
+#* A taxon's suitability raster as a GeoTIFF. Needs a session or a token.
+#* @param algorithm maxnet (default), xgboost or rf
+#* @get /api/taxa/<name>/raster.tif
+function(name, grid = "draft", algorithm = "maxnet", req, res) {
+  atlas_send(res, atlas_raster_response(
+    req$atlas_identity, atlas_decode_name(name), grid, algorithm,
+    download_services, release_cache, now = clock()
+  ))
 }
 
 #* Where a taxon has been collected, aggregated to the public grid.
