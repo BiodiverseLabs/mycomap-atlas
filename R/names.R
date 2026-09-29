@@ -9,8 +9,8 @@
 #
 # So names are merged when they differ only in punctuation — quote marks,
 # spaces, "sp-X" against sp. 'X', a doubled or missing quote, a space or a
-# hyphen inside a code, letter case — and modelled under the spelling most of
-# the records use. Letters and digits are never touched: 'IN1' and 'IN01'
+# hyphen inside a code, letter case — or in an author citation, and modelled
+# under the spelling most of the records use. Letters and digits are never touched: 'IN1' and 'IN01'
 # stay apart, and so do accented names. Every record keeps its original
 # spelling, and the merges are reported so the names can be fixed on .org.
 # (Steve, 2026-09-29.)
@@ -37,10 +37,52 @@ atlas_regular_name <- function(names) {
   x
 }
 
-#' The key two spellings of one taxon share: punctuation made regular, the
-#' separators inside a provisional code made the same, case ignored.
+# Words that introduce an infraspecific epithet.
+ATLAS_NAME_RANKS <- c("var.", "var", "subsp.", "subsp", "ssp.", "ssp", "f.", "forma")
+
+#' A name without its author citation: the genus, the species epithet, and
+#' any rank and infraspecific epithet, stopping at the first word that is not
+#' part of the name — a bracket, a capital, an ampersand or "ex".
+#' "Pluteus chrysophaeus (Schaeff. ex Lasch) Quel." is Pluteus chrysophaeus.
+#' A provisional name keeps its quoted code whole, brackets and all.
+#'
+#' Only a plain binomial is trimmed. A name with a digit anywhere is left
+#' alone: "Cuphophyllus pratensis PNW06" is a lineage code, not an author, and
+#' merging it into Cuphophyllus pratensis would join two taxa. So is a name
+#' whose second word is not a species epithet, such as "Entoloma subg.
+#' Pouzarella".
+atlas_strip_authors <- function(names) {
+  vapply(names, function(name) {
+    if (grepl(" sp[.] '", name) || grepl("[0-9]", name)) return(name)
+    words <- strsplit(name, " ", fixed = TRUE)[[1]]
+    if (length(words) < 3L || !grepl("^[[:lower:]][[:lower:]-]*$", words[[2]])) return(name)
+    keep <- 2L
+    i <- 3L
+    while (i <= length(words)) {
+      word <- words[[i]]
+      if (word %in% ATLAS_NAME_RANKS && i < length(words)) {
+        keep <- i + 1L
+        i <- i + 2L
+      } else if (grepl("^[[:lower:]][[:lower:]-]*$", word) && !word %in% c("ex", "et", "al.", "in")) {
+        keep <- i
+        i <- i + 1L
+      } else if (identical(word, intToUtf8(0xd7))) {
+        # A hybrid sign joins two epithets.
+        keep <- i
+        i <- i + 1L
+      } else {
+        break
+      }
+    }
+    paste(words[seq_len(keep)], collapse = " ")
+  }, character(1), USE.NAMES = FALSE)
+}
+
+#' The key two spellings of one taxon share: punctuation made regular, author
+#' citations dropped, the separators inside a provisional code made the same,
+#' case ignored.
 atlas_name_key <- function(names) {
-  x <- atlas_regular_name(names)
+  x <- atlas_strip_authors(atlas_regular_name(names))
   quoted <- grepl(" sp[.] '[^']*'$", x)
   code <- sub("^.* sp[.] '([^']*)'$", "\\1", x[quoted])
   x[quoted] <- paste0(sub(" sp[.] '[^']*'$", "", x[quoted]), " sp. '",

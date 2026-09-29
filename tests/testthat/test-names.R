@@ -92,3 +92,33 @@ test_that("a fit refuses to overwrite the model of a different taxon", {
     expect_equal(atlas_read_metrics("Eastern fungus")$taxon, "Eastern-fungus")
   })
 })
+
+test_that("an author citation is not part of the name", {
+  expect_true(same_taxon("Pluteus chrysophaeus", "Pluteus chrysophaeus (Schaeff. ex Lasch) Quél."))
+  expect_true(same_taxon("Suillus caerulescens", "Suillus caerulescens A. H. Sm. & Thiers"))
+  expect_true(same_taxon("Clavaria zollingeri", "Clavaria zollingeri Lév."))
+  expect_true(same_taxon("Entocybe nitida", "Entocybe nitida (Quél.) T. J. Baroni et al."))
+  expect_true(same_taxon("Amanita muscaria var. formosa", "Amanita muscaria var. formosa (Pers. ex Fr.) Bertill."))
+  expect_true(same_taxon("Cuphophyllus subviolaceus", "Cuphophyllus subviolaceus (Peck) Bon"))
+})
+
+test_that("dropping authors never merges different taxa", {
+  # A variety is not its species.
+  expect_false(same_taxon("Amanita muscaria", "Amanita muscaria var. formosa (Pers. ex Fr.) Bertill."))
+  expect_false(same_taxon("Amanita muscaria var. formosa", "Amanita muscaria var. guessowii"))
+  expect_false(same_taxon("Clavaria flavipes Pers.", "Clavaria zollingeri Lév."))
+  # A hybrid keeps both epithets.
+  expect_false(same_taxon("Fomitopsis marianii × nivosella", "Fomitopsis marianii"))
+})
+
+test_that("a provisional code keeps its brackets", {
+  expect_false(same_taxon("Descomyces sp. 'Marbled (PDD 112668)'", "Descomyces sp. 'Marbled'"))
+  expect_equal(atlas_strip_authors("Descomyces sp. 'Marbled (PDD 112668)'"),
+               "Descomyces sp. 'Marbled (PDD 112668)'")
+})
+
+test_that("a lineage code without quotes is not mistaken for an author", {
+  expect_false(same_taxon("Cuphophyllus pratensis PNW06", "Cuphophyllus pratensis"))
+  expect_false(same_taxon("Cystolepiota 'seminuda PNW04'", "Cystolepiota seminuda"))
+  expect_equal(atlas_strip_authors("Entoloma subg. Pouzarella"), "Entoloma subg. Pouzarella")
+})

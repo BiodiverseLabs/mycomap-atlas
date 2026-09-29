@@ -435,12 +435,15 @@ for both is a shared view on .org rather than a change here.
 .org holds some taxa under several spellings: *Mycena* sp. 'IN10' and
 *Mycena* "sp-IN10", 'fuscidisca PNW10' and 'fuscidisca-PNW10', curly quotes
 and straight, a trailing non-breaking space. Spellings that differ only in
-punctuation are merged and modelled under the one most records use; letters
-and digits are never touched, so 'IN1' and 'IN01' stay apart. Every record
+punctuation, or only by an author citation (*Pluteus cervinus* (Schaeff.) P.
+Kumm.), are merged and modelled under the one most records use; letters and
+digits are never touched, so 'IN1' and 'IN01' stay apart, and a name with a
+digit keeps every word, because "Cuphophyllus pratensis PNW06" is a lineage
+code, not an author. Every record
 keeps its original spelling, and `occurrences/name-merges.json` (published in
 releases) lists every merge so the names can be fixed on .org. On the
-2026-09-28 pull, 362 taxa gathered 363 other spellings (741 records), 80 of
-them taxa with 20+ localities. `./atlas refresh-names` rebuilds the counts
+2026-09-28 pull, 423 spellings merged in all (59 of them by author
+citation), leaving 17,161 taxa. `./atlas refresh-names` rebuilds the counts
 and the report from an existing pull.
 
 Without the merge the records were split between spellings, and where two
