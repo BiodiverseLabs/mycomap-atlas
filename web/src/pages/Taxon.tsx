@@ -1,9 +1,9 @@
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { CircleMarker, ImageOverlay, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
-import type { Map as LeafletMap } from "leaflet";
-import { ArrowUpRight, Download, LogIn } from "lucide-react";
+import type { LatLng, Map as LeafletMap } from "leaflet";
+import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
 import { Th } from "@/components/Common";
@@ -106,6 +106,9 @@ function ModelMap({
   view,
   group,
   presences,
+  expanded,
+  hidden,
+  onToggle,
 }: {
   name: string;
   algorithm: Algorithm;
@@ -115,26 +118,45 @@ function ModelMap({
   presences?: number;
   view: Bounds | null;
   group: MutableRefObject<MapGroup>;
+  expanded: boolean;
+  hidden: boolean;
+  onToggle: () => void;
 }) {
   const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
   const overlay = boundsOf(model);
   const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden ${hidden ? "hidden" : expanded ? "lg:col-span-3" : ""}`}>
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <CardTitle className="text-base text-[#4a3728]">{ALGORITHM_LABELS[algorithm]}</CardTitle>
-          {model && (
-            <span className="flex items-baseline gap-3">
-              <span className="text-xs text-muted-foreground tabular-nums">
-                AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
-              </span>
-              {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
-            </span>
-          )}
+          <span className="flex items-center gap-3">
+            {model && (
+              <>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
+                </span>
+                {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
+              </>
+            )}
+            <button
+              type="button"
+              onClick={onToggle}
+              className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
+              title={expanded ? "Back to all three maps (Esc)" : "Expand this map across all three panels"}
+              aria-label={
+                expanded
+                  ? "Back to all three maps"
+                  : `Expand the ${ALGORITHM_LABELS[algorithm]} map across all three panels`
+              }
+              aria-pressed={expanded}
+            >
+              {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </button>
+          </span>
         </div>
       </CardHeader>
-      <div className="relative h-[380px]">
+      <div className={`relative ${expanded ? "h-[70vh] min-h-[420px]" : "h-[380px]"}`}>
         <MapContainer
           center={[44, -100]}
           zoom={3}
@@ -272,6 +294,38 @@ export default function Taxon() {
   const points = cells.data?.cells ?? [];
   const group = useRef<MapGroup>({ maps: new Map(), syncing: false });
 
+  // One map can be expanded across all three panels. The others stay mounted
+  // (hidden), so they keep following it and come back where it was.
+  const [expanded, setExpanded] = useState<Algorithm | null>(null);
+  const view = useRef<{ center: LatLng; zoom: number } | null>(null);
+  const show = (next: Algorithm | null) => {
+    // Read the view before the layout changes: the map that is on screen now.
+    const source = group.current.maps.get(expanded ?? next ?? "");
+    view.current = source ? { center: source.getCenter(), zoom: source.getZoom() } : null;
+    setExpanded(next);
+  };
+  useLayoutEffect(() => {
+    const target = view.current;
+    if (!target) return;
+    // Leaflet only notices a window resize, not a panel changing size, so
+    // tell every map its size changed and put each back on the same view.
+    group.current.syncing = true;
+    for (const map of group.current.maps.values()) {
+      map.invalidateSize({ animate: false, pan: false });
+      map.setView(target.center, target.zoom, { animate: false });
+    }
+    group.current.syncing = false;
+    view.current = null;
+  }, [expanded]);
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") show(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <>
       <PageHeader title={<span className="sci">{name}</span>}>
@@ -318,7 +372,39 @@ export default function Taxon() {
             <section>
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
                 <SectionTitle>Three models, same records</SectionTitle>
-                <Legend />
+                <div className="flex flex-wrap items-center gap-4">
+                  {expanded && (
+                    <div
+                      className="inline-flex rounded-md border border-[#A87146]/20 p-0.5 text-xs"
+                      role="group"
+                      aria-label="Which map to show"
+                    >
+                      {ALGORITHMS.map((a) => (
+                        <button
+                          key={a}
+                          type="button"
+                          onClick={() => show(a)}
+                          aria-pressed={a === expanded}
+                          className={`rounded px-2 py-1 ${
+                            a === expanded
+                              ? "bg-myco-green text-white"
+                              : "text-[#5c4a3a] hover:bg-[#A87146]/10"
+                          }`}
+                        >
+                          {ALGORITHM_LABELS[a]}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => show(null)}
+                        className="rounded px-2 py-1 text-[#5c4a3a] hover:bg-[#A87146]/10"
+                      >
+                        All three
+                      </button>
+                    </div>
+                  )}
+                  <Legend />
+                </div>
               </div>
               <div className="grid gap-4 lg:grid-cols-3">
                 {ALGORITHMS.map((algorithm) => (
@@ -332,12 +418,15 @@ export default function Taxon() {
                     view={boundsOf(anyModel)}
                     group={group}
                     presences={anyModel?.presences}
+                    expanded={expanded === algorithm}
+                    hidden={expanded != null && expanded !== algorithm}
+                    onToggle={() => show(expanded === algorithm ? null : algorithm)}
                   />
                 ))}
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 White dots are collections, grouped into {cells.data?.degrees ?? 0.1}° cells. The
-                maps move together. Each map is coloured by rank within its own ground: the darkest
+                maps move together; expand one to see it across all three panels. Each map is coloured by rank within its own ground: the darkest
                 green is the tenth of the area that model rates highest, so the three can be compared
                 directly even though their raw scores run on different scales. Colour stops 500 km
                 from the nearest record: beyond that a map makes no claim.
