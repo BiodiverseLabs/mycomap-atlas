@@ -52,6 +52,25 @@ The command line runs from the sources, with no install step:
 ./atlas status
 ```
 
+### The release image
+
+Releases are computed in the Docker image, never on a laptop, so a
+Windows-versus-Linux difference cannot change a published map. Everything
+that decides the output is pinned: the base image by digest
+(`rocker/geospatial:4.6.1`), R packages to a dated Posit Package Manager
+snapshot (`CRAN_SNAPSHOT`), and the code by the commit passed in as
+`ATLAS_COMMIT`, which every release records. The build runs the whole test
+suite, so an image whose tests fail is never built.
+
+```bash
+docker build --build-arg ATLAS_COMMIT=$(git rev-parse HEAD) -t mycomap-atlas .
+docker run --rm -v "$PWD/data:/data" mycomap-atlas fit-all --workers=8
+docker run --rm -v "$PWD/data:/data" -e ATLAS_STORE=s3://bucket/atlas   -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY mycomap-atlas publish-release
+```
+
+The container computes as an ordinary user, with data mounted at `/data`. It
+talks to S3 through `paws`, so it carries no AWS CLI.
+
 ### Web app
 
 ```bash

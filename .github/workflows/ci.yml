@@ -27,8 +27,9 @@ jobs:
   r:
     name: R tests
     runs-on: ubuntu-latest
-    # The same image that builds releases, so CI and releases agree about GDAL.
-    container: rocker/geospatial:latest
+    # The same base as the release image (Dockerfile), so CI and releases
+    # agree about R and GDAL.
+    container: rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
     steps:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -44,6 +45,23 @@ jobs:
           Rscript -e 'stopifnot(requireNamespace("ranger", quietly = TRUE))'
       - name: Tests, with no network and no credentials
         run: Rscript -e 'testthat::test_local()'
+
+  image:
+    name: Release image
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # The build runs the whole test suite inside the image, so a green build
+      # means the image that would compute a release passes its tests.
+      - name: Build the image
+        run: docker build --build-arg ATLAS_COMMIT="$GITHUB_SHA" -t mycomap-atlas:ci .
+      - name: The command line runs inside it
+        run: docker run --rm mycomap-atlas:ci help
+      - name: It runs as an ordinary user and records its commit
+        run: |
+          test "$(docker run --rm --entrypoint id mycomap-atlas:ci -u)" != "0"
+          test "$(docker run --rm --entrypoint printenv mycomap-atlas:ci ATLAS_COMMIT)" = "$GITHUB_SHA"
 
   web:
     name: Web build
