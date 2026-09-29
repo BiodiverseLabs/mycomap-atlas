@@ -154,3 +154,53 @@ test_that("an infinite ratio lifts the cap rather than shrinking the list", {
   )
   expect_equal(length(atlas_choose_predictors(training, per_presence = Inf)), 8L)
 })
+
+# --- Where the host trees go -------------------------------------------------
+
+test_that("an ectomycorrhizal fungus gets its host trees straight after soil pH", {
+  order <- atlas_predictor_priority("ectomycorrhizal")
+  expect_equal(order[[1]], "soil_phh2o")
+  expect_equal(order[2:(1 + length(ATLAS_HOST_BANDS))], ATLAS_HOST_BANDS)
+  expect_gt(match("bio12", order), max(match(ATLAS_HOST_BANDS, order)))
+})
+
+test_that("every other guild, and an unknown one, gets host trees after the climate block", {
+  for (guild in c("wood_saprotroph", "litter_saprotroph", "unknown", NA)) {
+    order <- atlas_predictor_priority(guild)
+    expect_equal(order[[1]], "soil_phh2o", info = guild)
+    hosts <- match(ATLAS_HOST_BANDS, order)
+    expect_equal(hosts, seq(min(hosts), length.out = length(hosts)), info = guild)
+    expect_equal(order[[min(hosts) - 1L]], "bio4", info = guild)
+    expect_equal(order[[max(hosts) + 1L]], "cover_trees", info = guild)
+  }
+  expect_equal(atlas_predictor_priority(), atlas_predictor_priority("unknown"))
+})
+
+test_that("the guild moves only the host trees; the rest keeps its order", {
+  for (guild in c("ectomycorrhizal", "unknown")) {
+    order <- atlas_predictor_priority(guild)
+    expect_equal(setdiff(order, ATLAS_HOST_BANDS), ATLAS_PREDICTOR_PRIORITY)
+    expect_false(anyDuplicated(order) > 0)
+  }
+  expect_setequal(atlas_predictor_priority("ectomycorrhizal"), atlas_predictor_priority("unknown"))
+})
+
+test_that("when the cap binds, an ectomycorrhizal fungus keeps its hosts and a saprotroph its climate", {
+  set.seed(3)
+  background <- data.frame(
+    soil_phh2o = stats::rnorm(400), bio12 = stats::rnorm(400), bio1 = stats::rnorm(400),
+    host_conifer = stats::rnorm(400), host_pinus = stats::rnorm(400),
+    cover_trees = stats::rnorm(400)
+  )
+  training <- rbind(
+    data.frame(presence = 1L, cell = 1:12, x = 0, y = 0, background[1:12, ]),
+    data.frame(presence = 0L, cell = 13:412, x = 0, y = 0, background)
+  )
+  # Twelve presences, one predictor per four: three survive.
+  mycorrhizal <- atlas_choose_predictors(training, minimum = 3,
+                                         priority = atlas_predictor_priority("ectomycorrhizal"))
+  saprotroph <- atlas_choose_predictors(training, minimum = 3,
+                                        priority = atlas_predictor_priority("wood_saprotroph"))
+  expect_equal(mycorrhizal, c("soil_phh2o", "host_conifer", "host_pinus"))
+  expect_equal(saprotroph, c("soil_phh2o", "bio12", "bio1"))
+})

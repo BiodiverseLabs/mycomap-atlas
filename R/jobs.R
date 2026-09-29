@@ -179,9 +179,11 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   }, numeric(1))
   typical <- if (any(is.finite(areas))) stats::median(areas, na.rm = TRUE) else 5e6
 
+  # The guild table is part of Maxent's settings (R/fit.R), so the workers
+  # must fit with the same one this plan was checked against.
   fit <- list(min_presences = min_presences, n_background = n_background, buffer_km = buffer_km,
               folds = folds, block_km = block_km, regmult = regmult, correlation = correlation,
-              nulls = nulls, tune = tune)
+              nulls = nulls, tune = tune, guild_table = atlas_guild_table_key())
   tasks <- list()
   retire <- list()
   for (algorithm in algorithms) {
@@ -245,6 +247,10 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   }
 
   pull_paths <- c(file.path("occurrences", manifest$file), "occurrences/latest.json")
+  # The guild table goes to the workers through the store's private objects
+  # like the pull does. It is never listed among a release's files.
+  guild_path <- "reference/fungaltraits-genera.csv"
+  if (file.exists(file.path(atlas_data_dir(), guild_path))) pull_paths <- c(pull_paths, guild_path)
   inputs <- c(atlas_file_entries(pull_paths), layer_entries)
   atlas_upload_objects(store, c(inputs, public))
 
@@ -305,6 +311,13 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   fetched <- atlas_fetch_entries(store, job$inputs)
   say("shard ", shard, ": ", length(mine), " models to fit; fetched ", fetched$fetched,
       " input files (", round(fetched$bytes / 1048576, 1), " MB)")
+  # Fitted with another guild table, every Maxent model would carry settings
+  # the plan did not check against, and the next plan would refit them all.
+  planned <- job$fit$guild_table
+  if (is.character(planned) && length(planned) == 1L && !identical(planned, atlas_guild_table_key())) {
+    stop("this worker's FungalTraits table differs from the one job ", id,
+         " was planned with; nothing fitted", call. = FALSE)
+  }
 
   results <- list()
   for (algorithm in unique(vapply(mine, function(t) t$algorithm, ""))) {

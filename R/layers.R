@@ -5,10 +5,11 @@
 # the lower 48, and British Columbia alone holds 8% of the records — so the
 # registry uses global sources and accepts their coarser detail.
 #
-# What that costs us: there is no continental tree-species layer, so v1 carries
-# tree cover as a fraction rather than host identity. Host species maps are a
-# later, region-by-region refinement, and until then a model cannot be read as
-# knowing which host a fungus needs.
+# The one exception is the host-tree layer (R/hosts.R). No continental map of
+# tree species exists, so it joins the two national forest inventories, the
+# United States' and Canada's, and leaves Alaska, Hawaii, Puerto Rico and
+# Mexico empty: those records drop out of fitting, a price paid for knowing
+# which trees grow where across the rest.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -126,6 +127,30 @@ atlas_layer_registry <- function() {
         names(out) <- paste0("cover_", vars)
         out
       }
+    ),
+    hosts = list(
+      id = "hosts",
+      title = "Host trees: share of trees by genus, and conifer share",
+      source = "USFS FIA BIGMAP 2018 (lower 48) and Canada NFI kNN 2011",
+      url = ATLAS_BIGMAP_URL,
+      urls = c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL),
+      license = "BIGMAP: US public domain; NFI: Open Government Licence - Canada",
+      citation = paste(
+        "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series",
+        "for modeling attributes from national forest inventory data. ISPRS J Photogramm",
+        "Remote Sens 137:29-46; Beaudoin A et al. (2014) Mapping attributes of Canada's",
+        "forests at moderate resolution through kNN and MODIS imagery. Can J For Res",
+        "44:521-532, doi:10.1139/cjfr-2013-0401"
+      ),
+      method = "share of genus in total trees; BIGMAP sampled at 250 m and block-averaged, NFI area-averaged",
+      note = paste(
+        "Lower 48 and Canada only: Alaska, Hawaii, Puerto Rico and Mexico have no tree",
+        "inventory here, are empty, and are not modelled."
+      ),
+      # Built on the grid directly, not fetched and reprojected: BIGMAP is read
+      # in the grid's own projection, and both inventories need summing by
+      # genus before anything is averaged.
+      build = function(raw_dir, grid) atlas_build_hosts(raw_dir, grid)
     )
   )
 }
@@ -247,6 +272,11 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     }
     if (!quiet) message("  ", id, ": deriving from ", entry$depends)
     built <- entry$derive(terra::rast(source_path))
+  } else if (!is.null(entry$build)) {
+    raw_dir <- atlas_path("layers", "raw", create = TRUE)
+    dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
+    if (!quiet) message("  ", id, ": building from ", entry$source)
+    built <- entry$build(raw_dir, grid)
   } else {
     raw_dir <- atlas_path("layers", "raw", create = TRUE)
     dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
@@ -271,11 +301,12 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     bands = names(built),
     source = entry$source,
     url = entry$url,
+    urls = if (is.null(entry$urls)) NULL else as.list(entry$urls),
     license = entry$license,
     citation = entry$citation,
     note = entry$note,
     method = entry$method,
-    source_arcmin = if (is.null(entry$derive)) atlas_source_resolution(grid) else NA,
+    source_arcmin = if (is.null(entry$derive) && is.null(entry$build)) atlas_source_resolution(grid) else NA,
     cell_size_m = atlas_resolution(grid),
     file = basename(target),
     md5 = unname(tools::md5sum(target)),
