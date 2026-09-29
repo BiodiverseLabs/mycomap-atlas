@@ -91,6 +91,8 @@ atlas_model_summary <- function(metrics) {
   }
   data.frame(
     taxon = as.character(metrics$taxon %||% NA_character_),
+    # Metrics written before there was a choice of model are Maxent's.
+    algorithm = as.character(metrics$algorithm %||% "maxnet"),
     presences = number(metrics$presences),
     predictors = length(metrics$predictors),
     auc_mean = number(metrics$auc_mean),
@@ -101,15 +103,21 @@ atlas_model_summary <- function(metrics) {
   )
 }
 
-#' A summary of every fitted model on a grid, newest first.
+#' A summary of every fitted model on a grid, every algorithm, newest first.
 #'
 #' Pass the same environment as cache on every call and only files that are
 #' new or have changed since the last call are read again, which matters while
 #' a batch is writing hundreds of them. A file caught half-written is skipped,
 #' and read on a later call once its timestamp moves.
-atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv())) {
-  directory <- atlas_path("models", grid)
-  files <- list.files(directory, pattern = "[.]json$", full.names = TRUE)
+atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv()),
+                              algorithms = names(ATLAS_ALGORITHMS)) {
+  # The folder a file sits in says which model it is: that is where its map is
+  # looked up, whatever the file itself claims.
+  by_algorithm <- lapply(algorithms, function(algorithm) {
+    list.files(atlas_model_dir(grid, algorithm), pattern = "[.]json$", full.names = TRUE)
+  })
+  files <- unlist(by_algorithm, use.names = FALSE)
+  owner <- rep(algorithms, lengths(by_algorithm))
   info <- file.info(files, extra_cols = FALSE)
   stamps <- paste(as.numeric(info$mtime), info$size)
   known <- cache$entries %||% list()
@@ -124,10 +132,9 @@ atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv(
         error = function(e) NULL
       )
       cache$reads <- (cache$reads %||% 0L) + 1L
-      entry <- list(
-        stamp = stamps[[i]],
-        summary = if (is.list(metrics)) atlas_model_summary(metrics) else NULL
-      )
+      summary <- if (is.list(metrics)) atlas_model_summary(metrics) else NULL
+      if (!is.null(summary)) summary$algorithm <- owner[[i]]
+      entry <- list(stamp = stamps[[i]], summary = summary)
     }
     entries[[i]] <- entry
   }
@@ -146,8 +153,9 @@ atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv(
 #' Redraw every fitted taxon's PNG from its stored raster, and record the
 #' bounds, so a change of palette does not mean refitting anything.
 atlas_rebuild_maps <- function(grid = "draft", quiet = FALSE) {
-  directory <- atlas_path("models", grid)
-  rasters <- list.files(directory, pattern = "[.]tif$", full.names = TRUE)
+  rasters <- unlist(lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
+    list.files(atlas_model_dir(grid, algorithm), pattern = "[.]tif$", full.names = TRUE)
+  }), use.names = FALSE)
   if (!length(rasters)) {
     message("no fitted models on the ", grid, " grid")
     return(invisible(NULL))

@@ -106,19 +106,22 @@ atlas_batch_counts <- function(rows) {
   )
 }
 
-#' Where a batch writes its summary and its progress log.
-atlas_batch_path <- function(grid, stamp, extension = ".json") {
-  atlas_path("batches", grid, paste0("batch-", stamp, extension))
+#' Where a batch writes its summary and its progress log. Maxent's keep the
+#' names they had; other algorithms add theirs.
+atlas_batch_path <- function(grid, stamp, extension = ".json", algorithm = "maxnet") {
+  suffix <- if (identical(algorithm, "maxnet")) "" else paste0("-", algorithm)
+  atlas_path("batches", grid, paste0("batch-", stamp, suffix, extension))
 }
 
 #' Write the summary so far. Called after every taxon, so a run that is
 #' stopped halfway still says what it finished.
-atlas_write_batch_summary <- function(summary, rows, grid, stamp) {
+atlas_write_batch_summary <- function(summary, rows, grid, stamp, algorithm = "maxnet") {
   summary$counts <- atlas_batch_counts(rows)
   summary$taxa <- rows
-  path <- atlas_batch_path(grid, stamp)
+  path <- atlas_batch_path(grid, stamp, algorithm = algorithm)
+  latest <- if (identical(algorithm, "maxnet")) "latest.json" else paste0("latest-", algorithm, ".json")
   atlas_write_json(summary, path)
-  atlas_write_json(summary, atlas_path("batches", grid, "latest.json"))
+  atlas_write_json(summary, atlas_path("batches", grid, latest))
   invisible(path)
 }
 
@@ -205,17 +208,21 @@ atlas_run_on_workers <- function(cluster, names, task, on_result, ...) {
 #' predict    draw maps; FALSE writes scores only
 #' force      refit even when the stored model is current
 #' workers    R processes to fit in parallel; 1 fits in this process
+#' algorithm  which model to fit: maxnet, xgboost or rf
 #' fit        the per-taxon fitting function, replaceable in tests
 atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             force = FALSE, workers = 1L, min_presences = 20,
                             n_background = 10000, buffer_km = 500, folds = 5,
                             block_km = 200, regmult = 1, correlation = 0.7,
-                            prune = TRUE, taxa = NULL, quiet = FALSE,
+                            prune = NULL, taxa = NULL, quiet = FALSE,
                             occurrences = NULL, points = NULL, stack = NULL,
-                            layers = NULL, fit = atlas_fit_taxon) {
+                            layers = NULL, algorithm = "maxnet",
+                            fit = atlas_fit_taxon) {
+  algo <- atlas_algorithm(algorithm)
+  prune <- prune %||% algo$prune
   started <- Sys.time()
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
-  log_path <- atlas_batch_path(grid, stamp, ".log")
+  log_path <- atlas_batch_path(grid, stamp, ".log", algo$id)
   dir.create(dirname(log_path), recursive = TRUE, showWarnings = FALSE)
   log <- file(log_path, open = "wt")
   on.exit(close(log), add = TRUE)
@@ -234,19 +241,20 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
   settings <- atlas_fit_settings(
     grid = grid, n_background = n_background, buffer_km = buffer_km,
     folds = folds, block_km = block_km, regmult = regmult,
-    correlation = correlation, prune = prune, layers = layers
+    correlation = correlation, prune = prune, layers = layers,
+    algorithm = algo$id
   )
 
   candidates <- atlas_batch_candidates(points, min_presences, limit, taxa)
   fingerprints <- atlas_fingerprints_for(occurrences, candidates$scientific_name)
   current <- vapply(candidates$scientific_name, function(name) {
     !isTRUE(force) && atlas_fit_is_current(
-      atlas_read_metrics(name, grid), fingerprints[[name]], settings, predict
+      atlas_read_metrics(name, grid, algo$id), fingerprints[[name]], settings, predict
     )
   }, logical(1))
   to_fit <- candidates$scientific_name[!current]
 
-  say(nrow(candidates), " candidates with ", min_presences, "+ presence cells; ",
+  say(algo$label, ": ", nrow(candidates), " candidates with ", min_presences, "+ presence cells; ",
       sum(current), " current, ", length(to_fit), " to fit",
       if (workers > 1L) paste0(" on ", workers, " workers") else "")
 
@@ -255,6 +263,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
   })
   summary <- list(
     grid = grid,
+    algorithm = algo$id,
     started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     finished_at = NULL,
     settings = settings,
@@ -265,17 +274,17 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     limit = if (is.finite(limit)) limit else NULL,
     min_presences = min_presences
   )
-  atlas_write_batch_summary(summary, rows, grid, stamp)
+  atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)
 
   args <- list(
     grid = grid, n_background = n_background, buffer_km = buffer_km,
     folds = folds, block_km = block_km, regmult = regmult,
     min_presences = min_presences, correlation = correlation, prune = prune,
-    predict = predict, quiet = TRUE, layers = layers
+    predict = predict, quiet = TRUE, layers = layers, algorithm = algo$id
   )
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
-    atlas_write_batch_summary(summary, rows, grid, stamp)
+    atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)
     done <- sum(vapply(rows, function(r) r$status != "skipped", logical(1)))
     detail <- switch(
       row$status,
@@ -310,7 +319,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
 
   summary$finished_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   summary$seconds <- round(as.numeric(difftime(Sys.time(), started, units = "secs")))
-  path <- atlas_write_batch_summary(summary, rows, grid, stamp)
+  path <- atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)
   counts <- atlas_batch_counts(rows)
   say(sprintf("done in %ss: %d fitted, %d skipped, %d refused, %d failed -> %s",
               summary$seconds, counts$fitted, counts$skipped, counts$refused,

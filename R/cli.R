@@ -26,11 +26,13 @@ atlas_usage <- function() {
   message("      --min-presences=N         refuse below this many cells (default 20)")
   message("      --correlation=N           prune predictors above this correlation (default 0.7)")
   message("      --keep-all-predictors     skip pruning")
+  message("      --algorithm=maxnet|xgboost|rf  which model (default maxnet)")
   message("  fit-all            fit every taxon with enough presence cells")
   message("      --limit=N                 only the N richest candidates (trial runs)")
   message("      --no-predict              score only; draw no maps")
   message("      --force                   refit even taxa whose records have not changed")
   message("      --workers=N               fit N taxa at once (default 1)")
+  message("      --algorithms=maxnet,xgboost,rf|all  models to fit (default maxnet)")
   message("      (also --grid, --background, --buffer-km, --folds, --block-km,")
   message("       --min-presences, --correlation, --keep-all-predictors, as for fit)")
   message("  sweep-predictors   measure how many predictors a taxon should get")
@@ -78,6 +80,11 @@ atlas_parse_constants <- function(value) {
     stop("--constants must be positive numbers or none, such as 2,4,none", call. = FALSE)
   }
   numbers
+}
+
+#' --keep-all-predictors forces pruning off; otherwise each algorithm decides.
+atlas_flag_prune <- function(flags) {
+  if (isTRUE(flags$keep_all_predictors)) FALSE else NULL
 }
 
 atlas_flag_grid <- function(flags) {
@@ -164,27 +171,34 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         block_km = atlas_flag_number(flags, "block_km", 200),
         min_presences = atlas_flag_number(flags, "min_presences", 20),
         correlation = atlas_flag_number(flags, "correlation", 0.7),
-        prune = !isTRUE(flags$keep_all_predictors)
+        prune = atlas_flag_prune(flags),
+        algorithm = atlas_parse_algorithms(flags$algorithm %||% "maxnet")[[1]]
       )
       invisible(0L)
     },
     "fit-all" = {
-      summary <- atlas_fit_batch(
-        grid = atlas_flag_grid(flags),
-        limit = atlas_flag_number(flags, "limit", Inf),
-        predict = !isTRUE(flags$no_predict),
-        force = isTRUE(flags$force),
-        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
-        n_background = atlas_flag_number(flags, "background", 10000),
-        buffer_km = atlas_flag_number(flags, "buffer_km", 500),
-        folds = atlas_flag_number(flags, "folds", 5),
-        block_km = atlas_flag_number(flags, "block_km", 200),
-        min_presences = atlas_flag_number(flags, "min_presences", 20),
-        correlation = atlas_flag_number(flags, "correlation", 0.7),
-        prune = !isTRUE(flags$keep_all_predictors)
-      )
+      # One pass per algorithm, each with its own currency check and summary.
+      failed <- 0L
+      for (algorithm in atlas_parse_algorithms(flags$algorithms %||% flags$algorithm)) {
+        summary <- atlas_fit_batch(
+          grid = atlas_flag_grid(flags),
+          limit = atlas_flag_number(flags, "limit", Inf),
+          predict = !isTRUE(flags$no_predict),
+          force = isTRUE(flags$force),
+          workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+          n_background = atlas_flag_number(flags, "background", 10000),
+          buffer_km = atlas_flag_number(flags, "buffer_km", 500),
+          folds = atlas_flag_number(flags, "folds", 5),
+          block_km = atlas_flag_number(flags, "block_km", 200),
+          min_presences = atlas_flag_number(flags, "min_presences", 20),
+          correlation = atlas_flag_number(flags, "correlation", 0.7),
+          prune = atlas_flag_prune(flags),
+          algorithm = algorithm
+        )
+        failed <- failed + summary$counts$failed
+      }
       # A run with failures exits non-zero, so a scheduler notices.
-      invisible(if (summary$counts$failed > 0L) 1L else 0L)
+      invisible(if (failed > 0L) 1L else 0L)
     },
     "sweep-predictors" = {
       constants <- if (is.null(flags$constants)) {

@@ -154,9 +154,9 @@ atlas_cross_validate <- function(training, folds, classes = NULL, regmult = 1,
 }
 
 #' Where a taxon's fitted map and its scores are written.
-atlas_model_path <- function(name, grid = "draft", extension = ".tif") {
+atlas_model_path <- function(name, grid = "draft", extension = ".tif", algorithm = "maxnet") {
   slug <- gsub("(^-|-$)", "", gsub("[^a-z0-9]+", "-", tolower(name)))
-  atlas_path("models", grid, paste0(slug, extension))
+  file.path(atlas_model_dir(grid, algorithm), paste0(slug, extension))
 }
 
 #' A refusal to model, as opposed to a failure: the taxon is fine, there is
@@ -184,8 +184,9 @@ atlas_insufficient_evidence <- function(name, presences, grid, min_presences) {
 atlas_fit_settings <- function(grid = "draft", n_background = 10000,
                                buffer_km = 500, folds = 5, block_km = 200,
                                regmult = 1, correlation = 0.7, prune = TRUE,
-                               layers = atlas_layers_key(grid)) {
-  list(
+                               layers = atlas_layers_key(grid),
+                               algorithm = "maxnet") {
+  settings <- list(
     grid = grid,
     n_background = as.numeric(n_background),
     buffer_km = as.numeric(buffer_km),
@@ -195,6 +196,19 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
     correlation = if (isTRUE(prune)) as.numeric(correlation) else "none",
     layers = layers
   )
+  # Maxent's key is left exactly as it was before there was a choice, so the
+  # maps fitted then stay current. Every other algorithm names itself, with
+  # the settings of its learner, so changing those makes its models stale.
+  if (!identical(algorithm, "maxnet")) {
+    settings$algorithm <- algorithm
+    settings$learner <- switch(
+      algorithm,
+      xgboost = ATLAS_XGBOOST_PARAMS,
+      rf = list(num_trees = ATLAS_RF_TREES, down_sampled = TRUE),
+      list()
+    )
+  }
+  settings
 }
 
 #' One string standing for a set of fit settings.
@@ -224,16 +238,20 @@ atlas_layers_key <- function(grid = "draft", manifest = atlas_layer_manifest(gri
 atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             buffer_km = 500, folds = 5, block_km = 200,
                             regmult = 1, min_presences = 20, correlation = 0.7,
-                            prune = TRUE, write = TRUE, predict = TRUE,
+                            prune = NULL, write = TRUE, predict = TRUE,
                             quiet = FALSE, points = NULL, stack = NULL,
                             occurrences = NULL, fingerprint = NULL,
-                            layers = NULL) {
+                            layers = NULL, algorithm = "maxnet") {
+  algo <- atlas_algorithm(algorithm)
+  # Each algorithm has its own habit about correlated predictors; an explicit
+  # prune overrides it.
+  prune <- prune %||% algo$prune
   stack <- stack %||% atlas_predictor_stack(grid)
   settings <- atlas_fit_settings(
     grid = grid, n_background = n_background, buffer_km = buffer_km,
     folds = folds, block_km = block_km, regmult = regmult,
     correlation = correlation, prune = prune,
-    layers = layers %||% atlas_layers_key(grid)
+    layers = layers %||% atlas_layers_key(grid), algorithm = algo$id
   )
   training <- atlas_build_training(
     name, grid,
@@ -258,24 +276,27 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   fold_ids <- atlas_spatial_folds(
     training$x, training$y, k = folds, block_km = block_km, seed = seed
   )
-  scores <- atlas_cross_validate(training, fold_ids, regmult = regmult)
-  model <- atlas_fit_maxnet(training, regmult = regmult)
+  learn <- function(train) {
+    algo$fit(train, regmult = regmult, seed = seed, block_km = block_km)
+  }
+  scores <- atlas_cross_validate(training, fold_ids, fit = learn, score = algo$score)
+  model <- learn(training)
 
   suitability <- NULL
   if (isTRUE(predict)) {
     occupied <- training[training$presence == 1L, , drop = FALSE]
     area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
-    suitability <- atlas_predict_raster(model, stack, area)
+    suitability <- atlas_predict_raster(model, stack, area, score = algo$score)
   } else if (isTRUE(write)) {
     # A map left over from an older fit would be drawn beside scores it does
     # not belong to, so it goes.
-    atlas_remove_map(name, grid)
+    atlas_remove_map(name, grid, algo$id)
   }
 
   raster_path <- NULL
   drawn <- NULL
   if (isTRUE(write) && !is.null(suitability)) {
-    raster_path <- atlas_model_path(name, grid)
+    raster_path <- atlas_model_path(name, grid, algorithm = algo$id)
     dir.create(dirname(raster_path), recursive = TRUE, showWarnings = FALSE)
     terra::writeRaster(
       suitability, raster_path, overwrite = TRUE,
@@ -287,6 +308,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
   metrics <- list(
     taxon = name,
+    algorithm = algo$id,
+    algorithm_label = algo$label,
     grid = grid,
     presences = presences,
     background = sum(training$presence == 0L),
@@ -295,7 +318,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     predictors = as.list(atlas_predictor_columns(training)),
     predictors_considered = length(considered),
     correlation = if (isTRUE(prune)) correlation else NA,
-    classes = atlas_feature_classes(presences),
+    classes = if (algo$id == "maxnet") atlas_feature_classes(presences) else NULL,
+    nrounds = attr(model, "nrounds"),
     regmult = regmult,
     block_km = block_km,
     seed = seed,
@@ -313,15 +337,16 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     bounds = if (is.null(drawn)) NULL else drawn$bounds,
     built_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     r_version = as.character(getRversion()),
-    maxnet_version = as.character(utils::packageVersion("maxnet")),
+    package = algo$package,
+    package_version = as.character(utils::packageVersion(algo$package)),
     terra_version = as.character(utils::packageVersion("terra"))
   )
   if (isTRUE(write)) {
-    atlas_write_json(metrics, atlas_model_path(name, grid, ".json"))
+    atlas_write_json(metrics, atlas_model_path(name, grid, ".json", algo$id))
   }
 
   if (!isTRUE(quiet)) {
-    message(name)
+    message(name, " (", algo$label, ")")
     message("  presences (cells):  ", metrics$presences)
     message("  background:         ", metrics$background)
     message("  predictors:         ", length(metrics$predictors), " of ",
@@ -337,15 +362,15 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 }
 
 #' Delete a taxon's map, leaving its scores.
-atlas_remove_map <- function(name, grid = "draft") {
-  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml"))
+atlas_remove_map <- function(name, grid = "draft", algorithm = "maxnet") {
+  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml"), algorithm)
   unlink(paths[file.exists(paths)])
   invisible(paths)
 }
 
 #' The stored metrics for a taxon, or NULL when it has never been fitted.
-atlas_read_metrics <- function(name, grid = "draft") {
-  path <- atlas_model_path(name, grid, ".json")
+atlas_read_metrics <- function(name, grid = "draft", algorithm = "maxnet") {
+  path <- atlas_model_path(name, grid, ".json", algorithm)
   if (!file.exists(path)) {
     return(NULL)
   }
@@ -374,7 +399,10 @@ atlas_fit_is_current <- function(metrics, fingerprint, settings, predict = TRUE)
     # comes back as an empty list rather than NULL.
     raster <- metrics$raster
     if (!is.character(raster) || length(raster) != 1L || !nzchar(raster) ||
-        !file.exists(atlas_path("models", settings$grid %||% "draft", raster))) {
+        !file.exists(file.path(
+          atlas_model_dir(settings$grid %||% "draft", settings$algorithm %||% "maxnet"),
+          raster
+        ))) {
       return(FALSE)
     }
   }
@@ -382,16 +410,14 @@ atlas_fit_is_current <- function(metrics, fingerprint, settings, predict = TRUE)
 }
 
 #' Predict suitability across the accessible area.
-atlas_predict_raster <- function(model, stack, area) {
+atlas_predict_raster <- function(model, stack, area, score = atlas_suitability) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed to predict: install.packages('terra')", call. = FALSE)
   }
   window <- terra::crop(stack, terra::ext(area))
   predicted <- terra::predict(
     window, model,
-    fun = function(model, data, ...) {
-      as.numeric(stats::predict(model, data, type = "cloglog", clamp = TRUE))
-    },
+    fun = function(model, data, ...) score(model, data),
     na.rm = TRUE
   )
   names(predicted) <- "suitability"

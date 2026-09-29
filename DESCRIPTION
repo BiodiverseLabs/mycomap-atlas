@@ -25,6 +25,7 @@ Suggests:
     sf,
     maxnet,
     ENMeval,
+    ranger,
     blockCV,
     ecospat,
     xgboost,

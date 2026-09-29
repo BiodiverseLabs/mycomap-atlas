@@ -1,18 +1,22 @@
 # Boosted trees against Maxent, on the richest taxa.
 #
-# Every taxon is scored three ways on one training table and one set of
+# Every taxon is scored four ways on one training table and one set of
 # spatial folds, so each comparison is the taxon against itself:
 #
 #   maxnet          what production fits: pruned, capped predictors
 #   xgboost         boosted trees on every predictor, as they are normally used
 #   xgboost-pruned  boosted trees on Maxent's predictors, which separates the
 #                   algorithm from the choice of variables
+#   rf              down-sampled random forest on every predictor
+#
+# An arm is an algorithm from ATLAS_ALGORITHMS, optionally with "-pruned" to
+# give it Maxent's predictors instead of its own habit.
 #
 # The richest taxa, because that is where trees are expected to earn their
 # keep; with twenty records Maxent's regularisation is the safer bet anyway.
 # Nothing here writes a model.
 
-ATLAS_BENCHMARK_ARMS <- c("maxnet", "xgboost", "xgboost-pruned")
+ATLAS_BENCHMARK_ARMS <- c("maxnet", "xgboost", "xgboost-pruned", "rf")
 
 # Richer bands than the sweep's: the benchmark starts at 50 presence cells.
 ATLAS_BENCHMARK_BANDS <- c(50, 100, 200)
@@ -43,18 +47,14 @@ atlas_benchmark_taxon <- function(name, fingerprint, points, stack,
 
   run_arm <- function(arm) {
     arm_started <- Sys.time()
-    if (arm == "maxnet") {
-      table <- training[, c(bookkeeping, pruned), drop = FALSE]
-      scores <- atlas_cross_validate(table, fold_ids, regmult = regmult)
-    } else {
-      keep <- if (arm == "xgboost-pruned") pruned else everything
-      table <- training[, c(bookkeeping, keep), drop = FALSE]
-      scores <- atlas_cross_validate(
-        table, fold_ids,
-        fit = function(train) atlas_fit_xgboost(train, block_km = block_km, seed = seed),
-        score = atlas_xgboost_suitability
-      )
-    }
+    algo <- atlas_algorithm(sub("-pruned$", "", arm))
+    keep <- if (grepl("-pruned$", arm) || isTRUE(algo$prune)) pruned else everything
+    table <- training[, c(bookkeeping, keep), drop = FALSE]
+    scores <- atlas_cross_validate(
+      table, fold_ids,
+      fit = function(train) algo$fit(train, regmult = regmult, seed = seed, block_km = block_km),
+      score = algo$score
+    )
     list(
       arm = arm,
       predictors = length(atlas_predictor_columns(table)),
@@ -84,8 +84,12 @@ atlas_model_benchmark <- function(grid = "draft", per_band = 40, min_presences =
                                   correlation = 0.7, quiet = FALSE,
                                   occurrences = NULL, points = NULL, stack = NULL,
                                   taxa = NULL) {
-  if (!requireNamespace("xgboost", quietly = TRUE)) {
-    stop("xgboost is needed for the benchmark: install.packages('xgboost')", call. = FALSE)
+  for (arm in arms) {
+    package <- atlas_algorithm(sub("-pruned$", "", arm))$package
+    if (!requireNamespace(package, quietly = TRUE)) {
+      stop(package, " is needed for the ", arm, " arm: install.packages('", package, "')",
+           call. = FALSE)
+    }
   }
   occurrences <- occurrences %||% atlas_read_occurrences()
   points <- points %||% atlas_occurrence_points(occurrences, grid)
@@ -102,8 +106,13 @@ atlas_model_benchmark <- function(grid = "draft", per_band = 40, min_presences =
   settings <- c(args, list(
     per_band = per_band, seed = seed,
     xgboost = ATLAS_XGBOOST_PARAMS,
-    xgboost_version = as.character(utils::packageVersion("xgboost")),
-    maxnet_version = as.character(utils::packageVersion("maxnet"))
+    rf_trees = ATLAS_RF_TREES,
+    versions = lapply(
+      stats::setNames(nm = unique(vapply(arms, function(a) {
+        atlas_algorithm(sub("-pruned$", "", a))$package
+      }, character(1)))),
+      function(p) as.character(utils::packageVersion(p))
+    )
   ))
   atlas_run_study(
     kind = "benchmarks", file_prefix = "models", taxon_fn = "atlas_benchmark_taxon",

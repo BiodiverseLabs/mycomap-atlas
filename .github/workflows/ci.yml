@@ -33,14 +33,15 @@ jobs:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install test dependencies
-        run: install2.r --error --skipinstalled digest jsonlite plumber testthat maxnet xgboost
-      - name: terra, maxnet and xgboost must be present
+        run: install2.r --error --skipinstalled digest jsonlite plumber testthat maxnet xgboost ranger
+      - name: terra and every model package must be present
         # Without them the grid, layer and fitting tests skip, and the run
         # still goes green.
         run: |
           Rscript -e 'stopifnot(requireNamespace("terra", quietly = TRUE))'
           Rscript -e 'stopifnot(requireNamespace("maxnet", quietly = TRUE))'
           Rscript -e 'stopifnot(requireNamespace("xgboost", quietly = TRUE))'
+          Rscript -e 'stopifnot(requireNamespace("ranger", quietly = TRUE))'
       - name: Tests, with no network and no credentials
         run: Rscript -e 'testthat::test_local()'
 
