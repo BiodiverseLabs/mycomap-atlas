@@ -88,7 +88,12 @@ atlas_choose_predictors <- function(training, threshold = 0.7,
   } else {
     available
   }
-  cap <- max(minimum, floor(sum(training$presence == 1L) / per_presence))
+  # per_presence = Inf means no cap at all, not "no predictors per record".
+  cap <- if (is.finite(per_presence)) {
+    max(minimum, floor(sum(training$presence == 1L) / per_presence))
+  } else {
+    Inf
+  }
   if (length(kept) > cap) {
     # kept is already in priority order, so this keeps the ecologically
     # primary variables and drops the tail.

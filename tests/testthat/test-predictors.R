@@ -142,3 +142,15 @@ test_that("even a tiny taxon keeps a workable minimum", {
   )
   expect_equal(length(atlas_choose_predictors(training)), 5L)
 })
+
+test_that("an infinite ratio lifts the cap rather than shrinking the list", {
+  set.seed(3)
+  background <- as.data.frame(matrix(stats::rnorm(400 * 8), ncol = 8))
+  names(background) <- c("bio12", "bio1", "cover_trees", "soil_phh2o",
+                         "elevation", "slope", "roughness", "bio15")
+  training <- rbind(
+    data.frame(presence = 1L, cell = 1:20, x = 0, y = 0, background[1:20, ]),
+    data.frame(presence = 0L, cell = 21:420, x = 0, y = 0, background)
+  )
+  expect_equal(length(atlas_choose_predictors(training, per_presence = Inf)), 8L)
+})

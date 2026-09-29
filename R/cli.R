@@ -33,6 +33,11 @@ atlas_usage <- function() {
   message("      --workers=N               fit N taxa at once (default 1)")
   message("      (also --grid, --background, --buffer-km, --folds, --block-km,")
   message("       --min-presences, --correlation, --keep-all-predictors, as for fit)")
+  message("  sweep-predictors   measure how many predictors a taxon should get")
+  message("      --per-band=N              taxa sampled per presence-cell band (default 40)")
+  message("      --constants=2,3,4,6,none  presences per predictor to compare")
+  message("      --workers=N               taxa at once (default 1)")
+  message("      --seed=N                  which sample (default 1)")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -58,6 +63,16 @@ atlas_parse_flags <- function(args) {
     flags[[gsub("-", "_", key)]] <- value
   }
   flags
+}
+
+#' "2,4,none" as c(2, 4, Inf). "none" means no cap.
+atlas_parse_constants <- function(value) {
+  parts <- trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
+  numbers <- suppressWarnings(as.numeric(ifelse(parts == "none", "Inf", parts)))
+  if (!length(parts) || anyNA(numbers) || any(numbers <= 0)) {
+    stop("--constants must be positive numbers or none, such as 2,4,none", call. = FALSE)
+  }
+  numbers
 }
 
 atlas_flag_grid <- function(flags) {
@@ -165,6 +180,21 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       )
       # A run with failures exits non-zero, so a scheduler notices.
       invisible(if (summary$counts$failed > 0L) 1L else 0L)
+    },
+    "sweep-predictors" = {
+      constants <- if (is.null(flags$constants)) {
+        c(2, 3, 4, 6, Inf)
+      } else {
+        atlas_parse_constants(flags$constants)
+      }
+      atlas_predictor_sweep(
+        grid = atlas_flag_grid(flags),
+        per_band = atlas_flag_number(flags, "per_band", 40),
+        constants = constants,
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
     },
     "status" = {
       atlas_status()
