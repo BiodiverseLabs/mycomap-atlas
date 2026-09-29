@@ -49,19 +49,41 @@ jobs:
   image:
     name: Release image
     runs-on: ubuntu-latest
+    # Only this job may write packages, and only its last step, which runs for
+    # pushes to main, uses that: a pull request never publishes an image.
+    permissions:
+      contents: read
+      packages: write
     steps:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       # The build runs the whole test suite inside the image, so a green build
       # means the image that would compute a release passes its tests.
       - name: Build the image
-        run: docker build --build-arg ATLAS_COMMIT="$GITHUB_SHA" -t mycomap-atlas:ci .
+        run: |
+          docker build --build-arg ATLAS_COMMIT="$GITHUB_SHA" \
+            --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            -t mycomap-atlas:ci .
       - name: The command line runs inside it
         run: docker run --rm mycomap-atlas:ci help
       - name: It runs as an ordinary user and records its commit
         run: |
           test "$(docker run --rm --entrypoint id mycomap-atlas:ci -u)" != "0"
           test "$(docker run --rm --entrypoint printenv mycomap-atlas:ci ATLAS_COMMIT)" = "$GITHUB_SHA"
+      # EC2 workers pull the image of the orchestrator's own commit
+      # (R/ec2.R), so every commit on main gets one, tagged with its full SHA.
+      # No moving tag: a worker can only ever run a named commit.
+      - name: Publish to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA"
+          echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag mycomap-atlas:ci "$image"
+          docker push "$image"
+          docker logout ghcr.io
 
   web:
     name: Web build
