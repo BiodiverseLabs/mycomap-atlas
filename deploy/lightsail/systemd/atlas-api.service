@@ -1,0 +1,22 @@
+# The Atlas API, in the release image of the deployed commit (deploy.sh sets
+# ATLAS_IMAGE). It shares the server's network so it listens on 127.0.0.1
+# only, and nginx reaches it from 127.0.0.1: the one peer whose
+# X-Forwarded-For the API believes.
+[Unit]
+Description=MycoMap Atlas API
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/atlas/image.env
+ExecStartPre=-/usr/bin/docker rm -f atlas-api
+ExecStart=/usr/bin/docker run --rm --name atlas-api --network host --memory 900m \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
+  ${ATLAS_IMAGE} api --port=5100
+ExecStop=/usr/bin/docker stop -t 20 atlas-api
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

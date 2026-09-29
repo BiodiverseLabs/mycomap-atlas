@@ -24,6 +24,17 @@ jobs:
       - name: Check what this change adds
         run: bash tools/check-no-data.sh
 
+  box:
+    name: Server configuration
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      # The deploy scripts' refusals, and Ubuntu 24.04's nginx serving the
+      # site in front of a stand-in API (deploy/lightsail/test-box-config.sh).
+      - name: Check the server's scripts, units and nginx site
+        run: bash deploy/lightsail/test-box-config.sh
+
   r:
     name: R tests
     runs-on: ubuntu-latest
@@ -71,6 +82,11 @@ jobs:
         run: |
           test "$(docker run --rm --entrypoint id mycomap-atlas:ci -u)" != "0"
           test "$(docker run --rm --entrypoint printenv mycomap-atlas:ci ATLAS_COMMIT)" = "$GITHUB_SHA"
+      - name: It carries the built web app, and the nightly job's tools
+        run: |
+          docker run --rm --entrypoint test mycomap-atlas:ci -f /opt/atlas-web/index.html
+          docker run --rm --entrypoint ssh mycomap-atlas:ci -V
+          docker run --rm --entrypoint Rscript mycomap-atlas:ci -e 'stopifnot(requireNamespace("paws.compute", quietly = TRUE))'
       # EC2 workers pull the image of the orchestrator's own commit
       # (R/ec2.R), so every commit on main gets one, tagged with its full SHA.
       # No moving tag: a worker can only ever run a named commit.

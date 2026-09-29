@@ -1,0 +1,14 @@
+# Pull, plan, fit on EC2, publish, then bring this server up to the release.
+# flock: a run still going when the next is due is left alone, not doubled.
+[Unit]
+Description=MycoMap Atlas nightly job
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/atlas/image.env
+ExecStart=/usr/bin/flock --nonblock /run/atlas-nightly.lock /usr/local/lib/atlas/nightly.sh
+# A job's own deadline is 6 h (ATLAS_EC2_MAX_HOURS); this is the backstop.
+TimeoutStartSec=8h
