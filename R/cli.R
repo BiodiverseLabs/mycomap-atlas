@@ -55,6 +55,7 @@ atlas_usage <- function() {
   message("      --store=URI               as above")
   message("      --release=ID              a particular release (default: the current one)")
   message("      --keep-local              keep local model files the release does not have")
+  message("      --no-rasters              leave model rasters in the store (a web server)")
   message("  releases           list the releases in a store, marking the current one")
   message("  promote-release    make a release current (rolling back is promoting an older one)")
   message("      --release=ID              which release (required)")
@@ -69,6 +70,13 @@ atlas_usage <- function() {
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
+  message("  run-job-ec2        run a planned job's shards on EC2 spot workers, then finish it")
+  message("      --job=ID                  which job (required)")
+  message("  nightly            pull, plan, run the job on EC2 and finish it: the box's cron job")
+  message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
+  message("      --tasks-per-shard=N       about this many models per worker (default 40)")
+  message("      --no-pull                 plan from the last pull")
+  message("      (EC2 settings come from the environment; see deploy/aws/README.md)")
   message("  refresh-names      merge spellings of one taxon and rebuild the taxon counts")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
@@ -276,7 +284,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
         grid = atlas_flag_grid(flags),
         release = if (is.null(flags$release)) NULL else as.character(flags$release),
-        keep_local = isTRUE(flags$keep_local)
+        keep_local = isTRUE(flags$keep_local),
+        rasters = !isTRUE(flags$no_rasters)
       )
       invisible(0L)
     },
@@ -335,6 +344,25 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       if (is.null(flags$job)) stop("finish-job needs --job=ID", call. = FALSE)
       atlas_finish_job(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
                        promote = !isTRUE(flags$no_promote))
+      invisible(0L)
+    },
+    "run-job-ec2" = {
+      if (is.null(flags$job)) stop("run-job-ec2 needs --job=ID", call. = FALSE)
+      config <- atlas_ec2_config()
+      store <- atlas_store(flags$store %||% config$store)
+      grid <- atlas_flag_grid(flags)
+      atlas_run_job_on_ec2(store, atlas_read_job(store, as.character(flags$job), grid), grid,
+                           config = config)
+      invisible(0L)
+    },
+    "nightly" = {
+      config <- atlas_ec2_config()
+      atlas_nightly(
+        grid = atlas_flag_grid(flags), algorithms = flags$algorithms %||% "all",
+        pull = !isTRUE(flags$no_pull), config = config,
+        store = atlas_store(flags$store %||% config$store),
+        tasks_per_shard = atlas_flag_number(flags, "tasks_per_shard", 40)
+      )
       invisible(0L)
     },
     "refresh-names" = {

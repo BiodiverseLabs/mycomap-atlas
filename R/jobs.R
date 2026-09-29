@@ -136,12 +136,17 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
 
-  if (!length(atlas_layer_set_files(grid))) {
+  # A machine without layers of its own (the small box) plans from the set in
+  # the store. It needs only the manifest, for the layers' key: the rasters
+  # are the workers' business, and would fill the box's disk.
+  if (length(atlas_layer_set_files(grid))) {
+    layer_entries <- atlas_file_entries(atlas_layer_set_files(grid))
+  } else {
     set <- atlas_current_layers(store, grid)
     if (is.null(set)) stop("no layers here or in the store for the ", grid, " grid", call. = FALSE)
-    atlas_fetch_entries(store, set$files)
+    layer_entries <- set$files
+    atlas_fetch_entries(store, Filter(function(e) basename(e$path) == "manifest.json", layer_entries))
   }
-  layers <- atlas_layer_set_files(grid)
   layers_key <- atlas_layers_key(grid)
 
   manifest <- atlas_refresh_public_files()
@@ -211,7 +216,7 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   }
 
   pull_paths <- c(file.path("occurrences", manifest$file), "occurrences/latest.json")
-  inputs <- atlas_file_entries(c(pull_paths, layers))
+  inputs <- c(atlas_file_entries(pull_paths), layer_entries)
   atlas_upload_objects(store, c(inputs, public))
 
   id <- atlas_release_id(digest::digest(list(tasks, retire, base$id), algo = "sha256"))

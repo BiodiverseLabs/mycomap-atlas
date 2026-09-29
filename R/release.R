@@ -461,8 +461,12 @@ atlas_list_releases <- function(store = atlas_store(), grid = "draft") {
 #' changed, check every one against its hash, and — unless keep_local — remove
 #' model files the release does not have, so the machine shows exactly what
 #' was published.
+#'
+#' With rasters = FALSE the model rasters stay in the store: a web server
+#' answers from the maps and scores, and its disk is the limit. Any raster
+#' already here is removed, so none can be older than its map.
 atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = NULL,
-                               keep_local = FALSE, quiet = FALSE) {
+                               keep_local = FALSE, rasters = TRUE, quiet = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   manifest <- if (is.null(release)) {
     atlas_current_release(store, grid)
@@ -472,7 +476,9 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
   if (is.null(manifest)) stop("nothing has been published for the ", grid, " grid", call. = FALSE)
 
   root <- atlas_data_dir()
-  got <- atlas_fetch_entries(store, manifest$files)
+  is_raster <- function(path) grepl("[.]tif$", path)
+  wanted <- if (isTRUE(rasters)) manifest$files else Filter(function(e) !is_raster(e$path), manifest$files)
+  got <- atlas_fetch_entries(store, wanted)
   fetched <- got$fetched
   bytes <- got$bytes
 
@@ -486,6 +492,7 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
       nchar(normalizePath(root, winslash = "/")) + 2L
     )
     stale <- setdiff(local, published)
+    if (!isTRUE(rasters)) stale <- union(stale, local[is_raster(local) & grepl("^models/", local)])
     unlink(file.path(root, stale))
     removed <- length(stale)
   }
@@ -493,7 +500,7 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
   atlas_write_json(list(release = manifest$id, grid = grid,
                         pulled_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")),
                    atlas_path("releases", grid, "pulled.json"))
-  say("release ", manifest$id, ": downloaded ", fetched, " of ", length(manifest$files),
+  say("release ", manifest$id, ": downloaded ", fetched, " of ", length(wanted),
       " files (", round(bytes / 1048576, 1), " MB)",
       if (removed) paste0(", removed ", removed, " local model files it does not have") else "")
   invisible(list(release = manifest$id, fetched = fetched, removed = removed))
