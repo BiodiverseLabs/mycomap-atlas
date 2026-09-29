@@ -362,3 +362,21 @@ test_that("a person is credited as Family, Given, as Zenodo cites them", {
   people <- names[!grepl("[.](org|com)$", names)]
   expect_true(all(grepl("^[^,]+, [^,]+$", people)))
 })
+
+# ORCID's own check digit (ISO 7064 11,2), so a mistyped iD fails here, not on Zenodo.
+orcid_valid <- function(id) {
+  digits <- gsub("-", "", id)
+  if (!grepl("^[0-9]{15}[0-9X]$", digits)) return(FALSE)
+  total <- 0
+  for (d in as.integer(strsplit(substr(digits, 1, 15), "")[[1]])) total <- (total + d) * 2
+  check <- (12 - total %% 11) %% 11
+  identical(substr(digits, 16, 16), if (check == 10) "X" else as.character(check))
+}
+
+test_that("every creator's ORCID is well formed and passes its check digit", {
+  template <- atlas_archive_template(testthat::test_path("..", ".."))
+  orcids <- unlist(lapply(template$common$creators, function(c) c$orcid))
+  expect_true(length(orcids) >= 1)
+  for (id in orcids) expect_true(orcid_valid(id), label = id)
+  expect_false(orcid_valid("0000-0001-7191-2452"))
+})
