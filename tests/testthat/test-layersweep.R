@@ -129,3 +129,25 @@ test_that("a layer sweep writes its results and never touches the fitted models"
     expect_setequal(arms, c("base", "+signal", "all", "rf:base", "rf:all"))
   })
 })
+
+test_that("with every group built, no arm is reported skipped", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  skip_if_not_installed("ranger")
+  with_data_dir({
+    s <- signal_setup()
+    occurrences <- data.frame(
+      id = as.character(seq_len(nrow(s$world$points))),
+      scientific_name = s$world$points$scientific_name,
+      latitude = "45", longitude = "-100", observed_on = "2025-01-01",
+      stringsAsFactors = FALSE
+    )
+    result <- atlas_layer_sweep(
+      occurrences = occurrences, points = s$world$points, stack = s$world$stack,
+      bands = s$bands, base = "noise", groups = list(signal = "signal"),
+      taxa = "Eastern fungus", n_background = 500, buffer_km = 300, quiet = TRUE
+    )
+    saved <- jsonlite::fromJSON(result$path, simplifyVector = FALSE)
+    expect_length(unlist(saved$settings$skipped), 0L)
+  })
+})

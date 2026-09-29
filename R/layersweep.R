@@ -172,7 +172,8 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
   arms <- atlas_runnable_arms(
     atlas_layer_sweep_arms(groups, built = built, base = base), built
   )
-  skipped <- c(attr(arms, "skipped"), paste0("+", unbuilt))
+  # paste0 of an empty vector is "+", not nothing.
+  skipped <- c(attr(arms, "skipped"), if (length(unbuilt)) paste0("+", unbuilt))
   if (!length(arms)) {
     stop("no arm has all its layers built on the ", grid, " grid", call. = FALSE)
   }
