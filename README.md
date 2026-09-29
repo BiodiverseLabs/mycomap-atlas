@@ -24,7 +24,7 @@ more carry provisional temp codes, which exist in no other dataset.
 | 1. Pull the eligible universe from .org | built |
 | 2. Environmental layers on the grid | built on the draft grid: climate, elevation, terrain, soil, land cover |
 | 3. Target-group background from the same validated universe | built |
-| 4. Fits: `maxnet` at 20+ localities, `xgboost` on the richest | maxnet built, batch runs built; xgboost next |
+| 4. Fits: Maxent, boosted trees and a down-sampled random forest, side by side | built, with batch runs and a benchmark |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
 | 6. Release: rasters and metrics published together, with rollback | |
 
@@ -248,6 +248,65 @@ workers, against roughly 40 minutes one after another. Fits slow down when
 they share the machine — *T. versicolor* took 140 s instead of 90 — but
 throughput still rose elevenfold. Smaller taxa are quicker, so ~800 taxa on 12
 workers is on the order of an hour or two.
+
+## Three models, side by side
+
+Every taxon is fitted three ways, and the app shows the three maps next to
+each other, panning together, with their scores in one table:
+
+| Model | Package | Predictors |
+|---|---|---|
+| Maxent | `maxnet` | pruned for correlation, capped by records |
+| Boosted trees | `xgboost` | all of them |
+| Down-sampled random forest | `ranger` | all of them |
+
+They share the training table, the background and the spatial folds; only
+the learner differs. Boosted trees give presences and background equal total
+weight, and choose their tree count by early stopping on spatially blocked
+folds inside the training data. The random forest grows each tree on as many
+background records as presences, drawn afresh per tree (Valavi et al. 2021,
+2022).
+
+```bash
+./atlas fit --taxon="Pluteus petasatus" --algorithm=rf
+./atlas fit-all --algorithms=all --workers=12
+./atlas benchmark-models --per-band=250 --workers=14
+```
+
+Maxent keeps its original paths (`models/<grid>/<taxon>.*`); the others live
+in `models/<grid>/<algorithm>/`. Each model has its own currency check, so a
+nightly run refits each only when its own inputs change.
+
+### The benchmark
+
+`benchmark-models` scores every taxon with 50+ presence cells under each model
+on one set of folds, so each comparison is a taxon against itself. On the
+draft grid, 268 taxa, differences from Maxent with standard errors:
+
+| Model | AUC | Boyce | Best AUC | Scoring time |
+|---|---|---|---|---|
+| Random forest | +0.020 ± 0.002 | +0.131 ± 0.010 | 54% | 13 s |
+| Boosted trees | −0.002 ± 0.003 | −0.016 ± 0.011 | 15% | 11 s |
+| Boosted trees on Maxent's predictors | −0.011 ± 0.003 | −0.015 ± 0.011 | 10% | 8 s |
+| Maxent | — | — | 21% | 58 s |
+
+The down-sampled forest is clearly ahead, on both measures and in every band
+of presence cells. Boosted trees match Maxent, and do worse when restricted to
+Maxent's predictors, which is why the trees get every predictor. Scoring time
+is the five blocked folds; drawing a forest's map is slower (about 2.5 minutes
+for a widespread taxon), since a thousand trees have to be asked about every
+cell.
+
+### Colours are ranks
+
+The models put their scores on different scales — on *Pluteus petasatus*,
+Maxent spans 0.03–1.00 across its map, boosted trees 0.27–0.63 — so each map
+is drawn by percentile within its own accessible area: the darkest green is
+the ground that model rates highest. Stored rasters keep the raw values.
+`./atlas redraw-maps --workers=12` redraws every map without refitting.
+
+The Models page in the app shows the latest benchmark and, for the maps in
+production, how many taxa each model has mapped and their median scores.
 
 ## Data
 
