@@ -67,8 +67,9 @@ test_that("a much-visited site counts once, and says how busy it was", {
   )
   table <- atlas_training_table("Focal species", points, n_background = 500)
   expect_equal(nrow(table), 3L)
-  expect_equal(sort(table$effort[table$presence == 0L]), log(c(100, 900)))
-  expect_equal(table$effort[table$presence == 1L], log(1))
+  expect_equal(sort(table$effort[table$presence == 0L]), log1p(c(100, 900)))
+  # Nothing but the focal species was collected at its site.
+  expect_equal(table$effort[table$presence == 1L], 0)
 })
 
 test_that("a detection site is never also a non-detection", {
@@ -79,7 +80,29 @@ test_that("a detection site is never also a non-detection", {
   )
   table <- atlas_training_table("Focal species", points, n_background = 500)
   expect_equal(table$presence, c(1L, 0L))
-  expect_equal(table$effort[1], log(3))
+  # Three records at the site, two of them the focal species' own.
+  expect_equal(table$effort[1], log1p(1))
+})
+
+test_that("a taxon's own records do not count as effort at its sites", {
+  skip_if_not_installed("terra")
+  # One wood where the focal species was collected a hundred times and
+  # nothing else was, and one where it was collected once among fifty others.
+  points <- rbind(
+    fake_points(x = rep(0, 100), y = rep(0, 100), names = "Focal species",
+                cells = rep(1L, 100)),
+    fake_points(x = 30000, y = 0, names = "Focal species", cells = 2L),
+    fake_points(x = rep(30000, 50), y = rep(0, 50), names = "Other species",
+                cells = rep(2L, 50)),
+    fake_points(x = rep(60000, 50), y = rep(0, 50), names = "Other species",
+                cells = rep(3L, 50))
+  )
+  table <- atlas_training_table("Focal species", points, n_background = 500)
+  found <- table[table$presence == 1L, ]
+  expect_equal(found$effort[found$x == 0], 0)
+  expect_equal(found$effort[found$x == 30000], log1p(50))
+  # The same fifty records weigh the same whether or not the species was there.
+  expect_equal(table$effort[table$presence == 0L], log1p(50))
 })
 
 test_that("the same data always draws the same background", {

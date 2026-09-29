@@ -15,9 +15,13 @@
 # where the taxon was collected, a non-detection a site where other things
 # were collected but not it. How hard a site was worked is not counted by
 # repeating it, which confused effort with habitat, but carried as its own
-# predictor, effort = log(records at the site), and held at one value when a
-# map is drawn. Sites are drawn only from the taxon's accessible area, not the
-# continent: a species is not absent from Yukon because nobody looked there.
+# predictor and held at one value when a map is drawn. Effort is
+# log(1 + records of other taxa at the site): the taxon's own records are left
+# out, or a fungus collected a hundred times in one wood would make that wood
+# look thoroughly surveyed by its own presence, and effort would explain the
+# detection it is meant to be independent of. Sites are drawn only from the
+# taxon's accessible area, not the continent: a species is not absent from
+# Yukon because nobody looked there.
 
 #' Project every record onto the grid once, and gather the records into survey
 #' sites, so a run over many taxa does neither for each of them.
@@ -90,17 +94,19 @@ atlas_background_sample <- function(pool, area, n = 10000, seed = 1L) {
 #' Detections and non-detections for one taxon, ready to fit.
 #'
 #' One row per site: presence is 1 where the taxon was collected, effort is
-#' log(records at the site), and cell, x and y are the site's centre, where
-#' its predictors are read.
+#' log(1 + records of other taxa at the site), and cell, x and y are the
+#' site's centre, where its predictors are read.
 atlas_training_table <- function(name, points, n_background = 10000,
                                  buffer_km = 500, fingerprint = NULL,
                                  thin_km = ATLAS_SITE_KM) {
   points <- atlas_ensure_sites(points, thin_km)
   sites <- attr(points, "sites")
-  found <- unique(points$site[points$scientific_name == name])
+  own_sites <- points$site[points$scientific_name == name]
+  found <- unique(own_sites)
   if (!length(found)) {
     stop("no records on the grid for ", name, call. = FALSE)
   }
+  own <- as.integer(table(factor(own_sites, levels = found)))
   columns <- c("cell", "x", "y")
   presences <- sites[found, , drop = FALSE]
   area <- atlas_accessible_area(presences$x, presences$y, buffer_km)
@@ -113,9 +119,9 @@ atlas_training_table <- function(name, points, n_background = 10000,
   }
   out <- rbind(
     data.frame(presence = rep(1L, nrow(presences)), presences[, columns, drop = FALSE],
-               effort = log(presences$records), stringsAsFactors = FALSE),
+               effort = log1p(presences$records - own), stringsAsFactors = FALSE),
     data.frame(presence = rep(0L, nrow(background)), background[, columns, drop = FALSE],
-               effort = log(background$records), stringsAsFactors = FALSE)
+               effort = log1p(background$records), stringsAsFactors = FALSE)
   )
   rownames(out) <- NULL
   attr(out, "area_km2") <- unname(terra::expanse(area, unit = "km"))

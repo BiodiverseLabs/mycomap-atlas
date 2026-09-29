@@ -18,7 +18,7 @@ interface Row {
   models: Partial<Record<Algorithm, ModelSummary>>;
 }
 
-type Measure = "auc_mean" | "boyce_mean";
+type Measure = "auc_mean" | "boyce";
 
 function value(row: Row, algorithm: Algorithm, measure: Measure): number {
   return row.models[algorithm]?.[measure] ?? -Infinity;
@@ -118,7 +118,7 @@ export default function Maps() {
                       className="h-9 rounded-md border border-input bg-white px-2 text-sm"
                     >
                       <option value="auc_mean">Blocked AUC</option>
-                      <option value="boyce_mean">Blocked Boyce</option>
+                      <option value="boyce">Blocked Boyce</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -182,7 +182,7 @@ export default function Maps() {
                               <Auc value={m.auc_mean} />
                             ) : (
                               <span className="tabular-nums">
-                                {m.boyce_mean == null ? "—" : m.boyce_mean.toFixed(2)}
+                                {m.boyce == null ? "—" : m.boyce.toFixed(2)}
                               </span>
                             )}
                           </td>

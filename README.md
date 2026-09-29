@@ -138,8 +138,12 @@ the two national forest inventories:
 | Canada | NFI kNN 2011 species composition, 250 m (Open Government Licence - Canada) | species percentages summed by genus (an NFI `_Spp` file is unidentified members of the genus, not a total), over needleleaf + broadleaf |
 
 Where there are no trees the share is 0. Alaska, Hawaii, Puerto Rico and
-Mexico are in neither inventory, so they are NA there: those records (about
-2.5%) drop out of fitting and those places are not mapped. BIGMAP's own
+Mexico are in neither inventory. One layer's gap must not take ground away
+from every model, so there the shares are filled with 0 and a twenty-first
+band, `host_known`, is 0 (1 wherever an inventory spoke): those records still
+train models, those places are still mapped, and a model can tell "no such
+trees" from "nobody mapped the trees" (`atlas_fill_outside`, R/layers.R).
+BIGMAP's own
 `SPCD_0000_Total` is not used as the denominator: it is modelled apart from
 the species and runs about 15% above their sum. Both inventories are summed
 onto 1 km cells once, under `data/layers/raw/hosts/`, and each grid is built
@@ -150,6 +154,19 @@ three hours, and 2 GB of NFI files).
 ./atlas build-layers --only=hosts --grid=draft
 ```
 
+### Candidate layers
+
+Five more layers are built only into a separate data directory, and measured
+by `./atlas sweep-layers` before any of them is fitted on in production
+(R/layersweep.R): forest type (`foresttype`, NALCMS 2020), water balance and
+fruiting-season climate (`waterbalance`, ClimateNA 1991-2020 and
+TerraClimate), carbonate bedrock (`bedrock`, GLiM), landform (`landform`:
+wetness, northness, heat load) and a second host-tree layer (`hosts_wilson`,
+bands `hostw_*`: USFS basal area 2000-2009 with the Canadian inventory, ten
+genera), kept as a rival to `hosts` so the two can be compared. The sweep
+scores every arm on the same sites and folds, under the design production
+uses, and reports how many records each layer cannot describe.
+
 On the draft grid, 99.3% of pulled records land on a cell with climate data;
 five records fall outside the grid altogether.
 
@@ -158,8 +175,8 @@ five records fall outside the grid altogether.
 A taxon's training table has one row per **survey site** inside its accessible
 area: detected (the taxon was collected there) or not (other DNA-validated
 fungi were collected there, but not it), with the site's predictors and its
-**effort**, log(records at the site). The comparison is the **target group**:
-every DNA-validated record of every taxon.
+**effort**, log(1 + records of other taxa at the site). The comparison is the
+**target group**: every DNA-validated record of every taxon.
 
 ```bash
 ./atlas training --taxon="Trametes versicolor"
@@ -180,7 +197,9 @@ background per record, so a wood collected a hundred times counted a hundred
 times against every species found there, and well-surveyed ground looked worse
 than it was. Effort is now a predictor instead, held at the median of the
 taxon's detection sites whenever a map is drawn or scored (Warton, Renner &
-Ramp 2013; Fithian et al. 2015). The spacing is in km, not cells, so the 1 km
+Ramp 2013; Fithian et al. 2015). A taxon's own records are left out of its
+sites' effort, or a fungus collected a hundred times in one wood would make
+that wood look well surveyed by being there. The spacing is in km, not cells, so the 1 km
 grid does not turn one foray into five presences.
 
 The accessible area is the taxon's own sites buffered by 500 km, because a
@@ -210,10 +229,15 @@ says the model can interpolate 200 m.
   inner folds of the other regions only.
 - **Null models** (`--nulls=N`, default 19): the same number of sites drawn at
   random from all surveyed sites, busier ones more often, fitted and scored the
-  same way. A map is `skill: passed` when its AUC beats every null (p ≤ 0.05)
-  and its Boyce index is above zero; failed maps are drawn faint, hidden from
-  the Maps list by default and left out of the Explore index and release
-  consumers.
+  same way. The taxon and its nulls go through one procedure, the algorithm's
+  untuned settings, because settings tuned on the real detections and handed
+  to the nulls would favour the taxon. A map is `skill: passed` when the
+  taxon's AUC beats every null (p ≤ 0.05) and its Boyce index is above zero;
+  failed maps are drawn faint, hidden from the Maps list by default and left
+  out of the Explore index and release consumers.
+- **One Boyce index** (`boyce`), over the held-out scores of every fold
+  together. Twenty sites leave four detections in a fold, too few for an index
+  of their own; the mean over folds is kept as `boyce_mean`.
 
 The measurements below were taken under the earlier design (per-cell presences,
 per-record background, fixed 200 km blocks, default settings).
@@ -246,6 +270,12 @@ fungus grows on, then soil, then the shape of the ground. Where the host trees
 go depends on the guild of the fungus's genus in FungalTraits (Põlme et al.
 2020): straight after soil pH for ectomycorrhizal genera, after temperature for
 everything else, and each model records its guild and the order it was given.
+The trees have an allowance: a third of an ectomycorrhizal fungus's predictors,
+a fifth of any other's. The twenty host bands are barely correlated, so without
+it a fungus with forty sites spent its ten predictors on soil pH and nine
+trees and had no climate at all. The ones kept are the conifer share and then
+the commonest trees of the region, judged on the non-detection sites, never on
+the detections.
 FungalTraits' licence is unclear, so the table is used for lookup only: fetch
 it into the data directory with `./atlas fetch-guilds`; it is never committed,
 released or served. Without it every guild reads "unknown". A changed table

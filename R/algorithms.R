@@ -27,6 +27,8 @@ ATLAS_MAXNET_GRID <- list(
   regmult = c(4, 2, 1, 0.5, 0.25)
 )
 
+# Trees in each boosted model of the null test.
+ATLAS_XGBOOST_NULL_ROUNDS <- 200L
 # Tree depths boosted trees try; the tree count is set by early stopping.
 ATLAS_XGBOOST_DEPTHS <- c(2L, 3L, 5L)
 
@@ -67,6 +69,11 @@ ATLAS_ALGORITHMS <- list(
     # (mean Boyce -0.15, 0.35 below Maxent). From 50 they match Maxent.
     min_presences = 50,
     default = function(training) list(max_depth = ATLAS_XGBOOST_PARAMS$max_depth),
+    # The null test fits a hundred models; a fixed tree count spares each an
+    # early-stopping search, and is the same for the taxon and its nulls.
+    null_params = function(training) {
+      list(max_depth = ATLAS_XGBOOST_PARAMS$max_depth, nrounds = ATLAS_XGBOOST_NULL_ROUNDS)
+    },
     grid = function(training) {
       lapply(ATLAS_XGBOOST_DEPTHS, function(depth) list(max_depth = depth))
     },

@@ -134,7 +134,7 @@ function ModelMap({
             {model && (
               <>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
+                  AUC {model.auc_mean.toFixed(2)} · Boyce {(model.boyce ?? model.boyce_mean).toFixed(2)}
                 </span>
                 {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
               </>
@@ -219,7 +219,7 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
     return values.length > 1 ? Math.max(...values) : undefined;
   };
   const bestAuc = best((m) => m.auc_mean);
-  const bestBoyce = best((m) => m.boyce_mean);
+  const bestBoyce = best((m) => m.boyce ?? m.boyce_mean);
   const mark = (value: number, top?: number) =>
     top != null && value === top ? "font-semibold text-myco-green" : "";
   const first = fitted.length ? models[fitted[0]]! : undefined;
@@ -268,7 +268,9 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
         </>
       ),
       cell: (m) => (
-        <span className={mark(m.boyce_mean, bestBoyce)}>{score(m.boyce_mean, m.boyce_sd)}</span>
+        <span className={mark(m.boyce ?? m.boyce_mean, bestBoyce)}>
+          {m.boyce == null ? score(m.boyce_mean, m.boyce_sd) : m.boyce.toFixed(2)}
+        </span>
       ),
     },
     {

@@ -291,7 +291,7 @@ test_that("a real habitat signal beats the nulls, and a random species does not"
   v1 <- stats::runif(n, -3, 3)
   training <- data.frame(presence = 0L, cell = seq_len(n),
                          x = stats::runif(n, 0, 1e6), y = stats::runif(n, 0, 1e6),
-                         v1 = v1, v2 = stats::runif(n), effort = 0)
+                         v1 = v1, v2 = stats::runif(n), effort = stats::runif(n))
   real <- training
   real$presence[sample.int(n, 80, prob = exp(-((v1 - 1)^2) / 0.3))] <- 1L
   random <- training
@@ -303,10 +303,8 @@ test_that("a real habitat signal beats the nulls, and a random species does not"
                                  presence = table$presence)
     scores <- atlas_cross_validate(table, folds, fit = function(t) algo$fit(t, params),
                                    score = algo$score)
-    null <- atlas_null_test(table, folds, algo, params,
-                            observed_auc = mean(scores$auc, na.rm = TRUE),
-                            observed_boyce = mean(scores$boyce, na.rm = TRUE), reps = 9)
-    atlas_skill(null, mean(scores$boyce, na.rm = TRUE), alpha = 0.1)
+    null <- atlas_null_test(table, folds, algo, reps = 9)
+    atlas_skill(null, atlas_pooled_boyce(scores), alpha = 0.1)
   }
   expect_equal(test(real), "passed")
   expect_equal(test(random), "failed")
@@ -350,7 +348,9 @@ test_that("a Maxent fit records its guild and the predictor order that guild gav
     mycorrhizal <- fit(c(Eastern = "ectomycorrhizal"))$metrics
     expect_equal(mycorrhizal$genus, "Eastern")
     expect_equal(mycorrhizal$guild, "ectomycorrhizal")
-    expect_equal(unlist(mycorrhizal$priority)[1:2], c("soil_phh2o", "host_conifer"))
+    # Whether the inventories spoke for the ground comes before what they said.
+    expect_equal(unlist(mycorrhizal$priority)[1:4],
+                 c("soil_phh2o", ATLAS_HOST_KNOWN_BANDS, "host_conifer"))
 
     unknown <- fit(stats::setNames(character(), character()))$metrics
     expect_equal(unknown$guild, "unknown")
@@ -404,4 +404,102 @@ test_that("the guild's order decides which of two interchangeable predictors a f
     expect_equal(unlist(fit("ectomycorrhizal")$predictors), c("soil_phh2o", "host_pinus"))
     expect_equal(unlist(fit("wood_saprotroph")$predictors), c("soil_phh2o", "bio12"))
   })
+})
+
+# --- One Boyce index over every fold -----------------------------------------
+
+test_that("the Boyce index is taken over every fold's held-out scores together", {
+  # Two folds. Between them the detections sit on the higher scores, but a
+  # fold alone has too few detections for an index at all.
+  scores <- data.frame(fold = 1:2, presences = c(2L, 2L), auc = c(1, 1),
+                       boyce = c(NA_real_, NA_real_))
+  attr(scores, "held") <- data.frame(
+    fold = rep(1:2, each = 12),
+    presence = rep(c(1L, 1L, rep(0L, 10)), 2),
+    score = c(0.9, 0.6, seq(0.05, 0.95, length.out = 10),
+              0.8, 0.7, seq(0.1, 1, length.out = 10))
+  )
+  expect_true(all(is.na(scores$boyce)))
+  pooled <- atlas_pooled_boyce(scores)
+  expect_true(is.finite(pooled))
+  expect_gt(pooled, 0)
+  expect_equal(pooled, atlas_boyce(attr(scores, "held")$score[attr(scores, "held")$presence == 1L],
+                                   attr(scores, "held")$score[attr(scores, "held")$presence == 0L]))
+  expect_true(is.na(atlas_pooled_boyce(data.frame(fold = 1L))))
+})
+
+test_that("cross-validation keeps every held-out score, once", {
+  skip_if_not_installed("maxnet")
+  set.seed(5)
+  n <- 400
+  table <- data.frame(presence = 0L, cell = seq_len(n),
+                      x = stats::runif(n, 0, 1e6), y = stats::runif(n, 0, 1e6),
+                      v1 = stats::runif(n), v2 = stats::runif(n))
+  table$presence[sample.int(n, 60, prob = table$v1^2)] <- 1L
+  folds <- atlas_spatial_folds(table$x, table$y, k = 4, block_km = 250,
+                               presence = table$presence)
+  scores <- atlas_cross_validate(table, folds, classes = "lq")
+  held <- attr(scores, "held")
+  expect_equal(nrow(held), n)
+  expect_equal(sum(held$presence), 60L)
+  expect_equal(as.integer(table(held$fold)), as.integer(table(folds)))
+  algo <- atlas_algorithm("maxnet")
+  nested <- atlas_nested_cross_validate(table, folds, algo, block_km = 250, tune = FALSE)
+  expect_equal(nrow(attr(nested, "held")), n)
+})
+
+# --- The taxon and its nulls go through one procedure -------------------------
+
+test_that("the null test fits the taxon and its nulls at the same untuned settings", {
+  set.seed(8)
+  n <- 300
+  table <- data.frame(presence = 0L, cell = seq_len(n),
+                      x = stats::runif(n, 0, 1e6), y = stats::runif(n, 0, 1e6),
+                      v1 = stats::runif(n), v2 = stats::runif(n))
+  table$presence[sample.int(n, 40, prob = table$v1^3)] <- 1L
+  folds <- atlas_spatial_folds(table$x, table$y, k = 4, block_km = 250,
+                               presence = table$presence)
+  seen <- list()
+  algo <- list(
+    id = "stub",
+    default = function(training) list(setting = "untuned"),
+    fit = function(train, params, seed = 1L, tuning = FALSE) {
+      seen[[length(seen) + 1L]] <<- list(
+        setting = params$setting, tuning = tuning, real = identical(
+          train$cell[train$presence == 1L],
+          table$cell[table$presence == 1L & table$cell %in% train$cell]
+        )
+      )
+      stats::glm(presence ~ v1, data = train, family = stats::binomial())
+    },
+    score = function(model, newdata) {
+      as.numeric(stats::predict(model, newdata, type = "response"))
+    }
+  )
+  null <- atlas_null_test(table, folds, algo, reps = 5)
+  # Four folds for the taxon and four for each of five nulls.
+  expect_equal(length(seen), 24L)
+  expect_true(all(vapply(seen, function(s) s$setting, character(1)) == "untuned"))
+  expect_true(all(vapply(seen, function(s) isTRUE(s$tuning), logical(1))))
+  expect_equal(sum(vapply(seen, function(s) s$real, logical(1))), 4L)
+  expect_equal(null$reps, 5L)
+  expect_equal(null$settings, "setting=untuned")
+  expect_true(is.finite(null$observed_auc))
+  # p counts the taxon among the draws: it cannot be below 1 in 6.
+  expect_gte(null$auc_p, 1 / 6 - 1e-9)
+})
+
+test_that("boosted trees meet their nulls at a fixed tree count", {
+  algo <- atlas_algorithm("xgboost")
+  params <- atlas_null_params(algo, data.frame(presence = 1L))
+  expect_equal(params$nrounds, ATLAS_XGBOOST_NULL_ROUNDS)
+  expect_equal(atlas_null_params(atlas_algorithm("maxnet"), data.frame(presence = rep(1L, 40))),
+               atlas_algorithm("maxnet")$default(data.frame(presence = rep(1L, 40))))
+})
+
+test_that("the design a model records names the effort, the index and the null test", {
+  design <- atlas_design()
+  expect_match(design$effort, "other taxa")
+  expect_match(design$skill$boyce, "every fold")
+  expect_match(design$skill$nulls, "untuned")
 })

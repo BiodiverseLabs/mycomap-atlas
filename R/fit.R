@@ -19,7 +19,15 @@
 #   at random from the surveyed sites, busier sites more often, fitted and
 #   scored the same way. A map that cannot beat a fungus that is merely a
 #   random handful of collections says nothing about habitat, and is marked so
-#   (Raes & ter Steege 2007; Kass et al. 2021).
+#   (Raes & ter Steege 2007; Kass et al. 2021). "The same way" is meant
+#   strictly: the taxon and its nulls are both fitted at the algorithm's
+#   untuned settings for this test. Settings tuned on the real detections and
+#   then handed to the nulls would favour the real model, and tuning every
+#   null would cost twenty times the fit.
+# - The Boyce index is computed once, on the held-out scores of every fold
+#   together. A taxon with twenty sites leaves four detections in a fold, and
+#   a rank correlation on four points is noise; the mean of five such numbers
+#   is still noise.
 #
 # Two statistics are reported. AUC is familiar but, against other surveyed
 # sites rather than true absences, it measures separation from where people
@@ -228,16 +236,37 @@ atlas_cross_validate <- function(training, folds, classes = NULL, regmult = 1,
     }
     model <- fit(train)
     scores <- held_score(model, test[, atlas_predictor_columns(test), drop = FALSE])
-    data.frame(
+    row <- data.frame(
       fold = fold,
       presences = presences_held,
       auc = atlas_auc(scores[test$presence == 1L], scores[test$presence == 0L]),
       boyce = atlas_boyce(scores[test$presence == 1L], scores[test$presence == 0L])
     )
+    attr(row, "held") <- data.frame(fold = fold, presence = test$presence, score = scores)
+    row
   })
+  atlas_bind_folds(results)
+}
+
+#' Bind the per-fold rows, keeping every held-out score as attr(, "held").
+atlas_bind_folds <- function(results) {
+  held <- do.call(rbind, lapply(results, attr, "held"))
   out <- do.call(rbind, results)
   rownames(out) <- NULL
+  attr(out, "held") <- held
   out
+}
+
+#' The Boyce index of every fold's held-out scores together.
+#'
+#' scores is what atlas_cross_validate or atlas_nested_cross_validate returns.
+#' NA when nothing was held out.
+atlas_pooled_boyce <- function(scores) {
+  held <- attr(scores, "held")
+  if (is.null(held) || !nrow(held)) {
+    return(NA_real_)
+  }
+  atlas_boyce(held$score[held$presence == 1L], held$score[held$presence == 0L])
 }
 
 #' Choose an algorithm's settings on the given folds.
@@ -308,17 +337,17 @@ atlas_nested_cross_validate <- function(training, folds, algo, block_km, seed = 
     }
     model <- algo$fit(train, params, seed)
     scores <- held_score(model, test[, atlas_predictor_columns(test), drop = FALSE])
-    data.frame(
+    row <- data.frame(
       fold = fold,
       presences = presences_held,
       auc = atlas_auc(scores[test$presence == 1L], scores[test$presence == 0L]),
       boyce = atlas_boyce(scores[test$presence == 1L], scores[test$presence == 0L]),
       params = atlas_params_label(params)
     )
+    attr(row, "held") <- data.frame(fold = fold, presence = test$presence, score = scores)
+    row
   })
-  out <- do.call(rbind, rows)
-  rownames(out) <- NULL
-  out
+  atlas_bind_folds(rows)
 }
 
 #' Settings as a short readable label, for logs and the stored folds.
@@ -346,34 +375,49 @@ atlas_null_presence <- function(training, n, seed) {
   presence
 }
 
-#' Compare a taxon's blocked scores with null models.
+#' The settings the null test fits at: the algorithm's own untuned ones.
+atlas_null_params <- function(algo, training) {
+  if (!is.null(algo$null_params)) algo$null_params(training) else algo$default(training)
+}
+
+#' Compare a taxon with null models, fitted and scored the same way.
 #'
-#' Each null relabels the same sites — same folds, same predictors, the
-#' settings the real model was given — so the only thing that differs is
-#' which sites are detections. p is the share of nulls (counting the model
-#' itself) that score at least as well: with 19 nulls, beating all of them is
-#' p = 0.05.
-atlas_null_test <- function(training, folds, algo, params, observed_auc,
-                            observed_boyce, reps = ATLAS_NULL_REPS, seed = 1L) {
-  if (!reps || !is.finite(observed_auc)) {
+#' The taxon and every null go through one procedure: the same sites, folds
+#' and predictors, the algorithm's untuned settings, fits at tuning size. The
+#' only thing that differs is which sites are detections. p is the share of
+#' nulls (counting the taxon itself) that score at least as well: with 19
+#' nulls, beating all of them is p = 0.05. The observed scores here are the
+#' test's own, not the tuned, nested scores a map reports.
+atlas_null_test <- function(training, folds, algo, reps = ATLAS_NULL_REPS, seed = 1L) {
+  if (!reps) {
+    return(list(reps = 0L))
+  }
+  params <- atlas_null_params(algo, training)
+  run <- function(table) {
+    scores <- tryCatch(
+      atlas_cross_validate(
+        table, folds,
+        # Tuning size (250 trees for a forest, which ranks within 0.994 of
+        # 1,000): 100 fits per taxon.
+        fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
+        score = algo$score, effort_at = atlas_effort_level(table)
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(scores)) return(c(auc = NA_real_, boyce = NA_real_))
+    c(auc = mean(scores$auc, na.rm = TRUE), boyce = atlas_pooled_boyce(scores))
+  }
+  observed <- run(training)
+  observed_auc <- observed[["auc"]]
+  observed_boyce <- observed[["boyce"]]
+  if (!is.finite(observed_auc)) {
     return(list(reps = 0L))
   }
   n <- sum(training$presence == 1L)
   runs <- lapply(seq_len(reps), function(r) {
     null <- training
     null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + r)
-    scores <- tryCatch(
-      atlas_cross_validate(
-        null, folds,
-        # Nulls are fitted at tuning size (250 trees for a forest, which
-        # ranks within 0.994 of 1,000): 95 fits per taxon, not 5.
-        fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
-        score = algo$score, effort_at = atlas_effort_level(null)
-      ),
-      error = function(e) NULL
-    )
-    if (is.null(scores)) return(c(auc = NA_real_, boyce = NA_real_))
-    c(auc = mean(scores$auc, na.rm = TRUE), boyce = mean(scores$boyce, na.rm = TRUE))
+    run(null)
   })
   runs <- do.call(rbind, runs)
   auc <- runs[, "auc"][is.finite(runs[, "auc"])]
@@ -384,6 +428,9 @@ atlas_null_test <- function(training, folds, algo, params, observed_auc,
   }
   list(
     reps = length(auc),
+    settings = atlas_params_label(params),
+    observed_auc = round(observed_auc, 3),
+    observed_boyce = round(observed_boyce, 3),
     auc_mean = round(mean(auc), 3),
     auc_sd = round(stats::sd(auc), 3),
     auc_p = round(p_value(auc, observed_auc), 3),
@@ -393,13 +440,13 @@ atlas_null_test <- function(training, folds, algo, params, observed_auc,
 }
 
 #' Whether a map has shown it knows something: its AUC beats the null models
-#' and its Boyce index says higher ground holds more detections. "untested"
-#' when no nulls were run.
-atlas_skill <- function(null, boyce_mean, alpha = ATLAS_SKILL_ALPHA) {
+#' and its Boyce index, over every held-out score together, says higher ground
+#' holds more detections. "untested" when no nulls were run.
+atlas_skill <- function(null, boyce, alpha = ATLAS_SKILL_ALPHA) {
   if (is.null(null) || !isTRUE(null$reps > 0) || !is.finite(null$auc_p %||% NA_real_)) {
     return("untested")
   }
-  if (null$auc_p <= alpha && is.finite(boyce_mean) && boyce_mean > 0) "passed" else "failed"
+  if (null$auc_p <= alpha && is.finite(boyce) && boyce > 0) "passed" else "failed"
 }
 
 #' Where a taxon's fitted map and its scores are written.
@@ -440,13 +487,15 @@ atlas_insufficient_evidence <- function(name, presences, grid, min_presences,
 #' the block limits live in R/sites.R, which loads after this file.
 atlas_design <- function() list(
   unit = "survey sites, detection/non-detection",
-  effort = "log records per site, held at the median of detection sites",
+  effort = "log(1 + records of other taxa at the site), held at the median of detection sites",
   block = list(method = "blockCV detection autocorrelation range",
                floor_km = ATLAS_BLOCK_FLOOR_KM, ceiling_km = ATLAS_BLOCK_CEILING_KM,
                fallback_km = ATLAS_BLOCK_FALLBACK_KM),
   tuning = "nested spatial folds",
   inner_folds = ATLAS_INNER_FOLDS,
-  skill = list(alpha = ATLAS_SKILL_ALPHA, boyce_above = 0)
+  skill = list(alpha = ATLAS_SKILL_ALPHA, boyce_above = 0,
+               boyce = "held-out scores of every fold together",
+               nulls = "taxon and nulls both at untuned settings")
 )
 
 #' Everything that decides a fit apart from the records themselves.
@@ -493,6 +542,8 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
         rule = "host bands after soil pH for ectomycorrhizal genera, after temperature otherwise",
         ectomycorrhizal = atlas_predictor_priority("ectomycorrhizal"),
         other = atlas_predictor_priority(ATLAS_GUILD_UNKNOWN),
+        host_share = ATLAS_HOST_SHARE,
+        host_order = "conifer share, then share of the region's trees",
         guild_table = guild_table
       )
     } else {
@@ -585,7 +636,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
   considered <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
   if (isTRUE(prune)) {
-    keep <- atlas_choose_predictors(training, threshold = correlation, priority = priority)
+    keep <- atlas_choose_predictors(training, threshold = correlation, priority = priority,
+                                    host_share = atlas_host_allowance(guild))
     kept_attributes <- attributes(training)[c("area_km2", "seed", "fingerprint", "dropped", "thin_km")]
     training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
     attributes(training)[names(kept_attributes)] <- kept_attributes
@@ -622,11 +674,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   model <- algo$fit(training, final$params, seed)
   auc_mean <- mean(scores$auc, na.rm = TRUE)
   boyce_mean <- mean(scores$boyce, na.rm = TRUE)
-  null <- atlas_null_test(
-    training, fold_ids, algo, final$params,
-    observed_auc = auc_mean, observed_boyce = boyce_mean, reps = nulls, seed = seed
-  )
-  skill <- atlas_skill(null, boyce_mean)
+  boyce_pooled <- atlas_pooled_boyce(scores)
+  null <- if (is.finite(auc_mean)) {
+    atlas_null_test(training, fold_ids, algo, reps = nulls, seed = seed)
+  } else {
+    list(reps = 0L)
+  }
+  skill <- atlas_skill(null, boyce_pooled)
 
   held_score <- atlas_score_at_effort(algo$score, effort_at)
   suitability <- NULL
@@ -695,6 +749,10 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     folds = lapply(seq_len(nrow(scores)), function(i) as.list(scores[i, ])),
     auc_mean = round(auc_mean, 3),
     auc_sd = round(stats::sd(scores$auc, na.rm = TRUE), 3),
+    # boyce is the index of every fold's held-out scores together, and the
+    # one a map is judged by; boyce_mean, the mean over folds, is kept for
+    # comparison with models fitted before it.
+    boyce = round(boyce_pooled, 3),
     boyce_mean = round(boyce_mean, 3),
     boyce_sd = round(stats::sd(scores$boyce, na.rm = TRUE), 3),
     null = null,
@@ -731,11 +789,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
             if (is.finite(block$range_km)) paste0(", range ", block$range_km, " km") else "", ")")
     message("  settings:           ", atlas_params_label(final$params))
     message("  blocked AUC:        ", metrics$auc_mean, " (sd ", metrics$auc_sd, ")")
-    message("  blocked Boyce:      ", metrics$boyce_mean, " (sd ", metrics$boyce_sd, ")")
+    message("  blocked Boyce:      ", metrics$boyce, " (fold mean ", metrics$boyce_mean,
+            ", sd ", metrics$boyce_sd, ")")
     message("  folds scored:       ", sum(!is.na(scores$auc)), " of ", nrow(scores))
     if (isTRUE(null$reps > 0)) {
       message("  null AUC:           ", null$auc_mean, " (sd ", null$auc_sd, ", ",
-              null$reps, " nulls), p = ", null$auc_p)
+              null$reps, " nulls) against ", null$observed_auc,
+              " at untuned settings, p = ", null$auc_p)
     }
     message("  skill:              ", skill)
     if (!is.null(raster_path)) message("  map:                ", raster_path)

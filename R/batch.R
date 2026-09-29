@@ -64,6 +64,7 @@ atlas_batch_fit_one <- function(name, fingerprint, fit, args) {
         presences = m$presences,
         predictors = length(m$predictors),
         auc_mean = m$auc_mean,
+        boyce = m$boyce,
         boyce_mean = m$boyce_mean,
         map = !is.null(m$raster)
       )
@@ -328,7 +329,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     done <- sum(vapply(rows, function(r) r$status != "skipped", logical(1)))
     detail <- switch(
       row$status,
-      fitted = sprintf("AUC %s, Boyce %s, %s cells", row$auc_mean, row$boyce_mean, row$presences),
+      fitted = sprintf("AUC %s, Boyce %s, %s cells", row$auc_mean, row$boyce %||% row$boyce_mean, row$presences),
       refused = sprintf("%s cells", row$presences),
       row$error %||% ""
     )

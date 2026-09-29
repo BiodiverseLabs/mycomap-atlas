@@ -119,7 +119,7 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 53 environmental predictors, including which trees grow there.</li>
+                <li>Describe every cell of North America (5 km now, 1 km for releases) with 54 environmental predictors, including which trees grow there.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
@@ -179,7 +179,7 @@ export default function Methods() {
 
             <Section id="predictors" title="Environmental predictors">
               <p>
-                Fifty-three predictors. All but the host trees come from sources that cover the
+                Fifty-four predictors. All but the host trees come from sources that cover the
                 whole continent: the obvious United States products (TreeMap, NLCD, PAD-US) stop at
                 the border, and British Columbia alone holds 8% of the records. No continental map of
                 tree species exists, so the host trees join the two national forest inventories.
@@ -217,9 +217,11 @@ export default function Methods() {
                 maps each species' percentage of the trees at 250 m; a genus's share is its species'
                 percentages, unidentified members of the genus included, over the needleleaf and
                 broadleaf groups together. A cell with no trees has a share of 0.{" "}
-                <B>Alaska, Hawaii, Puerto Rico and Mexico are in neither inventory</B>: their cells are
-                empty, so those records (about 2.5%) do not train models and those places are not
-                mapped. Hazel has no layer in BIGMAP and is left out. Code:{" "}
+                <B>Alaska, Hawaii, Puerto Rico and Mexico are in neither inventory.</B> One layer's
+                gap should not take ground away from every model, so there the shares are 0 and one
+                more predictor says the inventories were silent: those records still train models,
+                those places are still mapped, and a model can tell "no such trees" from "nobody
+                mapped the trees". Hazel has no layer in BIGMAP and is left out. Code:{" "}
                 <Ext href={`${GITHUB_URL}/blob/main/R/hosts.R`}>R/hosts.R</Ext>.
               </p>
               <p>
@@ -258,11 +260,13 @@ export default function Methods() {
                   every species found there, and the best-surveyed ground looked worse than it was.
                 </li>
                 <li>
-                  <B>Effort as a predictor.</B> How hard a site was worked (the log of its records)
-                  goes into every model, and is held at one level, the median of the species'
-                  detection sites, whenever a map is drawn or scored. Effort explains what effort
-                  explains, and the map shows the rest (Warton, Renner &amp; Ramp 2013; Fithian et
-                  al. 2015).
+                  <B>Effort as a predictor.</B> How hard a site was worked goes into every model,
+                  and is held at one level, the median of the species' detection sites, whenever a
+                  map is drawn or scored. Effort is the log of one plus the records of{" "}
+                  <B>other</B> fungi at the site: the species' own records are left out, or a fungus
+                  collected a hundred times in one wood would make that wood look well surveyed by
+                  being there. Effort explains what effort explains, and the map shows the rest
+                  (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015).
                 </li>
                 <li>
                   Sites are drawn only from the <B>accessible area</B>, the species' own sites
@@ -281,7 +285,7 @@ export default function Methods() {
 
             <Section id="selection" title="Choosing predictors">
               <p>
-                Fifty-three predictors is a lot of rope for a taxon with forty records, and the
+                Fifty-four predictors is a lot of rope for a taxon with forty records, and the
                 bioclim variables are near-copies of one another. For Maxent, correlated predictors
                 are pruned before fitting:
               </p>
@@ -303,8 +307,16 @@ export default function Methods() {
                   FungalTraits (Põlme et al. 2020): for an <B>ectomycorrhizal</B> genus, which
                   cannot fruit without its partner tree, the host trees come straight after soil pH;
                   for every other guild, and for genera FungalTraits does not list, they come after
-                  temperature and before land cover. The conifer share leads the host bands. Each
-                  model records the guild and the order it was given.
+                  temperature and before land cover. Each model records the guild and the order it
+                  was given.
+                </li>
+                <li>
+                  The trees have an <B>allowance</B>: a third of an ectomycorrhizal fungus's
+                  predictors, a fifth of any other's. The host trees are barely correlated with one
+                  another, so without it a fungus with forty sites spent its ten predictors on soil
+                  pH and nine trees, and had no climate at all. The ones kept are the conifer share
+                  and then the commonest trees of the region, judged on the non-detection sites,
+                  never on the detections.
                 </li>
                 <li>
                   The count is capped at about <B>one predictor per four detection sites</B>.
@@ -321,7 +333,7 @@ export default function Methods() {
                 cap stops binding.
               </p>
               <p>
-                The two tree models get all 53 predictors, in any order. Trees are not confused by correlated
+                The two tree models get all 54 predictors, in any order. Trees are not confused by correlated
                 inputs the way a regression is, and in the benchmark boosted trees did worse when
                 restricted to Maxent's list (−0.011 ± 0.003 AUC).
               </p>
@@ -423,15 +435,20 @@ export default function Methods() {
                 asks whether higher-rated ground holds proportionally more held-out records. It is
                 the rank correlation of that ratio with suitability: 1 is consistent, 0 no better
                 than the background, negative upside down. Atlas uses 100 windows each a tenth of
-                the range wide. It is unsteady below about 50 detections.
+                the range wide, and computes it once over the held-out scores of every fold
+                together: a species with twenty sites leaves four detections in a fold, too few for
+                an index of its own. It is still unsteady below about 50 detections.
               </p>
               <p>
                 <B>Null models.</B> A score alone cannot say whether a map knows anything: where
                 collecting is patchy, even a made-up species can score above 0.5. So every model is
                 refitted 19 times on a <B>null species</B> — the same number of sites drawn at random
                 from all surveyed sites, busier sites more often, as a random handful of collections
-                would fall — with the same settings and folds (Raes &amp; ter Steege 2007; the null
-                models of ENMeval 2.0, Kass et al. 2021). A map <B>passes</B> when its blocked AUC
+                would fall — on the same folds (Raes &amp; ter Steege 2007; the null models of
+                ENMeval 2.0, Kass et al. 2021). The species and its nulls go through exactly one
+                procedure, the model's untuned settings: settings tuned on the real finds and then
+                handed to the nulls would tilt the test towards the species. A map{" "}
+                <B>passes</B> when the species' blocked AUC
                 beats every null (p ≤ 0.05) and its Boyce index is above zero. A map that fails is
                 drawn faint, hidden from the Maps list unless asked for, and left out of Explore and
                 of anything mycomap.org reads from a release.
@@ -500,8 +517,9 @@ export default function Methods() {
               <p>
                 They are <B>habitat suitability, not occurrence</B>: a high value means a place
                 resembles where the species has been found, not that it is there. Which trees grow
-                where comes from two national forest inventories, so it stops at their borders:
-                Alaska, Hawaii, Puerto Rico and Mexico are not modelled at all. The inventories are
+                where comes from two national forest inventories, so it stops at their borders: in
+                Alaska, Hawaii, Puerto Rico and Mexico the models know the climate and the soil but
+                not the trees. The inventories are
                 themselves models, from 2011 (Canada) and 2018 (United States), at a genus level
                 that cannot tell one oak from another. Climate is a 1970–2000 average. And the maps
                 can only be as good as where people have collected and sequenced.

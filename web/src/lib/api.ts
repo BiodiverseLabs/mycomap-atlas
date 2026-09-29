@@ -113,6 +113,9 @@ export interface Model {
   folds: ModelFold[];
   auc_mean: number;
   auc_sd: number;
+  /** Boyce index of every fold's held-out scores together: the one a map is
+   * judged by. Fits from before it was computed have only boyce_mean. */
+  boyce?: number;
   boyce_mean: number;
   boyce_sd: number;
   built_at: string;
@@ -137,6 +140,10 @@ export type Skill = "passed" | "failed" | "untested";
  * random from the surveyed sites, fitted and scored the same way. */
 export interface ModelNull {
   reps: number;
+  /** The untuned settings the taxon and its nulls were both fitted at. */
+  settings?: string;
+  observed_auc?: number;
+  observed_boyce?: number;
   auc_mean?: number;
   auc_sd?: number;
   auc_p?: number;
@@ -151,6 +158,7 @@ export interface ModelSummary {
   presences?: number;
   predictors: number;
   auc_mean?: number;
+  boyce?: number;
   boyce_mean?: number;
   skill?: Skill;
   map: boolean;
