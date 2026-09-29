@@ -2,11 +2,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Redirect, Route, Switch } from "wouter";
 
 import Layout, { Page, PageHeader } from "@/components/Layout";
-import About from "@/pages/About";
 import Data from "@/pages/Data";
+import Developers from "@/pages/Developers";
 import Home from "@/pages/Home";
 import Maps from "@/pages/Maps";
+import Methods from "@/pages/Methods";
 import Models from "@/pages/Models";
+import Sources from "@/pages/Sources";
 import Taxa from "@/pages/Taxa";
 import Taxon from "@/pages/Taxon";
 
@@ -27,7 +29,13 @@ export default function App() {
           <Route path="/taxa" component={Taxa} />
           <Route path="/taxa/:name" component={Taxon} />
           <Route path="/data" component={Data} />
-          <Route path="/about" component={About} />
+          <Route path="/methods" component={Methods} />
+          <Route path="/sources" component={Sources} />
+          <Route path="/developers" component={Developers} />
+          {/* How it works grew into the full methods page. */}
+          <Route path="/about">
+            <Redirect to="/methods" />
+          </Route>
           {/* The layers page became part of Data. */}
           <Route path="/layers">
             <Redirect to="/data" />

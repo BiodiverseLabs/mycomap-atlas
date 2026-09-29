@@ -333,6 +333,8 @@ atlas_layer_overview <- function(grid = "draft") {
       id = id,
       title = entry$title,
       source = entry$source,
+      # Derived layers have no download of their own.
+      url = if (is.null(entry$url) || is.na(entry$url)) NULL else entry$url,
       license = entry$license,
       citation = entry$citation,
       note = entry$note,

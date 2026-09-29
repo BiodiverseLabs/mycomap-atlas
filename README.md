@@ -62,9 +62,20 @@ cd web && pnpm install && pnpm dev    # app on :5101
 The app carries mycomap.org's look the way MycoMap Vision does — the same
 header, logo, footer, colour tokens, cream page-title band and shadcn
 components — so someone moving between the three sites feels they never left.
-Its pages: a species search (home), **Maps** (every fitted model), **Taxa**
-(everything in the validated universe), **Data** (training records and
-layers) and **How it works** (the method, for people rather than developers).
+Its pages: the home page (what Atlas is, a species search and a live map),
+**Maps** (every fitted model), **Models** (the benchmark), **Taxa** (everything
+in the validated universe), **Methods** (the method in full), **Data**
+(training records and layers), **Sources** (every dataset, package and paper,
+with links, and every product of the pipeline with whether it is published)
+and **Developers** (the API reference).
+
+The API reference and the Sources page are drawn from `inst/api/openapi.json`
+and `inst/api/sources.json`, which the API also serves at `/api/openapi.json`
+and `/api/sources`. Two tests keep them honest: `test-openapi.R` fails when a
+route or parameter in `inst/plumber/atlas.R` and the spec disagree, and
+`test-sources.R` fails when the code calls a package, or the web app depends
+on one, that is not credited. Add a route or a dependency and its entry in the
+same pull request.
 When .org's header or palette changes, change `web/src/components/Layout.tsx`,
 `web/src/index.css` and `web/tailwind.config.ts` to match.
 

@@ -2,6 +2,9 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 
+import { GithubMark } from "@/components/Common";
+import { GITHUB_URL } from "@/lib/contract";
+
 // Header and footer follow mycomap.org's PublicLayout and MainNavigation, the
 // same way MycoMap Vision does, so someone moving between the three sites feels
 // they never left: sticky white header, logo with "MycoMap" in brown, grey
@@ -11,8 +14,10 @@ const NAV = [
   { href: "/maps", label: "Maps" },
   { href: "/models", label: "Models" },
   { href: "/taxa", label: "Taxa" },
+  { href: "/methods", label: "Methods" },
   { href: "/data", label: "Data" },
-  { href: "/about", label: "How it works" },
+  { href: "/sources", label: "Sources" },
+  { href: "/developers", label: "Developers" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -47,7 +52,7 @@ function Header() {
                 <span className="text-xl font-semibold text-myco-green">Atlas</span>
               </span>
             </Link>
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden xl:flex items-center gap-1">
               {NAV.map((n) => (
                 <Link key={n.href} href={n.href} className={cls(n.href)}>
                   {n.label}
@@ -57,13 +62,21 @@ function Header() {
           </div>
           <div className="flex items-center gap-2">
             <a
+              href={GITHUB_URL}
+              className="p-2 rounded-md text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
+              aria-label="Source code on GitHub"
+              title="Source code on GitHub"
+            >
+              <GithubMark className="h-5 w-5" />
+            </a>
+            <a
               href="https://mycomap.org"
               className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
             >
               mycomap.org <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
             <button
-              className="lg:hidden p-2 rounded-md text-gray-700 hover:bg-myco-green/5"
+              className="xl:hidden p-2 rounded-md text-gray-700 hover:bg-myco-green/5"
               onClick={() => setOpen(!open)}
               aria-label="Menu"
             >
@@ -72,7 +85,7 @@ function Header() {
           </div>
         </div>
         {open && (
-          <nav className="lg:hidden pb-3 flex flex-col gap-1" onClick={() => setOpen(false)}>
+          <nav className="xl:hidden pb-3 flex flex-col gap-1" onClick={() => setOpen(false)}>
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} className={cls(n.href)}>
                 {n.label}
@@ -101,8 +114,9 @@ function Footer() {
               <span className="text-lg font-bold text-white">MycoMap Atlas</span>
             </div>
             <p className="text-white/70 text-sm leading-relaxed">
-              Where fungi can grow, modelled only from DNA-validated MycoMap records. Early
-              development: maps are provisional and drawn at 5 km.
+              An open habitat atlas for North America&rsquo;s fungi, modelled only from
+              DNA-validated MycoMap records. Early development: maps are provisional and drawn at
+              5 km.
             </p>
           </div>
           <ul className="space-y-2 text-sm">
@@ -110,7 +124,10 @@ function Footer() {
               ["https://mycomap.org", "MycoMap.org"],
               ["https://mycomap.org/network", "Free sequencing"],
               ["https://mycomap.org/protocols", "Participation protocols"],
-              ["https://github.com/BiodiverseLabs/mycomap-atlas", "Source code"],
+              ["/methods", "Methods"],
+              ["/sources", "Data and sources"],
+              ["/developers", "API for developers"],
+              [GITHUB_URL, "Source code (GPL-3.0)"],
             ].map(([href, label]) => (
               <li key={href}>
                 <a href={href} className="text-white/70 hover:text-myco-green transition-colors">

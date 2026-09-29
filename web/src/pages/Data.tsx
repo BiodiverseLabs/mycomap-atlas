@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 
 import { ApiDown, Loading, Stat, Th } from "@/components/Common";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
@@ -110,7 +111,14 @@ export default function Data() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-2 text-sm">
                   <p className="text-[#5c4a3a]">
-                    {layer.source} · <span className="text-muted-foreground">{layer.license}</span>
+                    {layer.url ? (
+                      <a href={layer.url} target="_blank" rel="noreferrer" className="text-myco-green hover:underline">
+                        {layer.source}
+                      </a>
+                    ) : (
+                      layer.source
+                    )}{" "}
+                    · <span className="text-muted-foreground">{layer.license}</span>
                   </p>
                   {layer.built && (
                     <p className="text-xs text-muted-foreground tabular-nums">
@@ -136,6 +144,13 @@ export default function Data() {
               </Card>
             ))}
           </div>
+          <p className="mt-4 text-sm text-[#5c4a3a]">
+            Every dataset, package and intermediate file, with links and what is published:{" "}
+            <Link href="/sources" className="text-myco-green hover:underline">
+              Data and sources
+            </Link>
+            .
+          </p>
         </section>
       </Page>
     </>

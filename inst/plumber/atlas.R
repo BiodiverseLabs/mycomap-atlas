@@ -74,6 +74,22 @@ function(req, res) {
   plumber::forward()
 }
 
+#* This API's OpenAPI description: the file the developer page is drawn from.
+#* @get /api/openapi.json
+#* @serializer contentType list(type = "application/json")
+function() {
+  path <- atlas_openapi_path(root)
+  readBin(path, "raw", file.info(path)$size)
+}
+
+#* Every dataset, package and paper Atlas is built on, and every file it makes.
+#* @get /api/sources
+#* @serializer contentType list(type = "application/json")
+function() {
+  path <- atlas_sources_path(root)
+  readBin(path, "raw", file.info(path)$size)
+}
+
 #* What the last pull holds.
 #* @get /api/status
 #* @serializer unboxedJSON

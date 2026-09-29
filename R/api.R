@@ -29,6 +29,47 @@ atlas_allowed_origin <- function(origin, allowed = atlas_allowed_origins()) {
   origin
 }
 
+#' Where the OpenAPI description lives: the source tree when running from it,
+#' the installed package otherwise.
+atlas_openapi_path <- function(root = Sys.getenv("ATLAS_ROOT", unset = ".")) {
+  source <- file.path(root, "inst", "api", "openapi.json")
+  if (file.exists(source)) {
+    return(source)
+  }
+  system.file("api", "openapi.json", package = "mycomapatlas")
+}
+
+#' Where the list of sources lives, found the same way as the OpenAPI file.
+atlas_sources_path <- function(root = Sys.getenv("ATLAS_ROOT", unset = ".")) {
+  source <- file.path(root, "inst", "api", "sources.json")
+  if (file.exists(source)) {
+    return(source)
+  }
+  system.file("api", "sources.json", package = "mycomapatlas")
+}
+
+#' The GET routes a plumber file declares, with the parameters each takes.
+#'
+#' Read from the file's text, so the documentation test needs no server. A
+#' route's parameters are its handler's arguments, less plumber's req and res;
+#' a path like /api/taxa/<name> comes back in OpenAPI's form, /api/taxa/{name}.
+atlas_plumber_routes <- function(path) {
+  lines <- readLines(path, warn = FALSE)
+  at <- grep("^#[*] @get ", lines)
+  routes <- lapply(at, function(i) {
+    route <- trimws(sub("^#[*] @get ", "", lines[[i]]))
+    route <- gsub("<([a-z_]+)>", "{\\1}", route)
+    rest <- lines[seq(i + 1L, length(lines))]
+    header <- rest[grep("^function[(]", rest)[[1]]]
+    inside <- sub("^function[(](.*)[)] *[{].*$", "\\1", header)
+    args <- trimws(sub("=.*$", "", strsplit(inside, ",", fixed = TRUE)[[1]]))
+    args <- setdiff(args[nzchar(args)], c("req", "res"))
+    list(path = route, params = args)
+  })
+  names(routes) <- vapply(routes, `[[`, character(1), "path")
+  routes
+}
+
 #' Decode a taxon name taken from a URL path.
 #'
 #' Plumber leaves path parameters percent-encoded, and every species name has a

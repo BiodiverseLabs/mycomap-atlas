@@ -1,0 +1,221 @@
+{
+  "about": "Every dataset, package and paper MycoMap Atlas is built on, and every file the pipeline produces. The Sources page and the /api/sources route read this file; tests/testthat/test-sources.R fails when the code calls a package, or the web app depends on one, that is not listed here.",
+  "datasets": [
+    {
+      "id": "mycomap",
+      "name": "MycoMap validated collections",
+      "provider": "MycoMap.org",
+      "url": "https://mycomap.org",
+      "license": "Record-level data stays on mycomap.org; Atlas publishes 0.1° cells only",
+      "role": "Training data: every collection whose name was confirmed by DNA sequencing and validated in a MycoMap project.",
+      "citation": "MycoMap.org validated collections, read at the pull recorded in each release."
+    },
+    {
+      "id": "worldclim",
+      "name": "WorldClim 2.1 bioclimatic variables and elevation",
+      "provider": "WorldClim",
+      "url": "https://worldclim.org/data/worldclim21.html",
+      "license": "CC BY-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "role": "Nineteen climate predictors (1970-2000 normals) and elevation, from which slope and roughness are derived.",
+      "citation": "Fick SE, Hijmans RJ (2017) WorldClim 2: new 1-km spatial resolution climate surfaces for global land areas. International Journal of Climatology 37:4302-4315.",
+      "doi": "10.1002/joc.5086"
+    },
+    {
+      "id": "soilgrids",
+      "name": "SoilGrids 2.0",
+      "provider": "ISRIC - World Soil Information",
+      "url": "https://soilgrids.org",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Topsoil (0-5 cm) pH, organic carbon, clay, sand and cation exchange capacity.",
+      "citation": "Poggio L, de Sousa LM, Batjes NH, et al. (2021) SoilGrids 2.0: producing soil information for the globe with quantified spatial uncertainty. SOIL 7:217-240.",
+      "doi": "10.5194/soil-7-217-2021"
+    },
+    {
+      "id": "worldcover",
+      "name": "ESA WorldCover 10 m 2021 v200",
+      "provider": "European Space Agency",
+      "url": "https://esa-worldcover.org",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Fractions of tree, shrub, grass, wetland, open-water and built-up cover, aggregated to 30 arc-seconds.",
+      "citation": "Zanaga D, Van De Kerchove R, Daems D, et al. (2022) ESA WorldCover 10 m 2021 v200.",
+      "doi": "10.5281/zenodo.7254221"
+    },
+    {
+      "id": "osm",
+      "name": "OpenStreetMap basemap",
+      "provider": "OpenStreetMap contributors",
+      "url": "https://www.openstreetmap.org/copyright",
+      "license": "ODbL 1.0",
+      "license_url": "https://opendatacommons.org/licenses/odbl/",
+      "role": "The street map under the habitat maps on this site. Not used in modelling."
+    }
+  ],
+  "software": [
+    { "name": "R", "group": "platform", "version": "4.6", "license": "GPL-2 | GPL-3", "url": "https://www.r-project.org", "role": "Everything from the pull to the published release." },
+    { "name": "rocker/geospatial", "group": "platform", "license": "GPL-2 or later", "url": "https://rocker-project.org/images/versioned/rstudio.html", "role": "The container image releases are built in, so every map can be rebuilt exactly." },
+    { "name": "Node.js and pnpm", "group": "platform", "license": "MIT", "url": "https://pnpm.io", "role": "Builds this website." },
+
+    { "name": "terra", "group": "r", "license": "GPL (>= 3)", "url": "https://rspatial.github.io/terra/", "role": "Every raster and vector operation: projecting layers onto the grid, terrain, masks, prediction and map drawing.", "citation": "Hijmans RJ. terra: Spatial Data Analysis. R package." },
+    { "name": "geodata", "group": "r", "license": "GPL (>= 3)", "url": "https://rspatial.github.io/geodata/", "role": "Downloads WorldClim, SoilGrids and WorldCover." },
+    { "name": "maxnet", "group": "r", "license": "MIT", "url": "https://github.com/mrmaxent/maxnet", "role": "Fits Maxent, the first of the three models.", "citation": "Phillips SJ, Anderson RP, Dudík M, Schapire RE, Blair ME (2017) Opening the black box: an open-source release of Maxent. Ecography 40:887-893.", "doi": "10.1111/ecog.03049" },
+    { "name": "xgboost", "group": "r", "license": "Apache-2.0", "url": "https://github.com/dmlc/xgboost", "role": "Fits boosted trees, the second model.", "citation": "Chen T, Guestrin C (2016) XGBoost: a scalable tree boosting system. KDD '16.", "doi": "10.1145/2939672.2939785" },
+    { "name": "ranger", "group": "r", "license": "GPL-3", "url": "https://github.com/imbs-hl/ranger", "role": "Fits the down-sampled random forest, the third model.", "citation": "Wright MN, Ziegler A (2017) ranger: a fast implementation of random forests for high dimensional data in C++ and R. Journal of Statistical Software 77(1).", "doi": "10.18637/jss.v077.i01" },
+    { "name": "plumber", "group": "r", "license": "MIT", "url": "https://www.rplumber.io", "role": "Serves the API." },
+    { "name": "jsonlite", "group": "r", "license": "MIT", "url": "https://jeroen.r-universe.dev/jsonlite", "role": "Reads and writes every manifest and model record." },
+    { "name": "digest", "group": "r", "license": "GPL (>= 2)", "url": "https://github.com/eddelbuettel/digest", "role": "Record-set fingerprints and content hashes for releases." },
+    { "name": "paws.storage", "group": "r", "license": "Apache-2.0", "url": "https://github.com/paws-r/paws", "role": "Publishes and pulls releases through Amazon S3." },
+    { "name": "testthat", "group": "r", "license": "MIT", "url": "https://testthat.r-lib.org", "role": "The test suite." },
+
+    { "name": "react", "group": "web", "license": "MIT", "url": "https://react.dev", "role": "This website." },
+    { "name": "react-dom", "group": "web", "license": "MIT", "url": "https://react.dev", "role": "Renders the website in the browser." },
+    { "name": "leaflet", "group": "web", "license": "BSD-2-Clause", "url": "https://leafletjs.com", "role": "The interactive maps." },
+    { "name": "react-leaflet", "group": "web", "license": "Hippocratic-2.1", "url": "https://react-leaflet.js.org", "role": "Leaflet maps as React components." },
+    { "name": "@tanstack/react-query", "group": "web", "license": "MIT", "url": "https://tanstack.com/query", "role": "Fetches and caches API responses." },
+    { "name": "wouter", "group": "web", "license": "Unlicense", "url": "https://github.com/molefrog/wouter", "role": "Page routing." },
+    { "name": "lucide-react", "group": "web", "license": "ISC", "url": "https://lucide.dev", "role": "Icons." },
+    { "name": "@radix-ui/react-slot", "group": "web", "license": "MIT", "url": "https://www.radix-ui.com/primitives", "role": "Button composition, as in shadcn/ui." },
+    { "name": "class-variance-authority", "group": "web", "license": "Apache-2.0", "url": "https://github.com/joe-bell/cva", "role": "Component variants." },
+    { "name": "clsx", "group": "web", "license": "MIT", "url": "https://github.com/lukeed/clsx", "role": "Class names." },
+    { "name": "tailwind-merge", "group": "web", "license": "MIT", "url": "https://github.com/dcastil/tailwind-merge", "role": "Class names." },
+    { "name": "tailwindcss", "group": "web", "license": "MIT", "url": "https://tailwindcss.com", "role": "Styling, with mycomap.org's colour tokens." },
+    { "name": "tailwindcss-animate", "group": "web", "license": "MIT", "url": "https://github.com/jamiebuilds/tailwindcss-animate", "role": "Styling." },
+    { "name": "postcss", "group": "web", "license": "MIT", "url": "https://postcss.org", "role": "Builds the stylesheet." },
+    { "name": "autoprefixer", "group": "web", "license": "MIT", "url": "https://github.com/postcss/autoprefixer", "role": "Builds the stylesheet." },
+    { "name": "vite", "group": "web", "license": "MIT", "url": "https://vite.dev", "role": "Builds and serves the website." },
+    { "name": "@vitejs/plugin-react", "group": "web", "license": "MIT", "url": "https://github.com/vitejs/vite-plugin-react", "role": "Builds the website." },
+    { "name": "typescript", "group": "web", "license": "Apache-2.0", "url": "https://www.typescriptlang.org", "role": "Type-checks the website." }
+  ],
+  "references": [
+    {
+      "citation": "Phillips SJ, Dudík M, Elith J, et al. (2009) Sample selection bias and presence-only distribution models: implications for background and pseudo-absence data. Ecological Applications 19:181-197.",
+      "doi": "10.1890/07-2153.1",
+      "used_for": "Target-group background: comparing each species with every other validated collection."
+    },
+    {
+      "citation": "Elith J, Phillips SJ, Hastie T, et al. (2011) A statistical explanation of MaxEnt for ecologists. Diversity and Distributions 17:43-57.",
+      "doi": "10.1111/j.1472-4642.2010.00725.x",
+      "used_for": "Maxent's feature classes and regularisation."
+    },
+    {
+      "citation": "Valavi R, Elith J, Lahoz-Monfort JJ, Guillera-Arroita G (2021) Modelling species presence-only data with random forests. Ecography 44:1731-1742.",
+      "doi": "10.1111/ecog.05615",
+      "used_for": "The down-sampled random forest."
+    },
+    {
+      "citation": "Valavi R, Guillera-Arroita G, Lahoz-Monfort JJ, Elith J (2022) Predictive performance of presence-only species distribution models: a benchmark study with reproducible code. Ecological Monographs 92:e01486.",
+      "doi": "10.1002/ecm.1486",
+      "used_for": "Choosing the three models and comparing them on the same folds."
+    },
+    {
+      "citation": "Roberts DR, Bahn V, Ciuti S, et al. (2017) Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure. Ecography 40:913-929.",
+      "doi": "10.1111/ecog.02881",
+      "used_for": "Scoring on spatial blocks rather than random splits."
+    },
+    {
+      "citation": "Hirzel AH, Le Lay G, Helfer V, Randin C, Guisan A (2006) Evaluating the ability of habitat suitability models to predict species presences. Ecological Modelling 199:142-152.",
+      "doi": "10.1016/j.ecolmodel.2006.05.017",
+      "used_for": "The continuous Boyce index."
+    },
+    {
+      "citation": "Dormann CF, Elith J, Bacher S, et al. (2013) Collinearity: a review of methods to deal with it and a simulation study evaluating their performance. Ecography 36:27-46.",
+      "doi": "10.1111/j.1600-0587.2012.07348.x",
+      "used_for": "Pruning correlated predictors before Maxent."
+    }
+  ],
+  "products": [
+    {
+      "stage": "1. Records",
+      "name": "Validated collections, as pulled",
+      "detail": "Every eligible record with its exact coordinates, name and validation state.",
+      "availability": "withheld",
+      "why": "Exact collection points are never published. They stay on mycomap.org and on Atlas's own private compute."
+    },
+    {
+      "stage": "1. Records",
+      "name": "Collection cells",
+      "detail": "Where each taxon was collected, as 0.1° cells with a record count.",
+      "availability": "published",
+      "where": "/api/taxa/{name}/cells, and cells.tsv.gz in every release"
+    },
+    {
+      "stage": "1. Records",
+      "name": "Taxon counts and fingerprints",
+      "detail": "Records, independent localities and the record-set hash for each of the 17,000+ taxa.",
+      "availability": "published",
+      "where": "/api/taxa, and taxa-latest.json in every release"
+    },
+    {
+      "stage": "2. Layers",
+      "name": "Raw environmental downloads",
+      "detail": "WorldClim, SoilGrids and WorldCover exactly as downloaded, about 15 GB.",
+      "availability": "at source",
+      "why": "Get them from the providers linked above; Atlas does not re-host another project's data."
+    },
+    {
+      "stage": "2. Layers",
+      "name": "Predictor stack on the Atlas grid",
+      "detail": "All 33 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
+      "availability": "planned",
+      "why": "Built and versioned today; the manifest is published, the rasters are not yet. They carry WorldClim's ShareAlike licence."
+    },
+    {
+      "stage": "3. Training",
+      "name": "Training tables",
+      "detail": "For each taxon, its presence cells and background cells with the value of every predictor, and the spatial fold each row was scored in.",
+      "availability": "planned",
+      "why": "A table with cell positions would publish presence cells at 5 km or 1 km. The plan is to release them with positions removed: enough to refit every model exactly."
+    },
+    {
+      "stage": "3. Training",
+      "name": "Predictors chosen per taxon",
+      "detail": "Which predictors survived correlation pruning and the one-per-four cap.",
+      "availability": "published",
+      "where": "predictors in /api/taxa/{name}/model"
+    },
+    {
+      "stage": "4. Models",
+      "name": "Scores on every spatial fold",
+      "detail": "AUC and Boyce on each held-out block, for each of the three models.",
+      "availability": "published",
+      "where": "/api/taxa/{name}/model and /api/models"
+    },
+    {
+      "stage": "4. Models",
+      "name": "Fitted model objects",
+      "detail": "The fitted Maxent, boosted-tree and forest objects, to predict with on other layers.",
+      "availability": "planned",
+      "why": "Not stored yet: a fit keeps its scores and map and discards the object."
+    },
+    {
+      "stage": "5. Maps",
+      "name": "Suitability rasters",
+      "detail": "Each model's raw suitability as a GeoTIFF on the Atlas grid, inside the 500 km accessible area.",
+      "availability": "in releases",
+      "why": "In every release; a download route on the API is next."
+    },
+    {
+      "stage": "5. Maps",
+      "name": "Rank maps",
+      "detail": "The coloured maps on this site: each cell's percentile within its own map.",
+      "availability": "published",
+      "where": "/api/taxa/{name}/map.png"
+    },
+    {
+      "stage": "6. Evaluation",
+      "name": "Benchmarks and sweeps",
+      "detail": "The three models scored on the same folds, and the predictor-cap sweep.",
+      "availability": "published",
+      "where": "/api/benchmarks/latest (the newest benchmark). Earlier benchmarks and sweeps are summarised in the repository README."
+    },
+    {
+      "stage": "7. Release",
+      "name": "Release manifests",
+      "detail": "Every published file with its SHA-256, plus the code commit, package versions, layer builds and pull fingerprint.",
+      "availability": "planned",
+      "why": "Written with every release; a public listing comes with the public store."
+    }
+  ]
+}

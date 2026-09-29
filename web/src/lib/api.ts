@@ -38,6 +38,8 @@ export interface Layer {
   id: string;
   title: string;
   source: string;
+  /** The provider's download page; absent for layers derived on the grid. */
+  url?: string;
   license: string;
   citation: string;
   note?: string;
