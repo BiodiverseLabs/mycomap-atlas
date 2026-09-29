@@ -353,3 +353,12 @@ test_that("the metadata template has everything Zenodo requires", {
     expect_equal(metadata$publication_date, "2026-09-29")
   }
 })
+
+test_that("a person is credited as Family, Given, as Zenodo cites them", {
+  template <- atlas_archive_template(testthat::test_path("..", ".."))
+  names <- vapply(template$common$creators, function(c) c$name, character(1))
+  expect_equal(names[[1]], "Russell, Stephen D.")
+  # Anything that is not an organisation must carry the comma Zenodo splits on.
+  people <- names[!grepl("[.](org|com)$", names)]
+  expect_true(all(grepl("^[^,]+, [^,]+$", people)))
+})
