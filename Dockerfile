@@ -22,7 +22,7 @@ ARG CRAN_SNAPSHOT=2026-09-28
 RUN . /etc/os-release \
  && install2.r --error --skipinstalled --ncpus -1 \
       -r "https://p3m.dev/cran/__linux__/${VERSION_CODENAME}/${CRAN_SNAPSHOT}" \
-      digest jsonlite plumber maxnet xgboost ranger paws.storage testthat targets \
+      digest jsonlite plumber maxnet xgboost ranger paws.storage openssl testthat targets \
  && rm -rf /tmp/downloaded_packages
 
 WORKDIR /atlas

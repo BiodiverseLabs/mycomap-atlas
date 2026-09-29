@@ -24,6 +24,7 @@ Suggests:
     terra,
     geodata,
     curl,
+    openssl,
     sf,
     maxnet,
     ENMeval,
