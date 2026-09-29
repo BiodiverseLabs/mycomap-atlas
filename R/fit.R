@@ -297,6 +297,16 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     atlas_remove_map(name, grid, algo$id)
   }
 
+  # Two names that make the same file name would overwrite each other's map
+  # without a word. Refuse instead: it means two spellings need merging.
+  if (isTRUE(write)) {
+    existing <- atlas_read_metrics(name, grid, algo$id)
+    if (!is.null(existing) && is.character(existing$taxon) && !identical(existing$taxon, name)) {
+      stop("the file for ", name, " already holds ", existing$taxon,
+           "; two names share a file name", call. = FALSE)
+    }
+  }
+
   raster_path <- NULL
   drawn <- NULL
   if (isTRUE(write) && !is.null(suitability)) {

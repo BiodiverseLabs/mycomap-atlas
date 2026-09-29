@@ -69,6 +69,7 @@ atlas_usage <- function() {
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
+  message("  refresh-names      merge spellings of one taxon and rebuild the taxon counts")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -334,6 +335,10 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       if (is.null(flags$job)) stop("finish-job needs --job=ID", call. = FALSE)
       atlas_finish_job(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
                        promote = !isTRUE(flags$no_promote))
+      invisible(0L)
+    },
+    "refresh-names" = {
+      atlas_refresh_names()
       invisible(0L)
     },
     "status" = {

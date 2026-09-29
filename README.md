@@ -430,6 +430,24 @@ Records green only in a fourth or later project are missed, because .org
 flattens three validation slots. Vision has the same limitation, and the fix
 for both is a shared view on .org rather than a change here.
 
+### One taxon, one name
+
+.org holds some taxa under several spellings: *Mycena* sp. 'IN10' and
+*Mycena* "sp-IN10", 'fuscidisca PNW10' and 'fuscidisca-PNW10', curly quotes
+and straight, a trailing non-breaking space. Spellings that differ only in
+punctuation are merged and modelled under the one most records use; letters
+and digits are never touched, so 'IN1' and 'IN01' stay apart. Every record
+keeps its original spelling, and `occurrences/name-merges.json` (published in
+releases) lists every merge so the names can be fixed on .org. On the
+2026-09-28 pull, 362 taxa gathered 363 other spellings (741 records), 80 of
+them taxa with 20+ localities. `./atlas refresh-names` rebuilds the counts
+and the report from an existing pull.
+
+Without the merge the records were split between spellings, and where two
+spellings both cleared the threshold they shared a file name and one map
+silently replaced the other. A fit now refuses to overwrite another taxon's
+model.
+
 ### Coordinates
 
 Exact coordinates never leave the machine that pulled them. Anything drawn on a
