@@ -65,6 +65,7 @@ atlas_usage <- function() {
   message("      --sandbox                 sandbox.zenodo.org, with test DOIs (do this first)")
   message("      --dry-run                 build the bundles and show what would be uploaded")
   message("      --publish                 mint the DOIs now; otherwise a draft is left to check")
+  message("      --resume-draft=ID         carry on in an existing unpublished Zenodo draft")
   message("  archive-publish    publish the waiting draft of a series (--series=models-production)")
   message("  archive-discard    throw away the waiting draft of a series")
   message("  archives           list archived versions and their DOIs")
@@ -309,7 +310,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         release = if (is.null(flags$release)) NULL else as.character(flags$release),
         z = atlas_flag_zenodo(flags),
         publish = isTRUE(flags$publish),
-        dry_run = isTRUE(flags$dry_run)
+        dry_run = isTRUE(flags$dry_run),
+        resume_draft = if (is.null(flags$resume_draft)) NULL else as.character(flags$resume_draft)
       )
       invisible(0L)
     },

@@ -7,6 +7,12 @@
 # which the client has to clear.
 fake_zenodo <- function(copy_files = TRUE) {
   z <- new.env()
+  # Upload failures to stage: name -> how many times to fail. A "stored"
+  # failure keeps the file but still answers 502, as a gateway timing out
+  # after the server has the bytes does.
+  z$fail <- list()
+  z$fail_stored <- list()
+  z$uploads <- character()
   z$records <- list()
   z$calls <- character()
   z$tokens <- character()
@@ -38,15 +44,25 @@ fake_zenodo <- function(copy_files = TRUE) {
       r <- z$records[[id]]
       if (r$state != "draft") return(ok(403L, list(message = "published")))
       name <- utils::URLdecode(parts[[3]])
+      if ((z$fail[[name]] %||% 0) > 0) {
+        z$fail[[name]] <- z$fail[[name]] - 1
+        return(ok(502L, list(message = "<html><body>502 Bad Gateway</body></html>")))
+      }
+      z$uploads <- c(z$uploads, name)
       r$files[[length(r$files) + 1L]] <- list(id = paste0("f", length(r$files) + 1L, "-", id), filename = name,
-                                              sha256 = digest::digest(file = file, algo = "sha256"))
+                                              sha256 = digest::digest(file = file, algo = "sha256"),
+                                              checksum = digest::digest(file = file, algo = "md5"))
       z$records[[id]] <- r
+      if ((z$fail_stored[[name]] %||% 0) > 0) {
+        z$fail_stored[[name]] <- z$fail_stored[[name]] - 1
+        return(ok(502L, list(message = "<html><body>502 Bad Gateway</body></html>")))
+      }
       return(ok(201L, list(key = name)))
     }
     id <- parts[[3]]
     r <- z$records[[id]]
     if (is.null(r)) return(ok(404L, list(message = "no such deposition")))
-    if (length(parts) == 3 && method == "GET") return(ok(200L, view(r)))
+    if (length(parts) == 3 && method == "GET") return(ok(200L, c(view(r), list(submitted = r$state == "published"))))
     if (length(parts) == 3 && method == "PUT") {
       r$metadata <- json$metadata
       z$records[[id]] <- r
@@ -57,7 +73,7 @@ fake_zenodo <- function(copy_files = TRUE) {
       z$records[[id]] <- NULL
       return(ok(204L))
     }
-    if (parts[[4]] == "files" && method == "GET") return(ok(200L, lapply(r$files, function(f) f[c("id", "filename")])))
+    if (parts[[4]] == "files" && method == "GET") return(ok(200L, lapply(r$files, function(f) f[c("id", "filename", "checksum")])))
     if (parts[[4]] == "files" && method == "DELETE") {
       r$files <- Filter(function(f) f$id != parts[[5]], r$files)
       z$records[[id]] <- r
@@ -77,8 +93,10 @@ fake_zenodo <- function(copy_files = TRUE) {
     }
     ok(400L, list(message = paste("unexpected", method, path)))
   }
-  z$client <- function(target = "zenodo") {
-    zen <- atlas_zenodo(target, token = "zenodo-secret-token", transport = z$transport)
+  z$client <- function(target = "zenodo", waits = c(0, 0, 0)) {
+    # No real waiting between retries in tests.
+    zen <- atlas_zenodo(target, token = "zenodo-secret-token", transport = z$transport,
+                        waits = waits, sleep = function(s) NULL)
     zen
   }
   z
@@ -379,4 +397,101 @@ test_that("every creator's ORCID is well formed and passes its check digit", {
   expect_true(length(orcids) >= 1)
   for (id in orcids) expect_true(orcid_valid(id), label = id)
   expect_false(orcid_valid("0000-0001-7191-2452"))
+})
+
+test_that("a gateway error during an upload is retried, and the archive completes", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    zen <- fake_zenodo()
+    zen$fail[["maps-rf.tar"]] <- 2
+    expect_message(archive_quietly(store, "draft", "models", z = zen$client()), "trying again")
+    version <- atlas_archive_ledger(store, "models-draft")$versions[[1]]
+    expect_equal(version$state, "draft")
+    record <- zen$records[[as.character(version$deposition_id)]]
+    expect_true("maps-rf.tar" %in% vapply(record$files, function(f) f$filename, character(1)))
+  })
+})
+
+test_that("a run that dies part way leaves its draft in the ledger, and the next run carries on in it", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    zen <- fake_zenodo()
+    zen$fail[["maps-rf.tar"]] <- 10
+    expect_error(suppressMessages(archive_quietly(store, "draft", "models", z = zen$client())), "gateway failed")
+    ledger <- atlas_archive_ledger(store, "models-draft")
+    expect_equal(ledger$versions[[1]]$state, "uploading")
+    first_draft <- ledger$versions[[1]]$deposition_id
+    uploaded_before <- zen$uploads
+
+    zen$fail[["maps-rf.tar"]] <- 0
+    archive_quietly(store, "draft", "models", z = zen$client())
+    ledger <- atlas_archive_ledger(store, "models-draft")
+    expect_length(ledger$versions, 1)
+    expect_equal(ledger$versions[[1]]$deposition_id, first_draft)
+    expect_equal(ledger$versions[[1]]$state, "draft")
+    expect_length(zen$records, 1)
+    # Files that made it the first time were not uploaded again.
+    again <- zen$uploads[-seq_along(uploaded_before)]
+    expect_false(any(uploaded_before %in% again))
+  })
+})
+
+test_that("a file the server kept despite answering 502 is not uploaded twice", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    zen <- fake_zenodo()
+    zen$fail_stored[["maps-rf.tar"]] <- 10
+    expect_error(suppressMessages(archive_quietly(store, "draft", "models", z = zen$client(waits = numeric()))))
+    zen$fail_stored[["maps-rf.tar"]] <- 0
+    archive_quietly(store, "draft", "models", z = zen$client())
+    expect_equal(sum(zen$uploads == "maps-rf.tar"), 1)
+    record <- zen$records[[as.character(atlas_archive_ledger(store, "models-draft")$versions[[1]]$deposition_id)]]
+    names <- vapply(record$files, function(f) f$filename, character(1))
+    expect_false(any(duplicated(names)))
+  })
+})
+
+test_that("creating or publishing a record is never retried blindly", {
+  calls <- 0
+  flaky <- function(method, url, token, json, file) {
+    calls <<- calls + 1
+    list(status = 502L, body = list(message = "<html>502</html>"))
+  }
+  zen <- atlas_zenodo("sandbox", token = "t", transport = flaky, waits = c(0, 0, 0), sleep = function(s) NULL)
+  expect_error(atlas_zenodo_create(zen), "gateway failed")
+  expect_equal(calls, 1)
+  expect_error(zen$call("GET", "/deposit/depositions"), "gateway failed")
+  expect_equal(calls, 1 + 4)
+})
+
+test_that("a draft Zenodo holds but the ledger lost can be adopted with --resume-draft", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    zen <- fake_zenodo()
+    orphan <- atlas_zenodo_create(zen$client())
+    archive_quietly(store, "draft", "models", z = zen$client(), resume_draft = orphan$id)
+    expect_length(zen$records, 1)
+    expect_equal(atlas_archive_ledger(store, "models-draft")$versions[[1]]$deposition_id, orphan$id)
+  })
+})
+
+test_that("the same release always packs to the same bytes", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    first <- atlas_archive_models_bundle(store, "draft")
+    Sys.sleep(1.1)
+    second <- atlas_archive_models_bundle(store, "draft")
+    hashes <- function(b) vapply(b$sources, atlas_sha256, character(1))
+    expect_equal(hashes(first), hashes(second))
+  })
 })

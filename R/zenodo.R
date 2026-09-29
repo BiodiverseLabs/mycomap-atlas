@@ -18,6 +18,9 @@ ATLAS_ZENODO_API <- c(
   sandbox = "https://sandbox.zenodo.org/api"
 )
 
+# Seconds to wait before each retry of a call that failed on Zenodo's side.
+ATLAS_ZENODO_RETRY_WAITS <- c(15, 60, 180)
+
 # Per record, per Zenodo's documentation.
 ATLAS_ZENODO_MAX_BYTES <- 50 * 1024^3
 ATLAS_ZENODO_MAX_FILES <- 100
@@ -28,7 +31,8 @@ ATLAS_ZENODO_MAX_FILES <- 100
 #' list(status, body); tests pass a simulated Zenodo.
 atlas_zenodo <- function(target = c("zenodo", "sandbox"),
                          token = Sys.getenv("ZENODO_TOKEN", unset = ""),
-                         transport = atlas_zenodo_http) {
+                         transport = atlas_zenodo_http,
+                         waits = ATLAS_ZENODO_RETRY_WAITS, sleep = Sys.sleep) {
   target <- match.arg(target)
   if (!nzchar(token)) {
     stop("set ZENODO_TOKEN to a Zenodo personal access token with deposit:write and ",
@@ -37,9 +41,27 @@ atlas_zenodo <- function(target = c("zenodo", "sandbox"),
   base <- ATLAS_ZENODO_API[[target]]
   call <- function(method, url, json = NULL, file = NULL, expect = c(200L, 201L, 202L, 204L)) {
     if (!grepl("^https?://", url)) url <- paste0(base, url)
-    response <- transport(method, url, token, json, file)
+    # A gateway error or a dropped connection is retried, but only for calls
+    # that do the same thing twice: reading, uploading a file to its name,
+    # deleting. Creating a record or publishing is never repeated blindly.
+    repeatable <- method %in% c("GET", "PUT", "DELETE")
+    attempt <- 0L
+    repeat {
+      response <- tryCatch(
+        transport(method, url, token, json, file),
+        error = function(e) list(status = 0L, body = list(message = conditionMessage(e)))
+      )
+      transient <- response$status == 0L || response$status == 429L || response$status >= 500L
+      if (response$status %in% expect || !repeatable || !transient || attempt >= length(waits)) break
+      attempt <- attempt + 1L
+      message("  Zenodo answered ", if (response$status) response$status else "nothing",
+              "; trying again in ", waits[[attempt]], " s")
+      sleep(waits[[attempt]])
+    }
     if (!response$status %in% expect) {
       detail <- response$body$message %||% ""
+      # A gateway's HTML error page says nothing a person needs to read.
+      if (grepl("<html", detail, ignore.case = TRUE)) detail <- "the server's gateway failed"
       errors <- response$body$errors
       if (length(errors)) {
         detail <- paste(detail, paste(vapply(errors, function(e) {
@@ -139,4 +161,32 @@ atlas_zenodo_publish <- function(z, deposition_id) {
 #' Zenodo refuses to delete anything published.
 atlas_zenodo_discard <- function(z, deposition_id) {
   z$call("DELETE", paste0("/deposit/depositions/", deposition_id), expect = c(200L, 201L, 204L))
+}
+
+#' Make a draft hold exactly these files: remove what is not wanted, replace
+#' what differs, upload what is missing. A file already there with the same
+#' MD5 (Zenodo's own checksum) is left alone, so an upload that stopped part
+#' way carries on where it was instead of starting over.
+atlas_zenodo_sync_files <- function(z, draft, files, say = message) {
+  present <- z$call("GET", paste0("/deposit/depositions/", draft$id, "/files")) %||% list()
+  have <- list()
+  for (f in present) have[[f$filename]] <- f
+  remove <- function(f) {
+    z$call("DELETE", paste0("/deposit/depositions/", draft$id, "/files/", f$id), expect = c(200L, 204L))
+  }
+  for (name in setdiff(names(have), files$name)) remove(have[[name]])
+  for (i in seq_len(nrow(files))) {
+    there <- have[[files$name[i]]]
+    if (!is.null(there)) {
+      local <- digest::digest(file = files$path[i], algo = "md5")
+      if (identical(sub("^md5:", "", there$checksum %||% ""), local)) {
+        say("  already on Zenodo: ", files$name[i])
+        next
+      }
+      remove(there)
+    }
+    say("  uploading ", files$name[i], sprintf(" (%.1f MB)", files$bytes[i] / 1048576))
+    atlas_zenodo_upload(z, draft, files$name[i], files$path[i])
+  }
+  invisible(draft)
 }

@@ -137,6 +137,12 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
     }
   }
 
+  # A tar records each file's time. Stamped with the release's own time, the
+  # same release always packs to the same bytes, so a resumed upload can see
+  # that a file already on Zenodo is the right one.
+  stamp <- as.POSIXct(manifest$created_at %||% "2000-01-01T00:00:00Z", format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  Sys.setFileTime(file.path(tree, paths), stamp)
+
   names <- character()
   algorithms <- vapply(paths, atlas_archive_algorithm, character(1), grid = grid)
   model_paths <- paths[!is.na(algorithms)]
@@ -320,7 +326,8 @@ atlas_archive_metadata <- function(bundle, readme, template = atlas_archive_temp
 #' newest published version, and refuses while an earlier draft is still
 #' waiting, so two drafts never compete for the next version.
 atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = FALSE,
-                                  template = atlas_archive_template(), quiet = FALSE) {
+                                  template = atlas_archive_template(), quiet = FALSE,
+                                  resume_draft = NULL) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   series <- atlas_archive_series(bundle$kind, bundle$grid, z$target)
   ledger <- atlas_archive_ledger(store, series)
@@ -357,17 +364,25 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
     return(invisible(list(ledger = ledger, files = files, metadata = metadata)))
   }
 
-  draft <- if (is.null(latest)) {
+  # An upload that stopped part way leaves its draft in the ledger as
+  # uploading: carry on in that draft rather than start a second record.
+  unfinished <- Filter(function(v) identical(v$state, "uploading"), ledger$versions)
+  if (length(unfinished) && !identical(unfinished[[1]]$key, bundle$key)) {
+    stop("an unfinished upload of version ", unfinished[[1]]$version, " of ", series,
+         " is on Zenodo at ", unfinished[[1]]$url, "; discard it with archive-discard first",
+         call. = FALSE)
+  }
+  resume_id <- if (length(unfinished)) unfinished[[1]]$deposition_id else resume_draft
+  draft <- if (!is.null(resume_id)) {
+    found <- z$call("GET", paste0("/deposit/depositions/", resume_id))
+    if (isTRUE(found$submitted)) stop("Zenodo record ", resume_id, " is already published", call. = FALSE)
+    say(series, ": carrying on in the unfinished draft ", resume_id)
+    found
+  } else if (is.null(latest)) {
     atlas_zenodo_create(z)
   } else {
     atlas_zenodo_new_version(z, latest$deposition_id)
   }
-  atlas_zenodo_clear(z, draft)
-  for (i in seq_len(nrow(files))) {
-    say("  uploading ", files$name[i], sprintf(" (%.1f MB)", files$bytes[i] / 1048576))
-    atlas_zenodo_upload(z, draft, files$name[i], files$path[i])
-  }
-  atlas_zenodo_set_metadata(z, draft$id, metadata)
 
   entry <- list(
     version = bundle$version,
@@ -376,14 +391,25 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
     layers_version = layers_version$version,
     deposition_id = draft$id,
     url = draft$links$html %||% paste0(sub("/api$", "", z$base), "/deposit/", draft$id),
-    state = "draft",
+    state = "uploading",
     created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     bytes = total,
     files = lapply(seq_len(nrow(files)), function(i) {
       list(name = files$name[i], bytes = files$bytes[i], sha256 = files$sha256[i])
     })
   )
-  ledger$versions <- c(ledger$versions, list(Filter(Negate(is.null), entry)))
+  entry <- Filter(Negate(is.null), entry)
+  # Written before a byte is uploaded, so a run that dies leaves a draft
+  # the next run knows about, never one only Zenodo knows about.
+  index <- which(vapply(ledger$versions, function(v) identical(v$state, "uploading"), logical(1)))
+  index <- if (length(index)) index[[1]] else length(ledger$versions) + 1L
+  ledger$versions[[index]] <- entry
+  atlas_archive_save_ledger(store, ledger)
+
+  atlas_zenodo_sync_files(z, draft, files, say)
+  atlas_zenodo_set_metadata(z, draft$id, metadata)
+
+  ledger$versions[[index]]$state <- "draft"
   atlas_archive_save_ledger(store, ledger)
   say(series, " version ", bundle$version, ": draft ready at ", entry$url)
 
@@ -420,7 +446,7 @@ atlas_archive_publish <- function(store, series, z, quiet = FALSE) {
 #' Throw away the waiting draft of a series.
 atlas_archive_discard <- function(store, series, z, quiet = FALSE) {
   ledger <- atlas_archive_ledger(store, series)
-  index <- which(vapply(ledger$versions, function(v) identical(v$state, "draft"), logical(1)))
+  index <- which(vapply(ledger$versions, function(v) v$state %in% c("draft", "uploading"), logical(1)))
   if (!length(index)) stop(series, " has no draft to discard", call. = FALSE)
   entry <- ledger$versions[[index[[1]]]]
   atlas_zenodo_discard(z, entry$deposition_id)
@@ -432,7 +458,7 @@ atlas_archive_discard <- function(store, series, z, quiet = FALSE) {
 
 #' Archive a release, the layers, or both, as the next versions of their series.
 atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, release = NULL,
-                          z, publish = FALSE, dry_run = FALSE, quiet = FALSE) {
+                          z, publish = FALSE, dry_run = FALSE, quiet = FALSE, resume_draft = NULL) {
   # Layers first: a models version records which layers version it was fitted on.
   for (kind in intersect(c("layers", "models"), kinds)) {
     bundle <- if (kind == "layers") {
@@ -441,7 +467,8 @@ atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, re
       atlas_archive_models_bundle(store, grid, release)
     }
     on.exit(unlink(dirname(bundle$dir), recursive = TRUE), add = TRUE)
-    atlas_archive_deposit(bundle, store, z, publish = publish, dry_run = dry_run, quiet = quiet)
+    atlas_archive_deposit(bundle, store, z, publish = publish, dry_run = dry_run, quiet = quiet,
+                          resume_draft = resume_draft)
   }
   invisible(TRUE)
 }
