@@ -1,22 +1,3 @@
-# A synthetic world where the answer is known: suitability peaks at v1 = 1 and
-# falls away from it, and v2 says nothing at all. A fit that cannot recover
-# that is broken, however plausible its output looks.
-simulated_training <- function(n_background = 2000, n_presence = 200, seed = 42) {
-  set.seed(seed)
-  background <- data.frame(
-    v1 = stats::runif(n_background, -3, 3),
-    v2 = stats::runif(n_background, -3, 3)
-  )
-  truth <- exp(-((background$v1 - 1)^2) / 0.5)
-  drawn <- sample.int(n_background, n_presence, replace = TRUE, prob = truth)
-  rbind(
-    data.frame(presence = 1L, cell = seq_len(n_presence), x = 0, y = 0,
-               background[drawn, , drop = FALSE]),
-    data.frame(presence = 0L, cell = seq_len(n_background) + n_presence,
-               x = 0, y = 0, background)
-  )
-}
-
 test_that("bookkeeping columns are not offered to the model as predictors", {
   training <- simulated_training(n_background = 50, n_presence = 10)
   expect_equal(atlas_predictor_columns(training), c("v1", "v2"))

@@ -1,3 +1,22 @@
+# A synthetic world where the answer is known: suitability peaks at v1 = 1 and
+# falls away from it, and v2 says nothing at all. A fit that cannot recover
+# that is broken, however plausible its output looks.
+simulated_training <- function(n_background = 2000, n_presence = 200, seed = 42) {
+  set.seed(seed)
+  background <- data.frame(
+    v1 = stats::runif(n_background, -3, 3),
+    v2 = stats::runif(n_background, -3, 3)
+  )
+  truth <- exp(-((background$v1 - 1)^2) / 0.5)
+  drawn <- sample.int(n_background, n_presence, replace = TRUE, prob = truth)
+  rbind(
+    data.frame(presence = 1L, cell = seq_len(n_presence), x = 0, y = 0,
+               background[drawn, , drop = FALSE]),
+    data.frame(presence = 0L, cell = seq_len(n_background) + n_presence,
+               x = 0, y = 0, background)
+  )
+}
+
 # A 1,000 km square in the grid's projection with two predictors: v1 rises
 # west to east, v2 is noise. The taxon lives only in the east.
 synthetic_landscape <- function() {

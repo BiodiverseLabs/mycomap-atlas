@@ -87,21 +87,11 @@ atlas_sweep_taxon <- function(name, fingerprint, points, stack,
   )
 }
 
-#' What a worker runs for one taxon in a sweep.
-atlas_sweep_worker_task <- function(name, fingerprints, args) {
-  args$points <- get(".atlas_points", envir = globalenv())
-  args$stack <- get0(".atlas_stack", envir = globalenv())
-  tryCatch(
-    do.call(atlas_sweep_taxon, c(list(name = name, fingerprint = fingerprints[[name]]), args)),
-    error = function(e) list(taxon = name, status = "failed", error = conditionMessage(e))
-  )
-}
-
 #' Paired comparison of every arm with the baseline, band by band.
 #'
 #' For each band and arm: how many taxa, mean AUC and Boyce, mean predictors
-#' kept, the mean paired difference in AUC from the baseline arm with its
-#' standard error, and how often the arm was the best of all arms for a taxon.
+#' kept, the mean paired difference in AUC and in Boyce from the baseline arm
+#' with their standard errors, and how often the arm had the best AUC.
 atlas_sweep_summary <- function(rows, baseline = "4") {
   scored <- Filter(function(r) identical(r$status, "scored"), rows)
   if (!length(scored)) {
@@ -110,7 +100,7 @@ atlas_sweep_summary <- function(rows, baseline = "4") {
   long <- do.call(rbind, lapply(scored, function(r) {
     do.call(rbind, lapply(r$arms, function(a) data.frame(
       taxon = r$taxon, band = r$band %||% atlas_presence_band(r$presences),
-      arm = as.character(a$per_presence), predictors = a$predictors,
+      arm = atlas_arm_name(a), predictors = as.numeric(a$predictors %||% NA),
       auc = as.numeric(a$auc %||% NA), boyce = as.numeric(a$boyce %||% NA),
       stringsAsFactors = FALSE
     )))
@@ -118,10 +108,11 @@ atlas_sweep_summary <- function(rows, baseline = "4") {
   long$auc[is.nan(long$auc)] <- NA
   long$boyce[is.nan(long$boyce)] <- NA
 
-  base <- long[long$arm == baseline, c("taxon", "auc"), drop = FALSE]
-  names(base)[2] <- "base_auc"
+  base <- long[long$arm == baseline, c("taxon", "auc", "boyce"), drop = FALSE]
+  names(base)[2:3] <- c("base_auc", "base_boyce")
   long <- merge(long, base, by = "taxon", all.x = TRUE)
   long$delta <- long$auc - long$base_auc
+  long$delta_b <- long$boyce - long$base_boyce
   best <- stats::ave(long$auc, long$taxon, FUN = function(v) {
     if (all(is.na(v))) NA_real_ else max(v, na.rm = TRUE)
   })
@@ -134,13 +125,16 @@ atlas_sweep_summary <- function(rows, baseline = "4") {
     do.call(rbind, lapply(arms, function(a) {
       x <- in_band[in_band$arm == a, , drop = FALSE]
       d <- x$delta[is.finite(x$delta)]
+      db <- x$delta_b[is.finite(x$delta_b)]
       data.frame(
         band = b, arm = a, taxa = nrow(x),
-        predictors = round(mean(x$predictors), 1),
+        predictors = round(mean(x$predictors, na.rm = TRUE), 1),
         auc = round(mean(x$auc, na.rm = TRUE), 3),
         boyce = round(mean(x$boyce, na.rm = TRUE), 3),
         delta_auc = if (length(d)) round(mean(d), 4) else NA_real_,
         delta_se = if (length(d) > 1L) round(stats::sd(d) / sqrt(length(d)), 4) else NA_real_,
+        delta_boyce = if (length(db)) round(mean(db), 4) else NA_real_,
+        delta_boyce_se = if (length(db) > 1L) round(stats::sd(db) / sqrt(length(db)), 4) else NA_real_,
         best_share = round(mean(x$is_best), 2),
         stringsAsFactors = FALSE
       )
@@ -159,27 +153,11 @@ atlas_predictor_sweep <- function(grid = "draft", per_band = 40,
                                   correlation = 0.7, quiet = FALSE,
                                   occurrences = NULL, points = NULL,
                                   stack = NULL, taxa = NULL) {
-  started <- Sys.time()
-  stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
-  path <- atlas_path("sweeps", grid, paste0("predictors-", stamp, ".json"))
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  log <- file(sub("[.]json$", ".log", path), open = "wt")
-  on.exit(close(log), add = TRUE)
-  say <- function(...) {
-    line <- paste0(format(Sys.time(), "%H:%M:%S"), "  ", ...)
-    writeLines(line, log)
-    flush(log)
-    if (!isTRUE(quiet)) message(line)
-  }
-
   occurrences <- occurrences %||% atlas_read_occurrences()
   points <- points %||% atlas_occurrence_points(occurrences, grid)
   candidates <- atlas_batch_candidates(points, min_presences, taxa = taxa)
   sample <- atlas_sweep_sample(candidates, per_band = per_band, seed = seed)
   fingerprints <- atlas_fingerprints_for(occurrences, sample$scientific_name)
-  say(nrow(sample), " taxa sampled from ", nrow(candidates), " candidates (",
-      paste(names(table(sample$band)), table(sample$band), sep = ": ", collapse = ", "),
-      "); arms: ", paste(atlas_arm_label(constants), collapse = ", "))
 
   args <- list(
     constants = constants, grid = grid, n_background = n_background,
@@ -189,53 +167,22 @@ atlas_predictor_sweep <- function(grid = "draft", per_band = 40,
   settings <- c(args[setdiff(names(args), "constants")],
                 list(constants = as.list(ifelse(is.finite(constants), constants, "none")),
                      per_band = per_band, seed = seed))
-  rows <- list()
-  save <- function() {
-    atlas_write_json(
-      list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-           settings = settings, layers = atlas_layers_key(grid),
-           summary = atlas_sweep_summary(rows), taxa = rows),
-      path
+  atlas_run_study(
+    kind = "sweeps", file_prefix = "predictors", taxon_fn = "atlas_sweep_taxon",
+    sample = sample, fingerprints = fingerprints, args = args,
+    settings = settings, baseline = "4", grid = grid, workers = workers,
+    points = points, stack = stack, quiet = quiet,
+    opening = paste0(
+      nrow(sample), " taxa sampled from ", nrow(candidates), " candidates (",
+      atlas_band_counts(sample), "); arms: ",
+      paste(atlas_arm_label(constants), collapse = ", ")
     )
-  }
-  record <- function(row) {
-    rows[[length(rows) + 1L]] <<- row
-    save()
-    detail <- if (identical(row$status, "scored")) {
-      paste(vapply(row$arms, function(a) sprintf("%s:%s", a$per_presence, a$auc),
-                   character(1)), collapse = " ")
-    } else {
-      row$error %||% paste(row$presences, "cells")
-    }
-    say(sprintf("[%d/%d] %s %s (%s cells, %ss) %s", length(rows), nrow(sample),
-                row$status, row$taxon, row$presences %||% "?", row$seconds %||% NA, detail))
-  }
+  )
+}
 
-  names <- sample$scientific_name
-  if (length(names) && workers > 1L) {
-    cluster <- atlas_start_workers(min(workers, length(names)), grid, points)
-    on.exit(parallel::stopCluster(cluster), add = TRUE)
-    task <- atlas_sweep_worker_task
-    environment(task) <- globalenv()
-    atlas_run_on_workers(cluster, names, task, record,
-                         fingerprints = fingerprints, args = args)
-  } else if (length(names)) {
-    stack <- stack %||% atlas_predictor_stack(grid)
-    for (name in names) {
-      record(tryCatch(
-        do.call(atlas_sweep_taxon, c(list(name = name, fingerprint = fingerprints[[name]],
-                                          points = points, stack = stack), args)),
-        error = function(e) list(taxon = name, status = "failed", error = conditionMessage(e))
-      ))
-    }
-  }
-
-  save()
-  summary <- atlas_sweep_summary(rows)
-  if (!isTRUE(quiet) && nrow(summary)) {
-    print(summary, row.names = FALSE)
-  }
-  say("done in ", round(as.numeric(difftime(Sys.time(), started, units = "secs"))),
-      "s -> ", path)
-  invisible(list(summary = summary, taxa = rows, path = path))
+#' "20-29: 40, 30-49: 40" for a sample, in band order.
+atlas_band_counts <- function(sample) {
+  counts <- table(sample$band)
+  order <- order(as.numeric(sub("[^0-9].*$", "", names(counts))))
+  paste(names(counts)[order], counts[order], sep = ": ", collapse = ", ")
 }

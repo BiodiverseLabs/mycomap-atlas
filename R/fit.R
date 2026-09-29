@@ -119,7 +119,14 @@ atlas_boyce <- function(presence, background, windows = 100, width = 0.1) {
 }
 
 #' Fit on all but one spatial block at a time, and score the held-out region.
-atlas_cross_validate <- function(training, folds, classes = NULL, regmult = 1) {
+#'
+#' fit and score default to Maxent; the model benchmark passes boosted trees
+#' through the same loop, so both are scored on exactly the same folds.
+atlas_cross_validate <- function(training, folds, classes = NULL, regmult = 1,
+                                 fit = function(train) {
+                                   atlas_fit_maxnet(train, classes = classes, regmult = regmult)
+                                 },
+                                 score = atlas_suitability) {
   results <- lapply(sort(unique(folds)), function(fold) {
     held <- folds == fold
     train <- training[!held, , drop = FALSE]
@@ -132,8 +139,8 @@ atlas_cross_validate <- function(training, folds, classes = NULL, regmult = 1) {
         auc = NA_real_, boyce = NA_real_
       ))
     }
-    model <- atlas_fit_maxnet(train, classes = classes, regmult = regmult)
-    scores <- atlas_suitability(model, test[, atlas_predictor_columns(test), drop = FALSE])
+    model <- fit(train)
+    scores <- score(model, test[, atlas_predictor_columns(test), drop = FALSE])
     data.frame(
       fold = fold,
       presences = presences_held,
