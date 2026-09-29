@@ -5,7 +5,7 @@
     "access_right": "open",
     "license": "cc-by-sa-4.0",
     "creators": [
-      { "name": "Russell, Stephen D." },
+      { "name": "Russell, Stephen D.", "affiliation": "Mycota", "orcid": "0000-0001-7191-2451" },
       { "name": "MycoMap.org", "affiliation": "MycoMap" }
     ],
     "keywords": [
