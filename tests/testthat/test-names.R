@@ -117,6 +117,39 @@ test_that("a provisional code keeps its brackets", {
                "Descomyces sp. 'Marbled (PDD 112668)'")
 })
 
+test_that("spellings of one rank word are one taxon", {
+  expect_true(same_taxon("Amanita muscaria ssp. flavivolvata", "Amanita muscaria subsp. flavivolvata"))
+  expect_true(same_taxon("Amanita muscaria ssp flavivolvata", "Amanita muscaria subsp flavivolvata",
+                         "Amanita muscaria subsp. flavivolvata"))
+  expect_true(same_taxon("Lactarius subvernalis var cokeri", "Lactarius subvernalis var. cokeri"))
+  expect_true(same_taxon("Inocybe geophylla f. lilacina", "Inocybe geophylla forma lilacina",
+                         "Inocybe geophylla fo. lilacina"))
+  # With an author after it, too.
+  expect_true(same_taxon("Amanita muscaria ssp. flavivolvata Singer", "Amanita muscaria subsp. flavivolvata"))
+})
+
+test_that("joining rank spellings never joins different taxa", {
+  expect_false(same_taxon("Amanita muscaria ssp. flavivolvata", "Amanita muscaria subsp. guessowii"))
+  # A variety is not a subspecies, nor a form a variety, even of one epithet.
+  expect_false(same_taxon("Amanita muscaria var. flavivolvata", "Amanita muscaria subsp. flavivolvata"))
+  expect_false(same_taxon("Inocybe geophylla f. lilacina", "Inocybe geophylla var. lilacina"))
+  # A subspecies is not its species, nor a species whose epithet looks like a rank.
+  expect_false(same_taxon("Amanita muscaria ssp. flavivolvata", "Amanita muscaria"))
+  expect_false(same_taxon("Amanita var", "Amanita var."))
+  # A capital F. is an author's initial, not a form.
+  expect_true(same_taxon("Boletus edulis", "Boletus edulis F. Bull."))
+  # A form's epithet is kept, not taken for an author.
+  expect_equal(atlas_strip_authors("Inocybe geophylla fo. lilacina (Peck) Gillet"), "Inocybe geophylla fo. lilacina")
+  # Nothing inside a provisional code is rewritten.
+  expect_false(same_taxon("Russula sp. 'IN01 ssp alba'", "Russula sp. 'IN01 subsp alba'"))
+})
+
+test_that("a merged subspecies keeps the spelling most records use", {
+  names <- c(rep("Amanita muscaria ssp. flavivolvata", 3), "Amanita muscaria subsp. flavivolvata")
+  canonical <- atlas_canonical_names(names)
+  expect_equal(unname(canonical["Amanita muscaria subsp. flavivolvata"]), "Amanita muscaria ssp. flavivolvata")
+})
+
 test_that("a lineage code without quotes is not mistaken for an author", {
   expect_false(same_taxon("Cuphophyllus pratensis PNW06", "Cuphophyllus pratensis"))
   expect_false(same_taxon("Cystolepiota 'seminuda PNW04'", "Cystolepiota seminuda"))

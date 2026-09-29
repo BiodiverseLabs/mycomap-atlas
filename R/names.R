@@ -37,8 +37,33 @@ atlas_regular_name <- function(names) {
   x
 }
 
-# Words that introduce an infraspecific epithet.
-ATLAS_NAME_RANKS <- c("var.", "var", "subsp.", "subsp", "ssp.", "ssp", "f.", "forma")
+# Words that introduce an infraspecific epithet, each with the one spelling
+# it is compared under: "Amanita muscaria ssp. flavivolvata" and "Amanita
+# muscaria subsp. flavivolvata" are one taxon. Only spellings of the same rank
+# are joined; a variety and a subspecies of one epithet stay apart.
+ATLAS_RANK_SPELLINGS <- c(
+  "subsp." = "subsp.", "subsp" = "subsp.", "ssp." = "subsp.", "ssp" = "subsp.",
+  "var." = "var.", "var" = "var.",
+  "f." = "f.", "fo." = "f.", "fo" = "f.", "forma" = "f."
+)
+ATLAS_NAME_RANKS <- names(ATLAS_RANK_SPELLINGS)
+
+#' A name with each rank word spelled one way. Only a word between epithets
+#' counts: the third word on, followed by another word, and never inside a
+#' quoted provisional code. Rank words are lower case; a capital "F." is an
+#' author's initial.
+atlas_regular_ranks <- function(names) {
+  vapply(names, function(name) {
+    words <- strsplit(name, " ", fixed = TRUE)[[1]]
+    if (length(words) < 4L) return(name)
+    for (i in 3:(length(words) - 1L)) {
+      if (grepl("'", words[[i]], fixed = TRUE)) break
+      spelling <- ATLAS_RANK_SPELLINGS[words[[i]]]
+      if (!is.na(spelling)) words[[i]] <- unname(spelling)
+    }
+    paste(words, collapse = " ")
+  }, character(1), USE.NAMES = FALSE)
+}
 
 #' A name without its author citation: the genus, the species epithet, and
 #' any rank and infraspecific epithet, stopping at the first word that is not
@@ -79,10 +104,10 @@ atlas_strip_authors <- function(names) {
 }
 
 #' The key two spellings of one taxon share: punctuation made regular, author
-#' citations dropped, the separators inside a provisional code made the same,
-#' case ignored.
+#' citations dropped, rank words spelled one way, the separators inside a
+#' provisional code made the same, case ignored.
 atlas_name_key <- function(names) {
-  x <- atlas_strip_authors(atlas_regular_name(names))
+  x <- atlas_regular_ranks(atlas_strip_authors(atlas_regular_name(names)))
   quoted <- grepl(" sp[.] '[^']*'$", x)
   code <- sub("^.* sp[.] '([^']*)'$", "\\1", x[quoted])
   x[quoted] <- paste0(sub(" sp[.] '[^']*'$", "", x[quoted]), " sp. '",
