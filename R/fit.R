@@ -414,7 +414,10 @@ atlas_predict_raster <- function(model, stack, area, score = atlas_suitability) 
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed to predict: install.packages('terra')", call. = FALSE)
   }
-  window <- terra::crop(stack, terra::ext(area))
+  # Mask before predicting, not after: the rectangle around the circles can be
+  # twice their area, and a thousand-tree forest spends minutes on cells that
+  # would only be thrown away. Masked cells are NA, which predict skips.
+  window <- terra::mask(terra::crop(stack, terra::ext(area)), area)
   predicted <- terra::predict(
     window, model,
     fun = function(model, data, ...) score(model, data),

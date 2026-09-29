@@ -133,3 +133,21 @@ test_that("a map file is named after the taxon, provisional names included", {
     expect_match(atlas_model_path("Amanita muscaria", "production"), "models/production/")
   })
 })
+
+test_that("a map never asks the model about ground outside the accessible area", {
+  skip_if_not_installed("terra")
+  world <- synthetic_landscape()
+  area <- atlas_accessible_area(x = 500000, y = 500000, buffer_km = 150)
+  seen <- 0L
+  count_rows <- function(model, data) {
+    seen <<- seen + nrow(data)
+    rep(0.5, nrow(data))
+  }
+  predicted <- atlas_predict_raster(NULL, world$stack, area, score = count_rows)
+  inside <- sum(!is.na(terra::values(predicted)))
+  # Only the cells inside the circle reach the model; the square around it
+  # holds about 4/pi times as many. terra also tries the function once on a
+  # small sample to learn its output, hence the tolerance.
+  expect_gt(inside, 0L)
+  expect_lt(seen, inside * 1.1)
+})

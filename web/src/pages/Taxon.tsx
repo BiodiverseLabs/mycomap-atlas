@@ -1,23 +1,65 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
-import { CircleMarker, ImageOverlay, MapContainer, TileLayer, Tooltip } from "react-leaflet";
+import { CircleMarker, ImageOverlay, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
+import type { Map as LeafletMap } from "leaflet";
 import { ArrowUpRight } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
-import { Stat } from "@/components/Common";
+import { Th } from "@/components/Common";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
-import { Card, CardContent } from "@/components/ui/card";
-import { getCells, getModel, getTaxon, mapUrl } from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ALGORITHMS,
+  ALGORITHM_LABELS,
+  getCells,
+  getModel,
+  getTaxon,
+  mapUrl,
+  type Algorithm,
+  type Cell,
+  type Model,
+} from "@/lib/api";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
 const PUBLISH_AT = 20;
+
+type Bounds = [[number, number], [number, number]];
+
+/** Maps that move together: pan or zoom one and the others follow. */
+interface MapGroup {
+  maps: Map<string, LeafletMap>;
+  syncing: boolean;
+}
+
+function SyncWith({ group, id }: { group: MutableRefObject<MapGroup>; id: string }) {
+  const map = useMap();
+  useEffect(() => {
+    const maps = group.current.maps;
+    maps.set(id, map);
+    const follow = () => {
+      if (group.current.syncing) return;
+      group.current.syncing = true;
+      for (const [other, target] of maps) {
+        if (other !== id) target.setView(map.getCenter(), map.getZoom(), { animate: false });
+      }
+      group.current.syncing = false;
+    };
+    map.on("move", follow);
+    return () => {
+      map.off("move", follow);
+      maps.delete(id);
+    };
+  }, [map, group, id]);
+  return null;
+}
 
 function Legend() {
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <span>Less suitable</span>
       <div
-        className="h-2 w-32 rounded"
+        className="h-2 w-24 rounded"
         style={{ background: "linear-gradient(to right, #f7f7e8, #94c440, #2e5a17)" }}
       />
       <span>More suitable</span>
@@ -25,9 +67,149 @@ function Legend() {
   );
 }
 
-/** A standard deviation is missing when only one fold could be scored. */
-function spread(value: number): string | undefined {
-  return Number.isFinite(value) ? `± ${value.toFixed(2)}` : undefined;
+function boundsOf(model?: Model | null): Bounds | null {
+  const b = model?.bounds;
+  return b ? [[b.south, b.west], [b.north, b.east]] : null;
+}
+
+function ModelMap({
+  name,
+  algorithm,
+  model,
+  loading,
+  points,
+  view,
+  group,
+}: {
+  name: string;
+  algorithm: Algorithm;
+  model?: Model | null;
+  loading: boolean;
+  points: Cell[];
+  view: Bounds | null;
+  group: MutableRefObject<MapGroup>;
+}) {
+  const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
+  const overlay = boundsOf(model);
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <CardTitle className="text-base text-[#4a3728]">{ALGORITHM_LABELS[algorithm]}</CardTitle>
+          {model && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      <div className="relative h-[380px]">
+        <MapContainer
+          center={[44, -100]}
+          zoom={3}
+          bounds={view ?? undefined}
+          className="h-full w-full"
+          // Otherwise scrolling the page over a map zooms it instead.
+          scrollWheelZoom={false}
+        >
+          <SyncWith group={group} id={algorithm} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {overlay && <ImageOverlay url={mapUrl(name, algorithm)} bounds={overlay} opacity={0.8} />}
+          {points.map((cell) => (
+            <CircleMarker
+              key={`${cell.lat}:${cell.lng}`}
+              center={[cell.lat, cell.lng]}
+              radius={2 + (cell.records / busiest) * 5}
+              pathOptions={{ color: "#4a3728", fillColor: "#ffffff", fillOpacity: 0.85, weight: 1 }}
+            >
+              <Tooltip>
+                {formatNumber(cell.records)} record{cell.records === 1 ? "" : "s"}
+              </Tooltip>
+            </CircleMarker>
+          ))}
+        </MapContainer>
+        {!loading && !model && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto w-fit rounded-md bg-white/90 px-3 py-1 text-xs text-muted-foreground shadow">
+            Not fitted yet
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/** A score with its spread; a missing spread means only one fold was scored. */
+function score(value?: number, sd?: number) {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return sd != null && Number.isFinite(sd) ? `${value.toFixed(2)} ± ${sd.toFixed(2)}` : value.toFixed(2);
+}
+
+function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null>> }) {
+  const fitted = ALGORITHMS.filter((a) => models[a]);
+  const best = (pick: (m: Model) => number) => {
+    const values = fitted.map((a) => pick(models[a]!)).filter(Number.isFinite);
+    return values.length > 1 ? Math.max(...values) : undefined;
+  };
+  const bestAuc = best((m) => m.auc_mean);
+  const bestBoyce = best((m) => m.boyce_mean);
+  const mark = (value: number, top?: number) =>
+    top != null && value === top ? "font-semibold text-myco-green" : "";
+
+  const rows: { label: string; cell: (m: Model) => React.ReactNode }[] = [
+    {
+      label: "Blocked AUC",
+      cell: (m) => <span className={mark(m.auc_mean, bestAuc)}>{score(m.auc_mean, m.auc_sd)}</span>,
+    },
+    {
+      label: "Blocked Boyce",
+      cell: (m) => (
+        <span className={mark(m.boyce_mean, bestBoyce)}>{score(m.boyce_mean, m.boyce_sd)}</span>
+      ),
+    },
+    {
+      label: "Predictors",
+      cell: (m) =>
+        m.predictors_considered
+          ? `${m.predictors.length} of ${m.predictors_considered}`
+          : formatNumber(m.predictors.length),
+    },
+    { label: "Folds scored", cell: (m) => `${m.folds.filter((f) => f.auc != null).length} of ${m.folds.length}` },
+    { label: "Fitted", cell: (m) => formatWhen(m.built_at).split(",")[0] },
+  ];
+
+  return (
+    <Card>
+      <CardContent className="p-0 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b">
+              <Th> </Th>
+              {ALGORITHMS.map((a) => (
+                <Th key={a} right>
+                  {ALGORITHM_LABELS[a]}
+                </Th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label} className="border-b last:border-0">
+                <td className="px-4 py-2 text-[#4a3728]">{row.label}</td>
+                {ALGORITHMS.map((a) => (
+                  <td key={a} className="px-4 py-2 text-right tabular-nums">
+                    {models[a] ? row.cell(models[a]!) : <span className="text-muted-foreground">—</span>}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function Taxon() {
@@ -36,23 +218,20 @@ export default function Taxon() {
 
   const taxon = useQuery({ queryKey: ["taxon", name], queryFn: () => getTaxon(name) });
   const cells = useQuery({ queryKey: ["cells", name], queryFn: () => getCells(name) });
-  const model = useQuery({ queryKey: ["model", name], queryFn: () => getModel(name) });
-
+  const fits = useQueries({
+    queries: ALGORITHMS.map((algorithm) => ({
+      queryKey: ["model", name, algorithm],
+      queryFn: () => getModel(name, algorithm),
+    })),
+  });
+  const models: Partial<Record<Algorithm, Model | null>> = {};
+  ALGORITHMS.forEach((a, i) => {
+    models[a] = fits[i].data;
+  });
+  const anyModel = ALGORITHMS.map((a) => models[a]).find(Boolean) ?? null;
+  const loading = fits.some((f) => f.isLoading);
   const points = cells.data?.cells ?? [];
-  const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
-  const bounds = model.data?.bounds;
-  const overlay: [[number, number], [number, number]] | null = bounds
-    ? [
-        [bounds.south, bounds.west],
-        [bounds.north, bounds.east],
-      ]
-    : null;
-  const centre: [number, number] = points.length
-    ? [
-        points.reduce((sum, cell) => sum + cell.lat, 0) / points.length,
-        points.reduce((sum, cell) => sum + cell.lng, 0) / points.length,
-      ]
-    : [44, -100];
+  const group = useRef<MapGroup>({ maps: new Map(), syncing: false });
 
   return (
     <>
@@ -77,113 +256,68 @@ export default function Taxon() {
       </PageHeader>
 
       <Page>
-        <Card className="overflow-hidden">
-          <div className="h-[520px]">
-            <MapContainer
-              center={centre}
-              zoom={4}
-              bounds={overlay ?? undefined}
-              className="h-full w-full"
-              // Otherwise scrolling the page over the map zooms it instead.
-              scrollWheelZoom={false}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              {overlay && <ImageOverlay url={mapUrl(name)} bounds={overlay} opacity={0.8} />}
-
-              {points.map((cell) => (
-                <CircleMarker
-                  key={`${cell.lat}:${cell.lng}`}
-                  center={[cell.lat, cell.lng]}
-                  radius={3 + (cell.records / busiest) * 6}
-                  pathOptions={{
-                    color: "#4a3728",
-                    fillColor: "#ffffff",
-                    fillOpacity: 0.85,
-                    weight: 1,
-                  }}
-                >
-                  <Tooltip>
-                    {formatNumber(cell.records)} record{cell.records === 1 ? "" : "s"}
-                  </Tooltip>
-                </CircleMarker>
-              ))}
-            </MapContainer>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#A87146]/10 bg-[#f8f5f0] px-4 py-2">
-            <p className="text-xs text-muted-foreground">
-              White dots are collections, grouped into {cells.data?.degrees ?? 0.1}° cells. The
-              colour stops 500 km from the nearest record: beyond that the model makes no claim
-              either way.
-            </p>
-            {overlay && <Legend />}
-          </div>
-        </Card>
-
-        {model.isLoading && <p className="text-sm text-muted-foreground">Checking for a model…</p>}
-
-        {model.data ? (
-          <section>
-            <SectionTitle>How good is this map?</SectionTitle>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat
-                label="Blocked AUC"
-                value={model.data.auc_mean.toFixed(2)}
-                hint={spread(model.data.auc_sd)}
-              />
-              <Stat
-                label="Blocked Boyce"
-                value={model.data.boyce_mean.toFixed(2)}
-                hint={spread(model.data.boyce_sd)}
-              />
-              <Stat label="Presence cells" value={formatNumber(model.data.presences)} />
-              <Stat label="Background" value={formatNumber(model.data.background)} />
-            </div>
-
-            <Card className="mt-4">
-              <CardContent className="p-5 text-sm text-[#5c4a3a] leading-relaxed space-y-2">
-                <p>
-                  <strong className="text-[#4a3728]">Read AUC as a comparison, not a grade.</strong>{" "}
-                  The background is drawn from every DNA-validated collection of every taxon, so
-                  this score measures how distinguishable this species is from where fungi get
-                  collected at all. A species that grows wherever people look scores near 0.5,
-                  and that is the honest answer rather than a failure.
+        {!loading && !anyModel ? (
+          <Card className="border-dashed">
+            <CardContent className="p-5 text-sm text-[#5c4a3a]">
+              <h2 className="font-semibold text-[#4a3728]">No habitat map yet</h2>
+              {taxon.data && taxon.data.localities < PUBLISH_AT ? (
+                <p className="mt-1">
+                  {formatNumber(taxon.data.localities)} independent localities so far, and a map
+                  needs about {PUBLISH_AT}. This taxon is a survey target: every new sequenced
+                  collection from a new place brings a map closer.
                 </p>
-                <p className="tabular-nums">
-                  Scored on {model.data.folds.length} spatial folds of{" "}
-                  {formatNumber(model.data.block_km)} km, never a random split.{" "}
-                  {formatNumber(model.data.predictors.length)} predictors, feature classes{" "}
-                  <code className="rounded bg-muted px-1">{model.data.classes}</code>, over{" "}
-                  {formatNumber(model.data.area_km2)} km² of accessible ground. Fitted{" "}
-                  {formatWhen(model.data.built_at)}.
+              ) : (
+                <p className="mt-1">
+                  Enough records to model, but it has not been fitted yet. Run{" "}
+                  <code className="rounded bg-muted px-1">./atlas fit --taxon="{name}"</code>.
                 </p>
-              </CardContent>
-            </Card>
-          </section>
+              )}
+            </CardContent>
+          </Card>
         ) : (
-          !model.isLoading && (
-            <Card className="border-dashed">
-              <CardContent className="p-5 text-sm text-[#5c4a3a]">
-                <h2 className="font-semibold text-[#4a3728]">No habitat map yet</h2>
-                {taxon.data && taxon.data.localities < PUBLISH_AT ? (
-                  <p className="mt-1">
-                    {formatNumber(taxon.data.localities)} independent localities so far, and a map
-                    needs about {PUBLISH_AT}. This taxon is a survey target: every new sequenced
-                    collection from a new place brings a map closer.
-                  </p>
-                ) : (
-                  <p className="mt-1">
-                    Enough records to model, but it has not been fitted yet. Run{" "}
-                    <code className="rounded bg-muted px-1">./atlas fit --taxon="{name}"</code>.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )
+          <>
+            <section>
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+                <SectionTitle>Three models, same records</SectionTitle>
+                <Legend />
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                {ALGORITHMS.map((algorithm) => (
+                  <ModelMap
+                    key={algorithm}
+                    name={name}
+                    algorithm={algorithm}
+                    model={models[algorithm]}
+                    loading={loading}
+                    points={points}
+                    view={boundsOf(anyModel)}
+                    group={group}
+                  />
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                White dots are collections, grouped into {cells.data?.degrees ?? 0.1}° cells. The
+                maps move together. Colour stops 500 km from the nearest record: beyond that a map
+                makes no claim. Each model has its own scale, so compare where each puts its high
+                ground rather than the exact shade.
+              </p>
+            </section>
+
+            <section>
+              <SectionTitle>How good is each map?</SectionTitle>
+              <Comparison models={models} />
+              <p className="mt-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+                All three are scored on the same {anyModel?.folds.length ?? 5} spatial folds of{" "}
+                {formatNumber(anyModel?.block_km ?? 200)} km, against the same background of every
+                other DNA-validated collection. Read AUC as a comparison, not a grade: a species
+                that grows wherever people look sits near 0.5 however good the model. Boyce asks
+                whether the places a map rates higher really hold more records.{" "}
+                <Link href="/models" className="text-myco-green hover:underline">
+                  How the three compare across every taxon
+                </Link>
+              </p>
+            </section>
+          </>
         )}
       </Page>
     </>

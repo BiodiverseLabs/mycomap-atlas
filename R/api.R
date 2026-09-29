@@ -79,3 +79,34 @@ atlas_public_cells <- function(records, name, degrees = ATLAS_PUBLIC_DEGREES) {
     stringsAsFactors = FALSE
   )
 }
+
+#' The algorithm a request asks for, defaulting to Maxent. NULL when it names
+#' something Atlas does not fit, so the route can answer 400 rather than guess.
+atlas_request_algorithm <- function(value) {
+  if (is.null(value) || !length(value) || !nzchar(as.character(value)[[1]])) {
+    return("maxnet")
+  }
+  value <- as.character(value)[[1]]
+  if (value %in% names(ATLAS_ALGORITHMS)) value else NULL
+}
+
+#' The newest results file of a study (benchmarks, sweeps), or NULL.
+#'
+#' Files are named <prefix>-<UTC stamp>.json, so the newest sorts last. A
+#' study still running is served as it stands; it saves after every taxon.
+atlas_latest_study <- function(kind, grid = "draft", prefix = NULL) {
+  pattern <- paste0("^", prefix %||% "[a-z]+", "-[0-9T]+Z[.]json$")
+  files <- sort(list.files(atlas_path(kind, grid), pattern = pattern, full.names = TRUE))
+  if (!length(files)) {
+    return(NULL)
+  }
+  tryCatch(
+    jsonlite::fromJSON(files[[length(files)]], simplifyVector = FALSE),
+    error = function(e) NULL
+  )
+}
+
+#' Plain labels for the models, for the web app.
+atlas_algorithm_labels <- function() {
+  lapply(ATLAS_ALGORITHMS, function(a) a$label)
+}

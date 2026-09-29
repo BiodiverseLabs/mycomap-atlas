@@ -6,6 +6,7 @@ import About from "@/pages/About";
 import Data from "@/pages/Data";
 import Home from "@/pages/Home";
 import Maps from "@/pages/Maps";
+import Models from "@/pages/Models";
 import Taxa from "@/pages/Taxa";
 import Taxon from "@/pages/Taxon";
 
@@ -22,6 +23,7 @@ export default function App() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/maps" component={Maps} />
+          <Route path="/models" component={Models} />
           <Route path="/taxa" component={Taxa} />
           <Route path="/taxa/:name" component={Taxon} />
           <Route path="/data" component={Data} />

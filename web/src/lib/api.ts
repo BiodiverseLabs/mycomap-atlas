@@ -67,14 +67,38 @@ export interface ModelBounds {
   east: number;
 }
 
+/** The models Atlas fits, side by side, in the order they are shown. */
+export const ALGORITHMS = ["maxnet", "xgboost", "rf"] as const;
+export type Algorithm = (typeof ALGORITHMS)[number];
+
+export const ALGORITHM_LABELS: Record<Algorithm, string> = {
+  maxnet: "Maxent",
+  xgboost: "Boosted trees",
+  rf: "Random forest",
+};
+
+/** One line on what each model is, for people rather than modellers. */
+export const ALGORITHM_NOTES: Record<Algorithm, string> = {
+  maxnet:
+    "Smooth responses to each variable, fitted with a penalty that keeps them simple. The long-standing standard for presence-only data.",
+  xgboost:
+    "Hundreds of small decision trees, each correcting the last. Finds combinations of conditions a smooth curve cannot.",
+  rf:
+    "A thousand trees grown independently, each on as many background records as presences, then left to vote.",
+};
+
 export interface Model {
   taxon: string;
+  algorithm?: Algorithm;
+  algorithm_label?: string;
+  nrounds?: number;
   grid: string;
   presences: number;
   background: number;
   area_km2: number;
   predictors: string[];
-  classes: string;
+  predictors_considered?: number;
+  classes?: string;
   block_km: number;
   folds: ModelFold[];
   auc_mean: number;
@@ -89,6 +113,7 @@ export interface Model {
 /** One row of /api/models: enough for a list. The full record is getModel. */
 export interface ModelSummary {
   taxon: string;
+  algorithm: Algorithm;
   presences?: number;
   predictors: number;
   auc_mean?: number;
@@ -143,15 +168,64 @@ export function getCells(name: string): Promise<Cells> {
 }
 
 /** The fitted model for a taxon, or null when it has not been fitted. */
-export async function getModel(name: string): Promise<Model | null> {
-  const response = await fetch(`/api/taxa/${encodeURIComponent(name)}/model`);
+export async function getModel(name: string, algorithm: Algorithm = "maxnet"): Promise<Model | null> {
+  const response = await fetch(
+    `/api/taxa/${encodeURIComponent(name)}/model?algorithm=${algorithm}`,
+  );
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return (await response.json()) as Model;
 }
 
-export function mapUrl(name: string): string {
-  return `/api/taxa/${encodeURIComponent(name)}/map.png`;
+export function mapUrl(name: string, algorithm: Algorithm = "maxnet"): string {
+  return `/api/taxa/${encodeURIComponent(name)}/map.png?algorithm=${algorithm}`;
+}
+
+/** One row of a benchmark summary: an arm within a band of presence cells. */
+export interface BenchmarkRow {
+  band: string;
+  arm: string;
+  taxa: number;
+  predictors?: number;
+  auc?: number;
+  boyce?: number;
+  delta_auc?: number;
+  delta_se?: number;
+  delta_boyce?: number;
+  delta_boyce_se?: number;
+  best_share?: number;
+}
+
+export interface BenchmarkArm {
+  arm: string;
+  predictors: number;
+  auc: number;
+  boyce: number;
+  seconds?: number;
+}
+
+export interface BenchmarkTaxon {
+  taxon: string;
+  status: string;
+  presences?: number;
+  band?: string;
+  arms?: BenchmarkArm[];
+}
+
+export interface Benchmark {
+  started_at: string;
+  baseline: string;
+  settings: { arms?: string[]; folds?: number; block_km?: number; [key: string]: unknown };
+  summary: BenchmarkRow[];
+  taxa: BenchmarkTaxon[];
+}
+
+/** The newest benchmark, or null when none has been run. */
+export async function getBenchmark(): Promise<Benchmark | null> {
+  const response = await fetch("/api/benchmarks/latest");
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return (await response.json()) as Benchmark;
 }
 
 /** Every fitted model, newest first, as a summary. */

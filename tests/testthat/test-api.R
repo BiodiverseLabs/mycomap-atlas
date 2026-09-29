@@ -81,3 +81,30 @@ test_that("a finer grid separates what the public grid merges", {
 test_that("an unknown taxon has no cells", {
   expect_equal(nrow(atlas_public_cells(fake_occurrences(), "Boletus edulis")), 0L)
 })
+
+test_that("a request names Maxent by default, and a model Atlas fits otherwise", {
+  expect_equal(atlas_request_algorithm(NULL), "maxnet")
+  expect_equal(atlas_request_algorithm(""), "maxnet")
+  expect_equal(atlas_request_algorithm("rf"), "rf")
+})
+
+test_that("a request for a model Atlas does not fit is refused, not guessed", {
+  expect_null(atlas_request_algorithm("../../etc"))
+  expect_null(atlas_request_algorithm("glm"))
+})
+
+test_that("the newest study is the one served", {
+  with_data_dir({
+    dir.create(atlas_path("benchmarks", "draft"), recursive = TRUE)
+    atlas_write_json(list(which = "old"), atlas_path("benchmarks", "draft", "models-20260101T000000Z.json"))
+    atlas_write_json(list(which = "new"), atlas_path("benchmarks", "draft", "models-20260928T220000Z.json"))
+    writeLines("not a study", atlas_path("benchmarks", "draft", "models-20260928T220000Z.log"))
+    expect_equal(atlas_latest_study("benchmarks", prefix = "models")$which, "new")
+  })
+})
+
+test_that("no study yet is NULL, not an error", {
+  with_data_dir({
+    expect_null(atlas_latest_study("benchmarks"))
+  })
+})

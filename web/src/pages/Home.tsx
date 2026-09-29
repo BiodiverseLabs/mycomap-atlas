@@ -91,7 +91,7 @@ const PRINCIPLES = [
 export default function Home() {
   const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
-  const mapped = new Set((models.data ?? []).map((m) => m.taxon));
+  const mapped = new Set((models.data ?? []).filter((m) => m.map).map((m) => m.taxon));
 
   return (
     <>
@@ -110,7 +110,7 @@ export default function Home() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Stat label="Validated records" value={formatNumber(status.data?.records)} />
               <Stat label="Taxa" value={formatNumber(status.data?.taxa)} />
-              <Stat label="Taxa with a map" value={formatNumber(models.data?.length)} />
+              <Stat label="Taxa with a map" value={models.data ? formatNumber(mapped.size) : "—"} />
               <Stat label="Grid" value="5 km" hint="draft" />
             </div>
 

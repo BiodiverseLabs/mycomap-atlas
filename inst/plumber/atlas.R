@@ -141,11 +141,36 @@ function(grid = "draft") {
   list(grid = grid, models = atlas_model_index(grid, cache[[key]]))
 }
 
+#* The models Atlas fits, with the labels people see.
+#* @get /api/algorithms
+#* @serializer unboxedJSON
+function() {
+  atlas_algorithm_labels()
+}
+
+#* The newest model benchmark: every model scored on the same folds.
+#* @get /api/benchmarks/latest
+#* @serializer unboxedJSON
+function(grid = "draft", res) {
+  study <- atlas_latest_study("benchmarks", grid, prefix = "models")
+  if (is.null(study)) {
+    res$status <- 404L
+    return(list(error = "no benchmark has been run yet"))
+  }
+  study
+}
+
 #* One taxon's fitted model: its scores, settings and map bounds.
+#* @param algorithm maxnet (default), xgboost or rf
 #* @get /api/taxa/<name>/model
 #* @serializer unboxedJSON
-function(name, grid = "draft", res) {
-  path <- atlas_model_path(atlas_decode_name(name), grid, ".json")
+function(name, grid = "draft", algorithm = "maxnet", res) {
+  algorithm <- atlas_request_algorithm(algorithm)
+  if (is.null(algorithm)) {
+    res$status <- 400L
+    return(list(error = "unknown algorithm"))
+  }
+  path <- atlas_model_path(atlas_decode_name(name), grid, ".json", algorithm)
   if (!file.exists(path)) {
     res$status <- 404L
     return(list(error = "no model for this taxon yet"))
@@ -154,10 +179,16 @@ function(name, grid = "draft", res) {
 }
 
 #* A taxon's suitability map, ready to lay over a slippy map.
+#* @param algorithm maxnet (default), xgboost or rf
 #* @get /api/taxa/<name>/map.png
 #* @serializer contentType list(type = "image/png")
-function(name, grid = "draft", res) {
-  path <- atlas_model_path(atlas_decode_name(name), grid, ".png")
+function(name, grid = "draft", algorithm = "maxnet", res) {
+  algorithm <- atlas_request_algorithm(algorithm)
+  if (is.null(algorithm)) {
+    res$status <- 400L
+    return(raw())
+  }
+  path <- atlas_model_path(atlas_decode_name(name), grid, ".png", algorithm)
   if (!file.exists(path)) {
     res$status <- 404L
     return(raw())

@@ -45,7 +45,7 @@ atlas_fit_rf <- function(training, num_trees = ATLAS_RF_TREES, seed = 1L) {
 atlas_rf_suitability <- function(model, newdata) {
   predictors <- attr(model, "predictors") %||% names(newdata)
   predicted <- stats::predict(
-    model, data = newdata[, predictors, drop = FALSE], num.threads = 1
+    model, data = newdata[, predictors, drop = FALSE], num.threads = 1, verbose = FALSE
   )$predictions
   as.numeric(predicted[, "1"])
 }

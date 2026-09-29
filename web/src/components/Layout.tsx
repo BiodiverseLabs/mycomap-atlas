@@ -9,6 +9,7 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 
 const NAV = [
   { href: "/maps", label: "Maps" },
+  { href: "/models", label: "Models" },
   { href: "/taxa", label: "Taxa" },
   { href: "/data", label: "Data" },
   { href: "/about", label: "How it works" },
