@@ -39,11 +39,16 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply font-sans antialiased bg-background text-foreground;
   }
 
   /* Maps sit under menus, as on .org */
   .leaflet-container {
     z-index: 1 !important;
   }
+}
+
+/* Scientific names: italic, as on mycomap.org. */
+.sci {
+  @apply font-species italic;
 }

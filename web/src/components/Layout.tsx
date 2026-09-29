@@ -1,71 +1,155 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ExternalLink, Map as MapIcon } from "lucide-react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+// Header and footer follow mycomap.org's PublicLayout and MainNavigation, the
+// same way MycoMap Vision does, so someone moving between the three sites feels
+// they never left: sticky white header, logo with "MycoMap" in brown, grey
+// links that turn myco-green, brown gradient footer, cream page-title band.
 
 const NAV = [
-  { href: "/", label: "Overview" },
+  { href: "/maps", label: "Maps" },
   { href: "/taxa", label: "Taxa" },
-  { href: "/layers", label: "Layers" },
+  { href: "/data", label: "Data" },
+  { href: "/about", label: "How it works" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-50 border-b border-border bg-card">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <MapIcon className="h-5 w-5 text-primary" />
-            <span className="text-lg font-semibold tracking-tight">
-              MycoMap <span className="text-primary">Atlas</span>
-            </span>
-          </Link>
-
-          <nav className="flex items-center gap-1">
-            {NAV.map((item) => {
-              const active =
-                item.href === "/" ? location === "/" : location.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <a
-            href="https://mycomap.org"
-            target="_blank"
-            rel="noreferrer"
-            className="ml-auto flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            mycomap.org
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
-
-      <footer className="border-t border-border">
-        <div className="mx-auto max-w-6xl px-4 py-6 text-xs text-muted-foreground">
-          Phase 1 — models are trained only on DNA-validated MycoMap records.
-          Maps here are aggregated to 0.1°; exact collection coordinates are
-          never published.
-        </div>
-      </footer>
+    <div className="relative min-h-screen flex flex-col bg-white">
+      <Header />
+      <main className="flex-1 relative bg-white">{children}</main>
+      <Footer />
     </div>
   );
+}
+
+function Header() {
+  const [location] = useLocation();
+  const [open, setOpen] = useState(false);
+  const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
+  const cls = (href: string) =>
+    `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+      isActive(href)
+        ? "bg-myco-green/10 text-myco-green"
+        : "text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
+    }`;
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-myco-brown/10 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="flex items-center gap-3">
+              <img src="/mycomap-logo.png" alt="MycoMap Logo" className="h-10 w-auto" />
+              <span className="hidden sm:flex items-baseline gap-2">
+                <span className="text-xl font-semibold text-myco-brown">MycoMap</span>
+                <span className="text-xl font-semibold text-myco-green">Atlas</span>
+              </span>
+            </Link>
+            <nav className="hidden lg:flex items-center gap-1">
+              {NAV.map((n) => (
+                <Link key={n.href} href={n.href} className={cls(n.href)}>
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="https://mycomap.org"
+              className="hidden sm:inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
+            >
+              mycomap.org <ArrowUpRight className="h-3.5 w-3.5" />
+            </a>
+            <button
+              className="lg:hidden p-2 rounded-md text-gray-700 hover:bg-myco-green/5"
+              onClick={() => setOpen(!open)}
+              aria-label="Menu"
+            >
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
+        </div>
+        {open && (
+          <nav className="lg:hidden pb-3 flex flex-col gap-1" onClick={() => setOpen(false)}>
+            {NAV.map((n) => (
+              <Link key={n.href} href={n.href} className={cls(n.href)}>
+                {n.label}
+              </Link>
+            ))}
+            <a href="https://mycomap.org" className={cls("#")}>
+              mycomap.org
+            </a>
+          </nav>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="relative overflow-hidden mt-16">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-myco-green to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#8a5c3a] to-myco-brown" />
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex flex-col md:flex-row justify-between gap-6">
+          <div className="max-w-md">
+            <div className="flex items-center gap-3 mb-3">
+              <img src="/mycomap-logo.png" alt="" className="h-9 w-auto brightness-0 invert" />
+              <span className="text-lg font-bold text-white">MycoMap Atlas</span>
+            </div>
+            <p className="text-white/70 text-sm leading-relaxed">
+              Where fungi can grow, modelled only from DNA-validated MycoMap records. Early
+              development: maps are provisional and drawn at 5 km.
+            </p>
+          </div>
+          <ul className="space-y-2 text-sm">
+            {[
+              ["https://mycomap.org", "MycoMap.org"],
+              ["https://mycomap.org/network", "Free sequencing"],
+              ["https://mycomap.org/protocols", "Participation protocols"],
+              ["https://github.com/BiodiverseLabs/mycomap-atlas", "Source code"],
+            ].map(([href, label]) => (
+              <li key={href}>
+                <a href={href} className="text-white/70 hover:text-myco-green transition-colors">
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="border-t border-white/10 mt-8 pt-4 text-white/50 text-sm space-y-1">
+          <p>
+            Environmental data: WorldClim 2.1 (CC BY-SA 4.0), SoilGrids (CC BY 4.0), ESA WorldCover
+            (CC BY 4.0). Collection locations are shown only as 0.1° cells.
+          </p>
+          <p>&copy; {new Date().getFullYear()} MycoMap.org.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export function PageHeader({ title, children }: { title: ReactNode; children?: ReactNode }) {
+  return (
+    <div className="bg-[#f8f5f0] border-b border-[#A87146]/10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="font-display text-3xl md:text-4xl text-[#4a3728]">{title}</h1>
+        {children && <div className="mt-2 text-[#5c4a3a] max-w-3xl">{children}</div>}
+      </div>
+    </div>
+  );
+}
+
+/** The page body under a PageHeader, on the same container. */
+export function Page({ children }: { children: ReactNode }) {
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">{children}</div>
+  );
+}
+
+/** A section heading, as on Vision's pages. */
+export function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="font-display text-2xl text-[#4a3728] mb-3">{children}</h2>;
 }

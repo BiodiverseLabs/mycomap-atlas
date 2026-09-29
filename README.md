@@ -59,8 +59,14 @@ The command line runs from the sources, with no install step:
 cd web && pnpm install && pnpm dev    # app on :5101
 ```
 
-The app follows mycomap.org's design tokens so the two navigate alike, since
-.org will link to it.
+The app carries mycomap.org's look the way MycoMap Vision does — the same
+header, logo, footer, colour tokens, cream page-title band and shadcn
+components — so someone moving between the three sites feels they never left.
+Its pages: a species search (home), **Maps** (every fitted model), **Taxa**
+(everything in the validated universe), **Data** (training records and
+layers) and **How it works** (the method, for people rather than developers).
+When .org's header or palette changes, change `web/src/components/Layout.tsx`,
+`web/src/index.css` and `web/tailwind.config.ts` to match.
 
 ## The grid
 
@@ -267,3 +273,7 @@ that fits without an argument.
 Published maps and metrics are a separate question from the code. Their terms
 follow the source layers, and WorldClim's CC BY-SA 4.0 has to be settled before
 the first release.
+
+The MycoMap name and logo (`web/public/mycomap-logo.png`, `web/public/favicon.png`)
+are MycoMap's marks and are not covered by the GPL. A fork may keep the code but
+should replace them.

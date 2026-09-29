@@ -1,8 +1,10 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
-// Tokens mirror mycomap.org's frontend so the two sites navigate alike. When
-// .org's palette changes, change these to match rather than inventing a second
-// look — see the CSS variables in src/index.css.
+// Tokens mirror mycomap.org's frontend (artifacts/macrofungi/tailwind.config.ts)
+// and MycoMap Vision, so the three sites read as one. When .org's palette
+// changes, change these to match rather than inventing a second look — see the
+// CSS variables in src/index.css.
 export default {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
@@ -10,6 +12,7 @@ export default {
     extend: {
       fontFamily: {
         species: ['"Source Sans 3"', "system-ui", "sans-serif"],
+        display: ['"Fraunces"', "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -57,5 +60,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [animate],
 } satisfies Config;

@@ -53,6 +53,8 @@ records. See README.md for the pipeline and data layout.
   or every worker receives a copy of the pull; and a terra raster cannot be
   sent at all, so each worker opens the stack itself.
 - Windows host: Git Bash or PowerShell, not WSL.
-- The web app in `web/` follows mycomap.org's design tokens. When .org's
-  palette or header changes, update `web/tailwind.config.ts` and
+- The web app in `web/` carries mycomap.org's design the way MycoMap Vision
+  does (`mycomap-vision/web/src/components/Layout.tsx`): same header, logo,
+  footer, tokens and shadcn components. When .org's palette or header changes,
+  update `web/src/components/Layout.tsx`, `web/tailwind.config.ts` and
   `web/src/index.css` to match rather than inventing a second look.

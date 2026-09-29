@@ -154,7 +154,8 @@ export function mapUrl(name: string): string {
   return `/api/taxa/${encodeURIComponent(name)}/map.png`;
 }
 
-export async function getModelledTaxa(): Promise<Set<string>> {
+/** Every fitted model, newest first, as a summary. */
+export async function getModels(): Promise<ModelSummary[]> {
   const response = await get<{ models: ModelSummary[] }>("/api/models");
-  return new Set(response.models.map((model) => model.taxon));
+  return response.models;
 }
