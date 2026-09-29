@@ -313,7 +313,7 @@ export default function Methods() {
                     <Ext href="https://github.com/mrmaxent/maxnet">maxnet</Ext>,
                     <>
                       <B>Feature classes</B> linear+quadratic or linear+quadratic+hinge;{" "}
-                      <B>regularisation multiplier</B> 0.5, 1, 2 or 4 (as ENMeval tunes them);
+                      <B>regularisation multiplier</B> 0.25, 0.5, 1, 2 or 4 (as ENMeval tunes them);
                       pruned predictors; cloglog output, clamped outside the training range.
                     </>,
                   ],

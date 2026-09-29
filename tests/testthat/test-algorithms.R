@@ -25,6 +25,18 @@ test_that("the settings record the method, so changing it makes every model stal
   expect_false(base == atlas_settings_key(atlas_fit_settings(layers = "L1", block_km = 200)))
 })
 
+test_that("Maxent tries every feature class with regularisation down to 0.25, strongest first", {
+  grid <- atlas_algorithm("maxnet")$grid(NULL)
+  expect_length(grid, 10L)
+  regmult <- vapply(grid, function(p) p$regmult, numeric(1))
+  classes <- vapply(grid, function(p) p$classes, character(1))
+  for (cls in c("lq", "lqh")) {
+    expect_equal(regmult[classes == cls], c(4, 2, 1, 0.5, 0.25))
+  }
+  # A wider grid is a different method: every Maxent model goes stale.
+  expect_equal(atlas_fit_settings(layers = "L1")$tuning$regmult, c(4, 2, 1, 0.5, 0.25))
+})
+
 test_that("each model has its own settings key", {
   keys <- vapply(names(ATLAS_ALGORITHMS), function(a) {
     atlas_settings_key(atlas_fit_settings(layers = "L1", algorithm = a))

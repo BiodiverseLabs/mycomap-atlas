@@ -18,10 +18,13 @@
 
 # Maxent's candidates, strongest regularisation first so a tie goes to the
 # simpler model. Regularisation multipliers and feature classes as ENMeval
-# tunes them.
+# tunes them, reaching down to 0.25: on the 40-taxon pilot (2026-09-29) 0.5,
+# then the weakest on offer, was the most frequent choice (21 of 39 final
+# models, 90 of 195 folds), so the grid stopped short of where some taxa want
+# to be.
 ATLAS_MAXNET_GRID <- list(
   classes = c("lq", "lqh"),
-  regmult = c(4, 2, 1, 0.5)
+  regmult = c(4, 2, 1, 0.5, 0.25)
 )
 
 # Tree depths boosted trees try; the tree count is set by early stopping.
