@@ -335,3 +335,73 @@ test_that("a taxon found in too few blocks is refused, not scored on nothing", {
     expect_match(conditionMessage(condition), "blocks")
   })
 })
+
+test_that("a Maxent fit records its guild and the predictor order that guild gave it", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    fit <- function(guilds) {
+      atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                      fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                      buffer_km = 300, predict = FALSE, quiet = TRUE, nulls = 0,
+                      tune = FALSE, guilds = guilds)
+    }
+    mycorrhizal <- fit(c(Eastern = "ectomycorrhizal"))$metrics
+    expect_equal(mycorrhizal$genus, "Eastern")
+    expect_equal(mycorrhizal$guild, "ectomycorrhizal")
+    expect_equal(unlist(mycorrhizal$priority)[1:2], c("soil_phh2o", "host_conifer"))
+
+    unknown <- fit(stats::setNames(character(), character()))$metrics
+    expect_equal(unknown$guild, "unknown")
+    expect_equal(unlist(unknown$priority), atlas_predictor_priority("unknown"))
+    # The rule is in the settings, not the taxon's guild: both share a key.
+    expect_equal(mycorrhizal$settings_key,
+                 atlas_settings_key(atlas_fit_settings(n_background = 500, buffer_km = 300,
+                                                       layers = "synthetic", nulls = 0, tune = FALSE,
+                                                       guild_table = atlas_guild_table_key(c(Eastern = "ectomycorrhizal")))))
+    stored <- atlas_read_metrics("Eastern fungus")
+    expect_equal(stored$guild, "unknown")
+  })
+})
+
+test_that("a changed guild table makes a stored Maxent model stale", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    before <- c(Eastern = "wood_saprotroph")
+    atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                    fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                    buffer_km = 300, predict = FALSE, quiet = TRUE, nulls = 0,
+                    tune = FALSE, guilds = before)
+    stored <- atlas_read_metrics("Eastern fungus")
+    settings <- function(guilds) {
+      atlas_fit_settings(n_background = 500, buffer_km = 300, layers = "synthetic",
+                         nulls = 0, tune = FALSE, guild_table = atlas_guild_table_key(guilds))
+    }
+    expect_true(atlas_fit_is_current(stored, "f00dfeed", settings(before), predict = FALSE))
+    expect_false(atlas_fit_is_current(stored, "f00dfeed", settings(c(Eastern = "ectomycorrhizal")),
+                                      predict = FALSE))
+  })
+})
+
+test_that("the guild's order decides which of two interchangeable predictors a fit keeps", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    # Rainfall and pine share are the same surface here, so pruning keeps
+    # whichever of the two the guild puts first.
+    stack <- c(world$stack[["v1"]], world$stack[["v2"]], world$stack[["v2"]] * 2)
+    names(stack) <- c("soil_phh2o", "bio12", "host_pinus")
+    fit <- function(guild) {
+      atlas_fit_taxon("Eastern fungus", points = world$points, stack = stack,
+                      fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                      buffer_km = 300, predict = FALSE, quiet = TRUE, nulls = 0,
+                      tune = FALSE, guilds = c(Eastern = guild))$metrics
+    }
+    expect_equal(unlist(fit("ectomycorrhizal")$predictors), c("soil_phh2o", "host_pinus"))
+    expect_equal(unlist(fit("wood_saprotroph")$predictors), c("soil_phh2o", "bio12"))
+  })
+})

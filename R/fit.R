@@ -455,13 +455,28 @@ atlas_design <- function() list(
 #' The layers are in here because a model fitted before soil was built has the
 #' same records as one fitted after, and is still out of date. block_km is
 #' "auto" when blockCV sets it per taxon.
+#'
+#' The predictor order depends on each taxon's guild (R/guilds.R), so a pruned
+#' model's settings hold the rule — the order for each kind of guild — and a
+#' hash of the guild table, not any one taxon's guild. Keeping the settings the
+#' same for every taxon is what lets a batch check them once. The table is the
+#' only thing that can change a taxon's guild while its records stay the same,
+#' so hashing it is enough to be correct: a changed table stales every Maxent
+#' model and they all refit, including the many whose guild did not change.
+#' That is wasted work only in principle; the table is a published supplement
+#' that changes about never. Recording a guild per model and comparing it at
+#' each check would refit only the affected taxa, at the cost of carrying the
+#' guild through planning, sharding and the release index. The boosted trees
+#' and the forest take every predictor in any order, so their settings leave
+#' the table out and it never stales them.
 atlas_fit_settings <- function(grid = "draft", n_background = 10000,
                                buffer_km = 500, folds = 5, block_km = "auto",
                                regmult = 1, correlation = 0.7, prune = TRUE,
                                layers = atlas_layers_key(grid),
                                algorithm = "maxnet", thin_km = ATLAS_SITE_KM,
                                nulls = ATLAS_NULL_REPS, tune = TRUE,
-                               min_blocks = ATLAS_MIN_BLOCKS) {
+                               min_blocks = ATLAS_MIN_BLOCKS,
+                               guild_table = atlas_guild_table_key()) {
   algo <- atlas_algorithm(algorithm)
   list(
     grid = grid,
@@ -473,7 +488,16 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
     thin_km = as.numeric(thin_km),
     min_blocks = as.numeric(min_blocks),
     correlation = if (isTRUE(prune)) as.numeric(correlation) else "none",
-    priority = if (isTRUE(prune)) ATLAS_PREDICTOR_PRIORITY else "none",
+    priority = if (isTRUE(prune)) {
+      list(
+        rule = "host bands after soil pH for ectomycorrhizal genera, after temperature otherwise",
+        ectomycorrhizal = atlas_predictor_priority("ectomycorrhizal"),
+        other = atlas_predictor_priority(ATLAS_GUILD_UNKNOWN),
+        guild_table = guild_table
+      )
+    } else {
+      "none"
+    },
     tuning = if (isTRUE(tune)) algo$grid_description() else list(default = TRUE, regmult = regmult),
     learner = algo$learner(),
     nulls = as.numeric(nulls),
@@ -513,6 +537,9 @@ atlas_layers_key <- function(grid = "draft", manifest = atlas_layer_manifest(gri
 #'
 #' With predict = FALSE the scores are still computed and written, but no map
 #' is drawn: that is the cheap way to score hundreds of taxa.
+#'
+#' guilds is the genus-to-lifestyle table (R/guilds.R); it decides where the
+#' host-tree bands sit in Maxent's predictor order.
 atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             buffer_km = 500, folds = 5, block_km = "auto",
                             regmult = 1, min_presences = 20, correlation = 0.7,
@@ -521,7 +548,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             occurrences = NULL, fingerprint = NULL,
                             layers = NULL, algorithm = "maxnet",
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
-                            tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS) {
+                            tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
+                            guilds = atlas_guild_table()) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
@@ -533,8 +561,11 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     folds = folds, block_km = block_km, regmult = regmult,
     correlation = correlation, prune = prune,
     layers = layers %||% atlas_layers_key(grid), algorithm = algo$id,
-    thin_km = thin_km, nulls = nulls, tune = tune, min_blocks = min_blocks
+    thin_km = thin_km, nulls = nulls, tune = tune, min_blocks = min_blocks,
+    guild_table = atlas_guild_table_key(guilds)
   )
+  guild <- atlas_taxon_guild(name, guilds)
+  priority <- atlas_predictor_priority(guild)
   training <- atlas_build_training(
     name, grid,
     n_background = n_background, buffer_km = buffer_km,
@@ -554,7 +585,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
   considered <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
   if (isTRUE(prune)) {
-    keep <- atlas_choose_predictors(training, threshold = correlation)
+    keep <- atlas_choose_predictors(training, threshold = correlation, priority = priority)
     kept_attributes <- attributes(training)[c("area_km2", "seed", "fingerprint", "dropped", "thin_km")]
     training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
     attributes(training)[names(kept_attributes)] <- kept_attributes
@@ -643,6 +674,10 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     cells_without_data = attr(training, "dropped"),
     predictors = as.list(setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)),
     predictors_considered = length(considered),
+    genus = atlas_taxon_genus(name),
+    guild = guild,
+    # The order the predictors were pruned in; the trees take them all.
+    priority = if (isTRUE(prune)) as.list(priority) else NULL,
     effort_at = round(effort_at %||% NA_real_, 4),
     correlation = if (isTRUE(prune)) correlation else NA,
     params = final$params,
@@ -686,6 +721,12 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     message("  other sites:        ", metrics$background)
     message("  predictors:         ", length(metrics$predictors), " of ",
             metrics$predictors_considered, " (+ effort)")
+    message("  guild:              ", guild,
+            if (isTRUE(prune)) paste0(" (host trees ", if (guild %in% ATLAS_HOST_FIRST_GUILDS) {
+              "after soil pH)"
+            } else {
+              "after temperature)"
+            }) else "")
     message("  block:              ", block$block_km, " km (", block$source,
             if (is.finite(block$range_km)) paste0(", range ", block$range_km, " km") else "", ")")
     message("  settings:           ", atlas_params_label(final$params))

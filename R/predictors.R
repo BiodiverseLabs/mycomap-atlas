@@ -18,7 +18,10 @@
 #
 # Correlations are measured on the background — the environment available to
 # the species — not on the presences, which are too few to estimate them.
+#
+# Where the host trees go depends on the fungus (atlas_predictor_priority).
 
+# The order before the host-tree bands are placed in it.
 ATLAS_PREDICTOR_PRIORITY <- c(
   # Soil pH: which fungi a soil holds follows its acidity more than its climate.
   "soil_phh2o",
@@ -34,6 +37,30 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   "elevation", "slope", "roughness"
 )
 
+# Guilds whose host trees come straight after soil pH. An ectomycorrhizal
+# fungus cannot fruit where its partner tree is absent, whatever the climate,
+# so which trees grow there is the next thing a mycologist would ask. Every
+# other guild — and a genus FungalTraits does not know — gets the host bands
+# after climate: a wood-rotter cares which wood, but rainfall and temperature
+# decide first.
+ATLAS_HOST_FIRST_GUILDS <- "ectomycorrhizal"
+
+#' The predictor order for a guild (R/guilds.R): the fixed ecological order,
+#' with the host-tree bands placed after soil pH for ectomycorrhizal fungi
+#' and after the temperature block, before land cover, for everything else.
+#'
+#' Only Maxent's pruning reads it; the boosted trees and the forest take every
+#' predictor.
+atlas_predictor_priority <- function(guild = ATLAS_GUILD_UNKNOWN) {
+  after <- if (isTRUE(guild %in% ATLAS_HOST_FIRST_GUILDS)) "soil_phh2o" else "bio4"
+  at <- match(after, ATLAS_PREDICTOR_PRIORITY)
+  c(
+    ATLAS_PREDICTOR_PRIORITY[seq_len(at)],
+    ATLAS_HOST_BANDS,
+    ATLAS_PREDICTOR_PRIORITY[-seq_len(at)]
+  )
+}
+
 #' Drop predictors that say nothing, because they never vary here.
 atlas_drop_constant <- function(data) {
   varies <- vapply(data, function(column) {
@@ -45,7 +72,7 @@ atlas_drop_constant <- function(data) {
 
 #' Keep one predictor from each correlated group, preferring the earlier one.
 atlas_prune_correlated <- function(data, threshold = 0.7,
-                                   priority = ATLAS_PREDICTOR_PRIORITY) {
+                                   priority = atlas_predictor_priority()) {
   usable <- atlas_drop_constant(data)
   if (length(usable) < 2L) {
     return(usable)
@@ -86,7 +113,7 @@ atlas_prune_correlated <- function(data, threshold = 0.7,
 #' shows mostly in the Boyce index, which drops by 0.07-0.09 without a cap.
 #' One per four was within noise of the best ratio on both, so it stays.
 atlas_choose_predictors <- function(training, threshold = 0.7,
-                                    priority = ATLAS_PREDICTOR_PRIORITY,
+                                    priority = atlas_predictor_priority(),
                                     per_presence = 4, minimum = 5) {
   # Effort is not habitat: it is never pruned against a habitat variable,
   # never counts against the cap, and always goes in.

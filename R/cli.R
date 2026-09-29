@@ -14,6 +14,7 @@ atlas_usage <- function() {
   message("      --only=a,b                build only these layers")
   message("      --overwrite               rebuild layers already built")
   message("  layers             which layers are registered and built")
+  message("  fetch-guilds       download FungalTraits' genus table (lookup only, never published)")
   message("  training           build one taxon's presences, background and predictors")
   message("      --taxon=\"Name\"            which taxon (required)")
   message("      --grid=draft|production   which grid (default draft)")
@@ -220,6 +221,10 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "layers" = {
       print(atlas_layer_status(atlas_flag_grid(flags)), row.names = FALSE)
+      invisible(0L)
+    },
+    "fetch-guilds" = {
+      atlas_fetch_guild_table()
       invisible(0L)
     },
     "training" = {

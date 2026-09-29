@@ -415,6 +415,11 @@
       "citation": "Tedersoo L, Bahram M, Põlme S, et al. (2014) Global diversity and geography of soil fungi. Science 346:1256688.",
       "doi": "10.1126/science.1256688",
       "used_for": "Soil pH first in Maxent's predictor order."
+    },
+    {
+      "citation": "Põlme S, Abarenkov K, Henrik Nilsson R, et al. (2020) FungalTraits: a user-friendly traits database of fungi and fungus-like stramenopiles. Fungal Diversity 105:1-16.",
+      "doi": "10.1007/s13225-020-00466-2",
+      "used_for": "Each taxon's guild, looked up by genus, which decides where the host-tree predictors sit in Maxent's order. Used for lookup only; the table is not redistributed."
     }
   ],
   "products": [
@@ -452,6 +457,13 @@
       "detail": "All 53 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
       "availability": "planned",
       "why": "Archived on Zenodo as the layers series, a new version with its own DOI whenever a layer is rebuilt. The first version is waiting to be published; it will appear under Downloads. The stack carries WorldClim's ShareAlike licence."
+    },
+    {
+      "stage": "3. Training",
+      "name": "Fungal guild per genus",
+      "detail": "The FungalTraits primary lifestyle of each genus, which orders Maxent's predictors.",
+      "availability": "withheld",
+      "why": "FungalTraits' licence does not clearly allow redistribution, so Atlas only looks genera up in it. Get the table from its authors (Põlme et al. 2020). Each model's guild is recorded with its scores."
     },
     {
       "stage": "3. Training",

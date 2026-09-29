@@ -228,3 +228,47 @@ test_that("a publish records the refusals its machine's batches made", {
     expect_false(is.null(refused[[1]]$settings_key))
   })
 })
+
+# A FungalTraits stand-in: a genus table with one row per genus.
+write_guilds <- function(lifestyles) {
+  path <- atlas_guild_table_path()
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  utils::write.csv(data.frame(GENUS = names(lifestyles), primary_lifestyle = unname(lifestyles)),
+                   path, row.names = FALSE)
+}
+
+test_that("a new guild table refits Maxent only, and goes to the workers with the job", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(TAXA)))
+  full_cycle(store, boss)
+
+  on_machine(boss, write_guilds(c(Taxon = "ectomycorrhizal")))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = c("maxnet", "rf"), quiet = TRUE))
+  # The trees take every predictor, so the table cannot stale them.
+  expect_setequal(vapply(job$tasks, function(t) t$algorithm, ""), "maxnet")
+  expect_length(job$tasks, 3L)
+  expect_true("reference/fungaltraits-genera.csv" %in% vapply(job$inputs, function(e) e$path, ""))
+  for (n in seq_len(job$shards)) {
+    on_machine(machine(), atlas_run_shard(store, job$id, n, quiet = TRUE, fit = fake_fit))
+  }
+  release <- on_machine(boss, atlas_finish_job(store, job$id, quiet = TRUE))
+  # The table is a job input, never a file of the release.
+  expect_false(any(grepl("fungaltraits", release_paths(release))))
+  # The workers fitted with the planner's table, so nothing is stale now.
+  expect_null(on_machine(boss, atlas_plan_job(store, algorithms = c("maxnet", "rf"), quiet = TRUE)))
+})
+
+test_that("a worker holding a different guild table refuses its shard", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(TAXA)))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  worker <- machine()
+  on_machine(worker, write_guilds(c(Taxon = "wood_saprotroph")))
+  expect_error(on_machine(worker, atlas_run_shard(store, job$id, 1L, quiet = TRUE, fit = fake_fit)),
+               "differs from the one job")
+  expect_equal(atlas_job_status(store, job$id)$missing, 1L)
+})
