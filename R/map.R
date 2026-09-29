@@ -80,18 +80,67 @@ atlas_write_map_png <- function(suitability, path, max_pixels = 1600) {
   )
 }
 
-#' Every fitted model on a grid, newest first, with its scores.
-atlas_model_overview <- function(grid = "draft") {
+#' The few fields a list of models needs.
+#'
+#' A list of every model used to send each one's full metrics — folds,
+#' settings, bounds — and with nine hundred models, turning that into JSON took
+#' ten seconds. A list needs a name and a score, not the whole record.
+atlas_model_summary <- function(metrics) {
+  number <- function(x) {
+    if (is.numeric(x) && length(x) == 1L && is.finite(x)) x else NA_real_
+  }
+  data.frame(
+    taxon = as.character(metrics$taxon %||% NA_character_),
+    presences = number(metrics$presences),
+    predictors = length(metrics$predictors),
+    auc_mean = number(metrics$auc_mean),
+    boyce_mean = number(metrics$boyce_mean),
+    map = is.character(metrics$map) && length(metrics$map) == 1L,
+    built_at = as.character(metrics$built_at %||% ""),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' A summary of every fitted model on a grid, newest first.
+#'
+#' Pass the same environment as cache on every call and only files that are
+#' new or have changed since the last call are read again, which matters while
+#' a batch is writing hundreds of them. A file caught half-written is skipped,
+#' and read on a later call once its timestamp moves.
+atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv())) {
   directory <- atlas_path("models", grid)
   files <- list.files(directory, pattern = "[.]json$", full.names = TRUE)
-  if (!length(files)) {
-    return(list())
+  info <- file.info(files, extra_cols = FALSE)
+  stamps <- paste(as.numeric(info$mtime), info$size)
+  known <- cache$entries %||% list()
+
+  entries <- vector("list", length(files))
+  names(entries) <- files
+  for (i in seq_along(files)) {
+    entry <- known[[files[[i]]]]
+    if (is.null(entry) || !identical(entry$stamp, stamps[[i]])) {
+      metrics <- tryCatch(
+        jsonlite::fromJSON(files[[i]], simplifyVector = FALSE),
+        error = function(e) NULL
+      )
+      cache$reads <- (cache$reads %||% 0L) + 1L
+      entry <- list(
+        stamp = stamps[[i]],
+        summary = if (is.list(metrics)) atlas_model_summary(metrics) else NULL
+      )
+    }
+    entries[[i]] <- entry
   }
-  models <- lapply(files, function(file) {
-    jsonlite::fromJSON(file, simplifyVector = FALSE)
-  })
-  built <- vapply(models, function(m) as.character(m$built_at %||% ""), character(1))
-  models[order(built, decreasing = TRUE)]
+  cache$entries <- entries
+
+  rows <- Filter(Negate(is.null), lapply(entries, function(e) e$summary))
+  if (!length(rows)) {
+    return(atlas_model_summary(list())[0, , drop = FALSE])
+  }
+  out <- do.call(rbind, rows)
+  out <- out[order(out$built_at, decreasing = TRUE), , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }
 
 #' Redraw every fitted taxon's PNG from its stored raster, and record the

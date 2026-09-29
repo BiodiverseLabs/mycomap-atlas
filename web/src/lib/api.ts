@@ -86,6 +86,17 @@ export interface Model {
   bounds?: ModelBounds;
 }
 
+/** One row of /api/models: enough for a list. The full record is getModel. */
+export interface ModelSummary {
+  taxon: string;
+  presences?: number;
+  predictors: number;
+  auc_mean?: number;
+  boyce_mean?: number;
+  map: boolean;
+  built_at: string;
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path);
   if (!response.ok) {
@@ -144,6 +155,6 @@ export function mapUrl(name: string): string {
 }
 
 export async function getModelledTaxa(): Promise<Set<string>> {
-  const response = await get<{ models: Model[] }>("/api/models");
+  const response = await get<{ models: ModelSummary[] }>("/api/models");
   return new Set(response.models.map((model) => model.taxon));
 }

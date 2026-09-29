@@ -59,25 +59,88 @@ test_that("a suitability raster becomes a real PNG within the pixel cap", {
   expect_lt(drawn$bounds$south, drawn$bounds$north)
 })
 
-test_that("nothing fitted means an empty overview, not an error", {
+# Metrics shaped like the ones a fit writes, with the heavy parts included so
+# a test can check they stay out of the list.
+write_metrics <- function(name, built_at, auc = 0.6, map = TRUE) {
+  dir.create(atlas_path("models", "draft"), recursive = TRUE, showWarnings = FALSE)
+  atlas_write_json(
+    list(taxon = name, built_at = built_at, presences = 40, auc_mean = auc,
+         boyce_mean = 0.3, predictors = list("bio12", "bio1"),
+         folds = list(list(fold = 1, auc = auc)), settings = list(grid = "draft"),
+         map = if (map) "x.png" else NULL),
+    atlas_model_path(name, "draft", ".json")
+  )
+}
+
+test_that("nothing fitted means an empty list, not an error", {
   with_data_dir({
-    expect_equal(length(atlas_model_overview("draft")), 0L)
+    expect_equal(nrow(atlas_model_index("draft")), 0L)
   })
 })
 
-test_that("the overview reads what fitting wrote, newest first", {
+test_that("the list reads what fitting wrote, newest first", {
   with_data_dir({
-    dir.create(atlas_path("models", "draft"), recursive = TRUE, showWarnings = FALSE)
-    atlas_write_json(
-      list(taxon = "Older species", built_at = "2026-01-01T00:00:00Z"),
-      atlas_model_path("Older species", "draft", ".json")
-    )
-    atlas_write_json(
-      list(taxon = "Newer species", built_at = "2026-06-01T00:00:00Z"),
-      atlas_model_path("Newer species", "draft", ".json")
-    )
-    overview <- atlas_model_overview("draft")
-    expect_equal(length(overview), 2L)
-    expect_equal(overview[[1]]$taxon, "Newer species")
+    write_metrics("Older species", "2026-01-01T00:00:00Z")
+    write_metrics("Newer species", "2026-06-01T00:00:00Z")
+    index <- atlas_model_index("draft")
+    expect_equal(index$taxon, c("Newer species", "Older species"))
+    expect_equal(index$predictors, c(2L, 2L))
+    expect_equal(index$auc_mean, c(0.6, 0.6))
+  })
+})
+
+test_that("the list carries a summary, not every fold and setting", {
+  with_data_dir({
+    write_metrics("Some species", "2026-01-01T00:00:00Z")
+    index <- atlas_model_index("draft")
+    expect_false(any(c("folds", "settings", "bounds") %in% names(index)))
+  })
+})
+
+test_that("a model without a map says so", {
+  with_data_dir({
+    write_metrics("Scored only", "2026-01-01T00:00:00Z", map = FALSE)
+    write_metrics("Mapped", "2026-01-02T00:00:00Z")
+    index <- atlas_model_index("draft")
+    expect_equal(index$map[index$taxon == "Scored only"], FALSE)
+    expect_equal(index$map[index$taxon == "Mapped"], TRUE)
+  })
+})
+
+test_that("a second call reads only the files that changed", {
+  with_data_dir({
+    write_metrics("First species", "2026-01-01T00:00:00Z")
+    write_metrics("Second species", "2026-01-01T00:00:00Z")
+    cache <- new.env()
+    atlas_model_index("draft", cache)
+    expect_equal(cache$reads, 2L)
+
+    atlas_model_index("draft", cache)
+    expect_equal(cache$reads, 2L)
+
+    Sys.sleep(1.1) # let the timestamp move on file systems with coarse clocks
+    write_metrics("Second species", "2026-02-01T00:00:00Z", auc = 0.9)
+    index <- atlas_model_index("draft", cache)
+    expect_equal(cache$reads, 3L)
+    expect_equal(index$auc_mean[index$taxon == "Second species"], 0.9)
+  })
+})
+
+test_that("a deleted model leaves the list", {
+  with_data_dir({
+    write_metrics("Staying", "2026-01-01T00:00:00Z")
+    write_metrics("Going", "2026-01-01T00:00:00Z")
+    cache <- new.env()
+    atlas_model_index("draft", cache)
+    unlink(atlas_model_path("Going", "draft", ".json"))
+    expect_equal(atlas_model_index("draft", cache)$taxon, "Staying")
+  })
+})
+
+test_that("a half-written file is skipped rather than breaking the list", {
+  with_data_dir({
+    write_metrics("Whole", "2026-01-01T00:00:00Z")
+    writeLines('{"taxon": "Half', atlas_model_path("Half", "draft", ".json"))
+    expect_equal(atlas_model_index("draft")$taxon, "Whole")
   })
 })

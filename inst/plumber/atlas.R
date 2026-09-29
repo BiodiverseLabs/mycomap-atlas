@@ -128,12 +128,17 @@ function(name, res) {
   row
 }
 
-#* Every fitted model, newest first.
+#* Every fitted model, newest first, as a light summary. The full record of
+#* one model is at /api/taxa/<name>/model.
 #* @param grid draft or production
 #* @get /api/models
 #* @serializer unboxedJSON
 function(grid = "draft") {
-  list(grid = grid, models = atlas_model_overview(grid))
+  key <- paste0("models_", grid)
+  if (is.null(cache[[key]])) {
+    cache[[key]] <- new.env(parent = emptyenv())
+  }
+  list(grid = grid, models = atlas_model_index(grid, cache[[key]]))
 }
 
 #* One taxon's fitted model: its scores, settings and map bounds.
