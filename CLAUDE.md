@@ -15,9 +15,13 @@ records. See README.md for the pipeline and data layout.
 - **A model belongs to a record set, not a name.** About a third of the
   modelable taxa carry provisional temp codes that FungAI can rename or
   re-cluster, so invalidation keys on the record-set fingerprint.
-- **Never publish a coordinate.** `data/` is never committed. Anything drawn is
-  aggregated to 0.1 degrees; anything published is 1 km or coarser; no training
-  points appear in any artifact. No taxon is singled out as sensitive at the
+- **Never publish a coordinate.** Exact coordinates may sit only in Atlas's own
+  private compute and storage: the machine that pulled them, the EC2 workers a
+  job runs on, and the private S3 bucket that carries a job's pull to them.
+  They never reach a release, the API, the web app or this repository, and
+  `data/` is never committed. Anything drawn is aggregated to 0.1 degrees;
+  anything published is 1 km or coarser; no training points appear in any
+  published artifact. No taxon is singled out as sensitive at the
   moment (Steve, 2026-09-28) — the resolution floor above applies to all of
   them. Raise it again before the first public release of maps.
 - **Only the container publishes a release.** Iterate natively, but anything

@@ -26,7 +26,7 @@ more carry provisional temp codes, which exist in no other dataset.
 | 3. Target-group background from the same validated universe | built |
 | 4. Fits: Maxent, boosted trees and a down-sampled random forest, side by side | built, with batch runs and a benchmark |
 | 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
-| 6. Release: rasters and metrics published together, with rollback | release format built (S3 or a folder); remote compute next |
+| 6. Release: rasters and metrics published together, with rollback | built: S3 releases, jobs split into shards, EC2 spot workers; first real run next |
 
 ## Setup
 
@@ -484,6 +484,31 @@ On the draft grid, a real two-shard job — each worker starting from an empty
 data directory — fetched 103 MB of inputs, fitted its model and uploaded it in
 40–66 s, and finishing assembled the 8,153-file release from the previous one.
 
+### On EC2
+
+In production the small box plans and finishes, and every fit runs on EC2
+spot workers it launches for the job, one per shard:
+
+```bash
+./atlas nightly                      # pull, plan, run on EC2, finish: the box's cron job
+./atlas run-job-ec2 --job=<id>       # run an already planned job
+./atlas pull-release --no-rasters    # the box keeps maps and scores; rasters stay in S3
+```
+
+A worker boots Amazon Linux, pulls the release image built from the box's own
+commit (CI publishes one for every commit on main), runs its shard and shuts
+down, which deletes it. A shard whose spot instance is reclaimed is launched
+again, up to three times; with no spot capacity, a launch tries each allowed
+instance type in each zone and otherwise waits for the next poll. Every
+worker has a shutdown timer set to the job's deadline (6 h by default), and
+if the job fails or overruns, the box terminates them all; the next night's
+plan picks the same work up. A box without layers of its own plans from the
+layer set in the store and fetches only its manifest.
+
+What each identity may do is enforced by AWS, not only by this code: see
+[deploy/aws/README.md](deploy/aws/README.md) for the policies, the setup and
+the box's settings.
+
 ## Data
 
 Everything lives under `data/`, which is never committed (override with
@@ -528,8 +553,11 @@ model.
 
 ### Coordinates
 
-Exact coordinates never leave the machine that pulled them. Anything drawn on a
-map is aggregated to 0.1 degrees, and published rasters are 1 km or coarser.
+Exact coordinates stay inside Atlas's own private compute and storage: the
+machine that pulled them, the EC2 workers a job runs on, and the private S3
+bucket that carries the pull to those workers. They are never published — not
+in a release, the API, the web app or this repository. Anything drawn on a map
+is aggregated to 0.1 degrees, and published rasters are 1 km or coarser.
 
 ## Tests
 
