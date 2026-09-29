@@ -1,0 +1,126 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LaunchOnlyTaggedSpotWorkers",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:instance/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/atlas": "worker",
+          "ec2:InstanceMarketType": "spot",
+          "ec2:MetadataHttpTokens": "required",
+          "ec2:InstanceProfile": "arn:aws:iam::${ACCOUNT_ID}:instance-profile/atlas-worker"
+        },
+        "StringLike": {
+          "ec2:InstanceType": [
+            "c7a.*", "c7i.*", "c6a.*", "c6i.*",
+            "m7a.*", "m7i.*", "m6a.*", "m6i.*",
+            "r7a.*", "r7i.*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "WorkerDisksTaggedAndCapped",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:volume/*",
+      "Condition": {
+        "StringEquals": { "aws:RequestTag/atlas": "worker" },
+        "NumericLessThanEquals": { "ec2:VolumeSize": "200" }
+      }
+    },
+    {
+      "Sid": "TheSpotRequestItself",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:spot-instances-request/*"
+    },
+    {
+      "Sid": "NetworkInterfaceInTheDefaultVpc",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:network-interface/*",
+      "Condition": {
+        "StringEquals": { "ec2:Vpc": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:vpc/${VPC_ID}" }
+      }
+    },
+    {
+      "Sid": "TheDefaultSubnetsAndTheWorkerGroup",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": [
+        "${SUBNET_ARNS}",
+        "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:security-group/${SECURITY_GROUP_ID}"
+      ]
+    },
+    {
+      "Sid": "AmazonOwnedImagesOnly",
+      "Effect": "Allow",
+      "Action": "ec2:RunInstances",
+      "Resource": "arn:aws:ec2:${REGION}::image/*",
+      "Condition": {
+        "StringEquals": { "ec2:Owner": "amazon" }
+      }
+    },
+    {
+      "Sid": "LatestAmazonLinuxImageId",
+      "Effect": "Allow",
+      "Action": "ssm:GetParameters",
+      "Resource": "arn:aws:ssm:${REGION}::parameter/aws/service/ami-amazon-linux-latest/*"
+    },
+    {
+      "Sid": "TagOnlyWhileLaunching",
+      "Effect": "Allow",
+      "Action": "ec2:CreateTags",
+      "Resource": [
+        "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:instance/*",
+        "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:volume/*"
+      ],
+      "Condition": {
+        "StringEquals": { "ec2:CreateAction": "RunInstances" }
+      }
+    },
+    {
+      "Sid": "TerminateOnlyWorkers",
+      "Effect": "Allow",
+      "Action": "ec2:TerminateInstances",
+      "Resource": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:instance/*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/atlas": "worker" }
+      }
+    },
+    {
+      "Sid": "ListInstancesInThisRegion",
+      "Effect": "Allow",
+      "Action": "ec2:DescribeInstances",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "ec2:Region": "${REGION}" }
+      }
+    },
+    {
+      "Sid": "PassOnlyTheWorkerRoleToEc2",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::${ACCOUNT_ID}:role/atlas-worker",
+      "Condition": {
+        "StringEquals": { "iam:PassedToService": "ec2.amazonaws.com" }
+      }
+    },
+    {
+      "Sid": "ListTheStore",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::${BUCKET}"
+    },
+    {
+      "Sid": "ReadAndWriteTheStoreNoDelete",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::${BUCKET}/*"
+    }
+  ]
+}

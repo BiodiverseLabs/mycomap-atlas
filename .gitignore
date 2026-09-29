@@ -25,3 +25,6 @@ web/dist/
 
 .env
 .DS_Store
+
+# Policies filled in for one deployment (deploy/aws/render.R)
+deploy/aws/rendered/
