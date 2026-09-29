@@ -6,7 +6,7 @@ import type { LatLng, Map as LeafletMap } from "leaflet";
 import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
-import { Th } from "@/components/Common";
+import { Help, Th } from "@/components/Common";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -218,27 +218,97 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
   const bestBoyce = best((m) => m.boyce_mean);
   const mark = (value: number, top?: number) =>
     top != null && value === top ? "font-semibold text-myco-green" : "";
+  const first = fitted.length ? models[fitted[0]]! : undefined;
+  const folds = first?.folds.length ?? 5;
+  const blockKm = formatNumber(first?.block_km ?? 200);
+  const considered = first?.predictors_considered ?? 33;
 
-  const rows: { label: string; cell: (m: Model) => React.ReactNode }[] = [
+  const rows: { label: string; help: React.ReactNode; cell: (m: Model) => React.ReactNode }[] = [
     {
       label: "Blocked AUC",
+      help: (
+        <>
+          <p>
+            How well the map separates the places this species was collected from the places
+            people collected anything else. 0.5 is no better than chance; 1 would be perfect.
+          </p>
+          <p className="mt-1.5">
+            Blocked: the records are cut into {blockKm} km blocks, and each score comes from blocks
+            the model never saw while fitting, so it measures predicting new ground, not
+            remembering known sites.
+          </p>
+          <p className="mt-1.5">
+            Compare the three models on this page rather than one species against another. The
+            background is every other DNA-validated collection, so a species that turns up
+            wherever people look sits near 0.5 even when its map is good. The ± is the spread
+            across folds. Green marks the best of the three.
+          </p>
+        </>
+      ),
       cell: (m) => <span className={mark(m.auc_mean, bestAuc)}>{score(m.auc_mean, m.auc_sd)}</span>,
     },
     {
       label: "Blocked Boyce",
+      help: (
+        <>
+          <p>
+            Whether the ground a map rates higher really holds more records than its share of the
+            area. It runs from −1 to 1: near 1, records pile up where the map is darkest; near 0,
+            the map's ranking says little; below 0, it ranks ground backwards.
+          </p>
+          <p className="mt-1.5">
+            Scored on held-out {blockKm} km blocks, like AUC. This is the closer test of what the
+            colours on the map claim. It is unsteady with fewer than about 50 presence cells, so
+            read a wide ± as "not enough records to tell".
+          </p>
+        </>
+      ),
       cell: (m) => (
         <span className={mark(m.boyce_mean, bestBoyce)}>{score(m.boyce_mean, m.boyce_sd)}</span>
       ),
     },
     {
       label: "Predictors",
+      help: (
+        <>
+          <p>
+            How many environmental variables the model used, out of the {considered} every model
+            is offered: climate (WorldClim bio1–19), elevation, slope and terrain roughness,
+            soil pH, carbon, clay, sand and exchange capacity (SoilGrids), and tree, shrub,
+            grassland, wetland, water and built-up cover (ESA WorldCover).
+          </p>
+          <p className="mt-1.5">
+            Maxent drops variables that rise and fall together and keeps about one per four
+            presence cells, because correlated inputs blur its fit. Boosted trees and the random
+            forest take all {considered} and weigh them themselves.
+          </p>
+        </>
+      ),
       cell: (m) =>
         m.predictors_considered
           ? `${m.predictors.length} of ${m.predictors_considered}`
           : formatNumber(m.predictors.length),
     },
-    { label: "Folds scored", cell: (m) => `${m.folds.filter((f) => f.auc != null).length} of ${m.folds.length}` },
-    { label: "Fitted", cell: (m) => formatWhen(m.built_at).split(",")[0] },
+    {
+      label: "Folds scored",
+      help: (
+        <p>
+          The {blockKm} km blocks are dealt into {folds} spatial folds. Each fold is held out in
+          turn, the model is fitted on the rest and scored on it. A fold holding none of this
+          species' records cannot be scored, so fewer than {folds} means the AUC and Boyce above
+          rest on less of the range.
+        </p>
+      ),
+      cell: (m) => `${m.folds.filter((f) => f.auc != null).length} of ${m.folds.length}` },
+    {
+      label: "Fitted",
+      help: (
+        <p>
+          When this model was last fitted. The next run fits it again only if this taxon's
+          validated records have changed, or the fitting method or environmental layers have.
+        </p>
+      ),
+      cell: (m) => formatWhen(m.built_at).split(",")[0] },
   ];
 
   return (
@@ -258,7 +328,10 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
           <tbody>
             {rows.map((row) => (
               <tr key={row.label} className="border-b last:border-0">
-                <td className="px-4 py-2 text-[#4a3728]">{row.label}</td>
+                <td className="px-4 py-2 text-[#4a3728] whitespace-nowrap">
+                  {row.label}
+                  <Help label={row.label}>{row.help}</Help>
+                </td>
                 {ALGORITHMS.map((a) => (
                   <td key={a} className="px-4 py-2 text-right tabular-nums">
                     {models[a] ? row.cell(models[a]!) : <span className="text-muted-foreground">—</span>}
