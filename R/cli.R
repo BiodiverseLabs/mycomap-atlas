@@ -44,7 +44,8 @@ atlas_usage <- function() {
   message("      --constants=2,3,4,6,none  presences per predictor to compare")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
-  message("  sweep-layers       measure whether each new layer improves the models")
+  message("  sweep-layers       measure whether each new layer, and the design, improves the models")
+  message("      --no-method               leave out the arms that fit the old designs")
   message("      --per-band=N              taxa sampled per presence-cell band (default 40)")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
@@ -309,7 +310,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         grid = atlas_flag_grid(flags),
         per_band = atlas_flag_number(flags, "per_band", 40),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
-        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+        seed = as.integer(atlas_flag_number(flags, "seed", 1)),
+        method = !isTRUE(flags$no_method)
       )
       invisible(0L)
     },
