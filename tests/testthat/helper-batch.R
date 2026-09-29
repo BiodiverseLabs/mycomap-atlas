@@ -36,6 +36,9 @@ fake_fit <- local({
     if (grepl("Sparse", name)) {
       stop(atlas_insufficient_evidence(name, 5, grid, min_presences))
     }
+    # As many presences as the taxon has cells, like a real fit.
+    points <- list(...)$points
+    presences <- if (is.null(points)) 30 else length(unique(points$cell[points$scientific_name == name]))
     settings <- atlas_fit_settings(
       grid = grid, n_background = n_background, buffer_km = buffer_km,
       folds = folds, block_km = block_km, regmult = regmult,
@@ -49,7 +52,7 @@ fake_fit <- local({
       writeLines("not really a raster", atlas_model_path(name, grid, algorithm = algorithm))
     }
     metrics <- list(
-      taxon = name, algorithm = algorithm, presences = 30, predictors = list("v1"),
+      taxon = name, algorithm = algorithm, presences = presences, predictors = list("v1"),
       auc_mean = 0.7, boyce_mean = 0.5, fingerprint = fingerprint,
       settings_key = atlas_settings_key(settings), raster = raster
     )

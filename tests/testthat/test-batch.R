@@ -360,3 +360,23 @@ test_that("a trial run never deletes anything", {
     expect_true(file.exists(atlas_model_path("Thirty cells", "draft", ".json", "xgboost")))
   })
 })
+
+test_that("a stored model under the minimum is not current, so the fit can refuse it", {
+  with_data_dir({
+    world <- batch_world(c("Rich one" = 60))
+    run_batch(world, algorithm = "xgboost")
+    # 60 cells counted, but the stored model kept only 45 once cells without
+    # predictor data were dropped.
+    path <- atlas_model_path("Rich one", "draft", ".json", "xgboost")
+    metrics <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+    metrics$presences <- 45
+    atlas_write_json(metrics, path)
+    expect_equal(statuses(run_batch(world, algorithm = "xgboost"))[["Rich one"]], "fitted")
+    # Maxent's minimum is 20, so 45 is fine there.
+    run_batch(world)
+    maxent <- atlas_model_path("Rich one", "draft", ".json")
+    m <- jsonlite::fromJSON(maxent, simplifyVector = FALSE); m$presences <- 45
+    atlas_write_json(m, maxent)
+    expect_equal(statuses(run_batch(world))[["Rich one"]], "skipped")
+  })
+})

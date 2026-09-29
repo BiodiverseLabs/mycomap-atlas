@@ -277,9 +277,14 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
   candidates <- atlas_batch_candidates(points, min_presences, limit, taxa)
   fingerprints <- atlas_fingerprints_for(occurrences, candidates$scientific_name)
   current <- vapply(candidates$scientific_name, function(name) {
-    !isTRUE(force) && atlas_fit_is_current(
-      atlas_read_metrics(name, grid, algo$id), fingerprints[[name]], settings, predict
-    )
+    if (isTRUE(force)) return(FALSE)
+    metrics <- atlas_read_metrics(name, grid, algo$id)
+    # Candidates are counted before cells without predictor data are dropped,
+    # so a taxon can pass the line here and fall under it in the fit. A stored
+    # model with fewer presences than the minimum goes back to the fit, which
+    # refuses it and removes it.
+    atlas_fit_is_current(metrics, fingerprints[[name]], settings, predict) &&
+      (as.numeric(metrics$presences %||% 0) >= min_presences)
   }, logical(1))
   to_fit <- candidates$scientific_name[!current]
 
