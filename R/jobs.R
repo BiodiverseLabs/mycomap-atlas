@@ -141,9 +141,11 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
 
   # A machine without layers of its own (the small box) plans from the set in
   # the store. It needs only the manifest, for the layers' key: the rasters
-  # are the workers' business, and would fill the box's disk.
-  if (length(atlas_layer_set_files(grid))) {
-    layer_entries <- atlas_file_entries(atlas_layer_set_files(grid))
+  # are the workers' business, and would fill the box's disk. "Its own" means
+  # rasters: the manifest such a machine fetched last time is not a layer set.
+  local_layers <- atlas_layer_set_files(grid)
+  if (any(grepl("[.]tif$", local_layers))) {
+    layer_entries <- atlas_file_entries(local_layers)
   } else {
     set <- atlas_current_layers(store, grid)
     if (is.null(set)) stop("no layers here or in the store for the ", grid, " grid", call. = FALSE)
@@ -151,6 +153,13 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     atlas_fetch_entries(store, Filter(function(e) basename(e$path) == "manifest.json", layer_entries))
   }
   layers_key <- atlas_layers_key(grid)
+  # Every raster the manifest names must go to the workers, or every fit fails.
+  named <- file.path("layers", grid, vapply(atlas_layer_manifest(grid), function(x) x$file %||% "", ""))
+  lacking <- setdiff(named[nzchar(basename(named))], vapply(layer_entries, function(e) e$path, ""))
+  if (length(lacking)) {
+    stop("the layer set for the ", grid, " grid lacks ", paste(lacking, collapse = ", "),
+         "; nothing planned", call. = FALSE)
+  }
 
   manifest <- atlas_refresh_public_files()
   if (is.null(manifest)) stop("nothing pulled yet: run ./atlas pull-occurrences", call. = FALSE)

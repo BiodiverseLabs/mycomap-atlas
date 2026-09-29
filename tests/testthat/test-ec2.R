@@ -413,6 +413,58 @@ test_that("a machine without layers plans from the store's set, fetching only it
   expect_equal(atlas_job_status(store, job$id)$missing, integer())
 })
 
+test_that("planning again on a machine without layers still sends the workers every raster", {
+  # The first real run: the box's second plan found the manifest its first had
+  # fetched, took it for a layer set of its own, and sent workers no rasters.
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  builder <- machine()
+  on_machine(builder, orchestrator_data(synthetic_occurrences(TAXA)))
+  on_machine(builder, atlas_publish_layers(store, quiet = TRUE))
+  box <- machine()
+  on_machine(box, orchestrator_data(synthetic_occurrences(TAXA)))
+  unlink(file.path(box, "layers"), recursive = TRUE)
+
+  first <- on_machine(box, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  again <- on_machine(box, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  for (job in list(first, again)) {
+    expect_true("layers/draft/fake.tif" %in% vapply(job$inputs, function(e) e$path, ""))
+  }
+  on_machine(machine(), atlas_run_shard(store, again$id, 1L, quiet = TRUE, fit = fake_fit))
+  expect_equal(atlas_job_status(store, again$id)$missing, integer())
+})
+
+test_that("a job whose layers lack a raster the manifest names is never planned", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, {
+    orchestrator_data(synthetic_occurrences(TAXA))
+    atlas_write_json(list(list(id = "fake", md5 = "m1", file = "fake.tif"),
+                          list(id = "gone", md5 = "m2", file = "gone.tif")),
+                     file.path(atlas_layer_dir("draft"), "manifest.json"))
+    expect_error(atlas_plan_job(store, algorithms = "maxnet", quiet = TRUE),
+                 "lacks layers/draft/gone.tif; nothing planned")
+  })
+  expect_length(store$list("jobs/"), 0L)
+})
+
+test_that("a first job in which every model failed finishes without error", {
+  # The first real run: every fit failed and there was no release before it,
+  # and the box stopped with an error while finishing.
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(c("Broken A" = 25, "Broken B" = 30))))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  on_machine(machine(), atlas_run_shard(store, job$id, 1L, quiet = TRUE, fit = fake_fit))
+  release <- on_machine(boss, atlas_finish_job(store, job$id, quiet = TRUE))
+  expect_true(atlas_job_status(store, job$id)$finished)
+  # The failures are planned again next time.
+  again <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", quiet = TRUE))
+  expect_setequal(vapply(again$tasks, function(t) t$taxon, ""), c("Broken A", "Broken B"))
+})
+
 test_that("a web server's pull leaves the rasters in the store and keeps none of its own", {
   skip_if_not_installed("terra")
   setup <- planned()
