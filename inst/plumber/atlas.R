@@ -80,6 +80,16 @@ function(req, res) {
 access_config <- atlas_access_config()
 access_state <- atlas_access_state()
 
+# Read the taxa and every model's summary once at boot, so the first person
+# to search is not the one who waits while thousands of files are read.
+# Plumber answers one request at a time; a slow first search stalls everyone.
+invisible(tryCatch({
+  cache$search_index <- atlas_search_index(cached_taxa())
+  cache$models_draft <- new.env(parent = emptyenv())
+  cache$search_mapped <- atlas_search_mapped(atlas_model_index("draft", cache$models_draft))
+  cache$search_mapped_at <- as.numeric(Sys.time())
+}, error = function(e) NULL))
+
 #* @filter access
 function(req, res) {
   if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
@@ -156,6 +166,30 @@ function() {
 #* @serializer unboxedJSON
 function(grid = "draft") {
   list(grid = grid, layers = atlas_layer_overview(grid))
+}
+
+#* Find taxa and genera by what someone typed, forgiving typos and spellings.
+#* @param q What was typed
+#* @param limit Most species to return
+#* @get /api/search
+#* @serializer unboxedJSON
+function(q = "", limit = 10) {
+  if (is.null(cache$search_index)) {
+    cache$search_index <- atlas_search_index(cached_taxa())
+  }
+  # Which taxa have maps changes only when a batch or a release lands, and
+  # checking thousands of model files takes a second or two on every
+  # keystroke. So it is refreshed at most once a minute.
+  now <- as.numeric(Sys.time())
+  if (is.null(cache$search_mapped) || now - cache$search_mapped_at > 60) {
+    if (is.null(cache$models_draft)) {
+      cache$models_draft <- new.env(parent = emptyenv())
+    }
+    cache$search_mapped <- atlas_search_mapped(atlas_model_index("draft", cache$models_draft))
+    cache$search_mapped_at <- now
+  }
+  limit <- min(50L, max(1L, suppressWarnings(as.integer(limit)), na.rm = TRUE))
+  atlas_search(cache$search_index, substr(as.character(q), 1L, 200L), cache$search_mapped, limit = limit)
 }
 
 #* Taxa with their record and locality counts.

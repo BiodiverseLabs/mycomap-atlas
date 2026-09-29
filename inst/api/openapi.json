@@ -243,6 +243,69 @@
         }
       }
     },
+    "/api/search": {
+      "get": {
+        "tags": [
+          "Taxa"
+        ],
+        "operationId": "search",
+        "summary": "Find a taxon by what was typed",
+        "description": "For a search box. Forgives case, the quotes and sp. of provisional codes (Mycena sp. 'IN10', Mycena \"sp-IN10\" and mycena in10 all match), word order, half-typed words and small typos. Letters and digits are never changed, so IN1 and IN01 stay different. Results come best match first: exact, then prefix, then every word, then anywhere, then near misses; within those, a match on the genus before one on the epithet, the closest name, and taxa with maps first. A one-word query also returns matching genera.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "What was typed.",
+            "schema": {
+              "type": "string",
+              "default": ""
+            },
+            "example": "tramates versicolor"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Most species to return, up to 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            },
+            "example": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Species and genera, best first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
     "/api/taxa": {
       "get": {
         "tags": [
@@ -1551,6 +1614,93 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ArchiveSeries"
+            }
+          }
+        }
+      },
+      "SearchSpecies": {
+        "type": "object",
+        "required": [
+          "scientific_name",
+          "records",
+          "localities",
+          "models",
+          "match"
+        ],
+        "properties": {
+          "scientific_name": {
+            "type": "string"
+          },
+          "records": {
+            "type": "integer"
+          },
+          "localities": {
+            "type": "integer"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "maxnet",
+                "xgboost",
+                "rf"
+              ]
+            },
+            "description": "Models with a map for this taxon; empty when it has none yet."
+          },
+          "match": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "prefix",
+              "words",
+              "contains",
+              "similar"
+            ],
+            "description": "How the name matched. similar means a near miss: worth a \"did you mean\"."
+          }
+        }
+      },
+      "SearchGenus": {
+        "type": "object",
+        "properties": {
+          "genus": {
+            "type": "string"
+          },
+          "taxa": {
+            "type": "integer"
+          },
+          "mapped": {
+            "type": "integer",
+            "description": "Taxa in the genus with a map."
+          },
+          "records": {
+            "type": "integer"
+          }
+        }
+      },
+      "SearchResult": {
+        "type": "object",
+        "required": [
+          "query",
+          "species",
+          "genera"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "species": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchSpecies"
+            }
+          },
+          "genera": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchGenus"
             }
           }
         }

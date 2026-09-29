@@ -277,3 +277,33 @@ export async function getDownloads(): Promise<ArchiveSeries[]> {
   const response = await get<{ series: ArchiveSeries[] }>("/api/downloads");
   return response.series ?? [];
 }
+
+/** One species a search found, best first. */
+export interface SearchSpecies {
+  scientific_name: string;
+  records: number;
+  localities: number;
+  /** Models with a map; empty when the taxon has none yet. */
+  models: Algorithm[];
+  /** similar is a near miss: show it as "did you mean". */
+  match: "exact" | "prefix" | "words" | "contains" | "similar";
+}
+
+export interface SearchGenus {
+  genus: string;
+  taxa: number;
+  mapped: number;
+  records: number;
+}
+
+export interface SearchResult {
+  query: string;
+  species: SearchSpecies[];
+  genera: SearchGenus[];
+}
+
+/** Forgiving search: typos, provisional-code spellings, word order. */
+export function searchTaxa(q: string, limit = 8): Promise<SearchResult> {
+  const query = new URLSearchParams({ q, limit: String(limit) });
+  return get<SearchResult>(`/api/search?${query.toString()}`);
+}

@@ -62,7 +62,10 @@ cd web && pnpm install && pnpm dev    # app on :5101
 The app carries mycomap.org's look the way MycoMap Vision does — the same
 header, logo, footer, colour tokens, cream page-title band and shadcn
 components — so someone moving between the three sites feels they never left.
-Its pages: the home page (what Atlas is, a species search and a live map),
+Search is on every page (the header box, or `/` and Ctrl+K): it forgives typos,
+word order and the many spellings of a provisional code, offers genera, and
+puts taxa with maps first (`R/search.R`, `/api/search`). Its pages: the home
+page (what Atlas is, a species search and a live map),
 **Maps** (every fitted model), **Models** (the benchmark), **Taxa** (everything
 in the validated universe), **Methods** (the method in full), **Data**
 (training records and layers), **Sources** (every dataset, package and paper,

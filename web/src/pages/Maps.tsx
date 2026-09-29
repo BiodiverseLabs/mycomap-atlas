@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 
 import { ApiDown, Auc, Loading, Th } from "@/components/Common";
 import { Page, PageHeader } from "@/components/Layout";
@@ -26,12 +26,17 @@ function value(row: Row, algorithm: Algorithm, measure: Measure): number {
 
 export default function Maps() {
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
-  const [search, setSearch] = useState("");
+  const urlQuery = new URLSearchParams(useSearch()).get("q") ?? "";
+  const [search, setSearch] = useState(urlQuery);
   const [measure, setMeasure] = useState<Measure>("auc_mean");
   // Most-supported first by default. Sorted by a score, the top of the list is
   // all taxa with barely 20 presence cells, whose scores are the least reliable.
   const [sort, setSort] = useState<string>("presences");
   const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    setSearch(urlQuery);
+    setOffset(0);
+  }, [urlQuery]);
 
   const rows = useMemo(() => {
     const byTaxon = new Map<string, Row>();

@@ -1,6 +1,6 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { ImageOverlay, MapContainer, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -13,21 +13,19 @@ import {
   Layers,
   Map as MapIcon,
   Mountain,
-  Search,
   SquareDashed,
   Users,
 } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
 import { Page } from "@/components/Layout";
-import { Badge } from "@/components/ui/badge";
+import { SearchBox } from "@/components/Search";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ALGORITHM_LABELS,
   getModel,
   getModels,
   getStatus,
-  getTaxa,
   mapUrl,
   type Model,
   type ModelSummary,
@@ -36,67 +34,6 @@ import { GITHUB_URL } from "@/lib/contract";
 import { formatNumber } from "@/lib/utils";
 
 type Icon = ComponentType<{ className?: string }>;
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), ms);
-    return () => clearTimeout(timer);
-  }, [value, ms]);
-  return settled;
-}
-
-function SpeciesSearch({ mapped }: { mapped: Set<string> }) {
-  const [text, setText] = useState("");
-  const [, navigate] = useLocation();
-  const search = useDebounced(text.trim(), 200);
-  const results = useQuery({
-    queryKey: ["search", search],
-    enabled: search.length >= 2,
-    queryFn: () => getTaxa({ search, limit: 8 }),
-  });
-  const open = (name: string) => navigate(`/taxa/${encodeURIComponent(name)}`);
-  const items = results.data?.items ?? [];
-
-  return (
-    <div className="relative w-full max-w-xl">
-      <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
-      <input
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && items.length) open(items[0].scientific_name);
-        }}
-        placeholder="Find a fungus — try Amanita muscaria"
-        className="h-12 w-full rounded-lg border border-[#A87146]/25 bg-white pl-11 pr-3 text-base shadow-sm outline-none focus:ring-2 focus:ring-myco-green"
-        aria-label="Search for a taxon"
-      />
-      {search.length >= 2 && (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg">
-          {results.isLoading && <p className="px-4 py-3 text-sm text-muted-foreground">Searching…</p>}
-          {results.isError && <p className="px-4 py-3 text-sm text-muted-foreground">Search is unavailable right now.</p>}
-          {results.data && !items.length && (
-            <p className="px-4 py-3 text-sm text-muted-foreground">No validated records under that name.</p>
-          )}
-          {items.map((taxon) => (
-            <button
-              key={taxon.scientific_name}
-              type="button"
-              onClick={() => open(taxon.scientific_name)}
-              className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left hover:bg-myco-green/5"
-            >
-              <span className="sci">{taxon.scientific_name}</span>
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                {formatNumber(taxon.records)} records
-                {mapped.has(taxon.scientific_name) && <Badge>map</Badge>}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** Bounds a map can be laid over: a map wrapped past 180° comes back unusable. */
 function drawable(model: Model | null): boolean {
@@ -294,7 +231,7 @@ export default function Home() {
               names were confirmed by DNA. The maps, the method, the code and the data are open — a
               shared foundation anyone can use, check and build on.
             </p>
-            <SpeciesSearch mapped={mapped} />
+            <SearchBox variant="hero" />
             <div className="flex flex-wrap gap-3 text-sm">
               <Link
                 href="/maps"
