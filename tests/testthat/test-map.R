@@ -59,6 +59,75 @@ test_that("a suitability raster becomes a real PNG within the pixel cap", {
   expect_lt(drawn$bounds$south, drawn$bounds$north)
 })
 
+# A suitability raster on the grid's projection that is empty except for a
+# small block around one place, drawn to a PNG.
+drawn_block <- function(xmin, xmax, ymin, ymax, lng, lat) {
+  suitability <- terra::rast(
+    xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax,
+    resolution = 20000, crs = ATLAS_CRS
+  )
+  centre <- atlas_project_points(lat, lng)
+  xy <- terra::xyFromCell(suitability, seq_len(terra::ncell(suitability)))
+  near <- abs(xy[, 1] - centre[1, 1]) <= 60000 & abs(xy[, 2] - centre[1, 2]) <= 60000
+  terra::values(suitability) <- ifelse(near, 0.9, NA)
+
+  path <- tempfile(fileext = ".png")
+  drawn <- atlas_write_map_png(suitability, path)
+  list(drawn = drawn, path = path)
+}
+
+# Where the drawn block lands when the PNG is stretched over its bounds the
+# way Leaflet does it: straight along longitude, along Mercator y for latitude.
+block_centre <- function(block) {
+  image <- terra::rast(block$path)
+  alpha <- matrix(terra::values(image)[, 4], nrow = terra::nrow(image), byrow = TRUE)
+  painted <- which(alpha > 0, arr.ind = TRUE)
+  b <- block$drawn$bounds
+  column <- (mean(painted[, "col"]) - 0.5) / ncol(alpha)
+  row <- (mean(painted[, "row"]) - 0.5) / nrow(alpha)
+  mercator_y <- function(lat) asinh(tan(lat * pi / 180))
+  y <- mercator_y(b$north) - row * (mercator_y(b$north) - mercator_y(b$south))
+  c(lng = b$west + column * (b$east - b$west), lat = atan(sinh(y)) * 180 / pi)
+}
+
+test_that("a map reaching past the antimeridian stays in one piece west of it", {
+  skip_if_not_installed("terra")
+  # From the Alaska Peninsula out past the western Aleutians: the left of this
+  # rectangle lies beyond 180 degrees, with the block itself at 175 E.
+  block <- drawn_block(-6500000, -4000000, 2500000, 4200000, lng = 175, lat = 52)
+  on.exit(unlink(c(block$path, paste0(block$path, ".aux.xml"))), add = TRUE)
+  b <- block$drawn$bounds
+
+  expect_lt(b$west, -180)
+  expect_lt(b$west, b$east)
+  expect_lt(b$east - b$west, 180)
+  expect_lt(b$east, -100)
+
+  # 175 E is 185 degrees west.
+  landed <- block_centre(block)
+  expect_equal(unname(landed[["lng"]]), -185, tolerance = 0.5 / 185)
+  expect_equal(unname(landed[["lat"]]), 52, tolerance = 0.5 / 52)
+})
+
+test_that("an ordinary map is drawn where its cells are", {
+  skip_if_not_installed("terra")
+  block <- drawn_block(-2000000, 1000000, -1000000, 1500000, lng = -90, lat = 38)
+  on.exit(unlink(c(block$path, paste0(block$path, ".aux.xml"))), add = TRUE)
+  b <- block$drawn$bounds
+
+  expect_gt(b$west, -180)
+  expect_lt(b$east, 0)
+  landed <- block_centre(block)
+  expect_equal(unname(landed[["lng"]]), -90, tolerance = 0.5 / 90)
+  expect_equal(unname(landed[["lat"]]), 38, tolerance = 0.5 / 38)
+})
+
+test_that("bounds are only read off a spherical Mercator raster", {
+  skip_if_not_installed("terra")
+  albers <- terra::rast(xmin = 0, xmax = 1e5, ymin = 0, ymax = 1e5, resolution = 1e4, crs = ATLAS_CRS)
+  expect_error(atlas_map_bounds(albers), "spherical Mercator")
+})
+
 # Metrics shaped like the ones a fit writes, with the heavy parts included so
 # a test can check they stay out of the list.
 write_metrics <- function(name, built_at, auc = 0.6, map = TRUE) {

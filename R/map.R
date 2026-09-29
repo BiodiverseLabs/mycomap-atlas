@@ -30,19 +30,63 @@ atlas_suitability_colours <- function(values) {
   out
 }
 
-#' The latitude/longitude rectangle a Web Mercator raster covers.
-atlas_map_bounds <- function(mercator) {
-  extent <- as.vector(terra::ext(mercator))
-  corners <- cbind(
-    x = c(extent[["xmin"]], extent[["xmax"]]),
-    y = c(extent[["ymin"]], extent[["ymax"]])
+ATLAS_MERCATOR_RADIUS <- 6378137
+
+#' Web Mercator's formula, centred on a chosen meridian.
+#'
+#' A 500 km accessible area around Alaska reaches past 180 degrees into the
+#' Aleutians. Projected to EPSG:3857 itself, those cells wrap to the far east
+#' edge of the world, and the map's rectangle spans the globe or collapses to
+#' nothing. Centred on the map's own longitude, the same formula keeps every
+#' cell on one side, and the image is still Web Mercator: on a sphere, x is
+#' linear in longitude, so moving the centre only slides the image along x.
+atlas_map_mercator <- function(lon_0) {
+  paste0(
+    "+proj=merc +a=", ATLAS_MERCATOR_RADIUS, " +b=", ATLAS_MERCATOR_RADIUS,
+    " +lat_ts=0 +lon_0=", format(lon_0), " +x_0=0 +y_0=0 +k=1 +units=m",
+    " +nadgrids=@null +wktext +no_defs"
+  )
+}
+
+#' The longitude at the middle of a raster, to the nearest degree.
+atlas_map_centre_longitude <- function(raster) {
+  extent <- as.vector(terra::ext(raster))
+  centre <- cbind(
+    x = mean(extent[c("xmin", "xmax")]), y = mean(extent[c("ymin", "ymax")])
   )
   lonlat <- terra::crds(
-    terra::project(terra::vect(corners, crs = "EPSG:3857"), "EPSG:4326")
+    terra::project(terra::vect(centre, crs = terra::crs(raster)), "EPSG:4326")
   )
+  round(lonlat[1, 1])
+}
+
+#' The latitude/longitude rectangle a spherical Mercator raster covers.
+#'
+#' Worked out from the formula rather than by projecting the corners back,
+#' because a projection hands longitudes back folded into -180 to 180. A map
+#' that reaches past the antimeridian keeps a west edge below -180, which is
+#' what Leaflet needs to draw it as one piece.
+atlas_map_bounds <- function(mercator) {
+  proj <- terra::crs(mercator, proj = TRUE)
+  if (!grepl("+proj=merc", proj, fixed = TRUE) ||
+      !grepl(paste0("+a=", ATLAS_MERCATOR_RADIUS), proj, fixed = TRUE)) {
+    stop("map bounds need a spherical Mercator raster, not: ", proj, call. = FALSE)
+  }
+  centre <- regmatches(proj, regexpr("(?<=[+]lon_0=)[-0-9.eE]+", proj, perl = TRUE))
+  lon_0 <- if (length(centre)) as.numeric(centre) else 0
+  extent <- as.vector(terra::ext(mercator))
+  degrees <- 180 / pi
+  longitude <- function(x) lon_0 + x / ATLAS_MERCATOR_RADIUS * degrees
+  latitude <- function(y) atan(sinh(y / ATLAS_MERCATOR_RADIUS)) * degrees
+  west <- longitude(extent[["xmin"]])
+  east <- longitude(extent[["xmax"]])
+  # Atlas maps North America, which a browser shows around -100 degrees. A map
+  # whose middle falls past 180 (one only of the Aleutians) is placed a turn
+  # west, below -180, so it is drawn beside Alaska rather than a world away.
+  shift <- if ((west + east) / 2 > 0) -360 else 0
   list(
-    south = lonlat[1, 2], west = lonlat[1, 1],
-    north = lonlat[2, 2], east = lonlat[2, 1]
+    south = latitude(extent[["ymin"]]), west = west + shift,
+    north = latitude(extent[["ymax"]]), east = east + shift
   )
 }
 
@@ -78,7 +122,10 @@ atlas_write_map_png <- function(suitability, path, max_pixels = 1600) {
   if (is.character(suitability)) {
     suitability <- terra::rast(suitability)
   }
-  mercator <- terra::project(suitability, "EPSG:3857", method = "bilinear")
+  mercator <- terra::project(
+    suitability, atlas_map_mercator(atlas_map_centre_longitude(suitability)),
+    method = "bilinear"
+  )
 
   widest <- max(dim(mercator)[1:2])
   if (widest > max_pixels) {
