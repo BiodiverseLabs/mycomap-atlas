@@ -313,3 +313,27 @@ test_that("too few presence cells is a refusal a batch can recognise", {
     expect_match(conditionMessage(condition), "survey target, not a model")
   })
 })
+
+test_that("a worker that dies costs its taxa, not the run", {
+  skip_on_cran()
+  cluster <- parallel::makePSOCKcluster(2L)
+  on.exit(try(parallel::stopCluster(cluster), silent = TRUE), add = TRUE)
+  # "crash" kills its worker outright, as running out of memory would.
+  task <- function(name) {
+    if (name == "crash") quit(save = "no", status = 1)
+    Sys.sleep(0.3)
+    list(taxon = name, status = "fitted")
+  }
+  environment(task) <- globalenv()
+  rows <- list()
+  expect_no_error(
+    atlas_run_on_workers(cluster, c("a", "crash", "b", "c", "d"), task,
+                         function(value) rows[[length(rows) + 1L]] <<- value)
+  )
+  reported <- vapply(rows, function(r) r$taxon, character(1))
+  expect_setequal(reported, c("a", "crash", "b", "c", "d"))
+  expect_equal(anyDuplicated(reported), 0L)
+  crash <- rows[[which(reported == "crash")]]
+  expect_equal(crash$status, "failed")
+  expect_match(crash$error, "worker lost")
+})

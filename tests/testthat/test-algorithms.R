@@ -137,3 +137,15 @@ test_that("the folder a model sits in decides which model it is", {
     expect_equal(atlas_model_index("draft")$algorithm, "rf")
   })
 })
+
+test_that("a forest predicts in batches, and batching changes nothing", {
+  skip_if_not_installed("ranger")
+  training <- simulated_training(n_background = 500, n_presence = 60)
+  model <- atlas_fit_rf(training, num_trees = 100)
+  newdata <- data.frame(v1 = seq(-3, 3, length.out = 250), v2 = 0)
+  expect_equal(
+    atlas_rf_suitability(model, newdata, batch = 7L),
+    atlas_rf_suitability(model, newdata, batch = 100000L)
+  )
+  expect_length(atlas_rf_suitability(model, newdata[0, ]), 0L)
+})

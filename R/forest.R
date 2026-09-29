@@ -41,11 +41,26 @@ atlas_fit_rf <- function(training, num_trees = ATLAS_RF_TREES, seed = 1L) {
   model
 }
 
+# Rows handed to ranger at once when predicting. ranger keeps every tree's
+# vote for every row before averaging, so memory grows with rows x trees: a
+# map chunk of half a million rows took one worker to 4.5 GB, and twelve
+# workers doing that at once ran a 64 GB machine out of memory. 20,000 rows is
+# about 320 MB with a thousand trees.
+ATLAS_RF_PREDICT_ROWS <- 20000L
+
 #' Suitability from the forest: the share of trees voting "presence".
-atlas_rf_suitability <- function(model, newdata) {
+atlas_rf_suitability <- function(model, newdata, batch = ATLAS_RF_PREDICT_ROWS) {
   predictors <- attr(model, "predictors") %||% names(newdata)
-  predicted <- stats::predict(
-    model, data = newdata[, predictors, drop = FALSE], num.threads = 1, verbose = FALSE
-  )$predictions
-  as.numeric(predicted[, "1"])
+  data <- newdata[, predictors, drop = FALSE]
+  n <- nrow(data)
+  out <- numeric(n)
+  for (start in seq(1L, max(1L, n), by = batch)) {
+    rows <- start:min(n, start + batch - 1L)
+    if (!length(rows) || n == 0L) break
+    predicted <- stats::predict(
+      model, data = data[rows, , drop = FALSE], num.threads = 1, verbose = FALSE
+    )$predictions
+    out[rows] <- predicted[, "1"]
+  }
+  out
 }

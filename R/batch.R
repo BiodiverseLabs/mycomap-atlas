@@ -174,32 +174,60 @@ atlas_start_workers <- function(workers, grid, points) {
 #' nothing until every call is done, so a run of hundreds would log nothing
 #' and save nothing for hours. sendCall and recvOneResult are the functions it
 #' is built on; parallel does not export them.
+#'
+#' A worker that dies — out of memory, killed — cannot say which taxon it was
+#' on, and the pool cannot be trusted after it. So everything still in flight
+#' or not yet sent is recorded as failed, and the run returns normally: the
+#' summary is written, the exit code says something failed, and the next run's
+#' currency check picks exactly those taxa up again.
 atlas_run_on_workers <- function(cluster, names, task, on_result, ...) {
   send_call <- utils::getFromNamespace("sendCall", "parallel")
   receive <- utils::getFromNamespace("recvOneResult", "parallel")
   extra <- list(...)
   following <- 1L
+  in_flight <- character()
   send <- function(node) {
-    send_call(cluster[[node]], task, c(list(names[[following]]), extra),
-              tag = names[[following]])
+    name <- names[[following]]
+    send_call(cluster[[node]], task, c(list(name), extra), tag = name)
+    in_flight <<- c(in_flight, name)
     following <<- following + 1L
+  }
+  abandon <- function(reason) {
+    unsent <- if (following <= length(names)) names[following:length(names)] else character()
+    for (name in c(in_flight, unsent)) {
+      on_result(list(taxon = name, status = "failed",
+                     error = paste("worker lost:", reason)))
+    }
+    invisible(NULL)
   }
   for (node in seq_len(min(length(cluster), length(names)))) {
     send(node)
   }
   for (i in seq_along(names)) {
-    result <- receive(cluster)
+    result <- tryCatch(receive(cluster), error = function(e) e)
+    if (inherits(result, "error")) {
+      return(abandon(conditionMessage(result)))
+    }
+    in_flight <- in_flight[-match(result$tag, in_flight)]
     if (following <= length(names)) {
-      send(result$node)
+      sent <- tryCatch({ send(result$node); TRUE }, error = function(e) e)
+      if (!isTRUE(sent)) {
+        on_result(atlas_worker_value(result))
+        return(abandon(conditionMessage(sent)))
+      }
     }
-    value <- result$value
-    if (inherits(value, "try-error")) {
-      value <- list(taxon = result$tag, status = "failed",
-                    error = as.character(value))
-    }
-    on_result(value)
+    on_result(atlas_worker_value(result))
   }
   invisible(NULL)
+}
+
+#' A worker's answer, or a failure row when the task itself threw.
+atlas_worker_value <- function(result) {
+  value <- result$value
+  if (inherits(value, "try-error")) {
+    value <- list(taxon = result$tag, status = "failed", error = as.character(value))
+  }
+  value
 }
 
 #' Fit every eligible taxon.
