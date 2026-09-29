@@ -121,6 +121,45 @@
         }
       }
     },
+    "/api/downloads": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "operationId": "getDownloads",
+        "summary": "Versioned downloads on Zenodo",
+        "description": "Every archived version of each series, with its DOI. Each series is one Zenodo record: models-<grid> gets a new version when a release is archived, layers-<grid> only when a layer is rebuilt. A version DOI always points at exactly those files; the concept DOI points at the newest version. Cite the version you used.",
+        "responses": {
+          "200": {
+            "description": "The archive series.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Downloads"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
     "/api/status": {
       "get": {
         "tags": [
@@ -1396,6 +1435,122 @@
             "type": "array",
             "items": {
               "type": "object"
+            }
+          }
+        }
+      },
+      "ArchiveFile": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "ArchiveVersion": {
+        "type": "object",
+        "required": [
+          "version",
+          "state"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "The Atlas release id for models, or <grid>-<date>-<layer key> for layers."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ],
+            "description": "Only published versions have a DOI and can be downloaded."
+          },
+          "doi": {
+            "type": "string",
+            "description": "This version's DOI, fixed to exactly these files."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The record on Zenodo."
+          },
+          "release": {
+            "type": "string",
+            "description": "Models only: the Atlas release archived."
+          },
+          "layers_version": {
+            "type": "string",
+            "description": "Models only: the layers version these models were fitted on."
+          },
+          "key": {
+            "type": "string",
+            "description": "Hash of the content; an unchanged release is never archived twice."
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveFile"
+            }
+          }
+        }
+      },
+      "ArchiveSeries": {
+        "type": "object",
+        "required": [
+          "series",
+          "versions"
+        ],
+        "properties": {
+          "series": {
+            "type": "string",
+            "description": "models-<grid> or layers-<grid>; a -sandbox suffix marks test archives."
+          },
+          "concept_doi": {
+            "type": "string",
+            "description": "Resolves to the newest version, whichever it is."
+          },
+          "concept_recid": {
+            "type": [
+              "string",
+              "integer"
+            ]
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveVersion"
+            }
+          }
+        }
+      },
+      "Downloads": {
+        "type": "object",
+        "required": [
+          "series"
+        ],
+        "properties": {
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArchiveSeries"
             }
           }
         }

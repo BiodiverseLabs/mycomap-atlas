@@ -371,6 +371,12 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
     removed <- length(stale)
   }
 
+  # Which releases went to Zenodo, and under which DOIs, so the API can list
+  # the downloads. Small files, always fetched whole.
+  for (key in store$list("archives/")) {
+    if (grepl("^archives/[^/]+[.]json$", key)) store$get(key, file.path(root, key))
+  }
+
   atlas_write_json(list(release = manifest$id, grid = grid,
                         pulled_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")),
                    atlas_path("releases", grid, "pulled.json"))

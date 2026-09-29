@@ -369,6 +369,44 @@ On the draft grid today a release is 8,153 files and 2.4 GB: publishing it the
 first time took 54 s into a local folder, a first pull 2 min 14 s, and a pull
 with nothing new 17 s.
 
+## Archives on Zenodo
+
+Big downloads live on Zenodo, versioned, each version with its own DOI.
+Two records per grid, each a series of versions under one concept DOI:
+
+| Series | Holds | New version when |
+|---|---|---|
+| `layers-<grid>` | the predictor GeoTIFFs and their manifest | a layer is rebuilt |
+| `models-<grid>` | per-model map archives, all scores, taxon counts, 0.1° collection cells, the release manifest | a release is archived |
+
+Every version carries a README and `CHECKSUMS.sha256`. A models version names
+the layers version it was fitted on (matched by the layer builds, not by
+date) and links it as `isDerivedFrom`. An unchanged release or layer build is
+never deposited twice.
+
+```bash
+./atlas archive-release --sandbox --dry-run          # what would go up, and how big
+./atlas archive-release --sandbox                    # a draft on sandbox.zenodo.org
+./atlas archive-publish --series=models-draft-sandbox
+./atlas archive-release --publish                    # the real thing, DOIs minted
+./atlas archives                                     # every version and its DOI
+```
+
+A run leaves a draft unless given `--publish`, because publishing mints the
+DOI and can never be undone; check the draft on Zenodo, then
+`archive-publish` (or `archive-discard`). The token is `ZENODO_TOKEN`, a
+personal access token with `deposit:write` and `deposit:actions`; the sandbox
+needs its own token from sandbox.zenodo.org. Which release went to which DOI
+is kept in `archives/<series>.json` in the store, pulled with every release,
+and served at `/api/downloads`. Sandbox series end in `-sandbox` and never
+mix with real ones. Creators, licence, keywords and related identifiers are
+in `inst/archive/zenodo.json`.
+
+A record holds at most 100 files and 50 GB, which is why maps are packed per
+model. The draft grid's models come to about 2.3 GB and the 1 km layers to
+2.2 GB; 1 km models will be far larger, and the archive refuses anything over
+the limit before uploading.
+
 ## Access and tokens
 
 Reads are open. Every caller is rate limited instead: anonymous callers per

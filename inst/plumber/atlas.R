@@ -119,6 +119,13 @@ function() {
   readBin(path, "raw", file.info(path)$size)
 }
 
+#* The versioned archives on Zenodo: every version of each series, with DOIs.
+#* @get /api/downloads
+#* @serializer unboxedJSON
+function() {
+  list(series = atlas_archive_ledgers())
+}
+
 #* What the last pull holds.
 #* @get /api/status
 #* @serializer unboxedJSON

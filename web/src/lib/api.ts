@@ -251,3 +251,29 @@ export async function getModels(): Promise<ModelSummary[]> {
   const response = await get<{ models: ModelSummary[] }>("/api/models");
   return response.models;
 }
+
+/** One archived version on Zenodo. Only published versions have a DOI. */
+export interface ArchiveVersion {
+  version: string;
+  state: "draft" | "published";
+  doi?: string;
+  url?: string;
+  release?: string;
+  layers_version?: string;
+  bytes?: number;
+  created_at?: string;
+  published_at?: string;
+  files?: { name: string; bytes: number; sha256: string }[];
+}
+
+/** One Zenodo record with all its versions: models-<grid> or layers-<grid>. */
+export interface ArchiveSeries {
+  series: string;
+  concept_doi?: string;
+  versions: ArchiveVersion[];
+}
+
+export async function getDownloads(): Promise<ArchiveSeries[]> {
+  const response = await get<{ series: ArchiveSeries[] }>("/api/downloads");
+  return response.series ?? [];
+}

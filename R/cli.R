@@ -58,6 +58,16 @@ atlas_usage <- function() {
   message("  releases           list the releases in a store, marking the current one")
   message("  promote-release    make a release current (rolling back is promoting an older one)")
   message("      --release=ID              which release (required)")
+  message("  archive-release    deposit a release and its layers on Zenodo as new versions")
+  message("      --store=URI               as above")
+  message("      --release=ID              a particular release (default: the current one)")
+  message("      --only=models|layers      one series (default both; layers only when rebuilt)")
+  message("      --sandbox                 sandbox.zenodo.org, with test DOIs (do this first)")
+  message("      --dry-run                 build the bundles and show what would be uploaded")
+  message("      --publish                 mint the DOIs now; otherwise a draft is left to check")
+  message("  archive-publish    publish the waiting draft of a series (--series=models-production)")
+  message("  archive-discard    throw away the waiting draft of a series")
+  message("  archives           list archived versions and their DOIs")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -102,6 +112,15 @@ atlas_flag_prune <- function(flags) {
 
 atlas_flag_grid <- function(flags) {
   if (is.null(flags$grid)) "draft" else as.character(flags$grid)
+}
+
+#' Zenodo, or its sandbox with --sandbox, using ZENODO_TOKEN.
+atlas_flag_zenodo <- function(flags) {
+  if (isTRUE(flags$dry_run)) {
+    # A dry run talks to nobody, so it needs no token.
+    return(list(target = if (isTRUE(flags$sandbox)) "sandbox" else "zenodo", base = "", call = NULL))
+  }
+  atlas_zenodo(if (isTRUE(flags$sandbox)) "sandbox" else "zenodo")
 }
 
 atlas_flag_number <- function(flags, name, default) {
@@ -279,6 +298,41 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         id = as.character(flags$release),
         grid = atlas_flag_grid(flags)
       )
+      invisible(0L)
+    },
+    "archive-release" = {
+      kinds <- if (is.null(flags$only)) ATLAS_ARCHIVE_KINDS else as.character(flags$only)
+      atlas_archive(
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        grid = atlas_flag_grid(flags),
+        kinds = kinds,
+        release = if (is.null(flags$release)) NULL else as.character(flags$release),
+        z = atlas_flag_zenodo(flags),
+        publish = isTRUE(flags$publish),
+        dry_run = isTRUE(flags$dry_run)
+      )
+      invisible(0L)
+    },
+    "archive-publish" = ,
+    "archive-discard" = {
+      if (is.null(flags$series)) stop(command, " needs --series=models-<grid> or layers-<grid>", call. = FALSE)
+      store <- atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
+      series <- as.character(flags$series)
+      z <- atlas_flag_zenodo(list(sandbox = endsWith(series, "-sandbox")))
+      if (command == "archive-publish") atlas_archive_publish(store, series, z) else atlas_archive_discard(store, series, z)
+      invisible(0L)
+    },
+    "archives" = {
+      store <- atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
+      keys <- store$list("archives/")
+      if (!length(keys)) message("nothing archived yet")
+      for (key in keys[grepl("[.]json$", keys)]) {
+        ledger <- atlas_store_text(store, key)
+        message(ledger$series, if (!is.null(ledger$concept_doi)) paste0("  all versions: doi:", ledger$concept_doi) else "")
+        for (v in ledger$versions) {
+          message("  ", v$version, "  ", v$state, "  ", v$doi %||% v$url)
+        }
+      }
       invisible(0L)
     },
     "status" = {
