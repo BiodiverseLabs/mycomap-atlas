@@ -108,6 +108,9 @@ export interface Model {
   built_at: string;
   map?: string;
   bounds?: ModelBounds;
+  /** "rank" when colours are by percentile within the map. */
+  map_scale?: string;
+  map_drawn_at?: string;
 }
 
 /** One row of /api/models: enough for a list. The full record is getModel. */
@@ -177,8 +180,13 @@ export async function getModel(name: string, algorithm: Algorithm = "maxnet"): P
   return (await response.json()) as Model;
 }
 
-export function mapUrl(name: string, algorithm: Algorithm = "maxnet"): string {
-  return `/api/taxa/${encodeURIComponent(name)}/map.png?algorithm=${algorithm}`;
+/**
+ * A map's PNG. version changes whenever the map is redrawn, so a browser never
+ * shows yesterday's colours from its cache.
+ */
+export function mapUrl(name: string, algorithm: Algorithm = "maxnet", version?: string): string {
+  const v = version ? `&v=${encodeURIComponent(version)}` : "";
+  return `/api/taxa/${encodeURIComponent(name)}/map.png?algorithm=${algorithm}${v}`;
 }
 
 /** One row of a benchmark summary: an arm within a band of presence cells. */

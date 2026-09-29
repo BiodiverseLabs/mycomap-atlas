@@ -108,3 +108,26 @@ test_that("no study yet is NULL, not an error", {
     expect_null(atlas_latest_study("benchmarks"))
   })
 })
+
+namespace_exports <- function(root) {
+  lines <- grep("^export[(]", readLines(file.path(root, "NAMESPACE")), value = TRUE)
+  gsub("^export[(]|[)]$", "", lines)
+}
+
+test_that("every Atlas function the API file calls is exported", {
+  # Installed as a package, the API sees only exports: a function missing from
+  # NAMESPACE works from source and breaks in the release container.
+  root <- testthat::test_path("..", "..")
+  api <- readLines(file.path(root, "inst", "plumber", "atlas.R"))
+  called <- unique(unlist(regmatches(api, gregexpr("atlas_[a-z_]+[(]", api))))
+  called <- sub("[(]$", "", called)
+  exported <- namespace_exports(root)
+  expect_true(length(called) > 5)
+  expect_equal(setdiff(called, exported), character())
+})
+
+test_that("nothing is exported that does not exist", {
+  exported <- namespace_exports(testthat::test_path("..", ".."))
+  missing <- exported[!vapply(exported, exists, logical(1), mode = "function")]
+  expect_equal(missing, character())
+})

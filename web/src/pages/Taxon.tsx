@@ -57,12 +57,12 @@ function SyncWith({ group, id }: { group: MutableRefObject<MapGroup>; id: string
 function Legend() {
   return (
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>Less suitable</span>
+      <span>Lowest-rated ground</span>
       <div
         className="h-2 w-24 rounded"
         style={{ background: "linear-gradient(to right, #f7f7e8, #94c440, #2e5a17)" }}
       />
-      <span>More suitable</span>
+      <span>Highest-rated</span>
     </div>
   );
 }
@@ -117,7 +117,13 @@ function ModelMap({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {overlay && <ImageOverlay url={mapUrl(name, algorithm)} bounds={overlay} opacity={0.8} />}
+          {overlay && (
+            <ImageOverlay
+              url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at)}
+              bounds={overlay}
+              opacity={0.8}
+            />
+          )}
           {points.map((cell) => (
             <CircleMarker
               key={`${cell.lat}:${cell.lng}`}
@@ -297,9 +303,10 @@ export default function Taxon() {
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 White dots are collections, grouped into {cells.data?.degrees ?? 0.1}° cells. The
-                maps move together. Colour stops 500 km from the nearest record: beyond that a map
-                makes no claim. Each model has its own scale, so compare where each puts its high
-                ground rather than the exact shade.
+                maps move together. Each map is coloured by rank within its own ground: the darkest
+                green is the tenth of the area that model rates highest, so the three can be compared
+                directly even though their raw scores run on different scales. Colour stops 500 km
+                from the nearest record: beyond that a map makes no claim.
               </p>
             </section>
 

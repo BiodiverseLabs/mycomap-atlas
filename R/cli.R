@@ -45,6 +45,8 @@ atlas_usage <- function() {
   message("      --min-presences=N         smallest taxon included (default 50)")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
+  message("  redraw-maps        redraw every map's PNG from its stored raster")
+  message("      --workers=N               maps at once (default 1)")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
@@ -222,6 +224,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         min_presences = atlas_flag_number(flags, "min_presences", 50),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "redraw-maps" = {
+      atlas_rebuild_maps(
+        grid = atlas_flag_grid(flags),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1))
       )
       invisible(0L)
     },

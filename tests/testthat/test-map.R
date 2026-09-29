@@ -144,3 +144,32 @@ test_that("a half-written file is skipped rather than breaking the list", {
     expect_equal(atlas_model_index("draft")$taxon, "Whole")
   })
 })
+
+test_that("a map is coloured by rank, so its lowest ground is 0 and its highest 1", {
+  expect_equal(atlas_rank_scale(c(0.2, 0.6, 0.4)), c(0, 1, 0.5))
+  expect_equal(atlas_rank_scale(c(NA, 0.3, 0.1)), c(NA, 1, 0))
+  expect_equal(atlas_rank_scale(0.7), 1)
+  expect_true(all(is.na(atlas_rank_scale(c(NA_real_, NaN)))))
+})
+
+test_that("two models that order the ground alike are drawn alike, whatever their scales", {
+  # Maxent reaches 1; boosted trees rarely pass 0.65. Ranked, the same
+  # ordering must give the same picture, or the tree maps look washed out.
+  set.seed(4)
+  maxent <- stats::runif(500)
+  trees <- 0.27 + 0.36 * maxent^2
+  expect_equal(
+    atlas_suitability_colours(atlas_rank_scale(maxent)),
+    atlas_suitability_colours(atlas_rank_scale(trees))
+  )
+})
+
+test_that("a drawn map records how its colours were scaled", {
+  skip_if_not_installed("terra")
+  suitability <- terra::rast(nrows = 20, ncols = 20, xmin = 0, xmax = 1e5,
+                             ymin = 0, ymax = 1e5, crs = ATLAS_CRS)
+  terra::values(suitability) <- seq(0.3, 0.6, length.out = 400)
+  drawn <- atlas_write_map_png(suitability, file.path(tempdir(), "ranked.png"))
+  expect_equal(drawn$scale, "rank")
+  expect_match(drawn$drawn_at, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T")
+})

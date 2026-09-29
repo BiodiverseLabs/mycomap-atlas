@@ -49,6 +49,30 @@ export default function About() {
           </p>
         </Section>
 
+        <Section title="Three models, side by side">
+          <p>
+            Every map is drawn three ways from the same records, against the same background.{" "}
+            <strong className="text-[#4a3728]">Maxent</strong> fits smooth responses to each
+            variable and is the long-standing standard for data like these.{" "}
+            <strong className="text-[#4a3728]">Boosted trees</strong> build hundreds of small
+            decision trees, each correcting the last, and can find combinations of conditions a
+            smooth curve cannot. A <strong className="text-[#4a3728]">random forest</strong> grows
+            a thousand trees independently, each on as many background records as presences, and
+            lets them vote.
+          </p>
+          <p>
+            None is right by default. Where the three agree, the pattern is in the records; where
+            they part company, the map is saying more about the model than about the fungus. The{" "}
+            <a href="/models" className="text-myco-green hover:underline">Models page</a> shows how
+            they compare across every well-recorded taxon.
+          </p>
+          <p>
+            Each map is coloured by rank within its own ground, not by its raw score: the darkest
+            green is the tenth of the area that model rates highest. The three models put their
+            scores on different scales, and ranking is what lets them be read side by side.
+          </p>
+        </Section>
+
         <Section title="Why the colour stops in circles">
           <p>
             A map covers the ground within 500 km of the species&rsquo; records and no further. A
