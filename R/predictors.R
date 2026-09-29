@@ -15,18 +15,34 @@
 #
 # Correlations are measured on the background — the environment available to
 # the species — not on the presences, which are too few to estimate them.
+#
+# The candidate layers (R/layersweep.R) slot in beside the variable each one
+# refines, ahead of it where it is the more direct measure: the moisture a
+# fungus actually lacks (climatic moisture deficit) before the rain that falls
+# (bio12), autumn rain and warmth — when most fungi fruit — before the driest
+# and warmest quarters, forest type and host genera before bare tree cover,
+# lime before the rest of the soil. Secondary climate (humidity, vapour
+# pressure deficit, evapotranspiration, snow) waits until after the soil, so a
+# sparse taxon's few predictors are not all spent on moisture. A layer that is
+# not built simply has no columns, and the order is unchanged for the rest.
 
 ATLAS_PREDICTOR_PRIORITY <- c(
   # Moisture: the first thing that decides whether a fungus fruits at all.
-  "bio12", "bio17", "bio15", "bio14",
-  # Temperature: means, then the extremes that set a range's edges.
-  "bio1", "bio6", "bio5", "bio4",
+  "clim_cmd", "bio12", "clim_ppt_autumn", "bio17", "bio15", "bio14",
+  # Temperature: means, then the fruiting season, then the extremes that set
+  # a range's edges.
+  "bio1", "clim_tave_autumn", "clim_ffp", "bio6", "bio5", "bio4",
   # What it grows on or with.
+  "forest_needleleaf", "forest_broadleaf", "forest_mixed",
+  "host_pinus", "host_quercus", "host_picea", "host_abies", "host_tsuga",
+  "host_pseudotsuga", "host_populus", "host_betula", "host_fagus", "host_larix",
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
-  # The soil it sits in.
-  "soil_phh2o", "soil_soc", "soil_clay", "soil_sand", "soil_cec",
-  # The shape of the ground.
-  "elevation", "slope", "roughness"
+  # The soil it sits in, and the rock beneath.
+  "soil_phh2o", "bedrock_carbonate", "soil_soc", "soil_clay", "soil_sand", "soil_cec",
+  # Secondary climate.
+  "clim_rh", "clim_vpd", "clim_aet", "clim_pas",
+  # The shape of the ground: where water gathers, which way it faces.
+  "elevation", "twi", "northness", "heat_load", "slope", "roughness"
 )
 
 #' Drop predictors that say nothing, because they never vary here.

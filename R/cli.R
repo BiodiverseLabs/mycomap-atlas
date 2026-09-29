@@ -40,6 +40,10 @@ atlas_usage <- function() {
   message("      --constants=2,3,4,6,none  presences per predictor to compare")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
+  message("  sweep-layers       measure whether each new layer improves the models")
+  message("      --per-band=N              taxa sampled per presence-cell band (default 40)")
+  message("      --workers=N               taxa at once (default 1)")
+  message("      --seed=N                  which sample (default 1)")
   message("  benchmark-models   boosted trees against Maxent on the richest taxa")
   message("      --per-band=N              taxa per band of presence cells (default 40)")
   message("      --min-presences=N         smallest taxon included (default 50)")
@@ -274,6 +278,15 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         grid = atlas_flag_grid(flags),
         per_band = atlas_flag_number(flags, "per_band", 40),
         constants = constants,
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "sweep-layers" = {
+      atlas_layer_sweep(
+        grid = atlas_flag_grid(flags),
+        per_band = atlas_flag_number(flags, "per_band", 40),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )

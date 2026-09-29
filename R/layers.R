@@ -9,6 +9,14 @@
 # tree cover as a fraction rather than host identity. Host species maps are a
 # later, region-by-region refinement, and until then a model cannot be read as
 # knowing which host a fungus needs.
+#
+# The last five layers are candidates, measured by atlas sweep-layers before
+# any of them is fitted on in production (R/layersweep.R). One breaks the rule
+# above on purpose: hosts joins the US and Canadian national tree maps, and has
+# nothing for Alaska, Mexico or the islands. The sweep reports how many records
+# that costs. Building a layer is what puts it into every fit on that grid, so
+# candidates are built only into a separate data directory until they are
+# chosen.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -126,6 +134,87 @@ atlas_layer_registry <- function() {
         names(out) <- paste0("cover_", vars)
         out
       }
+    ),
+    landform = list(
+      id = "landform",
+      title = "Wetness, northness and heat load",
+      source = "Derived from the 1 km elevation layer",
+      url = NA_character_,
+      license = "Follows the elevation layer",
+      citation = paste(
+        "McCune B, Keon D (2002) Equations for potential annual direct incident",
+        "radiation and heat load. J Veg Sci 13:603-606; wetness index after",
+        "Beven KJ, Kirkby MJ (1979) Hydrol Sci Bull 24:43-69"
+      ),
+      # Averaged, not interpolated: a draft cell keeps the share of wet
+      # hollows and shaded slopes its 1 km cells had. See R/landform.R.
+      method = "average",
+      fetch = function(path, res) atlas_landform_source(path)
+    ),
+    foresttype = list(
+      id = "foresttype",
+      title = "Needleleaf, broadleaf and mixed forest",
+      source = "NALCMS Land Cover 2020 v2, 30 m (CEC)",
+      url = "https://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/",
+      license = "CC BY 4.0",
+      citation = paste(
+        "Commission for Environmental Cooperation (2024) North American Environmental",
+        "Atlas - Land Cover 2020 30m. NALCMS; CCRS, USGS, CONABIO, CONAFOR, INEGI. Ed. 2.0"
+      ),
+      note = "Share of each cell under each forest type, counted from 30 m pixels.",
+      method = "average",
+      fetch = function(path, res) atlas_nalcms_source(path)
+    ),
+    hosts = list(
+      id = "hosts",
+      title = "Host tree genera (share of the stand)",
+      source = paste(
+        "USFS live tree species basal area 2000-2009 (US lower 48);",
+        "NFI kNN species composition 2011 (Canada)"
+      ),
+      url = "https://doi.org/10.2737/RDS-2013-0013",
+      license = "US Government work; Open Government Licence - Canada",
+      citation = paste(
+        "Wilson BT, Lister AJ, Riemann RI, Griffith DM (2013) Live tree species basal",
+        "area of the contiguous United States (2000-2009). USDA Forest Service,",
+        "doi:10.2737/RDS-2013-0013; Beaudoin A et al. (2017) Species composition,",
+        "forest properties and land cover types across Canada's forests at 250m",
+        "resolution for 2001 and 2011. NRCan, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
+      ),
+      note = paste(
+        "Two national products joined at the border: basal-area share in the US,",
+        "stand-composition share in Canada. Nothing for Alaska, Mexico or the islands."
+      ),
+      method = "average",
+      fetch = function(path, res) atlas_hosts_source(path)
+    ),
+    waterbalance = list(
+      id = "waterbalance",
+      title = "Moisture deficit, autumn climate, snow, humidity, AET and VPD",
+      source = "AdaptWest ClimateNA v7.3 normals 1991-2020, 1 km; TerraClimate 1991-2020",
+      url = "https://adaptwest.databasin.org/pages/adaptwest-climatena/",
+      license = "CC BY 4.0 (AdaptWest); CC0 (TerraClimate)",
+      citation = paste(
+        "AdaptWest Project (2022) Gridded current and projected climate data for North",
+        "America at 1km resolution, ClimateNA v7.30; Wang T, Hamann A, Spittlehouse D,",
+        "Carroll C (2016) PLoS One 11:e0156720; Abatzoglou JT et al. (2018)",
+        "TerraClimate. Scientific Data 5:170191"
+      ),
+      method = "average",
+      fetch = function(path, res) atlas_waterbalance_source(path)
+    ),
+    bedrock = list(
+      id = "bedrock",
+      title = "Carbonate bedrock (share of the cell)",
+      source = "GLiM global lithological map (Hartmann & Moosdorf 2012)",
+      url = "https://www.geo.uni-hamburg.de/en/geologie/forschung/aquatische-geochemie/glim.html",
+      license = "Not stated by the authors: confirm before publishing maps built on it",
+      citation = paste(
+        "Hartmann J, Moosdorf N (2012) The new global lithological map database GLiM.",
+        "Geochem Geophys Geosyst 13:Q12004"
+      ),
+      method = "average",
+      fetch = function(path, res) atlas_bedrock_source(path)
     )
   )
 }
