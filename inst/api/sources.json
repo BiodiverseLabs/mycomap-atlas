@@ -44,6 +44,35 @@
       "doi": "10.5281/zenodo.7254221"
     },
     {
+      "id": "bigmap",
+      "name": "USFS FIA BIGMAP 2018 tree species aboveground biomass",
+      "provider": "USDA Forest Service, Forest Inventory and Analysis",
+      "url": "https://imagery.geoplatform.gov/iipp/rest/services/Vegetation/USFS_FIA_BIGMAP_AboveGroundBiomass/ImageServer",
+      "license": "Public domain (US federal government work)",
+      "role": "Host trees in the lower 48: biomass of each tree species at 30 m, read at 250 m and averaged into the share of each host genus, and of conifers, in a cell's trees.",
+      "citation": "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series for modeling attributes from national forest inventory data. ISPRS Journal of Photogrammetry and Remote Sensing 137:29-46. Data: USDA Forest Service FIA BIGMAP 2018 tree species aboveground biomass.",
+      "doi": "10.1016/j.isprsjprs.2018.01.006"
+    },
+    {
+      "id": "nfi",
+      "name": "Canada's National Forest Inventory kNN forest attributes, 2011",
+      "provider": "Natural Resources Canada, Canadian Forest Service",
+      "url": "https://ftp.maps.canada.ca/pub/nrcan_rncan/Forests_Foret/canada-forests-attributes_attributs-forests-canada/2011-attributes_attributs-2011",
+      "license": "Open Government Licence - Canada",
+      "license_url": "https://open.canada.ca/en/open-government-licence-canada",
+      "role": "Host trees in Canada: percent composition of each tree species at 250 m, summed by genus and averaged into the share of each host genus, and of conifers, among a cell's identified trees. Contains information licensed under the Open Government Licence - Canada.",
+      "citation": "Beaudoin A, Bernier PY, Guindon L, et al. (2014) Mapping attributes of Canada's forests at moderate resolution through kNN and MODIS imagery. Canadian Journal of Forest Research 44:521-532 (doi:10.1139/cjfr-2013-0401). Data: Canada's National Forest Inventory 2011 kNN forest attributes, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990.",
+      "doi": "10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
+    },
+    {
+      "id": "census-states",
+      "name": "US Census cartographic boundary files, states, 1:500,000 (2023)",
+      "provider": "United States Census Bureau",
+      "url": "https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_state_500k.zip",
+      "license": "Public domain (US federal government work)",
+      "role": "Where the lower 48 are, so BIGMAP's empty cells can be told from the rest of the continent. Not a predictor."
+    },
+    {
       "id": "osm",
       "name": "OpenStreetMap basemap",
       "provider": "OpenStreetMap contributors",
@@ -413,14 +442,14 @@
     {
       "stage": "2. Layers",
       "name": "Raw environmental downloads",
-      "detail": "WorldClim, SoilGrids and WorldCover exactly as downloaded, about 15 GB.",
+      "detail": "WorldClim, SoilGrids and WorldCover exactly as downloaded, about 15 GB, and the BIGMAP and NFI tree-species layers the host-tree predictors are built from.",
       "availability": "at source",
       "why": "Get them from the providers linked above; Atlas does not re-host another project's data."
     },
     {
       "stage": "2. Layers",
       "name": "Predictor stack on the Atlas grid",
-      "detail": "All 33 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
+      "detail": "All 53 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
       "availability": "planned",
       "why": "Archived on Zenodo as the layers series, a new version with its own DOI whenever a layer is rebuilt. The first version is waiting to be published; it will appear under Downloads. The stack carries WorldClim's ShareAlike licence."
     },

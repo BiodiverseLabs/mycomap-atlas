@@ -11,8 +11,8 @@ test_that("every registered layer carries its provenance", {
       )
     }
     expect_true(
-      !is.null(entry$fetch) || !is.null(entry$derive),
-      info = paste(id, "can neither be fetched nor derived")
+      !is.null(entry$fetch) || !is.null(entry$derive) || !is.null(entry$build),
+      info = paste(id, "can be neither fetched, derived nor built")
     )
   }
 })
@@ -203,4 +203,46 @@ test_that("projecting a raster puts it exactly on the grid", {
   expect_equal(terra::ymax(onto), terra::ymax(template))
   expect_equal(terra::ncell(onto), terra::ncell(template))
   expect_true(terra::same.crs(onto, template))
+})
+
+test_that("the host layer is built on the grid, with one band per host and conifer share", {
+  entry <- atlas_layer_registry()$hosts
+  expect_true(is.function(entry$build))
+  expect_equal(ATLAS_HOST_BANDS[[1]], "host_conifer")
+  expect_equal(ATLAS_HOST_BANDS[-1], paste0("host_", tolower(ATLAS_HOST_GENERA)))
+  expect_false("host_corylus" %in% ATLAS_HOST_BANDS)
+  expect_true("host_notholithocarpus" %in% ATLAS_HOST_BANDS)
+  # Every source it draws on is named, and the empty regions are said out loud.
+  expect_true(all(c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL) %in% entry$urls))
+  expect_match(entry$note, "Alaska, Hawaii, Puerto Rico and Mexico")
+  expect_match(entry$citation, "Wilson BT")
+  expect_match(entry$citation, "Beaudoin A")
+})
+
+test_that("a built layer is recorded with its provenance, whoever builds it", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    fake <- terra::rast(nrows = 2, ncols = 2, xmin = 0, xmax = 2000, ymin = 0, ymax = 2000,
+                        crs = ATLAS_CRS, nlyrs = length(ATLAS_HOST_BANDS))
+    terra::values(fake) <- 0.5
+    names(fake) <- ATLAS_HOST_BANDS
+    seen <- NULL
+    testthat::local_mocked_bindings(atlas_build_hosts = function(raw_dir, grid) {
+      seen <<- list(raw_dir = raw_dir, grid = grid)
+      fake
+    })
+    record <- atlas_build_layer("hosts", "draft", quiet = TRUE)
+    expect_equal(seen$grid, "draft")
+    expect_match(seen$raw_dir, "layers/raw$")
+    expect_equal(unlist(record$bands), ATLAS_HOST_BANDS)
+    entry <- Filter(function(x) x$id == "hosts", atlas_layer_manifest("draft"))[[1]]
+    for (field in c("title", "source", "url", "license", "citation", "method", "md5", "built_at")) {
+      expect_true(is.character(entry[[field]]) && nzchar(entry[[field]]), info = field)
+    }
+    expect_equal(unlist(entry$urls), c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL))
+    expect_equal(unlist(entry$bands), ATLAS_HOST_BANDS)
+    expect_equal(entry$md5, unname(tools::md5sum(atlas_layer_path("hosts", "draft"))))
+    # Built, not fetched: there is no source resolution to speak of.
+    expect_true(is.null(entry$source_arcmin) || is.na(entry$source_arcmin) || !length(entry$source_arcmin))
+  })
 })

@@ -495,3 +495,14 @@ test_that("the same release always packs to the same bytes", {
     expect_equal(hashes(first), hashes(second))
   })
 })
+
+test_that("a layers archive with the host layer carries the Canadian licence's attribution", {
+  files <- data.frame(name = "hosts.tif", bytes = 1e6, stringsAsFactors = FALSE)
+  bundle <- function(ids) list(kind = "layers", grid = "draft", version = "v1",
+                               layers = lapply(ids, function(id) list(id = id)))
+  with_hosts <- atlas_archive_readme(bundle(c("bioclim", "hosts")), files)
+  expect_true(any(grepl("Open Government Licence - Canada", with_hosts, fixed = TRUE)))
+  expect_true(any(grepl("BIGMAP", with_hosts, fixed = TRUE)))
+  without <- atlas_archive_readme(bundle("bioclim"), files)
+  expect_false(any(grepl("Open Government Licence", without, fixed = TRUE)))
+})
