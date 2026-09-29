@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { ArrowUpRight, LogIn, Menu, X } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
 import { GITHUB_URL } from "@/lib/contract";
+import { signInHere, useMe, useSignOut } from "@/lib/session";
 
 // Header and footer follow mycomap.org's PublicLayout and MainNavigation, the
 // same way MycoMap Vision does, so someone moving between the three sites feels
@@ -75,6 +76,7 @@ function Header() {
             >
               mycomap.org <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
+            <Account />
             <button
               className="xl:hidden p-2 rounded-md text-gray-700 hover:bg-myco-green/5"
               onClick={() => setOpen(!open)}
@@ -98,6 +100,42 @@ function Header() {
         )}
       </div>
     </header>
+  );
+}
+
+/**
+ * Sign in with a mycomap.org account, or who is signed in and a way out.
+ * Hidden on a copy of Atlas that cannot sign anyone in.
+ */
+function Account() {
+  const me = useMe();
+  const signOut = useSignOut();
+  // Re-read on every navigation, so the link comes back to the current page.
+  useLocation();
+  if (me.signedIn && me.via === "session") {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="hidden md:inline max-w-[12rem] truncate px-2 text-sm text-[#4a3728]" title={me.name}>
+          {me.name ?? "Signed in"}
+        </span>
+        <button
+          onClick={() => void signOut()}
+          className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-myco-green hover:bg-myco-green/5"
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+  if (!me.signInAvailable) return null;
+  return (
+    <a
+      href={signInHere()}
+      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium text-myco-green hover:bg-myco-green/5"
+      title="Sign in with your mycomap.org account"
+    >
+      <LogIn className="h-4 w-4" /> Sign in
+    </a>
   );
 }
 

@@ -199,6 +199,38 @@ export function mapUrl(name: string, algorithm: Algorithm = "maxnet", version?: 
   return `/api/taxa/${encodeURIComponent(name)}/map.png?algorithm=${algorithm}${v}`;
 }
 
+/** Where the site sends someone to sign in with their mycomap.org account. */
+export const SIGN_IN_PATH = "/auth/dev-bridge/start";
+
+/** The sign-in link, coming back to returnTo (a path on this site). */
+export function signInUrl(returnTo: string): string {
+  return `${SIGN_IN_PATH}?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+/** /api/me: whether this browser is signed in. Never the mycomap.org id. */
+export interface Me {
+  signedIn: boolean;
+  signInAvailable: boolean;
+  name?: string;
+  via?: "session" | "token";
+  tier?: string;
+}
+
+export function getMe(): Promise<Me> {
+  return get<Me>("/api/me");
+}
+
+/** Clear this site's session. The API checks the request came from this site. */
+export async function signOut(): Promise<void> {
+  const response = await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+}
+
+/** A model's GeoTIFF: for signed-in people and token holders only. */
+export function rasterUrl(name: string, algorithm: Algorithm = "maxnet"): string {
+  return `/api/taxa/${encodeURIComponent(name)}/raster.tif?algorithm=${algorithm}`;
+}
+
 /** One row of a benchmark summary: an arm within a band of presence cells. */
 export interface BenchmarkRow {
   band: string;

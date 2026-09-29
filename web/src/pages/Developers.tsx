@@ -79,7 +79,11 @@ const QUICKSTART: { id: string; label: string; code: string }[] = [
     label: "curl",
     code: `curl "${PUBLIC_BASE}/api/taxa?search=Mycena&min_localities=20&limit=5"
 
-curl "${PUBLIC_BASE}/api/taxa/Trametes%20versicolor/model?algorithm=rf"`,
+curl "${PUBLIC_BASE}/api/taxa/Trametes%20versicolor/model?algorithm=rf"
+
+# Downloads and higher limits need a token from ${TOKEN_REQUEST_URL}
+export ATLAS_TOKEN=atlas_…
+curl -L -H "Authorization: Bearer $ATLAS_TOKEN" -o trametes-versicolor-rf.tif   "${PUBLIC_BASE}/api/taxa/Trametes%20versicolor/raster.tif?algorithm=rf"`,
   },
   {
     id: "r",
@@ -89,19 +93,32 @@ base <- "${PUBLIC_BASE}/api"
 
 taxa  <- fromJSON(paste0(base, "/taxa?min_localities=20&limit=500"))$items
 model <- fromJSON(paste0(base, "/taxa/", URLencode("Trametes versicolor"), "/model?algorithm=rf"))
-model$auc_mean`,
+model$auc_mean
+
+# The GeoTIFF needs a token (${TOKEN_REQUEST_URL}):
+h <- curl::new_handle()
+curl::handle_setheaders(h, Authorization = paste("Bearer", Sys.getenv("ATLAS_TOKEN")))
+curl::curl_download(paste0(base, "/taxa/", URLencode("Trametes versicolor"), "/raster.tif?algorithm=rf"),
+                    "trametes-versicolor-rf.tif", handle = h)`,
   },
   {
     id: "python",
     label: "Python",
-    code: `import requests
+    code: `import os
+import requests
 from urllib.parse import quote
 
 base = "${PUBLIC_BASE}/api"
 taxa = requests.get(f"{base}/taxa", params={"min_localities": 20, "limit": 500}).json()["items"]
 model = requests.get(f"{base}/taxa/{quote('Trametes versicolor')}/model",
                      params={"algorithm": "rf"}).json()
-print(model["auc_mean"], model["predictors"])`,
+print(model["auc_mean"], model["predictors"])
+
+# The GeoTIFF needs a token (${TOKEN_REQUEST_URL}); requests follows the redirect.
+headers = {"Authorization": f"Bearer {os.environ['ATLAS_TOKEN']}"}
+tif = requests.get(f"{base}/taxa/{quote('Trametes versicolor')}/raster.tif",
+                   params={"algorithm": "rf"}, headers=headers)
+open("trametes-versicolor-rf.tif", "wb").write(tif.content)`,
   },
   {
     id: "js",
@@ -207,7 +224,7 @@ function TryIt({ endpoint, token }: { endpoint: Endpoint; token: string }) {
     setBusy(true);
     const started = performance.now();
     try {
-      const response = await fetch(url, token ? { headers: { "X-API-Key": token } } : undefined);
+      const response = await fetch(url, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
       const ms = Math.round(performance.now() - started);
       const tier = response.headers.get("X-Atlas-Tier");
       const remaining = response.headers.get("X-RateLimit-Remaining");
@@ -442,8 +459,8 @@ export default function Developers() {
                   <code>GET</code>; nothing on this API changes data.
                 </Fact>
                 <Fact icon={Braces} label="Format">
-                  JSON, except maps, which are PNG. Taxon names go in the path percent-encoded,
-                  quotes and all.
+                  JSON, except maps, which are PNG, and rasters, which are GeoTIFF. Taxon names go
+                  in the path percent-encoded, quotes and all.
                 </Fact>
                 <Fact icon={FileJson} label="OpenAPI 3.1">
                   <a href="/api/openapi.json" className="text-myco-green hover:underline">/api/openapi.json</a>{" "}
@@ -463,9 +480,16 @@ export default function Developers() {
               <div className="max-w-3xl space-y-3 text-sm text-[#5c4a3a] leading-relaxed">
                 <p>
                   <strong className="text-[#4a3728]">Reading is open: you do not need a token.</strong>{" "}
+                  Everything this site's pages show — taxa, scores, maps, collection cells — can be
+                  read anonymously. Two things need you to be known:{" "}
+                  <strong className="text-[#4a3728]">downloading a model's GeoTIFF</strong> and a{" "}
+                  <strong className="text-[#4a3728]">higher rate limit</strong>. In a browser, sign in
+                  with your mycomap.org account (top right); from a script, send a token.
+                </p>
+                <p>
                   Every caller has a rate limit, so one busy script cannot slow the site for everyone
-                  else. Anonymous callers are counted per address; a token is counted on its own and
-                  gets a much higher limit.
+                  else. Anonymous callers are counted per address, signed-in people per person, and a
+                  token on its own.
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -478,8 +502,8 @@ export default function Developers() {
                   </thead>
                   <tbody>
                     {[
-                      ["No token", RATES.anonymous, "per address"],
-                      ["Token", RATES.standard, "per token"],
+                      ["Anonymous", RATES.anonymous, "per address"],
+                      ["Signed in, or token", RATES.standard, "per person or token"],
                       ["Bulk token", RATES.bulk, "on request, for big jobs"],
                     ].map(([label, rate, note]) => (
                       <tr key={String(label)} className="border-b last:border-0">
@@ -499,9 +523,15 @@ export default function Developers() {
                     <p>
                       Tokens are issued through your <strong className="text-[#4a3728]">mycomap.org</strong>{" "}
                       account, so there is no separate Atlas login. Say what you will use it for, a
-                      MycoMap admin approves it, and you send it with each request:
+                      MycoMap admin approves it, and you send it with each request in an{" "}
+                      <code>Authorization</code> header:
                     </p>
-                    <Code>{`curl -H "X-API-Key: atlas_…" "${PUBLIC_BASE}/api/models"`}</Code>
+                    <Code>{`curl -H "Authorization: Bearer atlas_…" "${PUBLIC_BASE}/api/me"`}</Code>
+                    <p>
+                      Rasters answer with a redirect to a download link that works for five minutes,
+                      so follow redirects (<code>curl -L</code>). Without a session or token they
+                      answer <code>401</code>.
+                    </p>
                     <p>
                       Every response says where you stand in <code>X-RateLimit-Limit</code>,{" "}
                       <code>X-RateLimit-Remaining</code> and <code>X-Atlas-Tier</code>. Over the limit

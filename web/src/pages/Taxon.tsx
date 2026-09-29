@@ -3,7 +3,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { CircleMarker, ImageOverlay, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { Map as LeafletMap } from "leaflet";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, Download, LogIn } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 
 import { Th } from "@/components/Common";
@@ -17,10 +17,12 @@ import {
   getModel,
   getTaxon,
   mapUrl,
+  rasterUrl,
   type Algorithm,
   type Cell,
   type Model,
 } from "@/lib/api";
+import { signInHere, useMe } from "@/lib/session";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
 const PUBLISH_AT = 20;
@@ -68,6 +70,28 @@ function Legend() {
   );
 }
 
+/**
+ * The model's GeoTIFF for GIS work: a download for signed-in people, and an
+ * invitation to sign in for everyone else, rather than a link that fails.
+ */
+function RasterDownload({ name, algorithm }: { name: string; algorithm: Algorithm }) {
+  const me = useMe();
+  const cls = "inline-flex items-center gap-1 text-xs font-medium text-myco-green hover:underline";
+  if (me.signedIn) {
+    return (
+      <a href={rasterUrl(name, algorithm)} className={cls} title="The raw suitability values as a GeoTIFF">
+        <Download className="h-3.5 w-3.5" /> GeoTIFF
+      </a>
+    );
+  }
+  if (!me.signInAvailable) return null;
+  return (
+    <a href={signInHere()} className={cls} title="Sign in with your mycomap.org account to download the GeoTIFF">
+      <LogIn className="h-3.5 w-3.5" /> Sign in to download
+    </a>
+  );
+}
+
 function boundsOf(model?: Model | null): Bounds | null {
   const b = model?.bounds;
   return b ? [[b.south, b.west], [b.north, b.east]] : null;
@@ -98,11 +122,14 @@ function ModelMap({
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
-        <div className="flex items-baseline justify-between gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <CardTitle className="text-base text-[#4a3728]">{ALGORITHM_LABELS[algorithm]}</CardTitle>
           {model && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
+            <span className="flex items-baseline gap-3">
+              <span className="text-xs text-muted-foreground tabular-nums">
+                AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
+              </span>
+              {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
             </span>
           )}
         </div>
