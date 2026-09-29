@@ -13,3 +13,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # The Dockerfile pins its base image by digest; this proposes new digests.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

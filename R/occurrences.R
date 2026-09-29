@@ -103,6 +103,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
 
   occurrences <- if (length(chunks)) do.call(rbind, chunks) else atlas_empty_occurrences()
   atlas_check_occurrences(occurrences)
+  occurrences <- atlas_canonicalise_occurrences(occurrences)
+  atlas_write_json(atlas_name_merges(occurrences), atlas_name_merges_path())
 
   combined <- atlas_path("occurrences", sprintf("occurrences-%s.tsv.gz", stamp),
                          create = TRUE)
@@ -193,10 +195,13 @@ atlas_read_occurrences <- function(path = NULL) {
     }
     path <- atlas_path("occurrences", manifest$file)
   }
-  utils::read.delim(
+  records <- utils::read.delim(
     gzfile(path), sep = "\t", quote = "", comment.char = "", na.strings = "",
     colClasses = "character", check.names = FALSE, stringsAsFactors = FALSE
   )
+  # Spellings of one taxon that differ only in punctuation are one taxon
+  # (see R/names.R). Pulls made before that rule get it here.
+  atlas_canonicalise_occurrences(records)
 }
 
 #' Print what the last pull holds.

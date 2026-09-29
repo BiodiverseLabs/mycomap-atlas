@@ -230,3 +230,19 @@ test_that("a machine holding only a release still answers for cells and status",
                  ignore_attr = TRUE)
   })
 })
+
+test_that("a change to the model index alone is still a change", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    first <- atlas_publish_release(store, quiet = TRUE)
+    # A batch refused a taxon: no file changed, but the index did.
+    atlas_write_json(list(settings_key = "k", taxa = list(list(taxon = "Sparse one", status = "refused",
+                                                                fingerprint = "fp", presences = 12))),
+                     atlas_path("batches", "draft", "latest.json"))
+    Sys.sleep(1.1)
+    second <- atlas_publish_release(store, quiet = TRUE)
+    expect_false(identical(second$id, first$id))
+    expect_true(any(vapply(second$index, function(e) isTRUE(e$refused), logical(1))))
+  })
+})

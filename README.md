@@ -52,6 +52,25 @@ The command line runs from the sources, with no install step:
 ./atlas status
 ```
 
+### The release image
+
+Releases are computed in the Docker image, never on a laptop, so a
+Windows-versus-Linux difference cannot change a published map. Everything
+that decides the output is pinned: the base image by digest
+(`rocker/geospatial:4.6.1`), R packages to a dated Posit Package Manager
+snapshot (`CRAN_SNAPSHOT`), and the code by the commit passed in as
+`ATLAS_COMMIT`, which every release records. The build runs the whole test
+suite, so an image whose tests fail is never built.
+
+```bash
+docker build --build-arg ATLAS_COMMIT=$(git rev-parse HEAD) -t mycomap-atlas .
+docker run --rm -v "$PWD/data:/data" mycomap-atlas fit-all --workers=8
+docker run --rm -v "$PWD/data:/data" -e ATLAS_STORE=s3://bucket/atlas   -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY mycomap-atlas publish-release
+```
+
+The container computes as an ordinary user, with data mounted at `/data`. It
+talks to S3 through `paws`, so it carries no AWS CLI.
+
 ### Web app
 
 ```bash
@@ -396,6 +415,38 @@ enters the repository:
 | `ATLAS_CLIENT_IP_HEADER` | unset | The header the proxy writes the caller's address into, e.g. `CF-Connecting-IP`. Behind a proxy without it, every caller shares one allowance. Only name a header the proxy always overwrites. |
 | `ATLAS_ALLOWED_ORIGINS` | the dev app | `*` on the public server, so any site can call the API from a browser. |
 
+## Jobs: one refit, split across machines
+
+A job recomputes whatever changed, on as many machines as are to hand. Three
+steps, each on whatever machine suits it:
+
+```bash
+./atlas publish-layers --store=$S                      # once per layer build
+./atlas plan-job   --store=$S --shards=8               # the small always-on box
+./atlas run-shard  --store=$S --job=<id> --shard=3     # each worker, from an empty disk
+./atlas job-status --store=$S --job=<id>
+./atlas finish-job --store=$S --job=<id>               # back on the small box
+```
+
+- **plan** compares each taxon's record set with the current release's model
+  index, lists the (taxon, model) pairs to fit, splits them into shards of
+  similar cost (a forest's map, and a big range, cost most), and puts the job
+  and its inputs — the pull and the layers — in the store. It reads the
+  release's index rather than its models, so it needs no model files. With
+  nothing changed there is nothing to plan.
+- **run** fetches the inputs, fits exactly its share, uploads the results, and
+  writes the shard's record last, so a record means the shard finished.
+- **finish** checks every shard reported and that no other release became
+  current meanwhile, then builds the new release from the old one: refitted
+  models replaced, retired and refused ones removed, public files refreshed. A
+  model that failed keeps its previous version and is planned again next time.
+  A refusal is recorded against its record set, so it is not retried until the
+  records change.
+
+On the draft grid, a real two-shard job — each worker starting from an empty
+data directory — fetched 103 MB of inputs, fitted its model and uploaded it in
+40–66 s, and finishing assembled the 8,153-file release from the previous one.
+
 ## Data
 
 Everything lives under `data/`, which is never committed (override with
@@ -416,6 +467,27 @@ a species-level name (provisional temp codes included).
 Records green only in a fourth or later project are missed, because .org
 flattens three validation slots. Vision has the same limitation, and the fix
 for both is a shared view on .org rather than a change here.
+
+### One taxon, one name
+
+.org holds some taxa under several spellings: *Mycena* sp. 'IN10' and
+*Mycena* "sp-IN10", 'fuscidisca PNW10' and 'fuscidisca-PNW10', curly quotes
+and straight, a trailing non-breaking space. Spellings that differ only in
+punctuation, or only by an author citation (*Pluteus cervinus* (Schaeff.) P.
+Kumm.), are merged and modelled under the one most records use; letters and
+digits are never touched, so 'IN1' and 'IN01' stay apart, and a name with a
+digit keeps every word, because "Cuphophyllus pratensis PNW06" is a lineage
+code, not an author. Every record
+keeps its original spelling, and `occurrences/name-merges.json` (published in
+releases) lists every merge so the names can be fixed on .org. On the
+2026-09-28 pull, 423 spellings merged in all (59 of them by author
+citation), leaving 17,161 taxa. `./atlas refresh-names` rebuilds the counts
+and the report from an existing pull.
+
+Without the merge the records were split between spellings, and where two
+spellings both cleared the threshold they shared a file name and one map
+silently replaced the other. A fit now refuses to overwrite another taxon's
+model.
 
 ### Coordinates
 

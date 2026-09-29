@@ -21,7 +21,10 @@ records. See README.md for the pipeline and data layout.
   moment (Steve, 2026-09-28) — the resolution floor above applies to all of
   them. Raise it again before the first public release of maps.
 - **Only the container publishes a release.** Iterate natively, but anything
-  that reaches .org is built in the pinned Docker image.
+  that reaches .org is built in the pinned Docker image. The Dockerfile pins
+  its base by digest and R packages to a dated snapshot (`CRAN_SNAPSHOT`);
+  move either on purpose, in its own commit, because it can change maps.
+  Never install an unpinned package into it.
 - **Releases are reproducible.** Each records the record-set fingerprint, layer
   versions, lockfile hash, seed and model settings. Same inputs, same output.
 - **Statements sent to the SQL route are one line, with no double quote and no
