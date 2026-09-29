@@ -30,6 +30,7 @@ done
 if [ "$(id -u)" -ne 0 ]; then echo "Run with sudo." >&2; exit 1; fi
 if [ -z "$SQL_HOST" ]; then echo "Pass --sql-host=<mycomap.org's address>." >&2; exit 64; fi
 here="$(cd "$(dirname "$0")" && pwd)"
+. "$here/lib.sh"
 
 echo "== swap"
 if ! swapon --show=NAME --noheadings | grep -qx /swapfile; then
@@ -74,7 +75,7 @@ Host mycomap-sql
   BatchMode yes
 CFG
 if ! sudo -u atlas ssh-keygen -F "$SQL_HOST" -f /home/atlas/.ssh/known_hosts >/dev/null 2>&1; then
-  ssh-keyscan -q -t ed25519 "$SQL_HOST" > /home/atlas/.ssh/known_hosts
+  atlas_scan_host_key "$SQL_HOST" /home/atlas/.ssh/known_hosts
 fi
 chown atlas:atlas /home/atlas/.ssh/config /home/atlas/.ssh/known_hosts
 chmod 600 /home/atlas/.ssh/config /home/atlas/.ssh/known_hosts
