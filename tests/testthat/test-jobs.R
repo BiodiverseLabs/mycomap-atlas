@@ -118,6 +118,44 @@ test_that("a taxon that drops under the line is retired from the release", {
   expect_false(any(vapply(release$index, function(e) e$taxon == "Taxon C", logical(1))))
 })
 
+test_that("a limited job fits only the richest taxa that need it, and leaves the rest for later", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(TAXA)))
+  trial <- on_machine(boss, atlas_plan_job(store, algorithms = c("maxnet", "rf"), limit = 1, quiet = TRUE))
+  # Taxon B has the most cells: both its models, nothing else.
+  expect_setequal(vapply(trial$tasks, function(t) t$taxon, ""), "Taxon B")
+  expect_length(trial$tasks, 2L)
+  expect_equal(trial$deferred, 4L)
+  for (n in seq_len(trial$shards)) on_machine(machine(), atlas_run_shard(store, trial$id, n, quiet = TRUE, fit = fake_fit))
+  on_machine(boss, atlas_finish_job(store, trial$id, quiet = TRUE))
+
+  rest <- on_machine(boss, atlas_plan_job(store, algorithms = c("maxnet", "rf"), quiet = TRUE))
+  expect_setequal(vapply(rest$tasks, function(t) t$taxon, ""), c("Taxon A", "Taxon C"))
+  expect_error(on_machine(boss, atlas_plan_job(store, limit = 0, quiet = TRUE)), "positive number")
+})
+
+test_that("a limited job still retires taxa that fell under the line, and only those", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(TAXA)))
+  full_cycle(store, boss)
+
+  # Taxon A gains records (stale); Taxon C falls under the line.
+  on_machine(boss, orchestrator_data(synthetic_occurrences(c("Taxon A" = 28, "Taxon B" = 30, "Taxon C" = 12))))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", limit = 1, quiet = TRUE))
+  expect_setequal(vapply(job$tasks, function(t) t$taxon, ""), "Taxon A")
+  expect_equal(vapply(job$retire, function(r) r$taxon, ""), "Taxon C")
+  release <- on_machine(boss, {
+    for (n in seq_len(job$shards)) on_machine(machine(), atlas_run_shard(store, job$id, n, quiet = TRUE, fit = fake_fit))
+    atlas_finish_job(store, job$id, quiet = TRUE)
+  })
+  # Taxon B was neither fitted nor retired: it keeps its model.
+  expect_true("models/draft/taxon-b.json" %in% release_paths(release))
+})
+
 test_that("a job planned from an older release is refused at the finish", {
   skip_if_not_installed("terra")
   store <- fresh_store()

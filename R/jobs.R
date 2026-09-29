@@ -132,9 +132,12 @@ atlas_index_current <- function(entry, fingerprint, settings, min_presences) {
 atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "all",
                            shards = 4L, min_presences = 20, n_background = 10000,
                            buffer_km = 500, folds = 5, block_km = 200, regmult = 1,
-                           correlation = 0.7, tasks_per_shard = NULL, quiet = FALSE) {
+                           correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
+  if (!is.numeric(limit) || length(limit) != 1L || is.na(limit) || limit < 1) {
+    stop("limit must be a positive number of taxa", call. = FALSE)
+  }
 
   # A machine without layers of its own (the small box) plans from the set in
   # the store. It needs only the manifest, for the layers' key: the rasters
@@ -191,6 +194,16 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     }
   }
 
+  # A limited job fits only the richest few taxa that need it (a trial run).
+  # It cuts only what is fitted: retiring still looks at every taxon, and the
+  # taxa it leaves out stay stale, so the next plan picks them up.
+  deferred <- 0L
+  if (is.finite(limit) && length(tasks)) {
+    keep <- utils::head(unique(vapply(tasks, function(t) t$taxon, "")), as.integer(limit))
+    deferred <- sum(!vapply(tasks, function(t) t$taxon %in% keep, logical(1)))
+    tasks <- Filter(function(t) t$taxon %in% keep, tasks)
+  }
+
   public_paths <- c("occurrences/taxa-latest.json", "occurrences/name-merges.json",
                     "public/pull.json", "public/cells.tsv.gz")
   public <- atlas_file_entries(public_paths[file.exists(file.path(atlas_data_dir(), public_paths))])
@@ -232,13 +245,15 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     inputs = inputs,
     public = public,
     tasks = tasks,
-    retire = retire
+    retire = retire,
+    deferred = deferred
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/job.json"), job)
   per_algorithm <- table(vapply(tasks, function(t) t$algorithm, ""))
   say("job ", id, ": ", length(tasks), " models to fit (",
       paste(names(per_algorithm), per_algorithm, sep = " ", collapse = ", "), ") in ",
-      shards, " shard", if (shards == 1L) "" else "s", "; ", length(retire), " to retire")
+      shards, " shard", if (shards == 1L) "" else "s", "; ", length(retire), " to retire",
+      if (deferred) paste0("; ", deferred, " left for a later job (--limit)") else "")
   invisible(job)
 }
 

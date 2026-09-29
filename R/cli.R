@@ -63,6 +63,7 @@ atlas_usage <- function() {
   message("  plan-job           list what needs refitting and split it into shards")
   message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
   message("      --shards=N                how many workers will share it (default 4)")
+  message("      --limit=N                 fit only the N richest taxa that need it (a trial)")
   message("  run-shard          fit one shard of a job and upload the results")
   message("      --job=ID --shard=N        which (both required)")
   message("      --workers=N               fits at once on this machine (default 1)")
@@ -76,6 +77,7 @@ atlas_usage <- function() {
   message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
   message("      --tasks-per-shard=N       about this many models per worker (default 40)")
   message("      --no-pull                 plan from the last pull")
+  message("      --limit=N                 fit only the N richest taxa that need it (a trial)")
   message("      (EC2 settings come from the environment; see deploy/aws/README.md)")
   message("  refresh-names      merge spellings of one taxon and rebuild the taxon counts")
   message("  status             what the last pull holds")
@@ -136,7 +138,9 @@ atlas_flag_number <- function(flags, name, default) {
   value
 }
 
-#' Serve the development API used by the web app.
+#' Serve the API used by the web app, on loopback only. In production the
+#' container shares the server's network (deploy/lightsail), so nginx reaches
+#' it from 127.0.0.1, the one peer whose X-Forwarded-For the API believes.
 atlas_serve <- function(port = 5100) {
   if (!requireNamespace("plumber", quietly = TRUE)) {
     stop("plumber is not installed: install.packages('plumber')", call. = FALSE)
@@ -145,7 +149,7 @@ atlas_serve <- function(port = 5100) {
   if (!nzchar(file)) {
     file <- file.path(Sys.getenv("ATLAS_ROOT", unset = "."), "inst", "plumber", "atlas.R")
   }
-  plumber::pr_run(plumber::pr(file), port = port)
+  plumber::pr_run(plumber::pr(file), port = port, host = "127.0.0.1")
 }
 
 atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
@@ -316,7 +320,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         atlas_flag_store(flags), grid = atlas_flag_grid(flags),
         algorithms = flags$algorithms %||% "all",
         shards = as.integer(atlas_flag_number(flags, "shards", 4)),
-        min_presences = atlas_flag_number(flags, "min_presences", 20)
+        min_presences = atlas_flag_number(flags, "min_presences", 20),
+        limit = atlas_flag_number(flags, "limit", Inf)
       )
       invisible(0L)
     },
@@ -361,7 +366,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         grid = atlas_flag_grid(flags), algorithms = flags$algorithms %||% "all",
         pull = !isTRUE(flags$no_pull), config = config,
         store = atlas_store(flags$store %||% config$store),
-        tasks_per_shard = atlas_flag_number(flags, "tasks_per_shard", 40)
+        tasks_per_shard = atlas_flag_number(flags, "tasks_per_shard", 40),
+        limit = atlas_flag_number(flags, "limit", Inf)
       )
       invisible(0L)
     },

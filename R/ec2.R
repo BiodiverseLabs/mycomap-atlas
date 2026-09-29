@@ -364,11 +364,11 @@ atlas_shard_count <- function(tasks, max_workers = 4, tasks_per_shard = 40) {
 #' models or refreshes the public files needs no workers and finishes at once.
 atlas_nightly <- function(grid = "draft", algorithms = "all", pull = TRUE,
                           config = atlas_ec2_config(), store = atlas_store(config$store),
-                          ec2 = NULL, tasks_per_shard = 40, quiet = FALSE,
+                          ec2 = NULL, tasks_per_shard = 40, limit = Inf, quiet = FALSE,
                           pull_occurrences = atlas_pull_occurrences, ...) {
   if (isTRUE(pull)) pull_occurrences(quiet = quiet)
   job <- atlas_plan_job(store, grid, algorithms = algorithms, shards = config$max_workers,
-                        tasks_per_shard = tasks_per_shard, quiet = quiet)
+                        tasks_per_shard = tasks_per_shard, limit = limit, quiet = quiet)
   if (is.null(job)) return(invisible(NULL))
   atlas_run_job_on_ec2(store, job, grid, ec2 = ec2, config = config, quiet = quiet, ...)
 }
