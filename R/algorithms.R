@@ -24,6 +24,10 @@ ATLAS_ALGORITHMS <- list(
   xgboost = list(
     label = "Boosted trees",
     prune = FALSE,
+    # Benchmarked from 20 cells (2026-09-29): below 50 presence cells boosted
+    # trees overfit, and at 20-29 cells their maps ranked ground backwards
+    # (mean Boyce -0.15, 0.35 below Maxent). From 50 they match Maxent.
+    min_presences = 50,
     fit = function(train, regmult = 1, seed = 1L, block_km = 200) {
       atlas_fit_xgboost(train, block_km = block_km, seed = seed)
     },
@@ -49,6 +53,20 @@ atlas_algorithm <- function(name = "maxnet") {
          paste(names(ATLAS_ALGORITHMS), collapse = ", "), call. = FALSE)
   }
   c(list(id = name), ATLAS_ALGORITHMS[[name]])
+}
+
+#' The fewest presence cells an algorithm will map: the run's own minimum, or
+#' the algorithm's, whichever is higher.
+atlas_algorithm_min <- function(algo, min_presences = 20) {
+  max(min_presences, algo$min_presences %||% 0)
+}
+
+#' Delete a taxon's model for one algorithm: its scores and its map.
+atlas_remove_model <- function(name, grid = "draft", algorithm = "maxnet") {
+  paths <- atlas_model_path(name, grid, c(".json", ".tif", ".png", ".png.aux.xml"), algorithm)
+  existed <- file.exists(paths)
+  unlink(paths[existed])
+  invisible(any(existed))
 }
 
 #' "maxnet,xgboost" or "all" as a vector of algorithm names.

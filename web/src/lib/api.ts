@@ -77,12 +77,20 @@ export const ALGORITHM_LABELS: Record<Algorithm, string> = {
   rf: "Random forest",
 };
 
+/**
+ * The fewest presence cells a model is drawn for, where it differs from the
+ * site-wide 20. Mirrors min_presences in R/algorithms.R.
+ */
+export const ALGORITHM_MIN_PRESENCES: Partial<Record<Algorithm, number>> = {
+  xgboost: 50,
+};
+
 /** One line on what each model is, for people rather than modellers. */
 export const ALGORITHM_NOTES: Record<Algorithm, string> = {
   maxnet:
     "Smooth responses to each variable, fitted with a penalty that keeps them simple. The long-standing standard for presence-only data.",
   xgboost:
-    "Hundreds of small decision trees, each correcting the last. Finds combinations of conditions a smooth curve cannot.",
+    "Hundreds of small decision trees, each correcting the last. Finds combinations of conditions a smooth curve cannot. Drawn only from 50 presence cells: with fewer it overfits and ranks ground wrongly.",
   rf:
     "A thousand trees grown independently, each on as many background records as presences, then left to vote.",
 };

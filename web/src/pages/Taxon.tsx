@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ALGORITHMS,
   ALGORITHM_LABELS,
+  ALGORITHM_MIN_PRESENCES,
   getCells,
   getModel,
   getTaxon,
@@ -80,17 +81,20 @@ function ModelMap({
   points,
   view,
   group,
+  presences,
 }: {
   name: string;
   algorithm: Algorithm;
   model?: Model | null;
   loading: boolean;
   points: Cell[];
+  presences?: number;
   view: Bounds | null;
   group: MutableRefObject<MapGroup>;
 }) {
   const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
   const overlay = boundsOf(model);
+  const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
@@ -138,8 +142,10 @@ function ModelMap({
           ))}
         </MapContainer>
         {!loading && !model && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto w-fit rounded-md bg-white/90 px-3 py-1 text-xs text-muted-foreground shadow">
-            Not fitted yet
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
+            {minimum != null && presences != null && presences < minimum
+              ? `Not drawn below ${minimum} presence cells: with this few records this model ranks ground wrongly.`
+              : "Not fitted yet"}
           </div>
         )}
       </div>
@@ -298,6 +304,7 @@ export default function Taxon() {
                     points={points}
                     view={boundsOf(anyModel)}
                     group={group}
+                    presences={anyModel?.presences}
                   />
                 ))}
               </div>

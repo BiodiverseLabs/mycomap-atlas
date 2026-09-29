@@ -337,3 +337,26 @@ test_that("a worker that dies costs its taxa, not the run", {
   expect_equal(crash$status, "failed")
   expect_match(crash$error, "worker lost")
 })
+
+test_that("a full run clears out models for taxa no longer eligible", {
+  with_data_dir({
+    world <- batch_world(c("Rich one" = 60, "Thirty cells" = 30))
+    # Tree maps fitted for both, before trees had a 50-cell minimum.
+    fake_fit("Thirty cells", fingerprint = "old", algorithm = "xgboost")
+    result <- run_batch(world, algorithm = "xgboost")
+    expect_equal(unlist(result$removed), "Thirty cells")
+    expect_false(file.exists(atlas_model_path("Thirty cells", "draft", ".json", "xgboost")))
+    expect_equal(statuses(result)[["Rich one"]], "fitted")
+    # Maxent has no such minimum: the same taxon is still mapped there.
+    expect_equal(statuses(run_batch(world))[["Thirty cells"]], "fitted")
+  })
+})
+
+test_that("a trial run never deletes anything", {
+  with_data_dir({
+    world <- batch_world(c("Rich one" = 60, "Thirty cells" = 30))
+    fake_fit("Thirty cells", fingerprint = "old", algorithm = "xgboost")
+    run_batch(world, algorithm = "xgboost", limit = 1)
+    expect_true(file.exists(atlas_model_path("Thirty cells", "draft", ".json", "xgboost")))
+  })
+})

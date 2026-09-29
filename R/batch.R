@@ -248,6 +248,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             fit = atlas_fit_taxon) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
+  min_presences <- atlas_algorithm_min(algo, min_presences)
   started <- Sys.time()
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
   log_path <- atlas_batch_path(grid, stamp, ".log", algo$id)
@@ -286,6 +287,21 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
       sum(current), " current, ", length(to_fit), " to fit",
       if (workers > 1L) paste0(" on ", workers, " workers") else "")
 
+  # A full run also clears out models for taxa that are no longer candidates:
+  # below the algorithm's minimum, or gone from the pull. Left in place they
+  # would still be shown. A trial run (--limit, or named taxa) never deletes.
+  removed <- character()
+  if (!is.finite(limit) && is.null(taxa)) {
+    stored <- atlas_model_index(grid, algorithms = algo$id)$taxon
+    for (name in setdiff(stored, candidates$scientific_name)) {
+      if (atlas_remove_model(name, grid, algo$id)) removed <- c(removed, name)
+    }
+    if (length(removed)) {
+      say("removed ", length(removed), " ", algo$label,
+          " models no longer eligible (fewer than ", min_presences, " cells, or gone)")
+    }
+  }
+
   rows <- lapply(candidates$scientific_name[current], function(name) {
     list(taxon = name, fingerprint = fingerprints[[name]], status = "skipped")
   })
@@ -296,6 +312,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     finished_at = NULL,
     settings = settings,
     settings_key = atlas_settings_key(settings),
+    removed = as.list(removed),
     predict = isTRUE(predict),
     force = isTRUE(force),
     workers = as.integer(workers),

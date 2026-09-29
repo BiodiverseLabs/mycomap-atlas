@@ -109,11 +109,11 @@ test_that("a batch of one model does not count another's fits as current", {
     world <- batch_world()
     first <- run_batch(world)
     expect_equal(first$counts$fitted, 2L)
-    trees <- run_batch(world, algorithm = "xgboost")
-    expect_equal(trees$counts$fitted, 2L)
-    expect_equal(trees$counts$skipped, 0L)
-    expect_equal(run_batch(world, algorithm = "xgboost")$counts$skipped, 2L)
-    expect_true(file.exists(atlas_path("batches", "draft", "latest-xgboost.json")))
+    forest <- run_batch(world, algorithm = "rf")
+    expect_equal(forest$counts$fitted, 2L)
+    expect_equal(forest$counts$skipped, 0L)
+    expect_equal(run_batch(world, algorithm = "rf")$counts$skipped, 2L)
+    expect_true(file.exists(atlas_path("batches", "draft", "latest-rf.json")))
   })
 })
 
@@ -148,4 +148,37 @@ test_that("a forest predicts in batches, and batching changes nothing", {
     atlas_rf_suitability(model, newdata, batch = 100000L)
   )
   expect_length(atlas_rf_suitability(model, newdata[0, ]), 0L)
+})
+
+test_that("boosted trees are not fitted below 50 presence cells; other models are", {
+  expect_equal(atlas_algorithm_min(atlas_algorithm("xgboost"), 20), 50)
+  expect_equal(atlas_algorithm_min(atlas_algorithm("maxnet"), 20), 20)
+  expect_equal(atlas_algorithm_min(atlas_algorithm("rf"), 20), 20)
+  # A stricter run minimum still wins.
+  expect_equal(atlas_algorithm_min(atlas_algorithm("xgboost"), 80), 80)
+})
+
+test_that("a sparse taxon is refused boosted trees, and its old tree map is removed", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("xgboost")
+  with_data_dir({
+    world <- synthetic_landscape()
+    focal <- which(world$points$scientific_name == "Eastern fungus")
+    sparse <- world$points[-focal[31:length(focal)], ]
+    # A tree map from when the taxon had more cells.
+    dir.create(atlas_model_dir("draft", "xgboost"), recursive = TRUE)
+    writeLines("{}", atlas_model_path("Eastern fungus", "draft", ".json", "xgboost"))
+    writeLines("old", atlas_model_path("Eastern fungus", "draft", ".png", "xgboost"))
+
+    condition <- tryCatch(
+      atlas_fit_taxon("Eastern fungus", points = sparse, stack = world$stack,
+                      fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                      buffer_km = 300, quiet = TRUE, algorithm = "xgboost"),
+      error = function(e) e
+    )
+    expect_s3_class(condition, "atlas_insufficient_evidence")
+    expect_match(conditionMessage(condition), "needs 50")
+    expect_false(file.exists(atlas_model_path("Eastern fungus", "draft", ".json", "xgboost")))
+    expect_false(file.exists(atlas_model_path("Eastern fungus", "draft", ".png", "xgboost")))
+  })
 })

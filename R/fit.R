@@ -246,6 +246,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
   prune <- prune %||% algo$prune
+  min_presences <- atlas_algorithm_min(algo, min_presences)
   stack <- stack %||% atlas_predictor_stack(grid)
   settings <- atlas_fit_settings(
     grid = grid, n_background = n_background, buffer_km = buffer_km,
@@ -261,6 +262,9 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   )
   presences <- sum(training$presence == 1L)
   if (presences < min_presences) {
+    # A model left from when the taxon had more cells, or from before the
+    # algorithm had a minimum, would still be shown; it goes.
+    if (isTRUE(write)) atlas_remove_model(name, grid, algo$id)
     stop(atlas_insufficient_evidence(name, presences, grid, min_presences))
   }
 

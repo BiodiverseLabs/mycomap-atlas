@@ -291,7 +291,17 @@ draft grid, 268 taxa, differences from Maxent with standard errors:
 | Maxent | — | — | 21% | 58 s |
 
 The down-sampled forest is clearly ahead, on both measures and in every band
-of presence cells. Boosted trees match Maxent, and do worse when restricted to
+of presence cells.
+
+Extending the benchmark down to 20 presence cells (475 taxa) found where
+boosted trees break: at 20–29 cells their Boyce was 0.35 below Maxent's and
+negative on average, so their maps ranked ground backwards; at 30–49 it was
+0.24 below. From 50 cells they match Maxent. So boosted trees are only fitted
+and shown from 50 presence cells (`min_presences` in `R/algorithms.R`); below
+that the taxon page says why their map is missing, and a full `fit-all`
+removes tree maps for taxa under the line. The forest never did worse than
+Maxent in any band, and Maxent still had the best AUC for a third of the
+sparsest taxa. Boosted trees match Maxent, and do worse when restricted to
 Maxent's predictors, which is why the trees get every predictor. Scoring time
 is the five blocked folds; drawing a forest's map is slower (about 2.5 minutes
 for a widespread taxon), since a thousand trees have to be asked about every
