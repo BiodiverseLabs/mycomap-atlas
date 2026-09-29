@@ -281,6 +281,12 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
       "Each GeoTIFF is one group of predictors on the Atlas grid (North America Albers Equal Area).",
       "`layers-manifest.json` lists every band with its source, licence, cell size and checksum.",
       "Sources: WorldClim 2.1 (CC BY-SA 4.0), SoilGrids 2.0 (CC BY 4.0), ESA WorldCover 2021 (CC BY 4.0).",
+      # The Open Government Licence - Canada asks for this attribution wherever
+      # NFI-derived data goes.
+      if ("hosts" %in% vapply(bundle$layers %||% list(), function(x) as.character(x$id %||% ""), character(1))) {
+        paste("Host trees: USFS FIA BIGMAP 2018 (US public domain); contains information licensed",
+              "under the Open Government Licence - Canada (NFI kNN 2011, Natural Resources Canada).")
+      },
       ""
     )
   }

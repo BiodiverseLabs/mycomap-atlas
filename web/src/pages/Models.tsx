@@ -179,7 +179,7 @@ function ProductionSection({ models }: { models: ModelSummary[] }) {
                   <div>
                     <div className="text-xs uppercase tracking-wider text-muted-foreground">Boyce</div>
                     <div className="text-xl font-semibold text-[#4a3728] tabular-nums">
-                      {fixed(median(mine.map((m) => m.boyce_mean ?? NaN)), 2)}
+                      {fixed(median(mine.map((m) => m.boyce ?? m.boyce_mean ?? NaN)), 2)}
                     </div>
                   </div>
                 </div>

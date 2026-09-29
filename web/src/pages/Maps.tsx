@@ -18,7 +18,7 @@ interface Row {
   models: Partial<Record<Algorithm, ModelSummary>>;
 }
 
-type Measure = "auc_mean" | "boyce_mean";
+type Measure = "auc_mean" | "boyce";
 
 function value(row: Row, algorithm: Algorithm, measure: Measure): number {
   return row.models[algorithm]?.[measure] ?? -Infinity;
@@ -33,6 +33,9 @@ export default function Maps() {
   // all taxa with barely 20 presence cells, whose scores are the least reliable.
   const [sort, setSort] = useState<string>("presences");
   const [offset, setOffset] = useState(0);
+  // Maps that could not beat their null models are left out unless asked for:
+  // their colours rank ground no better than a random handful of collections.
+  const [showFailed, setShowFailed] = useState(false);
   useEffect(() => {
     setSearch(urlQuery);
     setOffset(0);
@@ -42,6 +45,7 @@ export default function Maps() {
     const byTaxon = new Map<string, Row>();
     for (const m of models.data ?? []) {
       if (!m.map) continue;
+      if (m.skill === "failed" && !showFailed) continue;
       const row = byTaxon.get(m.taxon) ?? { taxon: m.taxon, models: {} };
       row.models[m.algorithm] = m;
       row.presences = Math.max(row.presences ?? 0, m.presences ?? 0);
@@ -58,7 +62,8 @@ export default function Maps() {
           ? (a: Row, b: Row) => a.taxon.localeCompare(b.taxon)
           : (a: Row, b: Row) => value(b, sort as Algorithm, measure) - value(a, sort as Algorithm, measure);
     return matching.sort(compare);
-  }, [models.data, search, sort, measure]);
+  }, [models.data, search, sort, measure, showFailed]);
+  const failed = (models.data ?? []).filter((m) => m.map && m.skill === "failed").length;
   const page = rows.slice(offset, offset + PAGE_SIZE);
   const measureLabel = measure === "auc_mean" ? "AUC" : "Boyce";
 
@@ -66,10 +71,11 @@ export default function Maps() {
     <>
       <PageHeader title="Maps">
         Every taxon with a fitted habitat map, and how each of the three models scores it on
-        regions it never saw. Blocked AUC says how well a map tells this fungus apart from
-        everywhere else fungi get collected: 0.5 is chance, and a species that grows wherever people
-        look sits near it by nature. Boyce asks whether places a map rates higher really hold more
-        records.
+        regions it never saw. Blocked AUC says how well a map tells the places this fungus was found
+        from the other places people collected: 0.5 is chance, and a species that grows wherever
+        people look sits near it by nature. Boyce asks whether places a map rates higher really hold
+        more records. Each map is also tested against null models, random handfuls of collections
+        fitted the same way; maps that cannot beat them are hidden unless you ask for them.
       </PageHeader>
       <Page>
         {models.isError && <ApiDown />}
@@ -82,6 +88,19 @@ export default function Maps() {
                   {formatNumber(rows.length)} taxa mapped
                 </CardTitle>
                 <div className="flex flex-wrap items-center gap-3">
+                  {failed > 0 && (
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={showFailed}
+                        onChange={(event) => {
+                          setShowFailed(event.target.checked);
+                          setOffset(0);
+                        }}
+                      />
+                      Show {formatNumber(failed)} no better than chance
+                    </label>
+                  )}
                   <input
                     value={search}
                     onChange={(event) => {
@@ -99,7 +118,7 @@ export default function Maps() {
                       className="h-9 rounded-md border border-input bg-white px-2 text-sm"
                     >
                       <option value="auc_mean">Blocked AUC</option>
-                      <option value="boyce_mean">Blocked Boyce</option>
+                      <option value="boyce">Blocked Boyce</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -152,14 +171,18 @@ export default function Maps() {
                       {ALGORITHMS.map((a) => {
                         const m = row.models[a];
                         return (
-                          <td key={a} className="px-4 py-2 text-right">
+                          <td
+                            key={a}
+                            className={`px-4 py-2 text-right ${m?.skill === "failed" ? "opacity-40" : ""}`}
+                            title={m?.skill === "failed" ? "No better than its null models" : undefined}
+                          >
                             {!m ? (
                               <span className="text-muted-foreground">—</span>
                             ) : measure === "auc_mean" ? (
                               <Auc value={m.auc_mean} />
                             ) : (
                               <span className="tabular-nums">
-                                {m.boyce_mean == null ? "—" : m.boyce_mean.toFixed(2)}
+                                {m.boyce == null ? "—" : m.boyce.toFixed(2)}
                               </span>
                             )}
                           </td>

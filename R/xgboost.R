@@ -97,6 +97,48 @@ atlas_xgboost_rounds <- function(training, data, params, max_rounds, patience,
   max(1L, as.integer(best))
 }
 
+#' Tune boosted trees on the given folds: for each depth, early stopping
+#' finds the best tree count and its mean held-out AUC in one pass, and the
+#' best depth wins. Returns list(max_depth, nrounds), or NULL when a fold has
+#' no presence to stop on, so the caller falls back to the default.
+atlas_tune_xgboost <- function(training, folds, seed = 1L, depths = ATLAS_XGBOOST_DEPTHS,
+                               max_rounds = 1000, patience = 30) {
+  if (!requireNamespace("xgboost", quietly = TRUE)) {
+    stop("xgboost is needed to fit: install.packages('xgboost')", call. = FALSE)
+  }
+  presence <- as.integer(training$presence)
+  usable <- vapply(sort(unique(folds)), function(fold) {
+    any(presence[folds == fold] == 1L) && any(presence[folds != fold] == 1L)
+  }, logical(1))
+  if (length(usable) < 2L || !all(usable)) {
+    return(NULL)
+  }
+  data <- xgboost::xgb.DMatrix(
+    as.matrix(training[, atlas_predictor_columns(training), drop = FALSE]),
+    label = presence,
+    weight = atlas_balanced_weights(presence)
+  )
+  test_folds <- lapply(sort(unique(folds)), function(fold) which(folds == fold))
+  tried <- lapply(depths, function(depth) {
+    params <- utils::modifyList(ATLAS_XGBOOST_PARAMS, list(max_depth = depth, seed = seed))
+    cv <- xgboost::xgb.cv(
+      params = params, data = data, nrounds = max_rounds, folds = test_folds,
+      early_stopping_rounds = patience, maximize = TRUE, verbose = 0
+    )
+    best <- cv$early_stop$best_iteration %||% attr(cv, "best_iteration") %||% max_rounds
+    best <- max(1L, as.integer(best))
+    log <- as.data.frame(cv$evaluation_log)
+    auc <- log[[grep("^test.*auc.*mean$", names(log), value = TRUE)[1]]][best]
+    list(max_depth = depth, nrounds = best, auc = auc)
+  })
+  aucs <- vapply(tried, function(t) as.numeric(t$auc %||% NA_real_), numeric(1))
+  if (all(is.na(aucs))) {
+    return(NULL)
+  }
+  best <- tried[[which.max(aucs)]]
+  list(max_depth = best$max_depth, nrounds = best$nrounds)
+}
+
 #' Suitability from boosted trees: the fitted probability, which ranks places
 #' the way AUC and Boyce need.
 atlas_xgboost_suitability <- function(model, newdata) {

@@ -12,14 +12,30 @@ test_that("--algorithms reads a list, or all of them", {
   expect_error(atlas_parse_algorithms("maxnet,svm"), "unknown algorithm")
 })
 
-test_that("Maxent's settings are exactly what they were before there was a choice", {
-  # If the key changed, every map fitted before would go stale at once.
+test_that("the settings record the method, so changing it makes every model stale", {
   settings <- atlas_fit_settings(layers = "L1")
-  expect_null(settings$algorithm)
-  expect_null(settings$learner)
-  expect_equal(sort(names(settings)),
-               sort(c("grid", "n_background", "buffer_km", "folds", "block_km",
-                      "regmult", "correlation", "layers")))
+  expect_equal(settings$algorithm, "maxnet")
+  expect_equal(settings$block_km, "auto")
+  expect_equal(settings$priority$ectomycorrhizal[[1]], "soil_phh2o")
+  expect_equal(settings$priority$other[[1]], "soil_phh2o")
+  expect_true(all(c("unit", "effort", "block", "tuning") %in% names(settings$design)))
+  base <- atlas_settings_key(settings)
+  expect_false(base == atlas_settings_key(atlas_fit_settings(layers = "L1", nulls = 0)))
+  expect_false(base == atlas_settings_key(atlas_fit_settings(layers = "L1", tune = FALSE)))
+  expect_false(base == atlas_settings_key(atlas_fit_settings(layers = "L1", thin_km = 10)))
+  expect_false(base == atlas_settings_key(atlas_fit_settings(layers = "L1", block_km = 200)))
+})
+
+test_that("Maxent tries every feature class with regularisation down to 0.25, strongest first", {
+  grid <- atlas_algorithm("maxnet")$grid(NULL)
+  expect_length(grid, 10L)
+  regmult <- vapply(grid, function(p) p$regmult, numeric(1))
+  classes <- vapply(grid, function(p) p$classes, character(1))
+  for (cls in c("lq", "lqh")) {
+    expect_equal(regmult[classes == cls], c(4, 2, 1, 0.5, 0.25))
+  }
+  # A wider grid is a different method: every Maxent model goes stale.
+  expect_equal(atlas_fit_settings(layers = "L1")$tuning$regmult, c(4, 2, 1, 0.5, 0.25))
 })
 
 test_that("each model has its own settings key", {
@@ -181,4 +197,22 @@ test_that("a sparse taxon is refused boosted trees, and its old tree map is remo
     expect_false(file.exists(atlas_model_path("Eastern fungus", "draft", ".json", "xgboost")))
     expect_false(file.exists(atlas_model_path("Eastern fungus", "draft", ".png", "xgboost")))
   })
+})
+
+test_that("Maxent's settings hold the guild rule and the guild table; the trees' hold neither", {
+  a <- atlas_guild_table_key(c(Amanita = "ectomycorrhizal"))
+  b <- atlas_guild_table_key(c(Amanita = "ectomycorrhizal", Mycena = "litter_saprotroph"))
+  maxent <- function(table) atlas_settings_key(atlas_fit_settings(layers = "L1", guild_table = table))
+  expect_false(maxent(a) == maxent(b))
+  for (trees in c("xgboost", "rf")) {
+    key <- function(table) {
+      atlas_settings_key(atlas_fit_settings(layers = "L1", algorithm = trees,
+                                            prune = atlas_algorithm(trees)$prune, guild_table = table))
+    }
+    expect_equal(key(a), key(b), info = trees)
+  }
+  settings <- atlas_fit_settings(layers = "L1", guild_table = a)
+  expect_equal(settings$priority$ectomycorrhizal, atlas_predictor_priority("ectomycorrhizal"))
+  expect_equal(settings$priority$other, atlas_predictor_priority("unknown"))
+  expect_equal(settings$priority$guild_table, a)
 })

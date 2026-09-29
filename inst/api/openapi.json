@@ -1411,7 +1411,7 @@
           },
           "presences": {
             "type": "integer",
-            "description": "Occupied grid cells the model learned from."
+            "description": "Detection sites: survey sites (records gathered at a 5 km spacing) where the taxon was collected."
           },
           "background": {
             "type": "integer",
@@ -1440,7 +1440,7 @@
           },
           "block_km": {
             "type": "number",
-            "description": "Size of the spatial blocks folds hold out."
+            "description": "Width of the square blocks used for spatial cross-validation."
           },
           "folds": {
             "type": "array",
@@ -1455,9 +1455,13 @@
           "auc_sd": {
             "type": "number"
           },
+          "boyce": {
+            "type": "number",
+            "description": "Blocked Boyce index of every fold's held-out scores together, from -1 to 1. The one a map is judged by. Absent on fits from before it was computed; use boyce_mean there."
+          },
           "boyce_mean": {
             "type": "number",
-            "description": "Mean blocked Boyce index, from -1 to 1."
+            "description": "Mean over folds of the blocked Boyce index, from -1 to 1. Noisy for taxa with few sites."
           },
           "boyce_sd": {
             "type": "number"
@@ -1535,6 +1539,64 @@
           },
           "package_version": {
             "type": "string"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "untested"
+            ],
+            "description": "Whether the taxon beat null models (random draws of surveyed sites, busier sites more often; taxon and nulls both fitted at untuned settings) on blocked AUC at p <= 0.05 and the map has a positive blocked Boyce index (boyce). Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
+          },
+          "null": {
+            "type": "object",
+            "description": "Null-model comparison. The taxon (observed_auc, observed_boyce) and its nulls (auc_mean, auc_sd, boyce_mean) are fitted the same way, at the untuned settings named in settings; auc_p and boyce_p are the share of nulls scoring at least as well.",
+            "properties": {
+              "reps": {
+                "type": "integer"
+              },
+              "settings": {
+                "type": "string"
+              },
+              "observed_auc": {
+                "type": "number"
+              },
+              "observed_boyce": {
+                "type": "number"
+              },
+              "auc_mean": {
+                "type": "number"
+              },
+              "auc_sd": {
+                "type": "number"
+              },
+              "auc_p": {
+                "type": "number"
+              },
+              "boyce_mean": {
+                "type": "number"
+              },
+              "boyce_p": {
+                "type": "number"
+              }
+            }
+          },
+          "params": {
+            "type": "object",
+            "description": "Settings chosen by tuning in spatial folds (Maxent: classes, regmult; boosted trees: max_depth, nrounds; random forest: mtry)."
+          },
+          "block_source": {
+            "type": "string",
+            "description": "blockCV when set from the autocorrelation range of detections, fixed when given, fallback when blockCV could not decide."
+          },
+          "presence_blocks": {
+            "type": "integer",
+            "description": "Blocks holding at least one detection site."
+          },
+          "effort_at": {
+            "type": "number",
+            "description": "The effort, log(1 + records of other taxa at the site), the map and scores are drawn at."
           }
         }
       },
@@ -1562,6 +1624,10 @@
           "auc_mean": {
             "type": "number"
           },
+          "boyce": {
+            "type": "number",
+            "description": "Blocked Boyce index over every fold together; the fold mean on older fits."
+          },
           "boyce_mean": {
             "type": "number"
           },
@@ -1571,6 +1637,15 @@
           "built_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "skill": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "untested"
+            ],
+            "description": "Whether the taxon beat null models (random draws of surveyed sites, busier sites more often; taxon and nulls both fitted at untuned settings) on blocked AUC at p <= 0.05 and the map has a positive blocked Boyce index (boyce). Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
           }
         }
       },

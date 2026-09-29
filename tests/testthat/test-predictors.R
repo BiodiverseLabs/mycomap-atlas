@@ -154,3 +154,142 @@ test_that("an infinite ratio lifts the cap rather than shrinking the list", {
   )
   expect_equal(length(atlas_choose_predictors(training, per_presence = Inf)), 8L)
 })
+
+# --- Where the host trees go -------------------------------------------------
+
+test_that("an ectomycorrhizal fungus gets its host trees straight after soil pH", {
+  order <- atlas_predictor_priority("ectomycorrhizal")
+  expect_equal(order[[1]], "soil_phh2o")
+  hosts <- atlas_host_columns()
+  expect_equal(order[2:(1 + length(hosts))], hosts)
+  expect_true(all(ATLAS_HOST_BANDS %in% hosts))
+  expect_gt(match("bio12", order), max(match(hosts, order)))
+})
+
+test_that("every other guild, and an unknown one, gets host trees after the climate block", {
+  for (guild in c("wood_saprotroph", "litter_saprotroph", "unknown", NA)) {
+    order <- atlas_predictor_priority(guild)
+    expect_equal(order[[1]], "soil_phh2o", info = guild)
+    hosts <- match(atlas_host_columns(), order)
+    expect_equal(hosts, seq(min(hosts), length.out = length(hosts)), info = guild)
+    expect_equal(order[[min(hosts) - 1L]], "bio4", info = guild)
+    expect_equal(order[[max(hosts) + 1L]], "forest_needleleaf", info = guild)
+  }
+  expect_equal(atlas_predictor_priority(), atlas_predictor_priority("unknown"))
+})
+
+test_that("the guild moves only the host trees; the rest keeps its order", {
+  for (guild in c("ectomycorrhizal", "unknown")) {
+    order <- atlas_predictor_priority(guild)
+    expect_equal(setdiff(order, atlas_host_columns()), ATLAS_PREDICTOR_PRIORITY)
+    expect_false(anyDuplicated(order) > 0)
+  }
+  expect_setequal(atlas_predictor_priority("ectomycorrhizal"), atlas_predictor_priority("unknown"))
+})
+
+test_that("when the cap binds, an ectomycorrhizal fungus keeps a host and a saprotroph its climate", {
+  set.seed(3)
+  background <- data.frame(
+    soil_phh2o = stats::rnorm(400), bio12 = stats::rnorm(400), bio1 = stats::rnorm(400),
+    host_conifer = stats::rnorm(400), host_pinus = stats::rnorm(400),
+    cover_trees = stats::rnorm(400)
+  )
+  training <- rbind(
+    data.frame(presence = 1L, cell = 1:12, x = 0, y = 0, background[1:12, ]),
+    data.frame(presence = 0L, cell = 13:412, x = 0, y = 0, background)
+  )
+  # Twelve presences, one predictor per four: three survive, and a third of
+  # them may be trees.
+  mycorrhizal <- atlas_choose_predictors(training, minimum = 3,
+                                         priority = atlas_predictor_priority("ectomycorrhizal"),
+                                         host_share = atlas_host_allowance("ectomycorrhizal"))
+  saprotroph <- atlas_choose_predictors(training, minimum = 3,
+                                        priority = atlas_predictor_priority("wood_saprotroph"))
+  expect_equal(mycorrhizal, c("soil_phh2o", "host_conifer", "bio12"))
+  expect_equal(saprotroph, c("soil_phh2o", "bio12", "bio1"))
+})
+
+# --- How many host trees a model may take ------------------------------------
+
+# Every host band of the layer, independent of one another and of the rest,
+# with pine the commonest tree of the region and chestnut absent from it.
+host_training <- function(presences, seed = 9) {
+  set.seed(seed)
+  n <- 600
+  climate <- c("soil_phh2o", "bio12", "bio17", "bio15", "bio1", "bio6", "bio4",
+               "cover_trees", "soil_clay", "elevation")
+  background <- as.data.frame(matrix(stats::rnorm(n * length(climate)), n,
+                                     dimnames = list(NULL, climate)))
+  for (band in ATLAS_HOST_BANDS) background[[band]] <- stats::runif(n, 0, 0.02)
+  background$host_pinus <- stats::runif(n, 0.3, 0.6)
+  background$host_quercus <- stats::runif(n, 0.1, 0.3)
+  background$host_castanea <- 0
+  rbind(
+    data.frame(presence = 1L, cell = seq_len(presences), x = 0, y = 0,
+               background[seq_len(presences), ]),
+    data.frame(presence = 0L, cell = presences + seq_len(n), x = 0, y = 0, background)
+  )
+}
+
+test_that("a sparse ectomycorrhizal fungus still gets its climate", {
+  # Forty sites allow ten predictors. Before the allowance they were soil pH
+  # and nine trees, and no moisture or temperature at all.
+  kept <- atlas_choose_predictors(
+    host_training(40), priority = atlas_predictor_priority("ectomycorrhizal"),
+    host_share = atlas_host_allowance("ectomycorrhizal")
+  )
+  expect_equal(length(kept), 10L)
+  expect_equal(sum(atlas_is_host_share(kept)), 3L)
+  expect_true(all(c("soil_phh2o", "bio12", "bio1") %in% kept))
+})
+
+test_that("the host trees kept are the conifer share and the region's commonest trees", {
+  kept <- atlas_choose_predictors(
+    host_training(40), priority = atlas_predictor_priority("ectomycorrhizal"),
+    host_share = atlas_host_allowance("ectomycorrhizal")
+  )
+  expect_equal(kept[atlas_is_host_share(kept)],
+               c("host_conifer", "host_pinus", "host_quercus"))
+  # They keep the hosts' place in the order: straight after soil pH.
+  expect_equal(kept[1:2], c("soil_phh2o", "host_conifer"))
+})
+
+test_that("the host trees are chosen from the non-detection sites, never the detections", {
+  training <- host_training(40)
+  # Every detection site is full of chestnut, which grows nowhere else: a
+  # choice that looked at the detections would take it.
+  training$host_castanea[training$presence == 1L] <- 0.9
+  kept <- atlas_choose_predictors(
+    training, priority = atlas_predictor_priority("ectomycorrhizal"),
+    host_share = atlas_host_allowance("ectomycorrhizal")
+  )
+  expect_false("host_castanea" %in% kept)
+})
+
+test_that("any other guild spends a fifth of its predictors on trees, after its climate", {
+  kept <- atlas_choose_predictors(host_training(40), priority = atlas_predictor_priority("unknown"),
+                                  host_share = atlas_host_allowance("unknown"))
+  expect_equal(sum(atlas_is_host_share(kept)), 2L)
+  sparse <- atlas_choose_predictors(host_training(20), priority = atlas_predictor_priority("unknown"),
+                                    host_share = atlas_host_allowance("unknown"))
+  # Twenty sites allow five predictors, and for these fungi soil pH, moisture
+  # and temperature come before the trees: the allowance is a ceiling, not a
+  # promise.
+  expect_equal(sum(atlas_is_host_share(sparse)), 0L)
+  expect_true(all(c("soil_phh2o", "bio12", "bio1") %in% sparse))
+  expect_equal(atlas_host_allowance("ectomycorrhizal"), 1 / 3)
+  expect_equal(atlas_host_allowance(NA), 1 / 5)
+})
+
+test_that("with no cap there is no allowance either", {
+  kept <- atlas_choose_predictors(host_training(40), per_presence = Inf,
+                                  priority = atlas_predictor_priority("ectomycorrhizal"))
+  # Chestnut never varies on the non-detection sites, so it alone is dropped.
+  expect_equal(sum(atlas_is_host_share(kept)), length(ATLAS_HOST_BANDS) - 1L)
+})
+
+test_that("the flag for ground the inventories missed is not counted as a tree", {
+  expect_false(any(atlas_is_host_share(ATLAS_HOST_KNOWN_BANDS)))
+  expect_true(all(atlas_is_host_share(c("host_pinus", "hostw_pinus", "host_conifer"))))
+  expect_false(atlas_is_host_share("cover_trees"))
+})

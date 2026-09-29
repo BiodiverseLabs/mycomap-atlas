@@ -124,18 +124,59 @@ Two grids share one extent and origin, and their cells nest exactly:
 
 Sources are global, because the obvious United States products (TreeMap, NLCD,
 PAD-US) stop at the lower 48 while British Columbia alone holds 8% of the
-records. What that costs: there is no continental tree-species layer, so v1
-carries tree cover as a fraction rather than host identity, and a model cannot
-be read as knowing which host a fungus needs.
+records.
+
+The exception is the host-tree layer (`hosts`, R/hosts.R): 20 bands, the
+share of a cell's trees in each of 19 ectomycorrhizal host genera
+(`host_pinus`, `host_quercus`, ...) and the share that are conifers
+(`host_conifer`), 0 to 1. No continental tree-species map exists, so it joins
+the two national forest inventories:
+
+| Where | Source | Read as |
+|---|---|---|
+| Lower 48 | USFS FIA BIGMAP 2018 species biomass (public domain), from its ImageServer | 250 m point samples, averaged; genus biomass over the biomass of all species |
+| Canada | NFI kNN 2011 species composition, 250 m (Open Government Licence - Canada) | species percentages summed by genus (an NFI `_Spp` file is unidentified members of the genus, not a total), over needleleaf + broadleaf |
+
+Where there are no trees the share is 0. Alaska, Hawaii, Puerto Rico and
+Mexico are in neither inventory. One layer's gap must not take ground away
+from every model, so there the shares are filled with 0 and a twenty-first
+band, `host_known`, is 0 (1 wherever an inventory spoke): those records still
+train models, those places are still mapped, and a model can tell "no such
+trees" from "nobody mapped the trees" (`atlas_fill_outside`, R/layers.R).
+BIGMAP's own
+`SPCD_0000_Total` is not used as the denominator: it is modelled apart from
+the species and runs about 15% above their sum. Both inventories are summed
+onto 1 km cells once, under `data/layers/raw/hosts/`, and each grid is built
+from those sums (a first build reads all 327 BIGMAP species, about two to
+three hours, and 2 GB of NFI files).
+
+```bash
+./atlas build-layers --only=hosts --grid=draft
+```
+
+### Candidate layers
+
+Five more layers are built only into a separate data directory, and measured
+by `./atlas sweep-layers` before any of them is fitted on in production
+(R/layersweep.R): forest type (`foresttype`, NALCMS 2020), water balance and
+fruiting-season climate (`waterbalance`, ClimateNA 1991-2020 and
+TerraClimate), carbonate bedrock (`bedrock`, GLiM), landform (`landform`:
+wetness, northness, heat load) and a second host-tree layer (`hosts_wilson`,
+bands `hostw_*`: USFS basal area 2000-2009 with the Canadian inventory, ten
+genera), kept as a rival to `hosts` so the two can be compared. The sweep
+scores every arm on the same sites and folds, under the design production
+uses, and reports how many records each layer cannot describe.
 
 On the draft grid, 99.3% of pulled records land on a cell with climate data;
 five records fall outside the grid altogether.
 
 ## Training data
 
-A taxon's training table is its presences — one row per occupied cell — plus a
-background drawn from the **target group**: every DNA-validated record of every
-taxon, inside that taxon's accessible area.
+A taxon's training table has one row per **survey site** inside its accessible
+area: detected (the taxon was collected there) or not (other DNA-validated
+fungi were collected there, but not it), with the site's predictors and its
+**effort**, log(1 + records of other taxa at the site). The comparison is the
+**target group**: every DNA-validated record of every taxon.
 
 ```bash
 ./atlas training --taxon="Trametes versicolor"
@@ -148,13 +189,23 @@ target group carries the same bias as the presences, so the model answers a
 better question — given that somebody collected and sequenced a fungus here,
 what makes it this species rather than another?
 
-Two details matter. The background keeps its density, so a cell collected from
-a hundred times counts a hundred times; that is the effort signal, not noise.
-And the accessible area is the taxon's own cells buffered by 500 km, because a
-species is not absent from Yukon merely because nobody looked there.
+Sites (`R/sites.R`) are made once from the whole pull: cells with records are
+thinned by distance, busiest first, so no two sites are closer than 5 km, and
+every other record joins its nearest site. Both detections and non-detections
+count once per site. An earlier design counted presences per cell but drew the
+background per record, so a wood collected a hundred times counted a hundred
+times against every species found there, and well-surveyed ground looked worse
+than it was. Effort is now a predictor instead, held at the median of the
+taxon's detection sites whenever a map is drawn or scored (Warton, Renner &
+Ramp 2013; Fithian et al. 2015). A taxon's own records are left out of its
+sites' effort, or a fungus collected a hundred times in one wood would make
+that wood look well surveyed by being there. The spacing is in km, not cells, so the 1 km
+grid does not turn one foray into five presences.
 
-The seed comes from the taxon's record-set fingerprint, so the same records
-always draw the same background, and changed records draw a new one.
+The accessible area is the taxon's own sites buffered by 500 km, because a
+species is not absent from Yukon merely because nobody looked there. The seed
+comes from the taxon's record-set fingerprint, so the same records always draw
+the same sites and folds, and changed records draw new ones.
 
 ## Fitting and scoring
 
@@ -163,10 +214,33 @@ always draw the same background, and changed records draw a new one.
 ```
 
 Maxent is fitted through `maxnet`, the reference implementation by Maxent's own
-author. Folds are whole spatial blocks of 200 km, never a random split: fungal
-records are clustered — one foray yields thirty collections from one wood — and
-a random hold-out puts near neighbours on both sides, reporting a score that
-only says the model can interpolate 200 m.
+author. Folds are whole spatial blocks, never a random split: fungal records
+are clustered — one foray yields thirty collections from one wood — and a
+random hold-out puts near neighbours on both sides, reporting a score that only
+says the model can interpolate 200 m.
+
+- **Block size** comes from blockCV: the range of a variogram of the taxon's
+  detections, rounded to 5 km and held between 50 and 300 km (`--block-km=N`
+  fixes it). Blocks holding detections are dealt to folds first, evenly. A
+  taxon needs detections in at least 5 blocks to be scored at all.
+- **Settings are tuned in nested spatial folds**: each held-out region is
+  scored by a model whose settings (Maxent's feature classes and regularisation
+  multiplier, the trees' depth and count, the forest's mtry) were chosen on
+  inner folds of the other regions only.
+- **Null models** (`--nulls=N`, default 19): the same number of sites drawn at
+  random from all surveyed sites, busier ones more often, fitted and scored the
+  same way. The taxon and its nulls go through one procedure, the algorithm's
+  untuned settings, because settings tuned on the real detections and handed
+  to the nulls would favour the taxon. A map is `skill: passed` when the
+  taxon's AUC beats every null (p ≤ 0.05) and its Boyce index is above zero;
+  failed maps are drawn faint, hidden from the Maps list by default and left
+  out of the Explore index and release consumers.
+- **One Boyce index** (`boyce`), over the held-out scores of every fold
+  together. Twenty sites leave four detections in a fold, too few for an index
+  of their own; the mean over folds is kept as `boyce_mean`.
+
+The measurements below were taken under the earlier design (per-cell presences,
+per-record background, fixed 200 km blocks, default settings).
 
 **Read AUC as comparative, not absolute.** Against a target-group background it
 measures how distinguishable a species is from where fungi get collected at
@@ -191,8 +265,22 @@ regression.
 Thirty-three predictors is a lot of rope for a taxon with forty-seven records,
 and the nineteen bioclim variables are near-copies of one another. Correlated
 predictors are pruned before fitting, keeping whichever of a pair comes first
-in a fixed **ecological** order — moisture, then temperature, then what the
-fungus grows on, then soil, then the shape of the ground. When two variables
+in a fixed **ecological** order — soil pH, moisture, then temperature, then what the
+fungus grows on, then soil, then the shape of the ground. Where the host trees
+go depends on the guild of the fungus's genus in FungalTraits (Põlme et al.
+2020): straight after soil pH for ectomycorrhizal genera, after temperature for
+everything else, and each model records its guild and the order it was given.
+The trees have an allowance: a third of an ectomycorrhizal fungus's predictors,
+a fifth of any other's. The twenty host bands are barely correlated, so without
+it a fungus with forty sites spent its ten predictors on soil pH and nine
+trees and had no climate at all. The ones kept are the conifer share and then
+the commonest trees of the region, judged on the non-detection sites, never on
+the detections.
+FungalTraits' licence is unclear, so the table is used for lookup only: fetch
+it into the data directory with `./atlas fetch-guilds`; it is never committed,
+released or served. Without it every guild reads "unknown". A changed table
+makes every Maxent model stale (its hash is in the settings); the tree models
+take every predictor and are unaffected. When two variables
 are interchangeable to the model, the one a mycologist would name survives,
 which also keeps the response curves readable. Correlations are measured on
 the background, never on the presences: forty-seven records cannot estimate a
@@ -558,6 +646,10 @@ spot workers it launches for the job, one per shard:
 ./atlas run-job-ec2 --job=<id>       # run an already planned job
 ./atlas pull-release --no-rasters    # the box keeps maps and scores; rasters stay in S3
 ```
+
+The box plans with whatever FungalTraits table it holds (`./atlas
+fetch-guilds`, once) and ships it to the workers as a job input, never as a
+release file. A worker whose table differs from the plan's refuses its shard.
 
 A worker boots Amazon Linux, pulls the release image built from the box's own
 commit (CI publishes one for every commit on main), runs its shard and shuts

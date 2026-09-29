@@ -1,25 +1,31 @@
-# Training data: presences, and the background they are compared against.
+# Training data: where a taxon was found, and where people looked and did not.
 #
 # Six states and provinces hold 61% of the records, and Indiana alone holds
 # 12%. Drawn at random from the continent, background points would say that
 # Indiana's climate is unusually good for almost every fungus, because that is
 # where the sequencing happened.
 #
-# So the background is drawn from the records themselves — every DNA-validated
+# So the comparison is drawn from the records themselves — every DNA-validated
 # collection of every taxon, the "target group". They share one process:
 # somebody collected, somebody sequenced, somebody validated. A model fitted
-# against that background answers a better question: given that a fungus was
-# collected and sequenced here, what makes it this species rather than another?
+# against them answers a better question: given that people collected and
+# sequenced here, was this species among what they found?
 #
-# Two details matter. The background keeps its density, so a cell visited a
-# hundred times counts a hundred times — that is the effort signal, not noise.
-# And it is drawn from the focal taxon's accessible area, not the continent: a
-# species is not absent from Yukon because nobody looked, and a model should
-# not be asked about ground its subject could never reach.
+# Both sides are counted in survey sites (R/sites.R): a detection is a site
+# where the taxon was collected, a non-detection a site where other things
+# were collected but not it. How hard a site was worked is not counted by
+# repeating it, which confused effort with habitat, but carried as its own
+# predictor and held at one value when a map is drawn. Effort is
+# log(1 + records of other taxa at the site): the taxon's own records are left
+# out, or a fungus collected a hundred times in one wood would make that wood
+# look thoroughly surveyed by its own presence, and effort would explain the
+# detection it is meant to be independent of. Sites are drawn only from the
+# taxon's accessible area, not the continent: a species is not absent from
+# Yukon because nobody looked there.
 
-#' Project every record onto the grid once, so a run over many taxa does not
-#' reproject the whole pull for each of them.
-atlas_occurrence_points <- function(occurrences, grid = "draft") {
+#' Project every record onto the grid once, and gather the records into survey
+#' sites, so a run over many taxa does neither for each of them.
+atlas_occurrence_points <- function(occurrences, grid = "draft", thin_km = ATLAS_SITE_KM) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed for training data: install.packages('terra')", call. = FALSE)
   }
@@ -28,22 +34,17 @@ atlas_occurrence_points <- function(occurrences, grid = "draft") {
   cells <- terra::cellFromXY(template, xy)
   keep <- !is.na(cells)
   centres <- terra::xyFromCell(template, cells[keep])
-  data.frame(
+  points <- data.frame(
     scientific_name = occurrences$scientific_name[keep],
     cell = cells[keep],
     x = centres[, 1],
     y = centres[, 2],
     stringsAsFactors = FALSE
   )
+  atlas_attach_sites(points, thin_km)
 }
 
-#' One row per occupied cell. Repeat visits to a site are one presence, not
-#' twenty, or the model learns the collector's habits.
-atlas_thin_to_cells <- function(points) {
-  points[!duplicated(points$cell), c("cell", "x", "y"), drop = FALSE]
-}
-
-#' The ground a taxon could plausibly have reached: its cells, buffered.
+#' The ground a taxon could plausibly have reached: its sites, buffered.
 atlas_accessible_area <- function(x, y, buffer_km = 500) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed for training data: install.packages('terra')", call. = FALSE)
@@ -63,7 +64,7 @@ atlas_points_in_area <- function(x, y, area) {
 
 #' A seed tied to the data, not to the clock.
 #'
-#' The same taxon with the same records always draws the same background, and a
+#' The same taxon with the same records always draws the same sites, and a
 #' changed record set draws a new one — which is what a release manifest has to
 #' be able to claim.
 atlas_seed_from_fingerprint <- function(fingerprint) {
@@ -73,45 +74,60 @@ atlas_seed_from_fingerprint <- function(fingerprint) {
   as.integer(strtoi(substr(as.character(fingerprint[[1]]), 1, 7), base = 16L))
 }
 
-#' Draw background records from the target group, inside the accessible area.
+#' Draw non-detection sites inside the accessible area.
 #'
-#' Sampling records rather than cells is deliberate: a cell that was collected
-#' from a hundred times should appear a hundred times as often.
+#' Every site counts once, however many records it holds: effort is a
+#' predictor now, not a weight. Past n, sites are drawn at random.
 atlas_background_sample <- function(pool, area, n = 10000, seed = 1L) {
   inside <- atlas_points_in_area(pool$x, pool$y, area)
   candidates <- pool[inside, , drop = FALSE]
   if (!nrow(candidates)) {
-    stop("no target-group records inside the accessible area", call. = FALSE)
+    stop("no surveyed sites inside the accessible area", call. = FALSE)
   }
   if (nrow(candidates) <= n) {
     return(candidates)
   }
   set.seed(seed)
-  candidates[sample.int(nrow(candidates), n), , drop = FALSE]
+  candidates[sort(sample.int(nrow(candidates), n)), , drop = FALSE]
 }
 
-#' Presences and background for one taxon, ready to fit.
+#' Detections and non-detections for one taxon, ready to fit.
+#'
+#' One row per site: presence is 1 where the taxon was collected, effort is
+#' log(1 + records of other taxa at the site), and cell, x and y are the
+#' site's centre, where its predictors are read.
 atlas_training_table <- function(name, points, n_background = 10000,
-                                 buffer_km = 500, fingerprint = NULL) {
-  focal <- points[points$scientific_name == name, , drop = FALSE]
-  if (!nrow(focal)) {
+                                 buffer_km = 500, fingerprint = NULL,
+                                 thin_km = ATLAS_SITE_KM) {
+  points <- atlas_ensure_sites(points, thin_km)
+  sites <- attr(points, "sites")
+  own_sites <- points$site[points$scientific_name == name]
+  found <- unique(own_sites)
+  if (!length(found)) {
     stop("no records on the grid for ", name, call. = FALSE)
   }
-  presences <- atlas_thin_to_cells(focal)
+  own <- as.integer(table(factor(own_sites, levels = found)))
+  columns <- c("cell", "x", "y")
+  presences <- sites[found, , drop = FALSE]
   area <- atlas_accessible_area(presences$x, presences$y, buffer_km)
   seed <- atlas_seed_from_fingerprint(fingerprint)
-  background <- atlas_background_sample(
-    pool = points[, c("cell", "x", "y"), drop = FALSE],
-    area = area, n = n_background, seed = seed
-  )
+  others <- sites[-found, , drop = FALSE]
+  background <- if (nrow(others)) {
+    atlas_background_sample(others, area, n = n_background, seed = seed)
+  } else {
+    others
+  }
   out <- rbind(
-    data.frame(presence = 1L, presences, stringsAsFactors = FALSE),
-    data.frame(presence = 0L, background, stringsAsFactors = FALSE)
+    data.frame(presence = rep(1L, nrow(presences)), presences[, columns, drop = FALSE],
+               effort = log1p(presences$records - own), stringsAsFactors = FALSE),
+    data.frame(presence = rep(0L, nrow(background)), background[, columns, drop = FALSE],
+               effort = log1p(background$records), stringsAsFactors = FALSE)
   )
   rownames(out) <- NULL
   attr(out, "area_km2") <- unname(terra::expanse(area, unit = "km"))
   attr(out, "seed") <- seed
   attr(out, "fingerprint") <- if (is.null(fingerprint)) NA_character_ else fingerprint
+  attr(out, "thin_km") <- thin_km
   out
 }
 
@@ -129,7 +145,8 @@ atlas_training_path <- function(name, grid = "draft") {
 atlas_build_training <- function(name, grid = "draft", n_background = 10000,
                                  buffer_km = 500, write = TRUE, quiet = FALSE,
                                  points = NULL, stack = NULL,
-                                 occurrences = NULL, fingerprint = NULL) {
+                                 occurrences = NULL, fingerprint = NULL,
+                                 thin_km = ATLAS_SITE_KM) {
   if (is.null(points) || is.null(fingerprint)) {
     occurrences <- occurrences %||% atlas_read_occurrences()
     focal <- occurrences[occurrences$scientific_name == name, , drop = FALSE]
@@ -142,7 +159,7 @@ atlas_build_training <- function(name, grid = "draft", n_background = 10000,
   table <- atlas_training_table(
     name, points,
     n_background = n_background, buffer_km = buffer_km,
-    fingerprint = fingerprint
+    fingerprint = fingerprint, thin_km = thin_km
   )
   table <- atlas_add_predictors(table, grid, stack = stack)
 
@@ -154,8 +171,8 @@ atlas_build_training <- function(name, grid = "draft", n_background = 10000,
 
   if (!isTRUE(quiet)) {
     message(name)
-    message("  presences (cells):  ", sum(table$presence == 1L))
-    message("  background:         ", sum(table$presence == 0L))
+    message("  detection sites:    ", sum(table$presence == 1L))
+    message("  other sites:        ", sum(table$presence == 0L))
     message("  accessible area:    ",
             format(round(attr(table, "area_km2")), big.mark = ","), " km2")
     message("  predictors:         ",
@@ -193,6 +210,7 @@ atlas_add_predictors <- function(table, grid = "draft", stack = NULL) {
   attr(out, "area_km2") <- attr(table, "area_km2")
   attr(out, "seed") <- attr(table, "seed")
   attr(out, "fingerprint") <- attr(table, "fingerprint")
+  attr(out, "thin_km") <- attr(table, "thin_km")
   attr(out, "dropped") <- sum(!complete)
   out
 }

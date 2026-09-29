@@ -124,6 +124,7 @@ function ModelMap({
   const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
   const overlay = boundsOf(model);
   const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
+  const failed = model?.skill === "failed";
   return (
     <Card className={`overflow-hidden ${hidden ? "hidden" : expanded ? "lg:col-span-3" : ""}`}>
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
@@ -133,7 +134,7 @@ function ModelMap({
             {model && (
               <>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  AUC {model.auc_mean.toFixed(2)} · Boyce {model.boyce_mean.toFixed(2)}
+                  AUC {model.auc_mean.toFixed(2)} · Boyce {(model.boyce ?? model.boyce_mean).toFixed(2)}
                 </span>
                 {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
               </>
@@ -174,7 +175,8 @@ function ModelMap({
             <ImageOverlay
               url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at)}
               bounds={overlay}
-              opacity={0.8}
+              // A map that could not beat its null models is drawn faint.
+              opacity={failed ? 0.25 : 0.8}
             />
           )}
           {points.map((cell) => (
@@ -187,10 +189,15 @@ function ModelMap({
             />
           ))}
         </MapContainer>
+        {failed && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
+            No better than its null models: this map says little about habitat.
+          </div>
+        )}
         {!loading && !model && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
             {minimum != null && presences != null && presences < minimum
-              ? `Not drawn below ${minimum} presence cells: with this few records this model ranks ground wrongly.`
+              ? `Not drawn below ${minimum} detection sites: with this few records this model ranks ground wrongly.`
               : "Not fitted yet"}
           </div>
         )}
@@ -212,7 +219,7 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
     return values.length > 1 ? Math.max(...values) : undefined;
   };
   const bestAuc = best((m) => m.auc_mean);
-  const bestBoyce = best((m) => m.boyce_mean);
+  const bestBoyce = best((m) => m.boyce ?? m.boyce_mean);
   const mark = (value: number, top?: number) =>
     top != null && value === top ? "font-semibold text-myco-green" : "";
   const first = fitted.length ? models[fitted[0]]! : undefined;
@@ -226,19 +233,19 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
       help: (
         <>
           <p>
-            How well the map separates the places this species was collected from the places
-            people collected anything else. 0.5 is no better than chance; 1 would be perfect.
+            How well the map separates the places this species was collected from the other places
+            people collected and sequenced fungi. 0.5 is no better than chance; 1 would be perfect.
           </p>
           <p className="mt-1.5">
-            Blocked: the records are cut into {blockKm} km blocks, and each score comes from blocks
-            the model never saw while fitting, so it measures predicting new ground, not
+            Blocked: the records are cut into {blockKm} km blocks, about as far as this species'
+            finds stay alike (measured with blockCV), and each score comes from blocks the model
+            never saw while fitting, settings included. It measures predicting new ground, not
             remembering known sites.
           </p>
           <p className="mt-1.5">
-            Compare the three models on this page rather than one species against another. The
-            background is every other DNA-validated collection, so a species that turns up
-            wherever people look sits near 0.5 even when its map is good. The ± is the spread
-            across folds. Green marks the best of the three.
+            Compare the three models on this page rather than one species against another. A
+            species that turns up wherever people look sits near 0.5 even when its map is good.
+            The ± is the spread across folds. Green marks the best of the three.
           </p>
         </>
       ),
@@ -255,14 +262,48 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
           </p>
           <p className="mt-1.5">
             Scored on held-out {blockKm} km blocks, like AUC. This is the closer test of what the
-            colours on the map claim. It is unsteady with fewer than about 50 presence cells, so
+            colours on the map claim. It is unsteady with fewer than about 50 detection sites, so
             read a wide ± as "not enough records to tell".
           </p>
         </>
       ),
       cell: (m) => (
-        <span className={mark(m.boyce_mean, bestBoyce)}>{score(m.boyce_mean, m.boyce_sd)}</span>
+        <span className={mark(m.boyce ?? m.boyce_mean, bestBoyce)}>
+          {m.boyce == null ? score(m.boyce_mean, m.boyce_sd) : m.boyce.toFixed(2)}
+        </span>
       ),
+    },
+    {
+      label: "Beats chance",
+      help: (
+        <>
+          <p>
+            Each model is refitted {first?.null?.reps ?? 19} times on a made-up species: the same
+            number of sites drawn at random from everywhere people collected, busier places more
+            often. A map that knows something about this fungus should score higher than every one
+            of those.
+          </p>
+          <p className="mt-1.5">
+            Shown as the null models' AUC and the share that scored at least as well (p). A map
+            passes at p ≤ 0.05 with a Boyce index above zero. One that fails is drawn faint and left
+            out of Explore: its colours rank ground no better than collecting effort does.
+          </p>
+        </>
+      ),
+      cell: (m) =>
+        m.skill === "passed" || m.skill === "failed" ? (
+          <span className={m.skill === "passed" ? "text-myco-green" : "text-muted-foreground"}>
+            {m.skill === "passed" ? "Yes" : "No"}
+            {m.null?.auc_mean != null && (
+              <span className="text-muted-foreground">
+                {" "}
+                (null {m.null.auc_mean.toFixed(2)}, p {m.null.auc_p?.toFixed(2) ?? "—"})
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Not tested</span>
+        ),
     },
     {
       label: "Predictors",
@@ -276,8 +317,12 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
           </p>
           <p className="mt-1.5">
             Maxent drops variables that rise and fall together and keeps about one per four
-            presence cells, because correlated inputs blur its fit. Boosted trees and the random
-            forest take all {considered} and weigh them themselves.
+            detection sites, soil pH first, because correlated inputs blur its fit. Boosted trees
+            and the random forest take all {considered} and weigh them themselves.
+          </p>
+          <p className="mt-1.5">
+            Every model also gets collecting effort (records per site), held at one level when the
+            map is drawn, so a much-visited place does not look like better habitat.
           </p>
         </>
       ),
@@ -508,10 +553,11 @@ export default function Taxon() {
               <Comparison models={models} />
               <p className="mt-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
                 All three are scored on the same {anyModel?.folds.length ?? 5} spatial folds of{" "}
-                {formatNumber(anyModel?.block_km ?? 200)} km, against the same background of every
-                other DNA-validated collection. Read AUC as a comparison, not a grade: a species
+                {formatNumber(anyModel?.block_km ?? 200)} km, against the same sites where people
+                collected other DNA-validated fungi. Read AUC as a comparison, not a grade: a species
                 that grows wherever people look sits near 0.5 however good the model. Boyce asks
-                whether the places a map rates higher really hold more records.{" "}
+                whether the places a map rates higher really hold more records, and the null models
+                ask whether the map beats a random handful of collections at all.{" "}
                 <Link href="/models" className="text-myco-green hover:underline">
                   How the three compare across every taxon
                 </Link>

@@ -14,6 +14,7 @@ atlas_usage <- function() {
   message("      --only=a,b                build only these layers")
   message("      --overwrite               rebuild layers already built")
   message("  layers             which layers are registered and built")
+  message("  fetch-guilds       download FungalTraits' genus table (lookup only, never published)")
   message("  training           build one taxon's presences, background and predictors")
   message("      --taxon=\"Name\"            which taxon (required)")
   message("      --grid=draft|production   which grid (default draft)")
@@ -22,8 +23,10 @@ atlas_usage <- function() {
   message("  fit                fit Maxent for one taxon and write its map")
   message("      --taxon=\"Name\"            which taxon (required)")
   message("      --folds=N                 spatial folds (default 5)")
-  message("      --block-km=N              fold block size (default 200)")
-  message("      --min-presences=N         refuse below this many cells (default 20)")
+  message("      --block-km=N|auto         fold block size in km; auto asks blockCV (default auto)")
+  message("      --min-presences=N         refuse below this many detection sites (default 20)")
+  message("      --nulls=N                 null models to test the map against (default 19)")
+  message("      --no-tune                 fit default settings instead of tuning in nested folds")
   message("      --correlation=N           prune predictors above this correlation (default 0.7)")
   message("      --keep-all-predictors     skip pruning")
   message("      --algorithm=maxnet|xgboost|rf  which model (default maxnet)")
@@ -34,10 +37,15 @@ atlas_usage <- function() {
   message("      --workers=N               fit N taxa at once (default 1)")
   message("      --algorithms=maxnet,xgboost,rf|all  models to fit (default maxnet)")
   message("      (also --grid, --background, --buffer-km, --folds, --block-km,")
-  message("       --min-presences, --correlation, --keep-all-predictors, as for fit)")
+  message("       --min-presences, --correlation, --keep-all-predictors, --nulls,")
+  message("       --no-tune, as for fit)")
   message("  sweep-predictors   measure how many predictors a taxon should get")
   message("      --per-band=N              taxa sampled per presence-cell band (default 40)")
   message("      --constants=2,3,4,6,none  presences per predictor to compare")
+  message("      --workers=N               taxa at once (default 1)")
+  message("      --seed=N                  which sample (default 1)")
+  message("  sweep-layers       measure whether each new layer improves the models")
+  message("      --per-band=N              taxa sampled per presence-cell band (default 40)")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
   message("  benchmark-models   boosted trees against Maxent on the richest taxa")
@@ -153,6 +161,15 @@ atlas_flag_zenodo <- function(flags) {
   atlas_zenodo(if (isTRUE(flags$sandbox)) "sandbox" else "zenodo")
 }
 
+#' --block-km: a number of km, or auto (the default) to let blockCV decide.
+atlas_flag_block <- function(flags) {
+  value <- flags$block_km
+  if (is.null(value) || isTRUE(value) || identical(tolower(as.character(value)), "auto")) {
+    return("auto")
+  }
+  atlas_flag_number(flags, "block_km", "auto")
+}
+
 atlas_flag_number <- function(flags, name, default) {
   if (is.null(flags[[name]])) return(default)
   value <- suppressWarnings(as.numeric(flags[[name]]))
@@ -210,6 +227,10 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       print(atlas_layer_status(atlas_flag_grid(flags)), row.names = FALSE)
       invisible(0L)
     },
+    "fetch-guilds" = {
+      atlas_fetch_guild_table()
+      invisible(0L)
+    },
     "training" = {
       if (is.null(flags$taxon)) {
         stop("training needs --taxon=\"Scientific name\"", call. = FALSE)
@@ -232,10 +253,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         n_background = atlas_flag_number(flags, "background", 10000),
         buffer_km = atlas_flag_number(flags, "buffer_km", 500),
         folds = atlas_flag_number(flags, "folds", 5),
-        block_km = atlas_flag_number(flags, "block_km", 200),
+        block_km = atlas_flag_block(flags),
         min_presences = atlas_flag_number(flags, "min_presences", 20),
         correlation = atlas_flag_number(flags, "correlation", 0.7),
         prune = atlas_flag_prune(flags),
+        nulls = atlas_flag_number(flags, "nulls", ATLAS_NULL_REPS),
+        tune = !isTRUE(flags$no_tune),
         algorithm = atlas_parse_algorithms(flags$algorithm %||% "maxnet")[[1]]
       )
       invisible(0L)
@@ -253,10 +276,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
           n_background = atlas_flag_number(flags, "background", 10000),
           buffer_km = atlas_flag_number(flags, "buffer_km", 500),
           folds = atlas_flag_number(flags, "folds", 5),
-          block_km = atlas_flag_number(flags, "block_km", 200),
+          block_km = atlas_flag_block(flags),
           min_presences = atlas_flag_number(flags, "min_presences", 20),
           correlation = atlas_flag_number(flags, "correlation", 0.7),
           prune = atlas_flag_prune(flags),
+          nulls = atlas_flag_number(flags, "nulls", ATLAS_NULL_REPS),
+          tune = !isTRUE(flags$no_tune),
           algorithm = algorithm
         )
         failed <- failed + summary$counts$failed
@@ -274,6 +299,15 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         grid = atlas_flag_grid(flags),
         per_band = atlas_flag_number(flags, "per_band", 40),
         constants = constants,
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "sweep-layers" = {
+      atlas_layer_sweep(
+        grid = atlas_flag_grid(flags),
+        per_band = atlas_flag_number(flags, "per_band", 40),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )

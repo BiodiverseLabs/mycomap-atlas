@@ -113,6 +113,9 @@ export interface Model {
   folds: ModelFold[];
   auc_mean: number;
   auc_sd: number;
+  /** Boyce index of every fold's held-out scores together: the one a map is
+   * judged by. Fits from before it was computed have only boyce_mean. */
+  boyce?: number;
   boyce_mean: number;
   boyce_sd: number;
   built_at: string;
@@ -121,6 +124,31 @@ export interface Model {
   /** "rank" when colours are by percentile within the map. */
   map_scale?: string;
   map_drawn_at?: string;
+  /** Whether the map beat its null models. Fits from before there were
+   * null models have none, and read as "untested". */
+  skill?: Skill;
+  null?: ModelNull;
+  /** Settings chosen by tuning in nested spatial folds. */
+  params?: Record<string, string | number>;
+  block_source?: "blockCV" | "fixed" | "fallback";
+  presence_blocks?: number;
+}
+
+export type Skill = "passed" | "failed" | "untested";
+
+/** A model scored against null models: the same number of sites drawn at
+ * random from the surveyed sites, fitted and scored the same way. */
+export interface ModelNull {
+  reps: number;
+  /** The untuned settings the taxon and its nulls were both fitted at. */
+  settings?: string;
+  observed_auc?: number;
+  observed_boyce?: number;
+  auc_mean?: number;
+  auc_sd?: number;
+  auc_p?: number;
+  boyce_mean?: number;
+  boyce_p?: number;
 }
 
 /** One row of /api/models: enough for a list. The full record is getModel. */
@@ -130,7 +158,9 @@ export interface ModelSummary {
   presences?: number;
   predictors: number;
   auc_mean?: number;
+  boyce?: number;
   boyce_mean?: number;
+  skill?: Skill;
   map: boolean;
   built_at: string;
 }

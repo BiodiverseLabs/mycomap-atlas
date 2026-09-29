@@ -44,3 +44,14 @@ synthetic_landscape <- function() {
   points$y <- centres[, 2]
   list(stack = stack, points = points[, c("scientific_name", "cell", "x", "y")])
 }
+
+# A synthetic pool on the grid: cell centres in the projected CRS, so no test
+# here needs a layer, a network or the real pull.
+fake_points <- function(x, y, names = "Target group", cells = NULL) {
+  data.frame(
+    scientific_name = rep_len(names, length(x)),
+    cell = if (is.null(cells)) seq_along(x) else cells,
+    x = x, y = y,
+    stringsAsFactors = FALSE
+  )
+}

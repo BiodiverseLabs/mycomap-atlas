@@ -84,9 +84,13 @@ atlas_fetch_entries <- function(store, entries) {
 
 # ---- planning ------------------------------------------------------------
 
-# Rough relative cost of fitting and mapping one taxon, for balancing shards:
-# a forest's map is the expensive part, and a map's cost grows with its area.
-ATLAS_SHARD_WEIGHTS <- c(maxnet = 1, xgboost = 0.5, rf = 3)
+# Rough relative cost of fitting and mapping one taxon, for balancing shards.
+# Measured on a 40-taxon pilot of nested tuning plus 19 null models
+# (2026-09-29, draft grid, scores only): median Maxent 427 s, forest 29 s,
+# boosted trees 27 s. Maxent's glmnet path is fitted ~260 times per taxon;
+# a forest's map adds about 2.5 minutes for a widespread taxon. A map's cost
+# grows with its area.
+ATLAS_SHARD_WEIGHTS <- c(maxnet = 7, xgboost = 0.5, rf = 3)
 
 #' The relative cost of one task.
 atlas_task_cost <- function(algorithm, area_km2, typical_area = 5e6) {
@@ -131,8 +135,9 @@ atlas_index_current <- function(entry, fingerprint, settings, min_presences) {
 #' nothing to do.
 atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "all",
                            shards = 4L, min_presences = 20, n_background = 10000,
-                           buffer_km = 500, folds = 5, block_km = 200, regmult = 1,
-                           correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE) {
+                           buffer_km = 500, folds = 5, block_km = "auto", regmult = 1,
+                           correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE,
+                           nulls = ATLAS_NULL_REPS, tune = TRUE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
   if (!is.numeric(limit) || length(limit) != 1L || is.na(limit) || limit < 1) {
@@ -174,8 +179,11 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   }, numeric(1))
   typical <- if (any(is.finite(areas))) stats::median(areas, na.rm = TRUE) else 5e6
 
+  # The guild table is part of Maxent's settings (R/fit.R), so the workers
+  # must fit with the same one this plan was checked against.
   fit <- list(min_presences = min_presences, n_background = n_background, buffer_km = buffer_km,
-              folds = folds, block_km = block_km, regmult = regmult, correlation = correlation)
+              folds = folds, block_km = block_km, regmult = regmult, correlation = correlation,
+              nulls = nulls, tune = tune, guild_table = atlas_guild_table_key())
   tasks <- list()
   retire <- list()
   for (algorithm in algorithms) {
@@ -184,7 +192,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     settings <- atlas_fit_settings(
       grid = grid, n_background = n_background, buffer_km = buffer_km, folds = folds,
       block_km = block_km, regmult = regmult, correlation = correlation,
-      prune = algo$prune, layers = layers_key, algorithm = algo$id
+      prune = algo$prune, layers = layers_key, algorithm = algo$id,
+      nulls = nulls, tune = tune
     )
     candidates <- atlas_batch_candidates(points, minimum)$scientific_name
     fingerprints <- atlas_fingerprints_for(occurrences, candidates)
@@ -238,6 +247,10 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   }
 
   pull_paths <- c(file.path("occurrences", manifest$file), "occurrences/latest.json")
+  # The guild table goes to the workers through the store's private objects
+  # like the pull does. It is never listed among a release's files.
+  guild_path <- "reference/fungaltraits-genera.csv"
+  if (file.exists(file.path(atlas_data_dir(), guild_path))) pull_paths <- c(pull_paths, guild_path)
   inputs <- c(atlas_file_entries(pull_paths), layer_entries)
   atlas_upload_objects(store, c(inputs, public))
 
@@ -298,6 +311,13 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   fetched <- atlas_fetch_entries(store, job$inputs)
   say("shard ", shard, ": ", length(mine), " models to fit; fetched ", fetched$fetched,
       " input files (", round(fetched$bytes / 1048576, 1), " MB)")
+  # Fitted with another guild table, every Maxent model would carry settings
+  # the plan did not check against, and the next plan would refit them all.
+  planned <- job$fit$guild_table
+  if (is.character(planned) && length(planned) == 1L && !identical(planned, atlas_guild_table_key())) {
+    stop("this worker's FungalTraits table differs from the one job ", id,
+         " was planned with; nothing fitted", call. = FALSE)
+  }
 
   results <- list()
   for (algorithm in unique(vapply(mine, function(t) t$algorithm, ""))) {
@@ -306,7 +326,9 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       grid = grid, force = TRUE, workers = workers, taxa = taxa, algorithm = algorithm,
       min_presences = job$fit$min_presences, n_background = job$fit$n_background,
       buffer_km = job$fit$buffer_km, folds = job$fit$folds, block_km = job$fit$block_km,
-      regmult = job$fit$regmult, correlation = job$fit$correlation, quiet = TRUE, fit = fit
+      regmult = job$fit$regmult, correlation = job$fit$correlation,
+      nulls = job$fit$nulls %||% ATLAS_NULL_REPS, tune = job$fit$tune %||% TRUE,
+      quiet = TRUE, fit = fit
     )
     rows <- stats::setNames(batch$taxa, vapply(batch$taxa, function(r) r$taxon, ""))
     fingerprints <- stats::setNames(

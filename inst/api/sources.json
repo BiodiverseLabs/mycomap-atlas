@@ -44,6 +44,98 @@
       "doi": "10.5281/zenodo.7254221"
     },
     {
+      "id": "bigmap",
+      "name": "USFS FIA BIGMAP 2018 tree species aboveground biomass",
+      "provider": "USDA Forest Service, Forest Inventory and Analysis",
+      "url": "https://imagery.geoplatform.gov/iipp/rest/services/Vegetation/USFS_FIA_BIGMAP_AboveGroundBiomass/ImageServer",
+      "license": "Public domain (US federal government work)",
+      "role": "Host trees in the lower 48: biomass of each tree species at 30 m, read at 250 m and averaged into the share of each host genus, and of conifers, in a cell's trees.",
+      "citation": "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series for modeling attributes from national forest inventory data. ISPRS Journal of Photogrammetry and Remote Sensing 137:29-46. Data: USDA Forest Service FIA BIGMAP 2018 tree species aboveground biomass.",
+      "doi": "10.1016/j.isprsjprs.2018.01.006"
+    },
+    {
+      "id": "nfi",
+      "name": "Canada's National Forest Inventory kNN forest attributes, 2011",
+      "provider": "Natural Resources Canada, Canadian Forest Service",
+      "url": "https://ftp.maps.canada.ca/pub/nrcan_rncan/Forests_Foret/canada-forests-attributes_attributs-forests-canada/2011-attributes_attributs-2011",
+      "license": "Open Government Licence - Canada",
+      "license_url": "https://open.canada.ca/en/open-government-licence-canada",
+      "role": "Host trees in Canada: percent composition of each tree species at 250 m, summed by genus and averaged into the share of each host genus, and of conifers, among a cell's identified trees. Contains information licensed under the Open Government Licence - Canada.",
+      "citation": "Beaudoin A, Bernier PY, Guindon L, et al. (2014) Mapping attributes of Canada's forests at moderate resolution through kNN and MODIS imagery. Canadian Journal of Forest Research 44:521-532 (doi:10.1139/cjfr-2013-0401). Data: Canada's National Forest Inventory 2011 kNN forest attributes, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990.",
+      "doi": "10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
+    },
+    {
+      "id": "census-states",
+      "name": "US Census cartographic boundary files, states, 1:500,000 (2023)",
+      "provider": "United States Census Bureau",
+      "url": "https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_us_state_500k.zip",
+      "license": "Public domain (US federal government work)",
+      "role": "Where the lower 48 are, so BIGMAP's empty cells can be told from the rest of the continent. Not a predictor."
+    },
+    {
+      "id": "nalcms",
+      "name": "NALCMS Land Cover 2020, 30 m",
+      "provider": "Commission for Environmental Cooperation (CCRS, USGS, CONABIO, CONAFOR, INEGI)",
+      "url": "https://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Candidate layer: share of each cell under needleleaf, broadleaf and mixed forest, counted from 30 m pixels.",
+      "citation": "Commission for Environmental Cooperation (2024) North American Environmental Atlas - Land Cover 2020 30m. NALCMS. Ed. 2.0."
+    },
+    {
+      "id": "usfs-basal-area",
+      "name": "Live tree species basal area of the contiguous United States (2000-2009)",
+      "provider": "USDA Forest Service",
+      "url": "https://doi.org/10.2737/RDS-2013-0013",
+      "license": "US Government work, free to use with citation",
+      "role": "Candidate layer: each host genus's share of live-tree basal area, US lower 48.",
+      "citation": "Wilson BT, Lister AJ, Riemann RI, Griffith DM (2013) Live tree species basal area of the contiguous United States (2000-2009). Newtown Square, PA: USDA Forest Service, Rocky Mountain Research Station.",
+      "doi": "10.2737/RDS-2013-0013"
+    },
+    {
+      "id": "nfi-knn",
+      "name": "Canada's forest attributes, kNN species composition 2011",
+      "provider": "Natural Resources Canada, Canadian Forest Service",
+      "url": "https://doi.org/10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990",
+      "license": "Open Government Licence - Canada",
+      "license_url": "https://open.canada.ca/en/open-government-licence-canada",
+      "role": "Candidate layer: each host genus's share of the stand, Canada.",
+      "citation": "Beaudoin A, Bernier PY, Villemaire P, Guindon L, Guo XJ (2017) Species composition, forest properties and land cover types across Canada's forests at 250m resolution for 2001 and 2011. Natural Resources Canada, Canadian Forest Service.",
+      "doi": "10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
+    },
+    {
+      "id": "adaptwest",
+      "name": "AdaptWest ClimateNA 1991-2020 normals, 1 km",
+      "provider": "AdaptWest Project",
+      "url": "https://adaptwest.databasin.org/pages/adaptwest-climatena/",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Candidate layer: climatic moisture deficit, autumn precipitation and temperature, frost-free period, precipitation as snow and relative humidity.",
+      "citation": "AdaptWest Project (2022) Gridded current and projected climate data for North America at 1km resolution, generated using the ClimateNA v7.30 software (Wang T et al. 2022). Wang T, Hamann A, Spittlehouse D, Carroll C (2016) Locally downscaled and spatially customizable climate data for historical and future periods for North America. PLoS One 11:e0156720.",
+      "doi": "10.1371/journal.pone.0156720"
+    },
+    {
+      "id": "terraclimate",
+      "name": "TerraClimate 1991-2020 climatology",
+      "provider": "Climatology Lab, University of California Merced",
+      "url": "https://www.climatologylab.org/terraclimate.html",
+      "license": "CC0 1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "role": "Candidate layer: annual actual evapotranspiration and mean vapour pressure deficit.",
+      "citation": "Abatzoglou JT, Dobrowski SZ, Parks SA, Hegewisch KC (2018) TerraClimate, a high-resolution global dataset of monthly climate and climatic water balance from 1958-2015. Scientific Data 5:170191.",
+      "doi": "10.1038/sdata.2017.191"
+    },
+    {
+      "id": "glim",
+      "name": "GLiM global lithological map",
+      "provider": "Universität Hamburg (Hartmann & Moosdorf)",
+      "url": "https://www.geo.uni-hamburg.de/en/geologie/forschung/aquatische-geochemie/glim.html",
+      "license": "Not stated by the authors; to be confirmed before any map built on it is published",
+      "role": "Candidate layer: share of each cell underlain by carbonate sedimentary rock.",
+      "citation": "Hartmann J, Moosdorf N (2012) The new global lithological map database GLiM: a representation of rock properties at the Earth surface. Geochemistry, Geophysics, Geosystems 13:Q12004.",
+      "doi": "10.1029/2012GC004370"
+    },
+    {
       "id": "osm",
       "name": "OpenStreetMap basemap",
       "provider": "OpenStreetMap contributors",
@@ -124,6 +216,24 @@
       "role": "Fits the down-sampled random forest, the third model.",
       "citation": "Wright MN, Ziegler A (2017) ranger: a fast implementation of random forests for high dimensional data in C++ and R. Journal of Statistical Software 77(1).",
       "doi": "10.18637/jss.v077.i01"
+    },
+    {
+      "name": "blockCV",
+      "group": "r",
+      "license": "GPL-3",
+      "url": "https://github.com/rvalavi/blockCV",
+      "role": "Measures how far each taxon's detections are spatially autocorrelated, which sets the block size for cross-validation.",
+      "citation": "Valavi R, Elith J, Lahoz-Monfort JJ, Guillera-Arroita G (2019) blockCV: an R package for generating spatially or environmentally separated folds for k-fold cross-validation of species distribution models. Methods in Ecology and Evolution 10:225-232.",
+      "doi": "10.1111/2041-210X.13107"
+    },
+    {
+      "name": "sf",
+      "group": "r",
+      "license": "GPL-2 | MIT",
+      "url": "https://r-spatial.github.io/sf/",
+      "role": "Hands survey sites to blockCV as spatial points.",
+      "citation": "Pebesma E (2018) Simple Features for R: standardized support for spatial vector data. The R Journal 10(1):439-446.",
+      "doi": "10.32614/RJ-2018-009"
     },
     {
       "name": "plumber",
@@ -336,6 +446,36 @@
       "citation": "Dormann CF, Elith J, Bacher S, et al. (2013) Collinearity: a review of methods to deal with it and a simulation study evaluating their performance. Ecography 36:27-46.",
       "doi": "10.1111/j.1600-0587.2012.07348.x",
       "used_for": "Pruning correlated predictors before Maxent."
+    },
+    {
+      "citation": "Warton DI, Renner IW, Ramp D (2013) Model-based control of observer bias for the analysis of presence-only data in ecology. PLoS ONE 8:e79168.",
+      "doi": "10.1371/journal.pone.0079168",
+      "used_for": "Collecting effort as a predictor, held at one level when a map is drawn."
+    },
+    {
+      "citation": "Fithian W, Elith J, Hastie T, Keith DA (2015) Bias correction in species distribution models: pooling survey and collection data for multiple species. Methods in Ecology and Evolution 6:424-438.",
+      "doi": "10.1111/2041-210X.12242",
+      "used_for": "Treating other species' collections as the surveys a species could have turned up in."
+    },
+    {
+      "citation": "Raes N, ter Steege H (2007) A null-model for significance testing of presence-only species distribution models. Ecography 30:727-736.",
+      "doi": "10.1111/j.2007.0906-7590.05041.x",
+      "used_for": "Testing every map against null models before it is trusted."
+    },
+    {
+      "citation": "Kass JM, Muscarella R, Galante PJ, et al. (2021) ENMeval 2.0: redesigned for customizable and reproducible modeling of species' niches and distributions. Methods in Ecology and Evolution 12:1602-1608.",
+      "doi": "10.1111/2041-210X.13628",
+      "used_for": "Tuning Maxent's feature classes and regularisation, and null-model significance, as ENMeval does them."
+    },
+    {
+      "citation": "Tedersoo L, Bahram M, Põlme S, et al. (2014) Global diversity and geography of soil fungi. Science 346:1256688.",
+      "doi": "10.1126/science.1256688",
+      "used_for": "Soil pH first in Maxent's predictor order."
+    },
+    {
+      "citation": "Põlme S, Abarenkov K, Henrik Nilsson R, et al. (2020) FungalTraits: a user-friendly traits database of fungi and fungus-like stramenopiles. Fungal Diversity 105:1-16.",
+      "doi": "10.1007/s13225-020-00466-2",
+      "used_for": "Each taxon's guild, looked up by genus, which decides where the host-tree predictors sit in Maxent's order. Used for lookup only; the table is not redistributed."
     }
   ],
   "products": [
@@ -363,16 +503,23 @@
     {
       "stage": "2. Layers",
       "name": "Raw environmental downloads",
-      "detail": "WorldClim, SoilGrids and WorldCover exactly as downloaded, about 15 GB.",
+      "detail": "WorldClim, SoilGrids and WorldCover exactly as downloaded, about 15 GB, and the BIGMAP and NFI tree-species layers the host-tree predictors are built from.",
       "availability": "at source",
       "why": "Get them from the providers linked above; Atlas does not re-host another project's data."
     },
     {
       "stage": "2. Layers",
       "name": "Predictor stack on the Atlas grid",
-      "detail": "All 33 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
+      "detail": "All 53 predictors reprojected to North America Albers: 5 km (about 100 MB) and 1 km (about 2.2 GB) GeoTIFFs, with a manifest of their checksums.",
       "availability": "planned",
       "why": "Archived on Zenodo as the layers series, a new version with its own DOI whenever a layer is rebuilt. The first version is waiting to be published; it will appear under Downloads. The stack carries WorldClim's ShareAlike licence."
+    },
+    {
+      "stage": "3. Training",
+      "name": "Fungal guild per genus",
+      "detail": "The FungalTraits primary lifestyle of each genus, which orders Maxent's predictors.",
+      "availability": "withheld",
+      "why": "FungalTraits' licence does not clearly allow redistribution, so Atlas only looks genera up in it. Get the table from its authors (Põlme et al. 2020). Each model's guild is recorded with its scores."
     },
     {
       "stage": "3. Training",
