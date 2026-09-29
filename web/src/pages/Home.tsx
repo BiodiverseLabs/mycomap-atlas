@@ -1,8 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { ImageOverlay, MapContainer, TileLayer } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import {
   ArrowRight,
   Crosshair,
@@ -18,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
+import { ImageOverlay, MapContainer, TileLayer } from "@/components/Leaflet";
 import { Page } from "@/components/Layout";
 import { SearchBox } from "@/components/Search";
 import { Card, CardContent } from "@/components/ui/card";

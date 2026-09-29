@@ -1,12 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
-import { CircleMarker, ImageOverlay, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { LatLng, Map as LeafletMap } from "leaflet";
 import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
-import "leaflet/dist/leaflet.css";
 
 import { Help, Th } from "@/components/Common";
+import { CircleMarker, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -183,11 +182,8 @@ function ModelMap({
               center={[cell.lat, cell.lng]}
               radius={2 + (cell.records / busiest) * 5}
               pathOptions={{ color: "#4a3728", fillColor: "#ffffff", fillOpacity: 0.85, weight: 1 }}
-            >
-              <Tooltip>
-                {formatNumber(cell.records)} record{cell.records === 1 ? "" : "s"}
-              </Tooltip>
-            </CircleMarker>
+              tooltip={`${formatNumber(cell.records)} record${cell.records === 1 ? "" : "s"}`}
+            />
           ))}
         </MapContainer>
         {!loading && !model && (

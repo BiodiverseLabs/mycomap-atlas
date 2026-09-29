@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearch } from "wouter";
-import { Circle, CircleMarker, ImageOverlay, MapContainer, TileLayer, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import { Crosshair, MapPin, X } from "lucide-react";
 
+import { Circle, CircleMarker, ImageOverlay, MapContainer, TileLayer, useMapEvents } from "@/components/Leaflet";
 import { PageHeader } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import {
