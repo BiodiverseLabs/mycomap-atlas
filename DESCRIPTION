@@ -32,5 +32,6 @@ Suggests:
     blockCV,
     ecospat,
     xgboost,
-    paws.storage
+    paws.storage,
+    paws.compute
 Config/testthat/edition: 3

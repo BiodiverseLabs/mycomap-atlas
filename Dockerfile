@@ -17,12 +17,21 @@
 FROM rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
 
 ARG CRAN_SNAPSHOT=2026-09-28
+# The same day in Ubuntu's snapshot of its archive, for the few system
+# packages the image adds: pinned by date like the R packages.
+ARG UBUNTU_SNAPSHOT=20260928T000000Z
 
-# Only what Atlas uses. terra and sf come with the base image.
+# ssh, for the nightly pull through mycomap.org's read-only SQL route.
+RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" \
+ && apt-get install -y --no-install-recommends --snapshot "${UBUNTU_SNAPSHOT}" openssh-client \
+ && rm -rf /var/lib/apt/lists/*
+
+# Only what Atlas uses. terra and sf come with the base image; paws.compute
+# and curl are the nightly job's (EC2, and checking the workers' image).
 RUN . /etc/os-release \
  && install2.r --error --skipinstalled --ncpus -1 \
       -r "https://p3m.dev/cran/__linux__/${VERSION_CODENAME}/${CRAN_SNAPSHOT}" \
-      digest jsonlite plumber maxnet xgboost ranger paws.storage openssl testthat targets \
+      digest jsonlite plumber maxnet xgboost ranger paws.storage paws.compute curl openssl testthat targets \
  && rm -rf /tmp/downloaded_packages
 
 WORKDIR /atlas
