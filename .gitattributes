@@ -1,0 +1,7 @@
+# Files that run or are read on Linux keep Unix line endings in every
+# checkout, including a Windows one with core.autocrlf (bash rejects CR).
+*.sh text eol=lf
+atlas text eol=lf
+deploy/lightsail/** text eol=lf
+deploy/aws/** text eol=lf
+Dockerfile text eol=lf
