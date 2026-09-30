@@ -292,7 +292,9 @@ test_that("a shard whose worker is lost resumes from its saved models and fits n
   expect_length(first$taxa(), 2L)
   # Saved, but not finished: a progress record is not a shard's record.
   expect_equal(atlas_shard_saved_count(s$store, s$job$id, 1L), 2L)
-  expect_equal(atlas_job_status(s$store, s$job$id)$missing, 1L)
+  status <- expect_no_warning(atlas_job_status(s$store, s$job$id))
+  expect_identical(status$done, integer())
+  expect_equal(status$missing, 1L)
 
   second <- counting_fit()
   on_machine(machine(), atlas_run_shard(s$store, s$job$id, 1L, quiet = TRUE, fit = second$fit))
