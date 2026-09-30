@@ -49,7 +49,7 @@
       "provider": "USDA Forest Service, Forest Inventory and Analysis",
       "url": "https://imagery.geoplatform.gov/iipp/rest/services/Vegetation/USFS_FIA_BIGMAP_AboveGroundBiomass/ImageServer",
       "license": "Public domain (US federal government work)",
-      "role": "Host trees in the lower 48: biomass of each tree species at 30 m, read at 250 m and averaged into the share of each host genus, and of conifers, in a cell's trees.",
+      "role": "Host trees in the lower 48: biomass of each tree species at 30 m, read at 250 m and averaged into the share of each host genus, and of conifers, in a cell's trees: the 19 mostly mycorrhizal host genera, and the 10 decay and parasite hosts (maple, ash, elm, juniper, cedar, tulip tree, cherry, sweetgum, sycamore, black locust).",
       "citation": "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series for modeling attributes from national forest inventory data. ISPRS Journal of Photogrammetry and Remote Sensing 137:29-46. Data: USDA Forest Service FIA BIGMAP 2018 tree species aboveground biomass.",
       "doi": "10.1016/j.isprsjprs.2018.01.006"
     },
@@ -60,7 +60,7 @@
       "url": "https://ftp.maps.canada.ca/pub/nrcan_rncan/Forests_Foret/canada-forests-attributes_attributs-forests-canada/2011-attributes_attributs-2011",
       "license": "Open Government Licence - Canada",
       "license_url": "https://open.canada.ca/en/open-government-licence-canada",
-      "role": "Host trees in Canada: percent composition of each tree species at 250 m, summed by genus and averaged into the share of each host genus, and of conifers, among a cell's identified trees. Contains information licensed under the Open Government Licence - Canada.",
+      "role": "Host trees in Canada: percent composition of each tree species at 250 m, summed by genus and averaged into the share of each host genus, and of conifers, among a cell's identified trees (decay and parasite hosts included; tulip tree, sweetgum, sycamore and black locust are not mapped in Canada and are 0 there). Contains information licensed under the Open Government Licence - Canada.",
       "citation": "Beaudoin A, Bernier PY, Guindon L, et al. (2014) Mapping attributes of Canada's forests at moderate resolution through kNN and MODIS imagery. Canadian Journal of Forest Research 44:521-532 (doi:10.1139/cjfr-2013-0401). Data: Canada's National Forest Inventory 2011 kNN forest attributes, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990.",
       "doi": "10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
     },

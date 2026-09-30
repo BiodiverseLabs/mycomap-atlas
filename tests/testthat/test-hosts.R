@@ -520,3 +520,202 @@ test_that("a treeless cell in the lower 48 reads 0 for every host, not missing",
   expect_true(all(prairie == 0))
   expect_equal(unlist(terra::extract(out, cbind(500, 500))[1, ])[["host_pinus"]], 1)
 })
+
+# ---- the decay-host candidate, beside production's host layer ----------------
+
+test_that("production's host builder still asks for exactly the same genera, bands and cache files", {
+  set <- atlas_host_set("hosts")
+  expect_equal(set$genera, c(
+    "Pinus", "Quercus", "Picea", "Abies", "Pseudotsuga", "Tsuga", "Betula",
+    "Populus", "Fagus", "Larix", "Castanea", "Notholithocarpus", "Carya",
+    "Alnus", "Salix", "Tilia", "Carpinus", "Ostrya", "Arbutus"
+  ))
+  expect_identical(set$nfi_codes, ATLAS_NFI_GENERA)
+  expect_true(set$totals)
+  expect_equal(atlas_host_set_files(set), c("bigmap-1km.tif", "bigmap-species", "nfi-1km.tif", "nfi"))
+  expect_equal(atlas_host_set_bands(set), ATLAS_HOST_BANDS)
+  expect_equal(ATLAS_HOST_BANDS, c("host_conifer", paste0("host_", tolower(set$genera))))
+  # The functions' defaults are production's.
+  for (fn in c("atlas_bigmap_sums", "atlas_nfi_sums", "atlas_build_hosts")) {
+    expect_identical(eval(formals(get(fn))$set), set, info = fn)
+  }
+  expect_equal(names(atlas_bigmap_groups(atlas_bigmap_species(BIGMAP_SAMPLE))),
+               c("total", "conifer", tolower(set$genera)))
+
+  # Built end to end on stand-ins: the same cache files, read by production's
+  # set, and the same bands out.
+  skip_if_not_installed("terra")
+  seen <- list()
+  sums <- function(bands, ymin, ymax) {
+    r <- terra::rast(xmin = 0, xmax = 10000, ymin = ymin, ymax = ymax, resolution = 1000,
+                     crs = ATLAS_CRS, nlyrs = length(bands))
+    names(r) <- bands
+    terra::values(r) <- 1
+    r
+  }
+  testthat::local_mocked_bindings(
+    atlas_conus_states = function(dir, http) {
+      terra::vect("POLYGON ((0 0, 10000 0, 10000 10000, 0 10000, 0 0))", crs = ATLAS_CRS)
+    },
+    atlas_bigmap_sums = function(dir, window, http, quiet, set) {
+      seen$bigmap <<- set
+      sums(c("total", "conifer", tolower(ATLAS_HOST_GENERA)), 0, 10000)
+    },
+    atlas_nfi_sums = function(dir, http, quiet, set) {
+      seen$nfi <<- set
+      sums(c("total", "conifer", tolower(ATLAS_HOST_GENERA)), 10000, 20000)
+    }
+  )
+  built <- atlas_build_hosts(tempdir(), "draft", http = function(url, dest) stop("no network"),
+                             quiet = TRUE)
+  expect_identical(seen$bigmap, set)
+  expect_identical(seen$nfi, set)
+  expect_equal(names(built), ATLAS_HOST_BANDS)
+})
+
+test_that("a candidate host set can never share production's files, nor name raw/hosts itself", {
+  sets <- atlas_host_sets()
+  expect_length(intersect(atlas_host_set_files(sets$hostsdecay), atlas_host_set_files(sets$hosts)), 0L)
+  clash <- sets
+  clash$hostsdecay$species_dir <- "bigmap-species"
+  expect_error(atlas_host_set("hostsdecay", clash), "share production's files: bigmap-species")
+  clash <- sets
+  clash$hostsdecay$bigmap <- "bigmap-1km.tif"
+  expect_error(atlas_host_set("hostsdecay", clash), "share production's files")
+  empty <- sets
+  empty$hostsdecay$species_dir <- ""
+  expect_error(atlas_host_set("hostsdecay", empty), "plainly")
+  up <- sets
+  up$hostsdecay$species_dir <- "../hosts"
+  expect_error(atlas_host_set("hostsdecay", up), "plainly")
+  expect_error(atlas_host_set("nothing"), "unknown host set")
+})
+
+test_that("the decay-host candidate reads only its own genera, into its own files, and leaves production's caches alone", {
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("decay-", as.integer(stats::runif(1, 1, 1e9))))
+  dir.create(file.path(dir, "bigmap-species"), recursive = TRUE)
+  # Production's caches, and a species file of an interrupted production read.
+  sentinels <- file.path(dir, c("bigmap-1km.tif", "nfi-1km.tif",
+                                "bigmap-species/SPCD_0122_Pinus_ponderosa.tif"))
+  for (f in sentinels) writeBin(as.raw(1:64), f)
+  before <- tools::md5sum(sentinels)
+
+  set <- atlas_host_set("hostsdecay")
+  decay_fns <- sprintf("SPCD_%04d_%s_testii", 300L + seq_along(set$genera), set$genera)
+  offsets <- c(stats::setNames(rep(-2.5, length(decay_fns)), decay_fns),
+               SPCD_0316_Acer_rubrum = 7.5, SPCD_0122_Pinus_ponderosa = 10,
+               SPCD_0802_Quercus_alba = 40)
+  server <- fake_bigmap(offsets)
+  window <- c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000)
+  sums <- atlas_bigmap_sums(dir, window, http = server$http, quiet = TRUE,
+                            functions = names(offsets), set = set)
+  # Only the candidate's genera are read: the total is production's.
+  expect_setequal(server$requested(), c(decay_fns, "SPCD_0316_Acer_rubrum"))
+  expect_equal(names(sums), tolower(set$genera))
+  # Two maples: 0 for the stand-in, 10 for red maple (column 2.5 plus 7.5).
+  expect_equal(unname(terra::values(sums)[1, "acer"]), 10)
+  expect_equal(unname(terra::values(sums)[1, "robinia"]), 0)
+  expect_true(file.exists(file.path(dir, "bigmap-decay-1km.tif")))
+  # Its own species folder is gone; production's are untouched.
+  expect_false(dir.exists(file.path(dir, "bigmap-species-decay")))
+  expect_true(all(file.exists(sentinels)))
+  expect_equal(tools::md5sum(sentinels), before)
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("the decay-host candidate needs only its genera from NFI, and a genus NFI does not map is 0 in Canada", {
+  files <- paste0("NFI_MODIS250m_2011_kNN_", c(
+    "Species_Acer_Rub", "Species_Acer_Spp", "Species_Thuj_Occ", "Species_Pice_Mar",
+    "SpeciesGroups_Needleleaf_Spp", "SpeciesGroups_Broadleaf_Spp"
+  ), "_v1.tif")
+  set <- atlas_host_set("hostsdecay")
+  catalog <- atlas_nfi_needed(atlas_nfi_catalog(files, set$nfi_codes), groups = set$totals)
+  expect_setequal(catalog$file, files[1:3])
+  groups <- atlas_nfi_groups(catalog, set$genera, totals = set$totals)
+  expect_equal(names(groups), tolower(set$genera))
+  expect_setequal(groups$acer, files[1:2])
+  expect_length(groups$liriodendron, 0L)
+  # Production still reads its genera and both groups, and no maple.
+  production <- atlas_nfi_needed(atlas_nfi_catalog(files))
+  expect_setequal(production$file, files[4:6])
+
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("nfi-decay-", as.integer(stats::runif(1, 1, 1e9))))
+  dir.create(file.path(dir, "nfi-decay"), recursive = TRUE)
+  lcc <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
+  values <- c(Species_Acer_Rub = 30, Species_Acer_Spp = 10, Species_Thuj_Occ = 5)
+  for (i in seq_along(values)) {
+    r <- terra::rast(xmin = 0, xmax = 20000, ymin = 5700000, ymax = 5720000, resolution = 250, crs = lcc)
+    terra::values(r) <- values[[i]]
+    terra::writeRaster(r, file.path(dir, "nfi-decay", files[[i]]), overwrite = TRUE)
+  }
+  sums <- atlas_nfi_sums(dir, http = function(url, dest) stop("no network"), quiet = TRUE,
+                         files = files, set = set)
+  expect_equal(names(sums), tolower(set$genera))
+  inside <- terra::values(sums)[stats::complete.cases(terra::values(sums)), , drop = FALSE]
+  expect_gt(nrow(inside), 0L)
+  expect_equal(unique(round(inside[, "acer"], 4)), 40)
+  expect_equal(unique(round(inside[, "liriodendron"], 4)), 0)
+  expect_true(file.exists(file.path(dir, "nfi-decay-1km.tif")))
+  expect_false(file.exists(file.path(dir, "nfi-1km.tif")))
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("each decay genus is a share of the host layer's own tree total", {
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("decay-build-", as.integer(stats::runif(1, 1, 1e9))))
+  hosts_dir <- file.path(dir, "hosts")
+  dir.create(hosts_dir, recursive = TRUE)
+  set <- atlas_host_set("hostsdecay")
+  write_sums <- function(file, bands, ymin, ymax) {
+    r <- terra::rast(xmin = 0, xmax = 10000, ymin = ymin, ymax = ymax, resolution = 1000,
+                     crs = ATLAS_CRS, nlyrs = length(bands))
+    names(r) <- names(bands)
+    terra::values(r) <- matrix(unlist(bands), terra::ncell(r), length(bands), byrow = TRUE)
+    terra::writeRaster(r, file.path(hosts_dir, file))
+  }
+  production_genera <- as.list(stats::setNames(rep(1, length(ATLAS_HOST_GENERA)),
+                                               tolower(ATLAS_HOST_GENERA)))
+  # Production's caches: the United States below 10 km, Canada above.
+  write_sums("bigmap-1km.tif", c(list(total = 100, conifer = 10), production_genera), 0, 10000)
+  write_sums("nfi-1km.tif", c(list(total = 80, conifer = 40), production_genera), 10000, 20000)
+  decay <- stats::setNames(as.list(rep(0, length(set$genera))), tolower(set$genera))
+  us <- decay
+  us$acer <- 25
+  us$liriodendron <- 10
+  ca <- decay
+  ca$acer <- 40
+  write_sums("bigmap-decay-1km.tif", us, 0, 10000)
+  write_sums("nfi-decay-1km.tif", ca, 10000, 20000)
+  before <- tools::md5sum(file.path(hosts_dir, c("bigmap-1km.tif", "nfi-1km.tif")))
+  testthat::local_mocked_bindings(atlas_conus_states = function(dir, http) {
+    terra::vect("POLYGON ((0 0, 10000 0, 10000 10000, 0 10000, 0 0))", crs = ATLAS_CRS)
+  })
+  built <- atlas_build_hosts(dir, "draft", http = function(url, dest) stop("no network"),
+                             quiet = TRUE, set = set)
+  expect_equal(names(built), ATLAS_HOST_DECAY_BANDS)
+  at <- function(x, y) unlist(terra::extract(built, cbind(x, y))[1, ])
+  # 25 of the United States' 100, 40 of Canada's 80.
+  expect_equal(at(2500, 2500)[["host_acer"]], 0.25)
+  expect_equal(at(2500, 2500)[["host_liriodendron"]], 0.1)
+  expect_equal(at(2500, 12500)[["host_acer"]], 0.5)
+  expect_equal(at(2500, 12500)[["host_liriodendron"]], 0)
+  expect_equal(tools::md5sum(file.path(hosts_dir, c("bigmap-1km.tif", "nfi-1km.tif"))), before)
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("the decay-host candidate refuses before reading anything when production's totals are not built", {
+  dir <- file.path(tempdir(), paste0("decay-empty-", as.integer(stats::runif(1, 1, 1e9))))
+  asked <- character()
+  refuse <- function(url, dest) {
+    asked <<- c(asked, url)
+    stop("no network")
+  }
+  expect_error(atlas_build_hosts(dir, "draft", http = refuse, quiet = TRUE,
+                                 set = atlas_host_set("hostsdecay")),
+               "build hosts first")
+  expect_length(asked, 0L)
+  expect_equal(list.files(file.path(dir, "hosts")), character())
+  unlink(dir, recursive = TRUE)
+})

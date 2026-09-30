@@ -59,6 +59,20 @@ export const LAYER_NOTES: Record<string, ReactNode> = {
       models are told the trees are unknown rather than absent.
     </>
   ),
+  hostsdecay: (
+    <>
+      The share of a cell's trees in each of 10 more genera: maple, ash, elm, juniper and eastern
+      redcedar, northern white-cedar and western redcedar, tulip tree, cherry and plum, sweetgum,
+      sycamore and black locust. These are the hosts of many wood-decay and parasitic fungi,
+      where the 19 host genera are mostly mycorrhizal partners. Same sources and same measure as
+      the host trees (BIGMAP in the lower 48, Canada's National Forest Inventory), as shares of
+      the same total of trees. Canada's inventory does not map tulip tree, sweetgum, sycamore or
+      black locust, so they read 0 there. Measured on 158 taxa (30 September 2026), they raised
+      held-out AUC by 0.0018 ± 0.0013 overall and by 0.004 for species with 30–49 collecting
+      sites, maple doing most of the work; they were added on that and on their ecology. They
+      count toward the same allowance of trees as the host genera.
+    </>
+  ),
   waterbalance: (
     <>
       Moisture deficit, autumn climate, snow, humidity, evapotranspiration and vapour pressure

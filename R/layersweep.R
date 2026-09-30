@@ -33,7 +33,7 @@
 
 # The layers production fits on: the baseline every arm adds to.
 ATLAS_PRODUCTION_LAYERS <- c("elevation", "bioclim", "terrain", "soil", "landcover",
-                             "hosts", "foresttype")
+                             "hosts", "hostsdecay", "foresttype")
 ATLAS_BASE_LAYERS <- ATLAS_PRODUCTION_LAYERS
 
 # Each arm: an algorithm, and the layers it may draw predictors from.

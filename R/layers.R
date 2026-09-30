@@ -38,7 +38,14 @@
 # coarse fragments made Maxent slightly worse (-0.0008 +/- 0.0004 AUC), so
 # both were dropped. Total nitrogen was neutral (+0.0001 +/- 0.0003 AUC) and
 # joined the soil layer on ecological grounds (Steve): fungal communities,
-# ectomycorrhizal ones above all, are known to follow soil nitrogen.
+# ectomycorrhizal ones above all, are known to follow soil nitrogen. Round 2,
+# on the same 158 taxa (2026-09-30): the host trees of wood-decay and
+# parasitic fungi (maple, ash, elm, juniper, cedar, tulip tree, cherry,
+# sweetgum, sycamore, black locust) came out +0.0018 +/- 0.0013 AUC overall
+# and +0.004 for taxa with 30-49 sites, maple doing most of the work, and
+# were added as the decay-host layer on that and on ecology; cropland, bare
+# ground and moss/lichen from WorldCover made Maxent slightly worse
+# (-0.0019 +/- 0.0009 AUC) and were dropped.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -184,6 +191,41 @@ atlas_layer_registry <- function() {
       # in the grid's own projection, and both inventories need summing by
       # genus before anything is averaged.
       build = function(raw_dir, grid) atlas_build_hosts(raw_dir, grid)
+    ),
+    # The trees wood-decay and parasitic fungi live on, beside the host layer's
+    # mostly mycorrhizal partners (R/hosts.R, ATLAS_DECAY_HOST_GENERA): shares
+    # of the same tree totals, from the same inventories.
+    hostsdecay = list(
+      id = "hostsdecay",
+      title = "Decay and parasite hosts: share of trees by genus",
+      source = "USFS FIA BIGMAP 2018 (lower 48) and Canada NFI kNN 2011",
+      url = ATLAS_BIGMAP_URL,
+      urls = c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL),
+      license = "BIGMAP: US public domain; NFI: Open Government Licence - Canada",
+      citation = paste(
+        "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series",
+        "for modeling attributes from national forest inventory data. ISPRS J Photogramm",
+        "Remote Sens 137:29-46; Beaudoin A et al. (2014) Mapping attributes of Canada's",
+        "forests at moderate resolution through kNN and MODIS imagery. Can J For Res",
+        "44:521-532, doi:10.1139/cjfr-2013-0401"
+      ),
+      method = "share of genus in the host layer's total trees; BIGMAP sampled at 250 m and block-averaged, NFI area-averaged",
+      note = paste(
+        "Lower 48 and Canada only. Alaska, Hawaii, Puerto Rico and Mexico have no tree",
+        "inventory here: their shares are 0, and the host layer's host_known is 0 there.",
+        "NFI does not map tulip tree, sweetgum, sycamore or black locust: 0 in Canada."
+      ),
+      bands = ATLAS_HOST_DECAY_BANDS,
+      # Filled as the host layer is, without a flag of its own. The two layers
+      # are read from the same two inventories inside the same lower-48
+      # boundary, so the inventories are silent on exactly the ground where
+      # the host layer's host_known is 0; a second flag would be a copy of it
+      # under another name, and the host layer is always fitted beside this
+      # one. Without the fill, the ground no inventory covers would drop out
+      # of every fit on the grid.
+      fill_outside = "host_known",
+      fill_flag = FALSE,
+      build = function(raw_dir, grid) atlas_build_decay_hosts(raw_dir, grid)
     ),
     foresttype = list(
       id = "foresttype",
@@ -378,7 +420,8 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
       stop(id, " is filled where its source is silent, up to the land the elevation ",
            "layer knows: build elevation on the ", grid, " grid first", call. = FALSE)
     }
-    built <- atlas_fill_outside(built, terra::rast(land_path), known = entry$fill_outside)
+    built <- atlas_fill_outside(built, terra::rast(land_path), known = entry$fill_outside,
+                                flag = !isFALSE(entry$fill_flag))
   }
 
   terra::writeRaster(
@@ -470,8 +513,9 @@ atlas_fill_near <- function(x, land, max_km = ATLAS_FILL_NEAR_KM) {
 #' source does not reach gets 0 in every band and known = 0. The sea, where
 #' land is NA, stays NA. Without this, one layer's gap removes that ground
 #' from every model fitted on the grid, whether or not the model needs the
-#' layer.
-atlas_fill_outside <- function(x, land, known = "known") {
+#' layer. flag = FALSE leaves the known band off, for a layer whose gaps
+#' another layer's flag already names.
+atlas_fill_outside <- function(x, land, known = "known", flag = TRUE) {
   bands <- names(x)
   land <- land[[1]]
   if (!terra::compareGeom(x, land, stopOnError = FALSE)) {
@@ -480,6 +524,11 @@ atlas_fill_outside <- function(x, land, known = "known") {
   # Known where every band has a value: a cell half described is not known.
   described <- !is.na(terra::app(x, "sum", na.rm = FALSE))
   filled <- terra::ifel(described, x, 0)
+  if (!isTRUE(flag)) {
+    out <- terra::mask(filled, land)
+    names(out) <- bands
+    return(out)
+  }
   out <- terra::mask(c(filled, described * 1), land)
   names(out) <- c(bands, known)
   out

@@ -91,9 +91,13 @@ atlas_predictor_priority <- function(guild = ATLAS_GUILD_UNKNOWN) {
   )
 }
 
-#' Every host-tree column, the flag first.
+#' Every host-tree column, the flag first. The decay hosts' genera
+#' (R/hosts.R, ATLAS_HOST_DECAY_BANDS) come after the mycorrhizal partners, so
+#' an ectomycorrhizal fungus is still offered its partners first; where the
+#' decay-host layer is not built its bands have no columns, and the order of
+#' the rest is what it was.
 atlas_host_columns <- function() {
-  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS)
+  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS, ATLAS_HOST_DECAY_BANDS)
 }
 
 #' Whether a column is a host tree's share (not the flag beside them).
@@ -264,6 +268,10 @@ ATLAS_PREDICTOR_LABELS <- c(
   host_castanea = "Chestnut", host_notholithocarpus = "Tanoak", host_carya = "Hickory",
   host_alnus = "Alder", host_salix = "Willow", host_tilia = "Basswood",
   host_carpinus = "Hornbeam", host_ostrya = "Hophornbeam", host_arbutus = "Madrone",
+  host_acer = "Maple", host_fraxinus = "Ash", host_ulmus = "Elm",
+  host_juniperus = "Juniper and eastern redcedar", host_thuja = "Northern white-cedar and western redcedar",
+  host_liriodendron = "Tulip tree", host_prunus = "Cherry and plum", host_liquidambar = "Sweetgum",
+  host_platanus = "Sycamore", host_robinia = "Black locust",
   host_known = "Tree inventories cover this place",
   forest_needleleaf = "Needleleaf forest",
   forest_broadleaf = "Broadleaf forest",
@@ -282,8 +290,8 @@ ATLAS_PREDICTOR_LABELS <- c(
 # What each layer is, for people.
 ATLAS_LAYER_LABELS <- c(
   bioclim = "Climate", elevation = "Elevation", terrain = "Terrain", soil = "Soil",
-  landcover = "Land cover", hosts = "Host trees", foresttype = "Forest type",
-  waterbalance = "Water balance"
+  landcover = "Land cover", hosts = "Host trees", hostsdecay = "Decay and parasite hosts",
+  foresttype = "Forest type", waterbalance = "Water balance"
 )
 
 #' A predictor's or layer's name for people, or its own name when none is known.
