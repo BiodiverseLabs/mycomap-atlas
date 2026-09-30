@@ -5,19 +5,34 @@
 # the lower 48, and British Columbia alone holds 8% of the records — so the
 # registry uses global sources and accepts their coarser detail.
 #
-# The exceptions are the two host-tree layers (R/hosts.R, R/layersources.R).
-# No continental map of tree species exists, so each joins a United States
-# inventory to Canada's, and neither inventory speaks for Alaska, Hawaii,
-# Puerto Rico or Mexico. A layer's gap must not take ground away from every
-# model, so there the shares are filled with 0 and a band beside them
-# (host_known, hostw_known) says the inventories were silent: the ground stays
-# in every fit and on every map, and a model can tell "no such trees" from
-# "nobody mapped the trees" (atlas_fill_outside).
+# The exception is the host-tree layer (R/hosts.R). No continental map of
+# tree species exists, so it joins the United States inventory to Canada's,
+# and neither speaks for Alaska, Hawaii, Puerto Rico or Mexico. A layer's gap
+# must not take ground away from every model, so there the shares are filled
+# with 0 and a band beside them (host_known) says the inventories were silent:
+# the ground stays in every fit and on every map, and a model can tell "no
+# such trees" from "nobody mapped the trees" (atlas_fill_outside).
 #
-# Layers after landcover are candidates, measured by atlas sweep-layers before
-# any of them is fitted on in production (R/layersweep.R). Building a layer is
-# what puts it into every fit on that grid, so candidates are built only into
-# a separate data directory until they are chosen.
+# Sources are brought onto the grid by averaging the source cells each grid
+# cell covers, never by interpolation. Interpolating a 1 km source onto a 5 km
+# cell reads only the four source cells nearest its centre, so the cell is a
+# sample rather than a description, and it comes out empty if any of the four
+# is empty: measured at the records, that cost soil 10,321 records against
+# 117. Averaging keeps every cell that holds any data. What is still empty
+# on land afterwards, coastal cells mostly, is filled from the cells around it
+# up to ATLAS_FILL_NEAR_KM away (atlas_fill_near), where land is wherever the
+# land-cover layer has data, the finest coastline among the sources; land
+# cover is therefore built first.
+#
+# Production fits on ATLAS_PRODUCTION_LAYERS (R/layersweep.R). The rest are
+# candidates, measured by atlas sweep-layers before any is fitted on in
+# production. Building a layer is what puts it into every fit on that grid,
+# so a candidate is built only into a separate data directory until it is
+# chosen. Measured on 152 taxa (2026-09-30): host trees earned their place
+# (+0.008 +/- 0.004 AUC, the second most important layer after climate);
+# forest type was kept; water balance is held; carbonate bedrock, landform
+# (wetness, northness, heat load) and a second host layer from USFS basal
+# area added nothing and were dropped.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -55,7 +70,8 @@ atlas_layer_registry <- function() {
       url = "https://worldclim.org/data/worldclim21.html",
       license = "CC BY-SA 4.0",
       citation = "Fick SE, Hijmans RJ (2017) WorldClim 2. Int J Climatol 37:4302-4315",
-      method = "bilinear",
+      method = "average",
+      fill_near = TRUE,
       fetch = function(path, res) geodata::elevation_global(res = res, path = path),
       rename = function(x) {
         names(x) <- "elevation"
@@ -69,7 +85,8 @@ atlas_layer_registry <- function() {
       url = "https://worldclim.org/data/worldclim21.html",
       license = "CC BY-SA 4.0",
       citation = "Fick SE, Hijmans RJ (2017) WorldClim 2. Int J Climatol 37:4302-4315",
-      method = "bilinear",
+      method = "average",
+      fill_near = TRUE,
       fetch = function(path, res) geodata::worldclim_global(var = "bio", res = res, path = path),
       rename = atlas_rename_bioclim
     ),
@@ -80,7 +97,7 @@ atlas_layer_registry <- function() {
       url = NA_character_,
       license = "Follows the elevation layer",
       citation = "Derived with terra::terrain()",
-      method = "bilinear",
+      method = "average",
       depends = "elevation",
       # Slope needs a cell's neighbours, so computed naively every coastal cell
       # comes back empty — which cost 10.7% of the records, most of them on the
@@ -101,7 +118,8 @@ atlas_layer_registry <- function() {
       url = "https://soilgrids.org",
       license = "CC BY 4.0",
       citation = "Poggio L et al. (2021) SoilGrids 2.0. SOIL 7:217-240",
-      method = "bilinear",
+      method = "average",
+      fill_near = TRUE,
       # Downloaded rather than read remotely. SoilGrids' own service serves the
       # native 250 m grid — 58,034 x 159,246 cells in Interrupted Goode
       # Homolosine — and a continental window of that is a billion pixels to
@@ -126,7 +144,7 @@ atlas_layer_registry <- function() {
       url = "https://esa-worldcover.org",
       license = "CC BY 4.0",
       citation = "Zanaga D et al. (2022) ESA WorldCover 10 m 2021 v200",
-      method = "bilinear",
+      method = "average",
       note = "Tree cover is a fraction, not host identity.",
       fetch = function(path, res) {
         vars <- c("trees", "shrubs", "grassland", "wetland", "water", "built")
@@ -161,22 +179,6 @@ atlas_layer_registry <- function() {
       # genus before anything is averaged.
       build = function(raw_dir, grid) atlas_build_hosts(raw_dir, grid)
     ),
-    landform = list(
-      id = "landform",
-      title = "Wetness, northness and heat load",
-      source = "Derived from the 1 km elevation layer",
-      url = NA_character_,
-      license = "Follows the elevation layer",
-      citation = paste(
-        "McCune B, Keon D (2002) Equations for potential annual direct incident",
-        "radiation and heat load. J Veg Sci 13:603-606; wetness index after",
-        "Beven KJ, Kirkby MJ (1979) Hydrol Sci Bull 24:43-69"
-      ),
-      # Averaged, not interpolated: a draft cell keeps the share of wet
-      # hollows and shaded slopes its 1 km cells had. See R/landform.R.
-      method = "average",
-      fetch = function(path, res) atlas_landform_source(path)
-    ),
     foresttype = list(
       id = "foresttype",
       title = "Needleleaf, broadleaf and mixed forest",
@@ -187,35 +189,16 @@ atlas_layer_registry <- function() {
         "Commission for Environmental Cooperation (2024) North American Environmental",
         "Atlas - Land Cover 2020 30m. NALCMS; CCRS, USGS, CONABIO, CONAFOR, INEGI. Ed. 2.0"
       ),
-      note = "Share of each cell under each forest type, counted from 30 m pixels.",
-      method = "average",
-      fetch = function(path, res) atlas_nalcms_source(path)
-    ),
-    hosts_wilson = list(
-      id = "hosts_wilson",
-      title = "Host tree genera from basal area 2000-2009 (share of the stand)",
-      source = paste(
-        "USFS live tree species basal area 2000-2009 (US lower 48);",
-        "NFI kNN species composition 2011 (Canada)"
-      ),
-      url = "https://doi.org/10.2737/RDS-2013-0013",
-      license = "US Government work; Open Government Licence - Canada",
-      citation = paste(
-        "Wilson BT, Lister AJ, Riemann RI, Griffith DM (2013) Live tree species basal",
-        "area of the contiguous United States (2000-2009). USDA Forest Service,",
-        "doi:10.2737/RDS-2013-0013; Beaudoin A et al. (2017) Species composition,",
-        "forest properties and land cover types across Canada's forests at 250m",
-        "resolution for 2001 and 2011. NRCan, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
-      ),
       note = paste(
-        "Two national products joined at the border: basal-area share in the US,",
-        "stand-composition share in Canada. Alaska, Mexico and the islands are in",
-        "neither: their shares are 0 and hostw_known is 0. An alternative to hosts,",
-        "kept to be measured against it."
+        "Share of each cell under each forest type, counted from 30 m pixels. Hawaii and",
+        "the Caribbean islands, which NALCMS does not map, are filled from Copernicus",
+        "Global Land Cover 2019 (100 m, CC BY 4.0), and forest_known is 0 there."
       ),
-      fill_outside = "hostw_known",
       method = "average",
-      fetch = function(path, res) atlas_hosts_wilson_source(path)
+      fetch = function(path, res) atlas_nalcms_source(path),
+      # Wherever the main source is empty and the supplement is not.
+      supplement = function(path, res) atlas_copernicus_source(path),
+      supplement_known = "forest_known"
     ),
     waterbalance = list(
       id = "waterbalance",
@@ -231,19 +214,6 @@ atlas_layer_registry <- function() {
       ),
       method = "average",
       fetch = function(path, res) atlas_waterbalance_source(path)
-    ),
-    bedrock = list(
-      id = "bedrock",
-      title = "Carbonate bedrock (share of the cell)",
-      source = "GLiM global lithological map (Hartmann & Moosdorf 2012)",
-      url = "https://www.geo.uni-hamburg.de/en/geologie/forschung/aquatische-geochemie/glim.html",
-      license = "Not stated by the authors: confirm before publishing maps built on it",
-      citation = paste(
-        "Hartmann J, Moosdorf N (2012) The new global lithological map database GLiM.",
-        "Geochem Geophys Geosyst 13:Q12004"
-      ),
-      method = "average",
-      fetch = function(path, res) atlas_bedrock_source(path)
     )
   )
 }
@@ -382,6 +352,20 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     built <- atlas_project_to_grid(raw, grid, entry$method)
   }
 
+  if (!is.null(entry$supplement)) {
+    if (!quiet) message("  ", id, ": filling where the source is silent, from the supplement")
+    extra <- atlas_project_to_grid(entry$supplement(raw_dir, atlas_source_resolution(grid)),
+                                   grid, entry$method)
+    built <- atlas_supplement(built, extra, known = entry$supplement_known)
+  }
+  if (isTRUE(entry$fill_near)) {
+    land <- atlas_land_mask(grid)
+    if (is.null(land)) {
+      stop(id, " is filled up to the land the land-cover layer knows: build landcover on the ",
+           grid, " grid first", call. = FALSE)
+    }
+    built <- atlas_fill_near(built, land, max_km = ATLAS_FILL_NEAR_KM)
+  }
   if (!is.null(entry$fill_outside)) {
     land_path <- atlas_layer_path("elevation", grid)
     if (!file.exists(land_path)) {
@@ -423,6 +407,57 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
   invisible(record)
 }
 
+#' Fill a layer from a second source wherever the first is silent.
+#'
+#' A cell keeps the main source's values wherever it has all of them; where it
+#' has none, it takes the supplement's; a band named known is 1 for the first
+#' and 0 for the second, and empty where neither speaks.
+atlas_supplement <- function(x, extra, known = "known") {
+  bands <- names(x)
+  extra <- terra::resample(extra, x, method = "near")
+  names(extra) <- bands
+  described <- !is.na(terra::app(x, "sum", na.rm = FALSE))
+  supplied <- !described & !is.na(terra::app(extra, "sum", na.rm = FALSE))
+  filled <- terra::ifel(described, x, extra)
+  flag <- terra::ifel(described, 1, terra::ifel(supplied, 0, NA))
+  out <- c(filled, flag)
+  names(out) <- c(bands, known)
+  out
+}
+
+# How far from a cell with data an empty land cell may be filled.
+ATLAS_FILL_NEAR_KM <- 10
+
+#' Where there is land on a grid: wherever the land-cover layer has data.
+#' NULL when land cover is not built.
+atlas_land_mask <- function(grid = "draft") {
+  path <- atlas_layer_path("landcover", grid)
+  if (!file.exists(path)) {
+    return(NULL)
+  }
+  !is.na(terra::rast(path)[[1]])
+}
+
+#' Fill empty land cells from the cells around them.
+#'
+#' Each pass gives an empty cell the mean of its eight neighbours that have
+#' data; a pass reaches one cell further, so as many passes are run as cells
+#' fit in max_km. Cells that had data keep it exactly. Everything off the land
+#' mask ends empty, whatever the passes put there, so the sea is not painted
+#' with the coast's values.
+atlas_fill_near <- function(x, land, max_km = ATLAS_FILL_NEAR_KM) {
+  passes <- max(1L, as.integer(ceiling(max_km * 1000 / terra::res(x)[1])))
+  filled <- x
+  for (pass in seq_len(passes)) {
+    empty_land <- terra::global(is.na(filled[[1]]) & land, "sum", na.rm = TRUE)[[1]]
+    if (!is.finite(empty_land) || empty_land == 0) break
+    filled <- terra::focal(filled, w = 3, fun = "mean", na.policy = "only", na.rm = TRUE)
+  }
+  out <- terra::mask(filled, land, maskvalues = c(FALSE, NA))
+  names(out) <- names(x)
+  out
+}
+
 #' Fill a layer where its source is silent but there is land.
 #'
 #' Cells the source describes keep their values and get known = 1. Land the
@@ -454,7 +489,8 @@ atlas_build_layers <- function(ids = NULL, grid = "draft", overwrite = FALSE,
     stop("unknown layer(s): ", paste(unknown, collapse = ", "), call. = FALSE)
   }
   derived <- vapply(registry[ids], function(x) !is.null(x$derive), logical(1))
-  ordered <- c(ids[!derived], ids[derived])
+  # Land cover first: the others are filled up to the land it knows.
+  ordered <- c(intersect("landcover", ids), setdiff(ids[!derived], "landcover"), ids[derived])
   for (id in ordered) {
     atlas_build_layer(id, grid = grid, overwrite = overwrite, quiet = quiet)
   }

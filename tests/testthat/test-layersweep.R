@@ -26,8 +26,8 @@ test_that("an arm needing a layer that is not built is skipped, and named", {
   expect_equal(attr(kept, "skipped"), "+y")
 })
 
-test_that("the production baseline is the five layers fitted on today", {
-  expect_setequal(ATLAS_BASE_LAYERS, c("elevation", "bioclim", "terrain", "soil", "landcover"))
+test_that("the sweep's baseline is what production fits on", {
+  expect_equal(ATLAS_BASE_LAYERS, ATLAS_PRODUCTION_LAYERS)
   expect_true(all(ATLAS_BASE_LAYERS %in% names(atlas_layer_registry())))
 })
 
@@ -132,14 +132,11 @@ test_that("the method arms fit the old designs on production's layers, for both 
 })
 
 test_that("the host trees get an arm in the order of an unknown guild", {
-  arms <- atlas_layer_sweep_arms(list(hosts = "hosts"), base = "base1")
+  arms <- atlas_layer_sweep_arms(list(a = "la"), base = c("base1", "hosts"))
   names <- vapply(arms, function(x) x$arm, character(1))
-  flat <- arms[[which(names == "+hosts:flat")]]
+  flat <- arms[[which(names == "base:flat")]]
   expect_false(flat$guild_order)
   expect_equal(flat$layers, c("base1", "hosts"))
-  none <- vapply(atlas_layer_sweep_arms(list(a = "la"), base = "base1"),
-                 function(x) x$arm, character(1))
-  expect_false("+hosts:flat" %in% none)
 })
 
 design_table <- function() {

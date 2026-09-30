@@ -349,7 +349,7 @@ test_that("a Maxent fit records its guild and the predictor order that guild gav
     expect_equal(mycorrhizal$genus, "Eastern")
     expect_equal(mycorrhizal$guild, "ectomycorrhizal")
     # Whether the inventories spoke for the ground comes before what they said.
-    expect_equal(unlist(mycorrhizal$priority)[1:4],
+    expect_equal(unlist(mycorrhizal$priority)[1:3],
                  c("soil_phh2o", ATLAS_HOST_KNOWN_BANDS, "host_conifer"))
 
     unknown <- fit(stats::setNames(character(), character()))$metrics

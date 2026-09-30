@@ -21,7 +21,7 @@
 #   base:no-effort   survey sites, but effort is not a predictor
 #   base:per-record  the design before survey sites: every non-detection site
 #                    repeated once for each record collected there, no effort
-#   +hosts:flat      host trees in the order of a fungus of unknown guild
+#   base:flat        host trees in the order of a fungus of unknown guild
 #
 # The old design is judged by the new design's yardstick, held-out sites each
 # counted once with effort held fixed. That is the yardstick the maps are for:
@@ -31,8 +31,10 @@
 # whatever has been built so far. Nothing here writes a model. It writes one
 # results file under data/layer-sweeps/.
 
-# The layers production fits on today: the baseline every arm adds to.
-ATLAS_BASE_LAYERS <- c("elevation", "bioclim", "terrain", "soil", "landcover")
+# The layers production fits on: the baseline every arm adds to.
+ATLAS_PRODUCTION_LAYERS <- c("elevation", "bioclim", "terrain", "soil", "landcover",
+                             "hosts", "foresttype")
+ATLAS_BASE_LAYERS <- ATLAS_PRODUCTION_LAYERS
 
 # Each arm: an algorithm, and the layers it may draw predictors from.
 # "maxnet" arms go through production's pruning and cap; "rf" uses every
@@ -49,13 +51,11 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
     list(arm = paste0("+", group), algorithm = "maxnet",
          layers = c(base, new[[group]]))
   })
-  # The two host layers are rivals: "all" takes the first of them that is built.
-  rivals <- intersect(ATLAS_RIVAL_LAYERS, unlist(new, use.names = FALSE))
-  everything <- setdiff(c(base, unlist(new, use.names = FALSE)), rivals[-1])
-  flat <- if ("hosts" %in% names(new)) {
-    list(list(arm = "+hosts:flat", algorithm = "maxnet", layers = c(base, new$hosts),
-              guild_order = FALSE))
-  }
+  everything <- c(base, unlist(new, use.names = FALSE))
+  # Host trees are in production now, so the arm that puts them in the order of
+  # a fungus of unknown guild is against the baseline, with nothing added.
+  flat <- list(list(arm = "base:flat", algorithm = "maxnet", layers = base,
+                    guild_order = FALSE))
   designs <- if (isTRUE(method)) {
     unlist(lapply(c("maxnet", "rf"), function(algorithm) {
       prefix <- if (algorithm == "rf") "rf:base" else "base"
@@ -115,17 +115,9 @@ atlas_design_rows <- function(train, design = "sites", n_background = 10000, see
   out
 }
 
-# Layers that answer the same question two ways; only one goes into "all".
-ATLAS_RIVAL_LAYERS <- c("hosts", "hosts_wilson")
-
 # The candidate layers, by the question each one asks.
 ATLAS_NEW_LAYER_GROUPS <- list(
-  forest = "foresttype",
-  hosts = "hosts",
-  hosts_wilson = "hosts_wilson",
-  climate = "waterbalance",
-  bedrock = "bedrock",
-  landform = "landform"
+  climate = "waterbalance"
 )
 
 #' Keep the arms whose layers are all built, and say which were dropped.
