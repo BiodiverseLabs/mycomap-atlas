@@ -28,7 +28,7 @@ ATLAS_ESM_INNER_BLOCK_KM <- 100
 atlas_esm_predictors <- function(training, n = ATLAS_ESM_PREDICTORS, correlation = 0.7,
                                  priority = atlas_predictor_priority(),
                                  host_share = atlas_host_allowance()) {
-  available <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
+  available <- setdiff(atlas_predictor_columns(training), c(ATLAS_EFFORT_COLUMN, ATLAS_SOURCE_FLAGS))
   background <- training[training$presence == 0L, available, drop = FALSE]
   kept <- atlas_prune_correlated(background, threshold = correlation, priority = priority)
   kept <- atlas_limit_hosts(kept, background, n, host_share)

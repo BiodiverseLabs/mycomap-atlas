@@ -13,7 +13,7 @@ const NO_EFFECT = 0.002;
 /** Which model to open on: the forest if it has a breakdown, it being the
  * most skilled of the three on most taxa, else the first that has one. */
 function firstWithBreakdown(models: Partial<Record<Algorithm, Model | null>>): Algorithm | undefined {
-  const order: Algorithm[] = ["rf", "maxnet", "xgboost"];
+  const order: Algorithm[] = ["rf", "esm", "maxnet", "xgboost"];
   return order.find((a) => models[a]?.importance?.length);
 }
 

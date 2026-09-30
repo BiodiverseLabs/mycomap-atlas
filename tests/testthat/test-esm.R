@@ -218,3 +218,134 @@ test_that("the study writes its results and never touches the fitted models", {
     expect_gt(auc[["esm@8"]], 0.7)
   })
 })
+
+# --- In production ---------------------------------------------------------
+
+# The synthetic landscape with the eastern fungus cut down to k records.
+sparse_world <- function(k) {
+  world <- synthetic_landscape()
+  focal <- which(world$points$scientific_name == "Eastern fungus")
+  world$points <- world$points[-focal[-seq_len(k)], , drop = FALSE]
+  world
+}
+
+fit_sparse <- function(world, algorithm = "esm", nulls = 0, predict = TRUE) {
+  atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                  fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                  buffer_km = 300, predict = predict, quiet = TRUE, nulls = nulls,
+                  algorithm = algorithm, guilds = stats::setNames(character(), character()))
+}
+
+test_that("the ensemble maps taxa with 3 to 19 sites, and the others keep theirs", {
+  esm <- atlas_algorithm("esm")
+  expect_equal(atlas_algorithm_min(esm, 20), 3)
+  expect_equal(atlas_algorithm_max(esm), 19)
+  expect_equal(atlas_algorithm_min(atlas_algorithm("maxnet"), 20), 20)
+  expect_equal(atlas_algorithm_max(atlas_algorithm("maxnet")), Inf)
+  expect_equal(atlas_algorithm_min(atlas_algorithm("xgboost"), 20), 50)
+  expect_true("esm" %in% atlas_parse_algorithms("all"))
+})
+
+test_that("taxa under 20 sites are scored on three folds of 100 km blocks; the others as before", {
+  esm <- atlas_fit_settings(algorithm = "esm", folds = 5, block_km = "auto", layers = "x", guild_table = "g")
+  expect_equal(esm$folds, 3)
+  expect_equal(esm$block_km, 100)
+  expect_equal(esm$min_blocks, 3)
+  maxent <- atlas_fit_settings(algorithm = "maxnet", folds = 5, block_km = "auto", layers = "x", guild_table = "g")
+  expect_equal(maxent$folds, 5)
+  expect_equal(maxent$block_km, "auto")
+  expect_equal(maxent$min_blocks, ATLAS_MIN_BLOCKS)
+})
+
+test_that("a batch offers the ensemble its range, with a margin for sites that drop out", {
+  points <- rbind(
+    fake_points(x = seq(0, by = 6000, length.out = 25), y = 0, names = "Rich"),
+    fake_points(x = seq(0, by = 6000, length.out = 21), y = 50000, names = "Edge"),
+    fake_points(x = seq(0, by = 6000, length.out = 10), y = 100000, names = "Sparse"),
+    fake_points(x = c(0, 6000), y = 150000, names = "Too few")
+  )
+  points$cell <- seq_len(nrow(points))
+  esm <- atlas_algorithm("esm")
+  names <- atlas_batch_candidates(points, atlas_algorithm_min(esm),
+                                  max_presences = atlas_algorithm_max(esm) + ATLAS_RANGE_MARGIN)$scientific_name
+  expect_setequal(names, c("Edge", "Sparse"))
+  expect_equal(atlas_batch_candidates(points, 20)$scientific_name, c("Rich", "Edge"))
+})
+
+test_that("an ensemble fitted on a dozen sites has a map, scores on three folds, and a breakdown", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("glmnet")
+  with_data_dir({
+    result <- fit_sparse(sparse_world(12))
+    m <- result$metrics
+    expect_equal(m$algorithm, "esm")
+    expect_equal(m$presences, 12)
+    expect_equal(length(m$folds), 3L)
+    expect_equal(m$block_km, 100)
+    expect_false(m$map_withheld)
+    expect_true(file.exists(atlas_model_path("Eastern fungus", "draft", ".tif", "esm")))
+    expect_true(length(m$importance) >= 1L)
+    expect_true(is.finite(m$auc_mean))
+  })
+})
+
+test_that("from 3 or 4 sites a map is drawn only when it beats its null models", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("glmnet")
+  with_data_dir({
+    world <- sparse_world(4)
+    untested <- fit_sparse(world)$metrics
+    expect_equal(untested$presences, 4)
+    expect_true(untested$map_withheld)
+    expect_null(untested$raster)
+    expect_false(file.exists(atlas_model_path("Eastern fungus", "draft", ".tif", "esm")))
+    # Withheld is a finished state: the fit is current without a map.
+    settings <- untested$settings
+    expect_true(atlas_fit_is_current(untested, "f00dfeed", settings, predict = TRUE))
+
+    testthat::local_mocked_bindings(atlas_skill = function(null, boyce, alpha = 0.05) "passed")
+    passed <- fit_sparse(world)$metrics
+    expect_false(passed$map_withheld)
+    expect_true(file.exists(atlas_model_path("Eastern fungus", "draft", ".tif", "esm")))
+  })
+})
+
+test_that("from 5 sites up a map is drawn whatever its skill, as every other map is", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("glmnet")
+  with_data_dir({
+    testthat::local_mocked_bindings(atlas_skill = function(null, boyce, alpha = 0.05) "failed")
+    m <- fit_sparse(sparse_world(6))$metrics
+    expect_equal(m$skill, "failed")
+    expect_false(m$map_withheld)
+    expect_true(file.exists(atlas_model_path("Eastern fungus", "draft", ".tif", "esm")))
+  })
+})
+
+test_that("the ensemble refuses a taxon rich enough for the other models, and they refuse a sparse one", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("glmnet")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    rich <- tryCatch(fit_sparse(synthetic_landscape(), predict = FALSE), atlas_insufficient_evidence = function(e) e)
+    expect_s3_class(rich, "atlas_insufficient_evidence")
+    expect_match(conditionMessage(rich), "enough detection sites")
+    sparse <- tryCatch(fit_sparse(sparse_world(12), algorithm = "maxnet", predict = FALSE),
+                       atlas_insufficient_evidence = function(e) e)
+    expect_s3_class(sparse, "atlas_insufficient_evidence")
+  })
+})
+
+test_that("a withheld map is current in a release's index, and says so", {
+  entry <- list(fingerprint = "f", settings_key = "k", map = FALSE, map_withheld = TRUE, presences = 4)
+  settings <- list(a = 1)
+  entry$settings_key <- atlas_settings_key(settings)
+  expect_true(atlas_index_current(entry, "f", settings, 3, 19))
+  expect_false(atlas_index_current(entry, "f", settings, 5, 19))
+  entry$map_withheld <- NULL
+  expect_false(atlas_index_current(entry, "f", settings, 3, 19))
+  indexed <- atlas_model_index_entry(list(taxon = "T", fingerprint = "f", settings_key = "k", presences = 4,
+                                    map_withheld = TRUE, skill = "failed"), "esm")
+  expect_true(indexed$map_withheld)
+  expect_false(indexed$map)
+})

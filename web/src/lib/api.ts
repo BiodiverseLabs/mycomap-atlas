@@ -70,13 +70,19 @@ export interface ModelBounds {
 }
 
 /** The models Atlas fits, side by side, in the order they are shown. */
-export const ALGORITHMS = ["maxnet", "xgboost", "rf"] as const;
+export const ALGORITHMS = ["maxnet", "xgboost", "rf", "esm"] as const;
 export type Algorithm = (typeof ALGORITHMS)[number];
+
+/** The three fitted side by side for taxa with 20 or more sites. */
+export const FULL_MODELS: Algorithm[] = ["maxnet", "xgboost", "rf"];
+/** The one fitted for taxa with 3 to 19 sites. */
+export const SPARSE_MODELS: Algorithm[] = ["esm"];
 
 export const ALGORITHM_LABELS: Record<Algorithm, string> = {
   maxnet: "Maxent",
   xgboost: "Boosted trees",
   rf: "Random forest",
+  esm: "Small-model ensemble",
 };
 
 /**
@@ -85,6 +91,7 @@ export const ALGORITHM_LABELS: Record<Algorithm, string> = {
  */
 export const ALGORITHM_MIN_PRESENCES: Partial<Record<Algorithm, number>> = {
   xgboost: 50,
+  esm: 3,
 };
 
 /** One line on what each model is, for people rather than modellers. */
@@ -95,6 +102,8 @@ export const ALGORITHM_NOTES: Record<Algorithm, string> = {
     "Hundreds of small decision trees, each correcting the last. Finds combinations of conditions a smooth curve cannot. Drawn only from 50 presence cells: with fewer it overfits and ranks ground wrongly.",
   rf:
     "250 trees grown independently, each on as many background records as presences, then left to vote.",
+  esm:
+    "Dozens of small models of two variables each, every one checked on ground it did not see and weighted by how well it did there, then averaged. For taxa with 3 to 19 sites, too few for the other three.",
 };
 
 /** How much a map relied on one dataset (or one variable): the fall in
@@ -132,6 +141,8 @@ export interface Model {
   /** What the map rests on, dataset by dataset, largest first. Absent on fits
    * from before it was measured. */
   importance?: ModelImportance[];
+  /** A map not drawn: from 3 or 4 sites, one that did not beat its nulls. */
+  map_withheld?: boolean;
   /** Datasets this model kept no variable of (Maxent prunes). */
   layers_unused?: string[];
   uses_effort?: boolean;

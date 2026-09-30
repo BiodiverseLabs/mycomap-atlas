@@ -544,6 +544,15 @@ atlas_model_path <- function(name, grid = "draft", extension = ".tif", algorithm
   file.path(atlas_model_dir(grid, algorithm), paste0(slug, extension))
 }
 
+#' A refusal for any other reason: a message, classed like the others.
+atlas_refusal <- function(name, presences, reason) {
+  structure(
+    class = c("atlas_insufficient_evidence", "error", "condition"),
+    list(message = paste0("not modelled with this algorithm: ", name, " has ", reason, "."),
+         call = NULL, presences = presences)
+  )
+}
+
 #' A refusal to model, as opposed to a failure: the taxon is fine, there is
 #' just not enough of it, or not spread widely enough to be scored. Classed so
 #' a batch run can count the two apart.
@@ -616,6 +625,10 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
                                min_blocks = ATLAS_MIN_BLOCKS,
                                guild_table = atlas_guild_table_key()) {
   algo <- atlas_algorithm(algorithm)
+  design <- atlas_algorithm_design(algo, folds, block_km, min_blocks)
+  folds <- design$folds
+  block_km <- design$block_km
+  min_blocks <- design$min_blocks
   list(
     grid = grid,
     algorithm = algo$id,
@@ -695,6 +708,11 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   # prune overrides it.
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
+  max_presences <- atlas_algorithm_max(algo)
+  design <- atlas_algorithm_design(algo, folds, block_km, min_blocks)
+  folds <- design$folds
+  block_km <- design$block_km
+  min_blocks <- design$min_blocks
   stack <- stack %||% atlas_predictor_stack(grid)
   settings <- atlas_fit_settings(
     grid = grid, n_background = n_background, buffer_km = buffer_km,
@@ -722,11 +740,20 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   if (presences < min_presences) {
     refuse(atlas_insufficient_evidence(name, presences, grid, min_presences))
   }
+  if (presences > max_presences) {
+    refuse(atlas_refusal(name, presences, paste0(
+      "enough detection sites (", presences, ") for the full models; the ", algo$label,
+      " is for taxa with ", min_presences, " to ", max_presences)))
+  }
 
   considered <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
   if (isTRUE(prune)) {
-    keep <- atlas_choose_predictors(training, threshold = correlation, priority = priority,
-                                    host_share = atlas_host_allowance(guild))
+    keep <- if (is.function(algo$choose)) {
+      algo$choose(training, correlation, priority, atlas_host_allowance(guild))
+    } else {
+      atlas_choose_predictors(training, threshold = correlation, priority = priority,
+                              host_share = atlas_host_allowance(guild))
+    }
     kept_attributes <- attributes(training)[c("area_km2", "seed", "fingerprint", "dropped", "thin_km")]
     training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
     attributes(training)[names(kept_attributes)] <- kept_attributes
@@ -779,10 +806,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     list(reps = 0L)
   }
   skill <- atlas_skill(null, boyce_pooled)
+  # From very few sites a map is drawn only once it has shown it knows
+  # something; the scores are kept either way.
+  withheld <- presences < (algo$map_needs_skill_below %||% 0) && !identical(skill, "passed")
 
   held_score <- atlas_score_at_effort(algo$score, effort_at)
   suitability <- NULL
-  if (isTRUE(predict)) {
+  if (isTRUE(predict) && !withheld) {
     occupied <- training[training$presence == 1L, , drop = FALSE]
     area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
     suitability <- atlas_predict_raster(model, stack, area, score = held_score)
@@ -830,6 +860,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     # each predictor within it, is shuffled (R/importance.R).
     importance = atlas_importance_table(attr(scores, "falls"), layer_of),
     layers_unused = as.list(atlas_label(layers_unused, ATLAS_LAYER_LABELS)),
+    map_withheld = withheld,
     predictors_considered = length(considered),
     genus = atlas_taxon_genus(name),
     guild = guild,
@@ -941,7 +972,7 @@ atlas_fit_is_current <- function(metrics, fingerprint, settings, predict = TRUE)
   if (!identical(as.character(metrics$settings_key %||% ""), atlas_settings_key(settings))) {
     return(FALSE)
   }
-  if (isTRUE(predict)) {
+  if (isTRUE(predict) && !isTRUE(metrics$map_withheld)) {
     # A fit without a map stores its raster as an empty JSON object, which
     # comes back as an empty list rather than NULL.
     raster <- metrics$raster

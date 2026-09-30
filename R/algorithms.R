@@ -128,6 +128,45 @@ ATLAS_ALGORITHMS <- list(
     },
     score = function(model, newdata) atlas_rf_suitability(model, newdata),
     package = "ranger"
+  ),
+  esm = list(
+    label = "Small-model ensemble",
+    # Only for taxa with too few sites for the other three (R/esm.R). Thinned
+    # to 8 sites, rich taxa kept Boyce within 0.04 of what all their sites
+    # gave; at 5, half still showed clear skill (2026-09-30, 118 taxa).
+    min_presences = 3,
+    max_presences = 19,
+    # Below 5 sites a map is shown only when it beats its null models; from 5
+    # it is shown like any other, faint when it fails (Steve, 2026-09-30).
+    map_needs_skill_below = 5,
+    # Few sites are rarely spread over five blocks of up to 300 km (38% of
+    # taxa with 5-7 sites, none with 3-4), so these taxa are scored on three
+    # folds of 100 km blocks (98% and 80%).
+    design = list(folds = 3L, block_km = 100, min_blocks = 3L),
+    prune = TRUE,
+    # Up to ten predictors in the guild's order, whatever the site count:
+    # each small model takes only two.
+    choose = function(training, correlation, priority, host_share) {
+      c(atlas_esm_predictors(training, correlation = correlation, priority = priority,
+                             host_share = host_share),
+        intersect(ATLAS_EFFORT_COLUMN, names(training)))
+    },
+    default = function(training) list(),
+    # The ensemble weighs its own small models; there is nothing to tune.
+    grid = function(training) list(list()),
+    grid_description = function() {
+      list(pairs = "every pair of up to 10 predictors", weights = "Somers' D on inner blocks")
+    },
+    learner = function() {
+      list(predictors = ATLAS_ESM_PREDICTORS, lambda = ATLAS_ESM_LAMBDA,
+           inner_folds = ATLAS_ESM_INNER_FOLDS, inner_block_km = ATLAS_ESM_INNER_BLOCK_KM)
+    },
+    fit = function(train, params, seed = 1L, tuning = FALSE) {
+      atlas_fit_esm(train, predictors = setdiff(atlas_predictor_columns(train), ATLAS_EFFORT_COLUMN),
+                    seed = seed)
+    },
+    score = function(model, newdata) atlas_esm_suitability(model, newdata),
+    package = "glmnet"
   )
 )
 
@@ -142,9 +181,32 @@ atlas_algorithm <- function(name = "maxnet") {
 }
 
 #' The fewest detection sites an algorithm will map: the run's own minimum,
-#' or the algorithm's, whichever is higher.
+#' or the algorithm's, whichever is higher. An algorithm made for a range of
+#' site counts (the small-model ensemble) keeps its own.
 atlas_algorithm_min <- function(algo, min_presences = 20) {
+  if (!is.null(algo$max_presences)) return(algo$min_presences)
   max(min_presences, algo$min_presences %||% 0)
+}
+
+#' The most detection sites an algorithm will map; beyond it the taxon gets
+#' the other models.
+atlas_algorithm_max <- function(algo) {
+  algo$max_presences %||% Inf
+}
+
+# Candidates are counted before sites without predictor data are dropped, so
+# a range algorithm looks this many sites past its maximum and lets the fit
+# refuse what is really too rich; a taxon counted at 20 that has 19 usable
+# sites is refused by the others and must not fall between them.
+ATLAS_RANGE_MARGIN <- 3
+
+#' How an algorithm is scored: its own folds, block size and fewest blocks
+#' when it has them, otherwise the run's.
+atlas_algorithm_design <- function(algo, folds = 5, block_km = "auto",
+                                   min_blocks = ATLAS_MIN_BLOCKS) {
+  design <- algo$design %||% list()
+  list(folds = design$folds %||% folds, block_km = design$block_km %||% block_km,
+       min_blocks = design$min_blocks %||% min_blocks)
 }
 
 #' Delete a taxon's model for one algorithm: its scores and its map.

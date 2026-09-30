@@ -1012,7 +1012,8 @@
           "enum": [
             "maxnet",
             "xgboost",
-            "rf"
+            "rf",
+            "esm"
           ],
           "default": "maxnet"
         }
@@ -1399,7 +1400,8 @@
             "enum": [
               "maxnet",
               "xgboost",
-              "rf"
+              "rf",
+            "esm"
             ],
             "description": "Absent on the oldest Maxent models, which are Maxent."
           },
@@ -1645,7 +1647,8 @@
             "enum": [
               "maxnet",
               "xgboost",
-              "rf"
+              "rf",
+            "esm"
             ]
           },
           "presences": {
@@ -2068,7 +2071,8 @@
               "enum": [
                 "maxnet",
                 "xgboost",
-                "rf"
+                "rf",
+            "esm"
               ]
             },
             "description": "Models with a map for this taxon; empty when it has none yet."
@@ -2161,7 +2165,8 @@
               "enum": [
                 "maxnet",
                 "xgboost",
-                "rf"
+                "rf",
+            "esm"
               ]
             },
             "description": "Every model with a map for this taxon."

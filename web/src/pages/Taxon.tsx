@@ -13,6 +13,8 @@ import {
   ALGORITHMS,
   ALGORITHM_LABELS,
   ALGORITHM_MIN_PRESENCES,
+  FULL_MODELS,
+  SPARSE_MODELS,
   getCells,
   getModel,
   getTaxon,
@@ -25,7 +27,8 @@ import {
 import { signInHere, useMe } from "@/lib/session";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
-const PUBLISH_AT = 20;
+// The fewest sites any map is fitted from (the small-model ensemble's).
+const PUBLISH_AT = 3;
 
 type Bounds = [[number, number], [number, number]];
 
@@ -108,6 +111,7 @@ function ModelMap({
   presences,
   expanded,
   hidden,
+  alone = false,
   onToggle,
 }: {
   name: string;
@@ -120,6 +124,8 @@ function ModelMap({
   group: MutableRefObject<MapGroup>;
   expanded: boolean;
   hidden: boolean;
+  /** The only map this taxon has: it takes the whole row. */
+  alone?: boolean;
   onToggle: () => void;
 }) {
   const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
@@ -127,7 +133,7 @@ function ModelMap({
   const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
   const failed = model?.skill === "failed";
   return (
-    <Card className={`overflow-hidden ${hidden ? "hidden" : expanded ? "lg:col-span-3" : ""}`}>
+    <Card className={`overflow-hidden ${hidden ? "hidden" : expanded || alone ? "lg:col-span-3" : ""}`}>
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <CardTitle className="text-base text-[#4a3728]">{ALGORITHM_LABELS[algorithm]}</CardTitle>
@@ -140,7 +146,7 @@ function ModelMap({
                 {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
               </>
             )}
-            <button
+            {!alone && <button
               type="button"
               onClick={onToggle}
               className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
@@ -153,7 +159,7 @@ function ModelMap({
               aria-pressed={expanded}
             >
               {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
+            </button>}
           </span>
         </div>
       </CardHeader>
@@ -193,6 +199,12 @@ function ModelMap({
         {failed && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
             No better than its null models: this map says little about habitat.
+          </div>
+        )}
+        {model?.map_withheld && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
+            Not drawn: from 3 or 4 sites a map is shown only when it beats its null models, and
+            this one did not. It is fitted again as records arrive.
           </div>
         )}
         {!loading && !model && (
@@ -406,6 +418,13 @@ export default function Taxon() {
     models[a] = fits[i].data;
   });
   const anyModel = ALGORITHMS.map((a) => models[a]).find(Boolean) ?? null;
+  // A taxon with 3 to 19 sites has the ensemble alone; richer ones the three.
+  const sparse = Boolean(models.esm);
+  const shown = sparse ? SPARSE_MODELS : FULL_MODELS;
+  const shownModels: Partial<Record<Algorithm, Model | null>> = {};
+  shown.forEach((a) => {
+    shownModels[a] = models[a];
+  });
   const loading = fits.some((f) => f.isLoading);
   const points = cells.data?.cells ?? [];
   const group = useRef<MapGroup>({ maps: new Map(), syncing: false });
@@ -471,9 +490,10 @@ export default function Taxon() {
               <h2 className="font-semibold text-[#4a3728]">No habitat map yet</h2>
               {taxon.data && taxon.data.localities < PUBLISH_AT ? (
                 <p className="mt-1">
-                  {formatNumber(taxon.data.localities)} independent localities so far, and a map
-                  needs about {PUBLISH_AT}. This taxon is a survey target: every new sequenced
-                  collection from a new place brings a map closer.
+                  {formatNumber(taxon.data.localities)} independent{" "}
+                  {taxon.data.localities === 1 ? "locality" : "localities"} so far, and a first map
+                  needs {PUBLISH_AT}; the full three models need about 20. This taxon is a survey
+                  target: every new sequenced collection from a new place brings a map closer.
                 </p>
               ) : (
                 <p className="mt-1">
@@ -487,15 +507,15 @@ export default function Taxon() {
           <>
             <section>
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
-                <SectionTitle>Three models, same records</SectionTitle>
+                <SectionTitle>{sparse ? "One map from many small models" : "Three models, same records"}</SectionTitle>
                 <div className="flex flex-wrap items-center gap-4">
-                  {expanded && (
+                  {expanded && !sparse && (
                     <div
                       className="inline-flex rounded-md border border-[#A87146]/20 p-0.5 text-xs"
                       role="group"
                       aria-label="Which map to show"
                     >
-                      {ALGORITHMS.map((a) => (
+                      {shown.map((a) => (
                         <button
                           key={a}
                           type="button"
@@ -523,7 +543,7 @@ export default function Taxon() {
                 </div>
               </div>
               <div className="grid gap-4 lg:grid-cols-3">
-                {ALGORITHMS.map((algorithm) => (
+                {shown.map((algorithm) => (
                   <ModelMap
                     key={algorithm}
                     name={name}
@@ -536,10 +556,19 @@ export default function Taxon() {
                     presences={anyModel?.presences}
                     expanded={expanded === algorithm}
                     hidden={expanded != null && expanded !== algorithm}
+                    alone={shown.length === 1}
                     onToggle={() => show(expanded === algorithm ? null : algorithm)}
                   />
                 ))}
               </div>
+              {sparse && (
+                <p className="mt-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+                  With {formatNumber(anyModel?.presences ?? 0)} sites this taxon has too few for the
+                  three full models, which need about 20. Its map averages dozens of small models of
+                  two variables each, weighted by how well each did on ground it never saw. Tested on
+                  well-recorded fungi cut down to 8 sites, such maps kept most of their skill.
+                </p>
+              )}
               <p className="mt-3 text-xs text-muted-foreground">
                 White dots are collections, grouped into {cells.data?.degrees ?? 0.1}° cells. The
                 maps move together; expand one to see it across all three panels. Each map is coloured by rank within its own ground: the darkest
@@ -551,7 +580,7 @@ export default function Taxon() {
 
             <section>
               <SectionTitle>How good is each map?</SectionTitle>
-              <Comparison models={models} />
+              <Comparison models={shownModels} />
               <p className="mt-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
                 All three are scored on the same {anyModel?.folds.length ?? 5} spatial folds of{" "}
                 {formatNumber(anyModel?.block_km ?? 200)} km, against the same sites where people
@@ -571,7 +600,7 @@ export default function Taxon() {
                 Which datasets, and which variables within each, the map leans on to tell where this
                 fungus grows. Open a dataset to see its variables.
               </p>
-              <WhatDrives models={models} />
+              <WhatDrives models={shownModels} />
             </section>
           </>
         )}
