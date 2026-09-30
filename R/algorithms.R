@@ -54,7 +54,7 @@ ATLAS_ALGORITHMS <- list(
       })
     },
     grid_description = function() ATLAS_MAXNET_GRID,
-    learner = function() list(),
+    learner = function() list(path_steps = ATLAS_MAXNET_PATH_STEPS),
     fit = function(train, params, seed = 1L, tuning = FALSE) {
       atlas_fit_maxnet(train, classes = params$classes, regmult = params$regmult)
     },

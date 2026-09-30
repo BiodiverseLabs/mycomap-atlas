@@ -27,6 +27,7 @@ Suggests:
     openssl,
     sf,
     maxnet,
+    glmnet,
     ENMeval,
     ranger,
     blockCV,
