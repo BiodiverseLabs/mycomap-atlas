@@ -119,7 +119,7 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 58 environmental predictors, including which trees grow there and what kind of forest it is.</li>
+                <li>Describe every cell of North America (5 km now, 1 km for releases) with 69 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor for the trees, held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
@@ -179,7 +179,7 @@ export default function Methods() {
 
             <Section id="predictors" title="Environmental predictors">
               <p>
-                Fifty-eight predictors. All but the host trees and forest type come from sources
+                Sixty-nine predictors. All but the host trees and forest type come from sources
                 that cover the whole continent: the obvious United States products (TreeMap, NLCD,
                 PAD-US) stop at the border, and British Columbia alone holds 8% of the records. No
                 continental map of tree species exists, so the host trees join the two national
@@ -210,6 +210,13 @@ export default function Methods() {
                     </span>,
                   ],
                   [
+                    "Decay and parasite hosts",
+                    "share of a cell's trees that are each of 10 genera wood-decay and parasitic fungi live on (maple, ash, elm, juniper, cedar, tulip tree, cherry, sweetgum, sycamore, black locust), over the same trees as the host genera",
+                    <span>
+                      <DatasetLink id="bigmap" /> (lower 48), <DatasetLink id="nfi" /> (Canada)
+                    </span>,
+                  ],
+                  [
                     "Forest type",
                     "share of each cell under needleleaf, broadleaf and mixed forest, counted from 30 m pixels; Hawaii and the Caribbean islands from a 100 m global map, with a predictor saying which",
                     <span>
@@ -230,7 +237,10 @@ export default function Methods() {
                 gap should not take ground away from every model, so there the shares are 0 and one
                 more predictor says the inventories were silent: those records still train models,
                 those places are still mapped, and a model can tell "no such trees" from "nobody
-                mapped the trees". Hazel has no layer in BIGMAP and is left out. Code:{" "}
+                mapped the trees". Hazel has no layer in BIGMAP and is left out. The decay and
+                parasite hosts are shares of the same trees, filled the same way; Canada's
+                inventory does not map tulip tree, sweetgum, sycamore or black locust, which read
+                0 there. Code:{" "}
                 <Ext href={`${GITHUB_URL}/blob/main/R/hosts.R`}>R/hosts.R</Ext>.
               </p>
               <p>
@@ -330,7 +340,8 @@ export default function Methods() {
                 </li>
                 <li>
                   The trees have an <B>allowance</B>: a third of an ectomycorrhizal fungus's
-                  predictors, a fifth of any other's. The host trees are barely correlated with one
+                  predictors, a fifth of any other's, the decay and parasite hosts included; they
+                  come after the 19 host genera. The host trees are barely correlated with one
                   another, so without it a fungus with forty sites spent its ten predictors on soil
                   pH and nine trees, and had no climate at all. The ones kept are the conifer share
                   and then the commonest trees of the region, judged on the non-detection sites,
@@ -351,7 +362,7 @@ export default function Methods() {
                 cap stops binding.
               </p>
               <p>
-                The two tree models get all 58 predictors, in any order; Maxent is never given the two that only say which source described a cell. Trees are not confused by correlated
+                The two tree models get all 69 predictors, in any order; Maxent is never given the two that only say which source described a cell. Trees are not confused by correlated
                 inputs the way a regression is, and in the benchmark boosted trees did worse when
                 restricted to Maxent's list (−0.011 ± 0.003 AUC).
               </p>

@@ -505,4 +505,7 @@ test_that("a layers archive with the host layer carries the Canadian licence's a
   expect_true(any(grepl("BIGMAP", with_hosts, fixed = TRUE)))
   without <- atlas_archive_readme(bundle("bioclim"), files)
   expect_false(any(grepl("Open Government Licence", without, fixed = TRUE)))
+  # The decay hosts are drawn from the same Canadian inventory.
+  decay_only <- atlas_archive_readme(bundle(c("bioclim", "hostsdecay")), files)
+  expect_true(any(grepl("Open Government Licence - Canada", decay_only, fixed = TRUE)))
 })

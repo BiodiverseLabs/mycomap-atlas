@@ -150,14 +150,27 @@ onto 1 km cells once, under `data/layers/raw/hosts/`, and each grid is built
 from those sums (a first build reads all 327 BIGMAP species, about two to
 three hours, and 2 GB of NFI files).
 
+The decay-host layer (`hostsdecay`) adds 10 more genera the same way: the
+trees wood-decay and parasitic fungi live on (maple, ash, elm, juniper,
+cedar, tulip tree, cherry, sweetgum, sycamore, black locust), as shares of the
+same tree totals, read from the host layer's cached sums rather than summed
+again. It reads only those genera's 52 BIGMAP species (about 50 minutes) and
+17 NFI files, into its own cache files. NFI does not map tulip tree,
+sweetgum, sycamore or black locust, so they are 0 in Canada. It is filled
+where the inventories are silent exactly as the host layer is, and leaves the
+saying of it to `host_known`. Its bands follow the host genera in Maxent's
+order and count toward the same allowance.
+
 ```bash
 ./atlas build-layers --only=hosts --grid=draft
+./atlas build-layers --only=hostsdecay --grid=draft   # after hosts
 ```
 
 ### The production layers, and the candidates
 
-Production fits on seven layers (`ATLAS_PRODUCTION_LAYERS`, R/layersweep.R):
-climate, elevation, terrain, soil, land cover, host trees and forest type
+Production fits on eight layers (`ATLAS_PRODUCTION_LAYERS`, R/layersweep.R):
+climate, elevation, terrain, soil, land cover, host trees, decay and parasite
+hosts, and forest type
 (`foresttype`, NALCMS 2020, with Hawaii and the Caribbean filled from
 Copernicus Global Land Cover). Any other layer is a candidate: built only into
 a separate data directory and measured by `./atlas sweep-layers` before it is
@@ -172,7 +185,11 @@ climate, most of all for ectomycorrhizal fungi); forest type was kept; water
 balance and fruiting-season climate (`waterbalance`, ClimateNA 1991-2020 and
 TerraClimate) is held as a candidate; carbonate bedrock, landform (wetness,
 northness, heat load) and a second host-tree layer from USFS basal area added
-nothing and were dropped.
+nothing and were dropped. Round 2 on 158 taxa (2026-09-30): the decay and
+parasite hosts came out +0.0018 +/- 0.0013 AUC (+0.004 for taxa with 30-49
+sites, maple doing most of the work) and joined production on that and on
+ecology; cropland, bare ground and moss/lichen from WorldCover made Maxent
+slightly worse (-0.0019 +/- 0.0009) and were dropped.
 
 ## Training data
 
@@ -280,7 +297,8 @@ go depends on the guild of the fungus's genus in FungalTraits (Põlme et al.
 2020): straight after soil pH for ectomycorrhizal genera, after temperature for
 everything else, and each model records its guild and the order it was given.
 The trees have an allowance: a third of an ectomycorrhizal fungus's predictors,
-a fifth of any other's. The twenty host bands are barely correlated, so without
+a fifth of any other's, the decay and parasite hosts included (they come after
+the host genera). The twenty host bands are barely correlated, so without
 it a fungus with forty sites spent its ten predictors on soil pH and nine
 trees and had no climate at all. The ones kept are the conifer share and then
 the commonest trees of the region, judged on the non-detection sites, never on

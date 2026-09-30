@@ -297,15 +297,78 @@ test_that("a filled layer costs a training table no rows", {
 test_that("the host layer is filled where the inventories are silent, with its flag", {
   registry <- atlas_layer_registry()
   expect_equal(registry$hosts$fill_outside, "host_known")
+  expect_false(isFALSE(registry$hosts$fill_flag))
   expect_equal(ATLAS_HOST_KNOWN_BANDS, "host_known")
   filled <- Filter(function(x) !is.null(x$fill_outside), registry)
-  expect_equal(names(filled), "hosts")
+  expect_equal(names(filled), c("hosts", "hostsdecay"))
+  # The decay hosts are silent where the host layer is, so they are filled
+  # the same way and leave the saying of it to host_known.
+  expect_equal(registry$hostsdecay$fill_outside, "host_known")
+  expect_true(isFALSE(registry$hostsdecay$fill_flag))
+})
+
+test_that("a layer filled without a flag gets 0 on silent land, keeps the sea empty, and adds no band", {
+  skip_if_not_installed("terra")
+  s <- outside_setup()
+  out <- atlas_fill_outside(s$source, s$land, known = "host_known", flag = FALSE)
+  expect_equal(names(out), c("host_pinus", "host_quercus"))
+  v <- terra::values(out)
+  expect_equal(unname(v[1, ]), c(0.4, 0.1))
+  expect_equal(unname(v[2, ]), c(0, 0))
+  expect_equal(unname(v[3, ]), c(0, 0))
+  expect_true(all(is.na(v[4, ])))
+})
+
+test_that("the decay-host layer is built filled, with only its genus bands, and costs no rows", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    s <- outside_setup()
+    source <- terra::rast(s$source[[1]], nlyrs = length(ATLAS_HOST_DECAY_BANDS))
+    terra::values(source) <- rep(c(0.3, NA, NA, 0.9), length(ATLAS_HOST_DECAY_BANDS))
+    names(source) <- ATLAS_HOST_DECAY_BANDS
+    land <- s$land
+    names(land) <- "elevation"
+    dir.create(atlas_layer_dir("draft"), recursive = TRUE, showWarnings = FALSE)
+    terra::writeRaster(land, atlas_layer_path("elevation", "draft"))
+    testthat::local_mocked_bindings(atlas_build_decay_hosts = function(raw_dir, grid) source)
+    record <- atlas_build_layer("hostsdecay", "draft", quiet = TRUE)
+    expect_equal(unlist(record$bands), ATLAS_HOST_DECAY_BANDS)
+    built <- terra::rast(atlas_layer_path("hostsdecay", "draft"))
+    acer <- unname(terra::values(built)[, "host_acer"])
+    expect_equal(acer[1:3], c(0.3, 0, 0), tolerance = 1e-6)
+    expect_true(is.na(acer[[4]]))
+    table <- data.frame(presence = c(1L, 0L, 0L), cell = 1:3, x = c(500, 1500, 2500), y = 500)
+    expect_equal(nrow(atlas_add_predictors(table, stack = built)), 3L)
+  })
+})
+
+test_that("the decay hosts are a production layer, labelled, placed and credited like the host trees", {
+  registry <- atlas_layer_registry()
+  entry <- registry$hostsdecay
+  expect_equal(entry$bands, ATLAS_HOST_DECAY_BANDS)
+  expect_equal(ATLAS_HOST_DECAY_BANDS, paste0("host_", c(
+    "acer", "fraxinus", "ulmus", "juniperus", "thuja", "liriodendron", "prunus",
+    "liquidambar", "platanus", "robinia"
+  )))
+  for (field in c("source", "url", "license", "citation")) {
+    expect_equal(entry[[field]], registry$hosts[[field]], info = field)
+  }
+  expect_equal(unlist(entry$urls), unlist(registry$hosts$urls))
+  for (band in entry$bands) {
+    expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
+    expect_true(band %in% atlas_host_columns(), label = paste(band, "is in the host block"))
+  }
+  expect_equal(atlas_label("hostsdecay", ATLAS_LAYER_LABELS), "Decay and parasite hosts")
+  # Fitted on in production, built after the host layer whose totals it reads.
+  expect_true("hostsdecay" %in% ATLAS_PRODUCTION_LAYERS)
+  expect_gt(match("hostsdecay", ATLAS_PRODUCTION_LAYERS), match("hosts", ATLAS_PRODUCTION_LAYERS))
 })
 
 test_that("production fits on the five first layers plus host trees and forest type, and the dropped layers are gone", {
   registry <- atlas_layer_registry()
   expect_equal(ATLAS_PRODUCTION_LAYERS,
-               c("elevation", "bioclim", "terrain", "soil", "landcover", "hosts", "foresttype"))
+               c("elevation", "bioclim", "terrain", "soil", "landcover", "hosts", "hostsdecay",
+                 "foresttype"))
   expect_true(all(ATLAS_PRODUCTION_LAYERS %in% names(registry)))
   expect_false(any(c("bedrock", "landform", "hosts_wilson") %in% names(registry)))
   expect_equal(unlist(ATLAS_NEW_LAYER_GROUPS, use.names = FALSE), "waterbalance")

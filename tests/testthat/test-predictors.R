@@ -304,3 +304,82 @@ test_that("which source described a cell is never a Maxent predictor", {
   expect_false(any(ATLAS_SOURCE_FLAGS %in% kept))
   expect_setequal(ATLAS_SOURCE_FLAGS, c("host_known", "forest_known"))
 })
+
+# --- The decay and parasite hosts (R/hosts.R, hostsdecay) ----------------------
+
+# The priority before the decay hosts existed, pinned: where their layer is not
+# built, every model's order must be exactly what it was.
+PRIORITY_BEFORE_DECAY_HOSTS <- list(
+  ectomycorrhizal = c(
+    "soil_phh2o", "host_known", "host_conifer", "host_pinus", "host_quercus",
+    "host_picea", "host_abies", "host_pseudotsuga", "host_tsuga",
+    "host_betula", "host_populus", "host_fagus", "host_larix", "host_castanea",
+    "host_notholithocarpus", "host_carya", "host_alnus", "host_salix",
+    "host_tilia", "host_carpinus", "host_ostrya", "host_arbutus",
+    "clim_cmd", "bio12", "clim_ppt_autumn", "bio17", "bio15", "bio14",
+    "bio1", "clim_tave_autumn", "clim_ffp", "bio6", "bio5", "bio4",
+    "forest_needleleaf", "forest_broadleaf", "forest_mixed", "cover_trees",
+    "cover_wetland", "cover_shrubs", "cover_grassland", "soil_soc",
+    "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec", "clim_rh",
+    "clim_vpd", "clim_aet", "clim_pas", "elevation", "slope", "roughness"
+  ),
+  unknown = c(
+    "soil_phh2o", "clim_cmd", "bio12", "clim_ppt_autumn", "bio17",
+    "bio15", "bio14", "bio1", "clim_tave_autumn", "clim_ffp", "bio6",
+    "bio5", "bio4", "host_known", "host_conifer", "host_pinus", "host_quercus",
+    "host_picea", "host_abies", "host_pseudotsuga", "host_tsuga",
+    "host_betula", "host_populus", "host_fagus", "host_larix", "host_castanea",
+    "host_notholithocarpus", "host_carya", "host_alnus", "host_salix",
+    "host_tilia", "host_carpinus", "host_ostrya", "host_arbutus",
+    "forest_needleleaf", "forest_broadleaf", "forest_mixed", "cover_trees",
+    "cover_wetland", "cover_shrubs", "cover_grassland", "soil_soc",
+    "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec", "clim_rh",
+    "clim_vpd", "clim_aet", "clim_pas", "elevation", "slope", "roughness"
+  )
+)
+
+test_that("the decay-host bands sit in the host block, after the host genera, for both guild kinds", {
+  for (guild in c("ectomycorrhizal", "unknown")) {
+    order <- atlas_predictor_priority(guild)
+    last_host <- match("host_arbutus", order)
+    expect_equal(order[last_host + seq_along(ATLAS_HOST_DECAY_BANDS)],
+                 ATLAS_HOST_DECAY_BANDS, info = guild)
+    expect_true(all(match(ATLAS_HOST_BANDS, order) < min(match(ATLAS_HOST_DECAY_BANDS, order))))
+    after <- order[[max(match(ATLAS_HOST_DECAY_BANDS, order)) + 1L]]
+    expect_equal(after, if (guild == "ectomycorrhizal") "clim_cmd" else "forest_needleleaf",
+                 info = guild)
+  }
+})
+
+test_that("without the decay-host bands, every guild's priority is exactly what it was", {
+  for (guild in names(PRIORITY_BEFORE_DECAY_HOSTS)) {
+    order <- atlas_predictor_priority(guild)
+    expect_equal(order[!order %in% ATLAS_HOST_DECAY_BANDS], PRIORITY_BEFORE_DECAY_HOSTS[[guild]],
+                 info = guild)
+  }
+  # What a model is offered depends only on the columns it has: on a table
+  # without the decay hosts, pruning keeps what it kept.
+  training <- host_training(40)
+  for (guild in names(PRIORITY_BEFORE_DECAY_HOSTS)) {
+    now <- atlas_choose_predictors(training, priority = atlas_predictor_priority(guild),
+                                   host_share = atlas_host_allowance(guild))
+    before <- atlas_choose_predictors(training, priority = PRIORITY_BEFORE_DECAY_HOSTS[[guild]],
+                                      host_share = atlas_host_allowance(guild))
+    expect_equal(now, before, info = guild)
+  }
+})
+
+test_that("a decay host's share counts against the host allowance like any host", {
+  expect_true(all(atlas_is_host_share(ATLAS_HOST_DECAY_BANDS)))
+  training <- host_training(40)
+  n <- nrow(training)
+  set.seed(11)
+  for (band in ATLAS_HOST_DECAY_BANDS) training[[band]] <- stats::runif(n, 0, 0.02)
+  # Maple is the region's commonest tree after pine.
+  training$host_acer <- stats::runif(n, 0.2, 0.5)
+  kept <- atlas_choose_predictors(training, priority = atlas_predictor_priority("ectomycorrhizal"),
+                                  host_share = atlas_host_allowance("ectomycorrhizal"))
+  # Still three trees in ten predictors, and maple takes oak's place.
+  expect_equal(sum(atlas_is_host_share(kept)), 3L)
+  expect_equal(kept[atlas_is_host_share(kept)], c("host_conifer", "host_pinus", "host_acer"))
+})
