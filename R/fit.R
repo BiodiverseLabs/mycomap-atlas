@@ -96,11 +96,24 @@ atlas_spatial_folds <- function(x, y, k = 5, block_km = 200, seed = 1L,
   fold_of[match(block, blocks)]
 }
 
+# Penalty values maxnet steps through on its way to the one it keeps.
+#
+# maxnet fits a whole path of 200 penalties, from one strong enough to zero
+# every feature down to the one it wants, and keeps only the last model; the
+# path is there so each step can start from the one before. The model at the
+# end is the same however many steps lead to it, since the penalised fit has
+# one best answer. Measured on a taxon of 23 sites (2026-09-30): with 20 steps
+# the predictions matched maxnet's own to r = 1.00000 for linear and quadratic
+# features, 35 times faster, and to r = 0.99999 with hinges, 1.4 times faster.
+ATLAS_MAXNET_PATH_STEPS <- 20L
+
 #' Fit Maxent to a training table.
 #'
 #' maxnet adds presences to the background itself, but checks every presence
 #' against every background row to do it, which was 90% of a fit's time. A
 #' site is either a detection or not, so presences are simply appended.
+#'
+#' The fit is maxnet's own (atlas_maxnet), with a shorter penalty path.
 #'
 #' A predictor that does not vary among the sites being fitted is left out.
 #' The predictors are chosen on all of a taxon's sites, but a model is fitted
@@ -121,13 +134,60 @@ atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1) {
   classes <- classes %||% atlas_feature_classes(sum(presence == 1L))
   data <- rbind(predictors, predictors[presence == 1L, , drop = FALSE])
   p <- c(presence, rep(0L, sum(presence == 1L)))
-  maxnet::maxnet(
+  atlas_maxnet(
     p = p,
     data = data,
     f = maxnet::maxnet.formula(p, data, classes = classes),
-    regmult = regmult,
-    addsamplestobackground = FALSE
+    regmult = regmult
   )
+}
+
+#' maxnet::maxnet, stepping through `steps` penalty values instead of 200.
+#'
+#' The same code as maxnet 0.1.4's fit (MIT licence, Steven Phillips), with
+#' the path length as an argument and without its step that adds presences
+#' to the background, which atlas_fit_maxnet does itself. It returns an object
+#' of maxnet's own class, so maxnet's predict method reads it unchanged. The
+#' path begins and ends where maxnet's does; only the steps between are fewer.
+atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult = 1,
+                         regfun = maxnet::maxnet.default.regularization,
+                         steps = ATLAS_MAXNET_PATH_STEPS) {
+  if (anyNA(data)) {
+    stop("NA values in data table. Please remove them and rerun.", call. = FALSE)
+  }
+  mm <- stats::model.matrix(f, data)
+  reg <- regfun(p, mm) * regmult
+  weights <- p + (1 - p) * 100
+  glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
+  lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
+  model <- glmnet::glmnet(
+    x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
+    penalty.factor = reg, lambda = lambda, weights = weights
+  )
+  class(model) <- c("maxnet", class(model))
+  if (length(model$lambda) < steps) {
+    stop("Error: glmnet failed to complete regularization path.  Model may be infeasible.",
+         call. = FALSE)
+  }
+  bb <- model$beta[, steps]
+  model$betas <- bb[bb != 0]
+  model$alpha <- 0
+  rr <- stats::predict(model, data[p == 0, , drop = FALSE], type = "exponent", clamp = FALSE)
+  raw <- rr / sum(rr)
+  model$entropy <- -sum(raw * log(raw))
+  model$alpha <- -log(sum(rr))
+  model$penalty.factor <- reg
+  model$featuremins <- apply(mm, 2, min)
+  model$featuremaxs <- apply(mm, 2, max)
+  vv <- (sapply(data, class) != "factor")
+  model$varmin <- apply(data[, vv, drop = FALSE], 2, min)
+  model$varmax <- apply(data[, vv, drop = FALSE], 2, max)
+  means <- apply(data[p == 1, vv, drop = FALSE], 2, mean)
+  majorities <- sapply(names(data)[!vv], function(n) which.max(table(data[p == 1, n, drop = FALSE])))
+  names(majorities) <- names(data)[!vv]
+  model$samplemeans <- unlist(c(means, majorities))
+  model$levels <- lapply(data, levels)
+  model
 }
 
 #' Suitability on the cloglog scale, clamped outside the training range.

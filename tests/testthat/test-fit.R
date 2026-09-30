@@ -178,8 +178,10 @@ test_that("Maxent fitted by appending presences matches maxnet's own way", {
   predictors <- training[, atlas_predictor_columns(training)]
   theirs <- maxnet::maxnet(training$presence, predictors,
                            maxnet::maxnet.formula(training$presence, predictors, classes = "lq"))
+  # Not to the last digit: Atlas steps through 20 penalty values on the way to
+  # maxnet's final one, maxnet through 200, and the solver stops a hair apart.
   expect_equal(atlas_suitability(ours, predictors), atlas_suitability(theirs, predictors),
-               tolerance = 1e-6)
+               tolerance = 1e-3)
 })
 
 test_that("scores and maps hold effort at one value, whatever a site's effort was", {
@@ -523,4 +525,58 @@ test_that("a predictor that does not vary among the sites fitted is left out, no
   # And cross-validation, where it happened, scores every fold.
   folds <- atlas_cross_validate(training, fold, classes = "lqh")
   expect_true(all(is.finite(folds$auc)))
+})
+
+# --- A shorter penalty path ends at maxnet's own model ------------------------
+
+path_table <- function(presences, seed = 12) {
+  training <- simulated_training(n_background = 1500, n_presence = presences, seed = seed)
+  training$v3 <- stats::runif(nrow(training))
+  data <- training[, c("v1", "v2", "v3")]
+  data <- rbind(data, data[training$presence == 1L, , drop = FALSE])
+  p <- c(as.integer(training$presence), rep(0L, sum(training$presence == 1L)))
+  list(p = p, data = data, grid = data[p == 0L, , drop = FALSE])
+}
+
+test_that("20 penalty steps give maxnet's own model, for every feature class it tunes", {
+  skip_if_not_installed("maxnet")
+  for (classes in c("lq", "lqh")) {
+    t <- path_table(60)
+    f <- maxnet::maxnet.formula(t$p, t$data, classes = classes)
+    theirs <- maxnet::maxnet(t$p, t$data, f, regmult = 1, addsamplestobackground = FALSE)
+    ours <- atlas_maxnet(t$p, t$data, f, regmult = 1)
+    expect_s3_class(ours, "maxnet")
+    a <- atlas_suitability(theirs, t$grid)
+    b <- atlas_suitability(ours, t$grid)
+    expect_gt(stats::cor(a, b), 0.9999)
+    expect_lt(max(abs(a - b)), 0.01)
+    expect_equal(ours$alpha, theirs$alpha, tolerance = 0.01)
+  }
+})
+
+test_that("the path is as long as asked, and a weaker or stronger penalty still ends where maxnet does", {
+  skip_if_not_installed("maxnet")
+  t <- path_table(40)
+  f <- maxnet::maxnet.formula(t$p, t$data, classes = "lq")
+  expect_equal(length(atlas_maxnet(t$p, t$data, f)$lambda), ATLAS_MAXNET_PATH_STEPS)
+  expect_equal(length(atlas_maxnet(t$p, t$data, f, steps = 7L)$lambda), 7L)
+  for (regmult in c(0.25, 4)) {
+    theirs <- maxnet::maxnet(t$p, t$data, f, regmult = regmult, addsamplestobackground = FALSE)
+    ours <- atlas_maxnet(t$p, t$data, f, regmult = regmult)
+    expect_equal(min(ours$lambda), min(theirs$lambda))
+    expect_gt(stats::cor(atlas_suitability(theirs, t$grid), atlas_suitability(ours, t$grid)), 0.9999)
+  }
+})
+
+test_that("Maxent fits through the short path, and its settings say how long it is", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 800, n_presence = 60)
+  model <- atlas_fit_maxnet(training, classes = "lqh")
+  expect_equal(length(model$lambda), ATLAS_MAXNET_PATH_STEPS)
+  expect_equal(ATLAS_MAXNET_PATH_STEPS, 20L)
+  settings <- atlas_fit_settings(algorithm = "maxnet", layers = "x", guild_table = "g")
+  expect_equal(settings$learner$path_steps, 20L)
+  longer <- settings
+  longer$learner$path_steps <- 200L
+  expect_false(identical(atlas_settings_key(settings), atlas_settings_key(longer)))
 })
