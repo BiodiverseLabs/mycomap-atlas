@@ -121,7 +121,7 @@ export default function Methods() {
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
                 <li>Describe every cell of North America (5 km now, 1 km for releases) with 58 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
-                <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
+                <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor for the trees, held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
                 <li>Test each map against null models, random handfuls of collections fitted the same way; a map that cannot beat them is marked and kept out of Explore.</li>
                 <li>Publish maps and scores as a versioned, reproducible release.</li>
@@ -275,13 +275,16 @@ export default function Methods() {
                   every species found there, and the best-surveyed ground looked worse than it was.
                 </li>
                 <li>
-                  <B>Effort as a predictor.</B> How hard a site was worked goes into every model,
-                  and is held at one level, the median of the species' detection sites, whenever a
+                  <B>Effort as a predictor.</B> How hard a site was worked goes into the boosted
+                  trees and the random forest, and is held at one level, the median of the species' detection sites, whenever a
                   map is drawn or scored. Effort is the log of the site's records, with the
                   species' own records <B>counted once</B> however many there are, or a fungus
                   collected a hundred times in one wood would make that wood look well surveyed by
                   being there. Effort explains what effort explains, and the map shows the rest
-                  (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015).
+                  (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015). Maxent is fitted without
+                  it: measured twice on 150-odd species, Maxent scored better without effort (+0.02
+                  blocked AUC, Boyce unchanged), while the random forest did markedly worse
+                  without it. Effort still decides where every null model draws its sites.
                 </li>
                 <li>
                   Sites are drawn only from the <B>accessible area</B>, the species' own sites

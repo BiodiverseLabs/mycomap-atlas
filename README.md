@@ -203,7 +203,11 @@ than it was. Effort is now a predictor instead, held at the median of the
 taxon's detection sites whenever a map is drawn or scored (Warton, Renner &
 Ramp 2013; Fithian et al. 2015). A taxon's own records count once towards
 its sites' effort, however many there are, or a fungus collected a hundred
-times in one wood would make that wood look well surveyed by being there. The spacing is in km, not cells, so the 1 km
+times in one wood would make that wood look well surveyed by being there.
+The trees use effort; Maxent does not. Measured twice on 150-odd taxa,
+Maxent scored better without it (+0.017 and +0.020 blocked AUC, Boyce
+unchanged), while the forest's Boyce fell 0.084 without it. Effort still
+decides where the null models draw their sites, for Maxent too. The spacing is in km, not cells, so the 1 km
 grid does not turn one foray into five presences.
 
 The accessible area is the taxon's own sites buffered by 500 km, because a

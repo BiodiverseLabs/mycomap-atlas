@@ -54,9 +54,16 @@ ATLAS_ALGORITHMS <- list(
       })
     },
     grid_description = function() ATLAS_MAXNET_GRID,
-    learner = function() list(path_steps = ATLAS_MAXNET_PATH_STEPS),
+    # Maxent leaves effort out. Measured twice on 150-odd taxa (2026-09-30),
+    # it scored better without it: +0.017 +/- 0.002 and +0.020 +/- 0.002
+    # blocked AUC, Boyce unchanged. The trees need it (the forest's Boyce
+    # fell 0.084 +/- 0.013 without). Effort still weights the null models,
+    # which are about where people collect, not what Maxent is given.
+    use_effort = FALSE,
+    learner = function() list(path_steps = ATLAS_MAXNET_PATH_STEPS, effort = FALSE),
     fit = function(train, params, seed = 1L, tuning = FALSE) {
-      atlas_fit_maxnet(train, classes = params$classes, regmult = params$regmult)
+      atlas_fit_maxnet(train, classes = params$classes, regmult = params$regmult,
+                       use_effort = FALSE)
     },
     score = function(model, newdata) atlas_suitability(model, newdata),
     package = "maxnet"

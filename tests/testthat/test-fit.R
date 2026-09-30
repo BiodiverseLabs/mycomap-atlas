@@ -216,7 +216,9 @@ test_that("collecting effort alone does not make a habitat map", {
                          v1 = v1, v2 = stats::runif(n), effort = log(records))
   grid <- data.frame(v1 = seq(0, 10, length.out = 50), v2 = 0.5)
 
-  with_effort <- atlas_fit_maxnet(training, classes = "l")
+  # Production's Maxent leaves effort out (it scored better without); the
+  # mechanism is tested here with it in, as the trees use it.
+  with_effort <- atlas_fit_maxnet(training, classes = "l", use_effort = TRUE)
   held <- atlas_score_at_effort(atlas_suitability, atlas_effort_level(training))
   flat <- held(with_effort, grid)
 
@@ -579,4 +581,45 @@ test_that("Maxent fits through the short path, and its settings say how long it 
   longer <- settings
   longer$learner$path_steps <- 200L
   expect_false(identical(atlas_settings_key(settings), atlas_settings_key(longer)))
+})
+
+# --- Maxent leaves effort out ---------------------------------------------------
+
+test_that("production's Maxent leaves effort out, and its maps do not change with it", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 800, n_presence = 60)
+  training$effort <- stats::runif(nrow(training), 0, 4)
+  algo <- atlas_algorithm("maxnet")
+  expect_false(algo$use_effort)
+  expect_false(algo$learner()$effort)
+  model <- algo$fit(training, list(classes = "lq", regmult = 1))
+  expect_false(any(grepl("effort", names(model$betas))))
+  grid <- training[, c("v1", "v2", "effort")]
+  busy <- grid
+  busy$effort <- 4
+  expect_equal(algo$score(model, grid), algo$score(model, busy))
+})
+
+test_that("the trees still use effort, and so does the null model behind Maxent", {
+  expect_true(is.null(atlas_algorithm("rf")$use_effort) || isTRUE(atlas_algorithm("rf")$use_effort))
+  expect_true(is.null(atlas_algorithm("xgboost")$use_effort) || isTRUE(atlas_algorithm("xgboost")$use_effort))
+  # Nulls are drawn where collecting was busiest, whatever the model is given.
+  training <- data.frame(presence = 0L, cell = 1:1000, x = 0, y = 0, v1 = 0,
+                         effort = c(rep(log(5000), 10), rep(0, 990)))
+  drawn <- atlas_null_presence(training, 10, seed = 3L)
+  expect_gt(sum(drawn[1:10]), 7)
+})
+
+test_that("a Maxent fit records that it left effort out", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    metrics <- atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                               fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                               buffer_km = 300, predict = FALSE, quiet = TRUE, nulls = 0,
+                               tune = FALSE, guilds = stats::setNames(character(), character()))$metrics
+    expect_false(metrics$uses_effort)
+    expect_false("effort" %in% unlist(metrics$predictors))
+  })
 })
