@@ -137,6 +137,9 @@ test_that("the host trees get an arm in the order of an unknown guild", {
   flat <- arms[[which(names == "base:flat")]]
   expect_false(flat$guild_order)
   expect_equal(flat$layers, c("base1", "hosts"))
+  none <- vapply(atlas_layer_sweep_arms(list(a = "la"), base = "base1"),
+                 function(x) x$arm, character(1))
+  expect_false("base:flat" %in% none)
 })
 
 design_table <- function() {

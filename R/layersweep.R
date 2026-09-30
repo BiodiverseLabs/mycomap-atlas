@@ -54,8 +54,9 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
   everything <- c(base, unlist(new, use.names = FALSE))
   # Host trees are in production now, so the arm that puts them in the order of
   # a fungus of unknown guild is against the baseline, with nothing added.
-  flat <- list(list(arm = "base:flat", algorithm = "maxnet", layers = base,
-                    guild_order = FALSE))
+  flat <- if ("hosts" %in% base) {
+    list(list(arm = "base:flat", algorithm = "maxnet", layers = base, guild_order = FALSE))
+  }
   designs <- if (isTRUE(method)) {
     unlist(lapply(c("maxnet", "rf"), function(algorithm) {
       prefix <- if (algorithm == "rf") "rf:base" else "base"
