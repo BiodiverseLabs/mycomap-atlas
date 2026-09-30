@@ -168,11 +168,23 @@ atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort =
 #' predictors alone, so it is built once per fold. A store lives as long as
 #' the call that makes it (one null test, one tuning) in the R process that
 #' runs it: nothing is shared between taxa or between workers.
+#'
+#' A rich taxon's matrix is some 150 MB a fold, so the callers work fold by
+#' fold (atlas_cross_validate_by_fold) and empty the store before the next
+#' one. built counts the matrices built; folds_held is the most folds' sites
+#' it has held at once.
 atlas_feature_cache <- function() {
   store <- new.env(parent = emptyenv())
   store$entries <- list()
   store$built <- 0L
+  store$folds_held <- 0L
   store
+}
+
+#' Let go of every matrix in a store.
+atlas_feature_cache_clear <- function(store) {
+  if (!is.null(store)) store$entries <- list()
+  invisible(store)
 }
 
 #' The feature matrix of `data`, built once per store for the same inputs.
@@ -205,6 +217,8 @@ atlas_cached_features <- function(store, f, predictors, data, rows) {
                   lower = apply(base, 2, min), upper = apply(base, 2, max))
     store$entries[[length(store$entries) + 1L]] <- entry
     store$built <- store$built + 1L
+    held <- length(unique(lapply(store$entries, function(e) e$predictors)))
+    store$folds_held <- max(store$folds_held, held)
   }
   mm <- entry$matrix[rows, , drop = FALSE]
   dimnames(mm) <- list(row.names(data), colnames(entry$matrix))
@@ -215,6 +229,11 @@ atlas_cached_features <- function(store, f, predictors, data, rows) {
 #' maxnet's feature matrix: stats::model.matrix, named so a test can count it.
 atlas_model_matrix <- function(f, data) stats::model.matrix(f, data)
 
+#' Whether an algorithm's fits can share a feature store (Maxent's can).
+atlas_shares_features <- function(algo) {
+  "features" %in% names(formals(algo$fit))
+}
+
 #' The fit function for one set of settings, sharing a feature store with the
 #' algorithm when it takes one (Maxent) and fitting as before when it does not.
 atlas_fit_sharing <- function(algo, params, seed, features, tuning = TRUE) {
@@ -222,7 +241,7 @@ atlas_fit_sharing <- function(algo, params, seed, features, tuning = TRUE) {
   force(seed)
   force(features)
   force(tuning)
-  if ("features" %in% names(formals(algo$fit))) {
+  if (atlas_shares_features(algo)) {
     function(train) algo$fit(train, params, seed, tuning = tuning, features = features)
   } else {
     function(train) algo$fit(train, params, seed, tuning = tuning)
@@ -440,29 +459,72 @@ atlas_cross_validate <- function(training, folds, classes = NULL, regmult = 1,
                                  effort_at = atlas_effort_level(training)) {
   held_score <- atlas_score_at_effort(score, effort_at)
   results <- lapply(sort(unique(folds)), function(fold) {
-    held <- folds == fold
-    train <- training[!held, , drop = FALSE]
-    test <- training[held, , drop = FALSE]
-    presences_held <- sum(test$presence == 1L)
-    if (sum(train$presence == 1L) < 2L || presences_held < 1L ||
-        sum(test$presence == 0L) < 3L) {
-      return(data.frame(
-        fold = fold, presences = presences_held,
-        auc = NA_real_, boyce = NA_real_
-      ))
-    }
-    model <- fit(train)
-    scores <- held_score(model, test[, atlas_predictor_columns(test), drop = FALSE])
-    row <- data.frame(
-      fold = fold,
-      presences = presences_held,
-      auc = atlas_auc(scores[test$presence == 1L], scores[test$presence == 0L]),
-      boyce = atlas_boyce(scores[test$presence == 1L], scores[test$presence == 0L])
-    )
-    attr(row, "held") <- data.frame(fold = fold, presence = test$presence, score = scores)
-    row
+    atlas_cross_validate_fold(training, folds, fold, fit, held_score)
   })
   atlas_bind_folds(results)
+}
+
+#' One fold of atlas_cross_validate: fit on the other folds, score this one.
+atlas_cross_validate_fold <- function(training, folds, fold, fit, held_score) {
+  held <- folds == fold
+  train <- training[!held, , drop = FALSE]
+  test <- training[held, , drop = FALSE]
+  presences_held <- sum(test$presence == 1L)
+  if (sum(train$presence == 1L) < 2L || presences_held < 1L ||
+      sum(test$presence == 0L) < 3L) {
+    return(data.frame(
+      fold = fold, presences = presences_held,
+      auc = NA_real_, boyce = NA_real_
+    ))
+  }
+  model <- fit(train)
+  scores <- held_score(model, test[, atlas_predictor_columns(test), drop = FALSE])
+  row <- data.frame(
+    fold = fold,
+    presences = presences_held,
+    auc = atlas_auc(scores[test$presence == 1L], scores[test$presence == 0L]),
+    boyce = atlas_boyce(scores[test$presence == 1L], scores[test$presence == 0L])
+  )
+  attr(row, "held") <- data.frame(fold = fold, presence = test$presence, score = scores)
+  row
+}
+
+#' Cross-validate several runs on the same folds, one fold at a time.
+#'
+#' Each run is list(training, fit, score, effort_at), as atlas_cross_validate
+#' takes them, and comes back as atlas_cross_validate would return it inside a
+#' tryCatch: its folds bound together, or NULL when any of its fits or scores
+#' threw. Only the order of the work differs: every run's fit on fold 1, then
+#' every run's fit on fold 2, and so on. The feature store is emptied between
+#' folds, so it holds one fold's matrices at a time however many runs share
+#' them. A run that has thrown is not fitted again, as atlas_cross_validate
+#' stops at the first error.
+atlas_cross_validate_by_fold <- function(runs, folds, features = NULL) {
+  held_scores <- lapply(runs, function(run) {
+    tryCatch(atlas_score_at_effort(run$score, run$effort_at), error = function(e) NULL)
+  })
+  failed <- vapply(held_scores, is.null, logical(1))
+  rows <- replicate(length(runs), list(), simplify = FALSE)
+  on.exit(atlas_feature_cache_clear(features), add = TRUE)
+  for (fold in sort(unique(folds))) {
+    atlas_feature_cache_clear(features)
+    for (i in seq_along(runs)) {
+      if (failed[[i]]) next
+      row <- tryCatch(
+        atlas_cross_validate_fold(runs[[i]]$training, folds, fold, runs[[i]]$fit, held_scores[[i]]),
+        error = function(e) NULL
+      )
+      if (is.null(row)) {
+        failed[[i]] <- TRUE
+      } else {
+        rows[[i]][[length(rows[[i]]) + 1L]] <- row
+      }
+    }
+  }
+  lapply(seq_along(runs), function(i) {
+    if (failed[[i]]) return(NULL)
+    tryCatch(atlas_bind_folds(rows[[i]]), error = function(e) NULL)
+  })
 }
 
 #' Bind the per-fold rows, keeping every held-out score as attr(, "held").
@@ -504,19 +566,30 @@ atlas_tune <- function(training, folds, algo, seed = 1L,
   if (length(candidates) <= 1L) {
     return(list(params = candidates[[1]] %||% default, tried = NULL))
   }
-  # Candidates of one feature class build the same features on each fold.
-  features <- atlas_feature_cache()
-  aucs <- vapply(candidates, function(params) {
-    scores <- tryCatch(
-      atlas_cross_validate(
-        training, folds,
-        fit = atlas_fit_sharing(algo, params, seed, features),
-        score = algo$score, effort_at = effort_at
-      ),
-      error = function(e) NULL
-    )
+  mean_auc <- function(scores) {
     if (is.null(scores) || all(is.na(scores$auc))) NA_real_ else mean(scores$auc, na.rm = TRUE)
-  }, numeric(1))
+  }
+  aucs <- if (atlas_shares_features(algo)) {
+    # Candidates of one feature class build the same features on each fold,
+    # so the candidates go through the folds together, one fold at a time.
+    features <- atlas_feature_cache()
+    runs <- lapply(candidates, function(params) {
+      list(training = training, fit = atlas_fit_sharing(algo, params, seed, features),
+           score = algo$score, effort_at = effort_at)
+    })
+    vapply(atlas_cross_validate_by_fold(runs, folds, features), mean_auc, numeric(1))
+  } else {
+    vapply(candidates, function(params) {
+      mean_auc(tryCatch(
+        atlas_cross_validate(
+          training, folds,
+          fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
+          score = algo$score, effort_at = effort_at
+        ),
+        error = function(e) NULL
+      ))
+    }, numeric(1))
+  }
   if (all(is.na(aucs))) {
     return(list(params = default, tried = aucs))
   }
@@ -609,6 +682,23 @@ atlas_null_presence <- function(training, n, seed) {
   presence
 }
 
+#' The random number stream's state, to put back with atlas_rng_restore.
+atlas_rng_state <- function() {
+  get0(".Random.seed", envir = globalenv(), inherits = FALSE)
+}
+
+#' Put the random number stream back as atlas_rng_state found it.
+atlas_rng_restore <- function(state) {
+  if (is.null(state)) {
+    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      rm(".Random.seed", envir = globalenv())
+    }
+  } else {
+    assign(".Random.seed", state, envir = globalenv())
+  }
+  invisible(NULL)
+}
+
 #' The settings the null test fits at: the algorithm's own untuned ones.
 atlas_null_params <- function(algo, training) {
   if (!is.null(algo$null_params)) algo$null_params(training) else algo$default(training)
@@ -627,41 +717,77 @@ atlas_null_test <- function(training, folds, algo, reps = ATLAS_NULL_REPS, seed 
     return(list(reps = 0L))
   }
   params <- atlas_null_params(algo, training)
-  # Every run fits the same sites on the same folds and only the detections
-  # differ, so each fold's features are built once for all of them.
-  features <- atlas_feature_cache()
-  run <- function(table) {
-    scores <- tryCatch(
-      atlas_cross_validate(
-        table, folds,
-        # Tuning size: 100 fits per taxon.
-        fit = atlas_fit_sharing(algo, params, seed, features),
-        score = algo$score, effort_at = atlas_effort_level(table)
-      ),
-      error = function(e) NULL
-    )
+  n <- sum(training$presence == 1L)
+  summarise <- function(scores) {
     if (is.null(scores)) return(c(auc = NA_real_, boyce = NA_real_))
     c(auc = mean(scores$auc, na.rm = TRUE), boyce = atlas_pooled_boyce(scores))
   }
-  observed <- run(training)
-  observed_auc <- observed[["auc"]]
-  observed_boyce <- observed[["boyce"]]
-  if (!is.finite(observed_auc)) {
-    return(list(reps = 0L))
+  null_table <- function(draw) {
+    null <- training
+    null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + draw)
+    null
   }
-  n <- sum(training$presence == 1L)
+  scored <- function(result) is.finite(result[["auc"]])
   # A null whose fit fails is replaced by another draw, up to as many again:
   # with one of 19 missing, even a taxon that beats every null has p = 0.053
   # and would fail a test it passed.
-  runs <- list()
-  draw <- 0L
-  while (length(runs) < reps && draw < 2L * reps) {
-    draw <- draw + 1L
-    null <- training
-    null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + draw)
-    result <- run(null)
-    if (is.finite(result[["auc"]])) runs[[length(runs) + 1L]] <- result
+  if (atlas_shares_features(algo)) {
+    # Every run fits the same sites on the same folds and only the detections
+    # differ, so the taxon and its nulls go through the folds together and
+    # each fold's features are built once for all of them, one fold at a time.
+    # The draws are the ones the loop below makes, in its order: the first
+    # reps, then as many more as failed, until reps are scored or 2 x reps
+    # were drawn. A taxon that cannot be scored itself leaves the random
+    # number stream as it found it, as the loop below does by drawing none.
+    features <- atlas_feature_cache()
+    fit <- atlas_fit_sharing(algo, params, seed, features)
+    run_all <- function(tables) {
+      runs <- lapply(tables, function(table) {
+        list(training = table, fit = fit, score = algo$score,
+             effort_at = atlas_effort_level(table))
+      })
+      lapply(atlas_cross_validate_by_fold(runs, folds, features), summarise)
+    }
+    stream <- atlas_rng_state()
+    first <- run_all(c(list(training), lapply(seq_len(reps), null_table)))
+    observed <- first[[1]]
+    if (!scored(observed)) {
+      atlas_rng_restore(stream)
+      return(list(reps = 0L))
+    }
+    runs <- Filter(scored, first[-1])
+    draw <- as.integer(reps)
+    while (length(runs) < reps && draw < 2L * reps) {
+      more <- seq.int(draw + 1L, min(draw + reps - length(runs), 2L * reps))
+      draw <- more[[length(more)]]
+      runs <- c(runs, Filter(scored, run_all(lapply(more, null_table))))
+    }
+  } else {
+    run <- function(table) {
+      summarise(tryCatch(
+        atlas_cross_validate(
+          table, folds,
+          # Tuning size: 100 fits per taxon.
+          fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
+          score = algo$score, effort_at = atlas_effort_level(table)
+        ),
+        error = function(e) NULL
+      ))
+    }
+    observed <- run(training)
+    if (!scored(observed)) {
+      return(list(reps = 0L))
+    }
+    runs <- list()
+    draw <- 0L
+    while (length(runs) < reps && draw < 2L * reps) {
+      draw <- draw + 1L
+      result <- run(null_table(draw))
+      if (scored(result)) runs[[length(runs) + 1L]] <- result
+    }
   }
+  observed_auc <- observed[["auc"]]
+  observed_boyce <- observed[["boyce"]]
   runs <- do.call(rbind, c(runs, list(matrix(numeric(), 0, 2, dimnames = list(NULL, c("auc", "boyce"))))))
   auc <- runs[, "auc"][is.finite(runs[, "auc"])]
   boyce <- runs[, "boyce"][is.finite(runs[, "boyce"])]
