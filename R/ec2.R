@@ -170,10 +170,17 @@ atlas_ec2_error_code <- function(error, codes = ATLAS_EC2_RETRY_ERRORS) {
 #' Launch one worker for one shard, trying each instance type in each subnet
 #' while spot capacity refuses. Returns the instance id, or NULL when every
 #' option refused for a reason worth retrying later. Any other error stops.
+#'
+#' Each attempt starts one type further down the list: a worker taken back
+#' was taken because its type ran short, so its replacement asks first for
+#' a type that has not.
 atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
                                 minutes = config$max_hours * 60, say = function(...) NULL) {
   refusals <- character()
-  for (instance_type in config$instance_types) {
+  types <- config$instance_types
+  turn <- (as.integer(attempt) - 1L) %% length(types)
+  if (turn) types <- c(types[-seq_len(turn)], types[seq_len(turn)])
+  for (instance_type in types) {
     for (subnet in config$subnets) {
       request <- atlas_worker_request(config, job_id, shard, grid, attempt, subnet, instance_type, minutes)
       result <- tryCatch(do.call(ec2$run_instances, request), error = function(e) e)
@@ -278,6 +285,11 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   latest <- list()
   seen <- character()
   attempts <- integer(job$shards)
+  # Workers lost in a row without saving anything. A spot worker taken back
+  # after saving part of its shard has moved the job on, and its replacement
+  # starts from there: only a worker that never gets anywhere uses up tries.
+  fruitless <- integer(job$shards)
+  saved_at_launch <- integer(job$shards)
   tried_at <- rep(clock(), job$shards)
   launch <- function(shard) {
     tried_at[[shard]] <<- clock()
@@ -288,6 +300,7 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
       return(invisible(NULL))
     }
     attempts[[shard]] <<- attempts[[shard]] + 1L
+    saved_at_launch[[shard]] <<- atlas_shard_saved_count(store, job$id, shard, grid)
     latest[[as.character(shard)]] <<- id
     say("shard ", shard, ": launched ", id,
         if (attempts[[shard]] > 1L) paste0(" (attempt ", attempts[[shard]], ")") else "")
@@ -334,12 +347,15 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
       # A worker writes its record and then shuts down: look again before
       # deciding it died without reporting.
       if (!gone || shard_done(shard)) next
-      if (attempts[[shard]] >= config$max_attempts) {
-        stop("shard ", shard, " of job ", job$id, " failed ", attempts[[shard]],
-             " times without reporting; its workers were terminated", call. = FALSE)
+      saved <- atlas_shard_saved_count(store, job$id, shard, grid)
+      fruitless[[shard]] <- if (saved > saved_at_launch[[shard]]) 0L else fruitless[[shard]] + 1L
+      if (fruitless[[shard]] >= config$max_attempts) {
+        stop("shard ", shard, " of job ", job$id, " failed ", fruitless[[shard]],
+             " times without reporting or saving anything; its workers were terminated", call. = FALSE)
       }
       say("shard ", shard, ": ", id, " is ", if (length(state)) state[[1]] else "gone",
-          " without reporting")
+          " without reporting",
+          if (saved) paste0("; ", saved, " of its models are saved, and its next worker starts from there"))
       launch(shard)
     }
     wait(poll_seconds)

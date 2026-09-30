@@ -272,3 +272,74 @@ test_that("a worker holding a different guild table refuses its shard", {
                "differs from the one job")
   expect_equal(atlas_job_status(store, job$id)$missing, 1L)
 })
+
+# ---- a worker lost part way ----------------------------------------------------
+
+lost_job <- function() {
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(MORE_TAXA)))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  list(store = store, boss = boss, job = job)
+}
+
+test_that("a shard whose worker is lost resumes from its saved models and fits none of them twice", {
+  skip_if_not_installed("terra")
+  s <- lost_job()
+  expect_length(s$job$tasks, 5L)
+  first <- counting_fit()
+  run_until_lost(s$store, s$job, 1L, lost_after(2L, first$fit), save_seconds = 0)
+  expect_length(first$taxa(), 2L)
+  # Saved, but not finished: a progress record is not a shard's record.
+  expect_equal(atlas_shard_saved_count(s$store, s$job$id, 1L), 2L)
+  status <- expect_no_warning(atlas_job_status(s$store, s$job$id))
+  expect_identical(status$done, integer())
+  expect_equal(status$missing, 1L)
+
+  second <- counting_fit()
+  on_machine(machine(), atlas_run_shard(s$store, s$job$id, 1L, quiet = TRUE, fit = second$fit))
+  expect_length(second$taxa(), 3L)
+  expect_length(intersect(first$taxa(), second$taxa()), 0L)
+
+  release <- on_machine(s$boss, atlas_finish_job(s$store, s$job$id, quiet = TRUE))
+  expect_length(release$index, 5L)
+  expect_equal(release$job_results$fitted, 5L)
+  # The models the lost worker saved are in the release, from the store.
+  for (name in first$taxa()) {
+    expect_true(atlas_model_relpaths(name, "draft", "maxnet")[[1]] %in% release_paths(release), info = name)
+  }
+  on_machine(machine(), {
+    atlas_pull_release(s$store, quiet = TRUE)
+    expect_true(file.exists(atlas_model_path(first$taxa()[[1]], "draft", ".json", "maxnet")))
+  })
+})
+
+test_that("a lost worker's models are kept only as far as its last save", {
+  skip_if_not_installed("terra")
+  s <- lost_job()
+  first <- counting_fit()
+  # Saving every hour: lost after two fits, it has saved none of them.
+  run_until_lost(s$store, s$job, 1L, lost_after(2L, first$fit), save_seconds = 3600)
+  expect_equal(atlas_shard_saved_count(s$store, s$job$id, 1L), 0L)
+  second <- counting_fit()
+  on_machine(machine(), atlas_run_shard(s$store, s$job$id, 1L, quiet = TRUE, fit = second$fit))
+  expect_length(second$taxa(), 5L)
+})
+
+test_that("a model that failed before its worker was lost is tried again by the next", {
+  skip_if_not_installed("terra")
+  s <- lost_job()
+  first <- counting_fit(local({
+    f <- function(name, ...) if (name == "Taxon B") stop("out of memory") else fake_fit(name, ...)
+    environment(f) <- globalenv()
+    f
+  }))
+  run_until_lost(s$store, s$job, 1L, lost_after(4L, first$fit), save_seconds = 0)
+  expect_true("Taxon B" %in% first$taxa())
+  expect_equal(atlas_shard_saved_count(s$store, s$job$id, 1L), 3L)
+  second <- counting_fit()
+  record <- on_machine(machine(), atlas_run_shard(s$store, s$job$id, 1L, quiet = TRUE, fit = second$fit))
+  expect_true("Taxon B" %in% second$taxa())
+  expect_equal(record$counts$fitted, 5L)
+  expect_length(record$results, 5L)
+})

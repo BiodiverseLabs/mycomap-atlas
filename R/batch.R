@@ -227,6 +227,8 @@ atlas_worker_value <- function(result) {
 #' workers    R processes to fit in parallel; 1 fits in this process
 #' algorithm  which model to fit: maxnet, xgboost, rf or esm
 #' fit        the per-taxon fitting function, replaceable in tests
+#' on_row     called with each taxon's row and the settings key as it finishes,
+#'            so a caller can save its work before the whole batch is done
 atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             force = FALSE, workers = 1L, min_presences = 20,
                             n_background = 10000, buffer_km = 500, folds = 5,
@@ -235,7 +237,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             occurrences = NULL, points = NULL, stack = NULL,
                             layers = NULL, algorithm = "maxnet",
                             nulls = ATLAS_NULL_REPS, tune = TRUE,
-                            fit = atlas_fit_taxon) {
+                            fit = atlas_fit_taxon, on_row = NULL) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
@@ -338,6 +340,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     )
     say(sprintf("[%d/%d] %s %s (%ss) %s", done, length(to_fit), row$status,
                 row$taxon, row$seconds %||% NA, detail))
+    if (is.function(on_row)) on_row(row, summary$settings_key)
   }
 
   if (length(to_fit) && workers > 1L) {
