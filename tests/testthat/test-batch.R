@@ -380,3 +380,21 @@ test_that("a stored model under the minimum is not current, so the fit can refus
     expect_equal(statuses(run_batch(world))[["Rich one"]], "skipped")
   })
 })
+
+test_that("every worker starts with one BLAS thread, and this process keeps its own setting", {
+  skip_on_cran()
+  root <- normalizePath(testthat::test_path("..", ".."), winslash = "/")
+  skip_if_not(file.exists(file.path(root, "R", "batch.R")), "sources not found")
+  with_env(c(ATLAS_ROOT = root, OPENBLAS_NUM_THREADS = "8", OMP_NUM_THREADS = NA), with_data_dir({
+    cluster <- tryCatch(atlas_start_workers(1L, "draft", points = NULL), error = function(e) NULL)
+    skip_if(is.null(cluster), "parallel cannot start workers here")
+    seen <- tryCatch(
+      parallel::clusterEvalQ(cluster, Sys.getenv(c("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS")))[[1]],
+      finally = parallel::stopCluster(cluster)
+    )
+    expect_equal(unname(seen), c("1", "1"))
+    # Set for the start only: this process is as it was.
+    expect_equal(Sys.getenv("OPENBLAS_NUM_THREADS"), "8")
+    expect_true(is.na(Sys.getenv("OMP_NUM_THREADS", unset = NA)))
+  }))
+})

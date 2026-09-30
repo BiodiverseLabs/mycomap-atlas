@@ -124,12 +124,36 @@ atlas_batch_worker_task <- function(name, fingerprints, fit, args) {
   atlas_batch_fit_one(name, fingerprints[[name]], fit %||% atlas_fit_taxon, args)
 }
 
+# The environment every worker starts with: one BLAS thread and one OpenMP
+# thread each. OpenBLAS otherwise starts a thread per core in every worker,
+# and on 2026-09-30 twenty-two workers on a 24-core machine could not
+# allocate them: every worker died at start ("OpenBLAS error: Memory
+# allocation still failed"). The workers are the parallelism.
+ATLAS_WORKER_ENV <- c(OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1")
+
+#' Start PSOCK workers with ATLAS_WORKER_ENV in their environment.
+#'
+#' BLAS reads its thread count when R starts, so the value has to be in the
+#' environment the worker process is started with, not set inside it
+#' afterwards. It is set in this process for the start and put back as it was.
+atlas_make_workers <- function(workers, env = ATLAS_WORKER_ENV) {
+  old <- Sys.getenv(names(env), unset = NA, names = TRUE)
+  on.exit({
+    keep <- old[!is.na(old)]
+    if (length(keep)) do.call(Sys.setenv, as.list(keep))
+    drop <- names(old)[is.na(old)]
+    if (length(drop)) Sys.unsetenv(drop)
+  }, add = TRUE)
+  do.call(Sys.setenv, as.list(env))
+  parallel::makePSOCKcluster(workers)
+}
+
 #' Start a pool of R processes, each with Atlas loaded and its own stack.
 #'
 #' A terra raster cannot be sent between processes, so every worker opens the
 #' stack itself; the projected points are small enough to copy.
 atlas_start_workers <- function(workers, grid, points) {
-  cluster <- parallel::makePSOCKcluster(workers)
+  cluster <- atlas_make_workers(workers)
   root <- normalizePath(Sys.getenv("ATLAS_ROOT", unset = "."), winslash = "/")
   data_dir <- normalizePath(atlas_data_dir(), winslash = "/", mustWork = FALSE)
   setup <- function(root, data_dir, grid, points) {
