@@ -97,6 +97,17 @@ export const ALGORITHM_NOTES: Record<Algorithm, string> = {
     "250 trees grown independently, each on as many background records as presences, then left to vote.",
 };
 
+/** How much a map relied on one dataset (or one variable): the fall in
+ * held-out AUC when it is shuffled, with its spread between folds. */
+export interface ModelImportance {
+  name: string;
+  label: string;
+  fall?: number;
+  sd?: number;
+  /** A dataset's own variables, largest first. */
+  predictors?: ModelImportance[];
+}
+
 export interface Model {
   taxon: string;
   algorithm?: Algorithm;
@@ -118,6 +129,12 @@ export interface Model {
   boyce?: number;
   boyce_mean: number;
   boyce_sd: number;
+  /** What the map rests on, dataset by dataset, largest first. Absent on fits
+   * from before it was measured. */
+  importance?: ModelImportance[];
+  /** Datasets this model kept no variable of (Maxent prunes). */
+  layers_unused?: string[];
+  uses_effort?: boolean;
   built_at: string;
   map?: string;
   bounds?: ModelBounds;

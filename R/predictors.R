@@ -220,3 +220,73 @@ atlas_choose_predictors <- function(training, threshold = 0.7,
   }
   c(kept, effort)
 }
+
+# What each predictor is, for people. A name not listed here is shown as it is.
+ATLAS_PREDICTOR_LABELS <- c(
+  bio1 = "Annual mean temperature",
+  bio2 = "Mean daily temperature range",
+  bio3 = "Isothermality (day-night range against the year's)",
+  bio4 = "Temperature seasonality",
+  bio5 = "Warmest month's maximum temperature",
+  bio6 = "Coldest month's minimum temperature",
+  bio7 = "Annual temperature range",
+  bio8 = "Mean temperature of the wettest quarter",
+  bio9 = "Mean temperature of the driest quarter",
+  bio10 = "Mean temperature of the warmest quarter",
+  bio11 = "Mean temperature of the coldest quarter",
+  bio12 = "Annual precipitation",
+  bio13 = "Precipitation of the wettest month",
+  bio14 = "Precipitation of the driest month",
+  bio15 = "Precipitation seasonality",
+  bio16 = "Precipitation of the wettest quarter",
+  bio17 = "Precipitation of the driest quarter",
+  bio18 = "Precipitation of the warmest quarter",
+  bio19 = "Precipitation of the coldest quarter",
+  elevation = "Elevation",
+  slope = "Slope",
+  roughness = "Terrain roughness",
+  soil_phh2o = "Soil pH",
+  soil_soc = "Soil organic carbon",
+  soil_clay = "Clay content",
+  soil_sand = "Sand content",
+  soil_cec = "Cation exchange capacity",
+  cover_trees = "Tree cover",
+  cover_shrubs = "Shrub cover",
+  cover_grassland = "Grassland",
+  cover_wetland = "Wetland",
+  cover_water = "Open water",
+  cover_built = "Built-up land",
+  host_conifer = "Conifers, share of the trees",
+  host_pinus = "Pine", host_quercus = "Oak", host_picea = "Spruce", host_abies = "Fir",
+  host_pseudotsuga = "Douglas-fir", host_tsuga = "Hemlock", host_betula = "Birch",
+  host_populus = "Poplar and aspen", host_fagus = "Beech", host_larix = "Larch",
+  host_castanea = "Chestnut", host_notholithocarpus = "Tanoak", host_carya = "Hickory",
+  host_alnus = "Alder", host_salix = "Willow", host_tilia = "Basswood",
+  host_carpinus = "Hornbeam", host_ostrya = "Hophornbeam", host_arbutus = "Madrone",
+  host_known = "Tree inventories cover this place",
+  forest_needleleaf = "Needleleaf forest",
+  forest_broadleaf = "Broadleaf forest",
+  forest_mixed = "Mixed forest",
+  forest_known = "Forest type from the North American map",
+  clim_cmd = "Climatic moisture deficit",
+  clim_ppt_autumn = "Autumn precipitation",
+  clim_tave_autumn = "Autumn mean temperature",
+  clim_ffp = "Frost-free period",
+  clim_pas = "Precipitation as snow",
+  clim_rh = "Relative humidity",
+  clim_aet = "Actual evapotranspiration",
+  clim_vpd = "Vapour pressure deficit"
+)
+
+# What each layer is, for people.
+ATLAS_LAYER_LABELS <- c(
+  bioclim = "Climate", elevation = "Elevation", terrain = "Terrain", soil = "Soil",
+  landcover = "Land cover", hosts = "Host trees", foresttype = "Forest type",
+  waterbalance = "Water balance"
+)
+
+#' A predictor's or layer's name for people, or its own name when none is known.
+atlas_label <- function(name, labels = ATLAS_PREDICTOR_LABELS) {
+  out <- unname(labels[name])
+  ifelse(is.na(out), name, out)
+}

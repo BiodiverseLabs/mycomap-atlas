@@ -5,6 +5,7 @@ import type { LatLng, Map as LeafletMap } from "leaflet";
 import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
 
 import { Help, Th } from "@/components/Common";
+import { WhatDrives } from "@/components/WhatDrives";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -562,6 +563,15 @@ export default function Taxon() {
                   How the three compare across every taxon
                 </Link>
               </p>
+            </section>
+
+            <section>
+              <SectionTitle>What drives this map</SectionTitle>
+              <p className="mb-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+                Which datasets, and which variables within each, the map leans on to tell where this
+                fungus grows. Open a dataset to see its variables.
+              </p>
+              <WhatDrives models={models} />
             </section>
           </>
         )}

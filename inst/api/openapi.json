@@ -1594,6 +1594,40 @@
             "type": "integer",
             "description": "Blocks holding at least one detection site."
           },
+          "importance": {
+            "type": "array",
+            "description": "What the map rests on, measured on the held-out folds: for each layer the model drew from, the fall in blocked AUC when all of its predictors are shuffled among held-out sites (fall, with its sd between folds), and the same for each of its predictors (predictors). Sorted, largest first. A layer a model did not use is absent. Absent on fits from before it was measured.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "label": {"type": "string"},
+                "fall": {"type": "number"},
+                "sd": {"type": "number"},
+                "predictors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string"},
+                      "label": {"type": "string"},
+                      "fall": {"type": "number"},
+                      "sd": {"type": "number"}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "layers_unused": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Datasets the taxon's predictors came from that this model kept none of (Maxent prunes correlated predictors and caps their number)."
+          },
+          "uses_effort": {
+            "type": "boolean",
+            "description": "Whether the model was given collecting effort as a predictor. Maxent is not; the trees are."
+          },
           "effort_at": {
             "type": "number",
             "description": "The effort, log(records at the site, the taxon's own counted once), the map and scores are drawn at."

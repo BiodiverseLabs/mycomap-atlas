@@ -15,6 +15,10 @@
 # ground is what an overfitted predictor looks like.
 #
 # Effort is left out: it is held at one value whenever a model is scored.
+#
+# Every production fit measures this on its own outer folds, and keeps it with
+# the model (atlas_fit_taxon, importance = TRUE), so a taxon's page can say
+# what its maps rest on, dataset by dataset and variable by variable.
 
 # Times each predictor is shuffled in each fold.
 ATLAS_IMPORTANCE_REPEATS <- 2L
@@ -143,4 +147,53 @@ atlas_importance_summary <- function(rows) {
   )
   rownames(out) <- NULL
   out
+}
+
+#' The layer each predictor belongs to, from the grid's layer bands. A
+#' predictor no layer lists belongs to "other".
+atlas_layer_of <- function(predictors, bands = list()) {
+  owner <- stats::setNames(rep("other", length(predictors)), predictors)
+  for (id in names(bands)) {
+    owner[intersect(predictors, bands[[id]])] <- id
+  }
+  owner
+}
+
+#' The groups a fitted model is shuffled by: every predictor it was given, one
+#' by one, and every layer it drew from, all of that layer's predictors
+#' together. Effort is left out; it is held fixed when a model is scored.
+atlas_importance_groups <- function(predictors, layer_of) {
+  predictors <- setdiff(predictors, ATLAS_EFFORT_COLUMN)
+  layers <- split(predictors, layer_of[predictors])
+  c(stats::setNames(as.list(predictors), paste0("predictor\r", predictors)),
+    stats::setNames(layers, paste0("layer\r", names(layers))))
+}
+
+#' What a model owed to each layer and each predictor, as stored with it.
+#'
+#' falls is a matrix, one row per group (as named by atlas_importance_groups),
+#' one column per scored fold. Each layer carries its predictors, both sorted
+#' by the mean fall in held-out AUC; sd is between folds.
+atlas_importance_table <- function(falls, layer_of) {
+  if (is.null(falls) || !length(falls)) {
+    return(NULL)
+  }
+  parts <- strsplit(rownames(falls), "\r", fixed = TRUE)
+  kind <- vapply(parts, `[[`, character(1), 1L)
+  name <- vapply(parts, `[[`, character(1), 2L)
+  mean_fall <- apply(falls, 1, function(v) if (all(is.na(v))) NA_real_ else mean(v, na.rm = TRUE))
+  sd_fall <- apply(falls, 1, function(v) if (sum(is.finite(v)) < 2L) NA_real_ else stats::sd(v, na.rm = TRUE))
+  entry <- function(i, labels) {
+    list(name = name[[i]], label = atlas_label(name[[i]], labels),
+         fall = round(mean_fall[[i]], 4), sd = round(sd_fall[[i]], 4))
+  }
+  layers <- which(kind == "layer")
+  out <- lapply(layers, function(i) {
+    # unname: a named list would be written as a JSON object, not an array.
+    members <- unname(which(kind == "predictor" & unname(layer_of[name]) == name[[i]]))
+    members <- members[order(-mean_fall[members], na.last = TRUE)]
+    c(entry(i, ATLAS_LAYER_LABELS),
+      list(predictors = lapply(members, entry, labels = ATLAS_PREDICTOR_LABELS)))
+  })
+  out[order(-vapply(out, function(x) x$fall %||% NA_real_, numeric(1)), na.last = TRUE)]
 }
