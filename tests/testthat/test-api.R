@@ -126,8 +126,22 @@ test_that("every Atlas function the API file calls is exported", {
   expect_equal(setdiff(called, exported), character())
 })
 
+test_that("every Atlas constant the API file reads is exported", {
+  # The same trap for a value: ATLAS_PUBLIC_DEGREES was read by the cells
+  # endpoint and never exported, so every taxon page lost its collection
+  # dots in the container while every test, run from source, passed.
+  root <- testthat::test_path("..", "..")
+  data <- utils::getParseData(parse(file.path(root, "inst", "plumber", "atlas.R"), keep.source = TRUE))
+  symbols <- unique(data$text[data$token %in% c("SYMBOL", "SYMBOL_FUNCTION_CALL")])
+  # Names the package defines, whatever the file calls them: request fields
+  # and the file's own helpers are not the package's.
+  ours <- symbols[vapply(symbols, exists, logical(1), envir = asNamespace("mycomapatlas"), inherits = FALSE)]
+  expect_true("ATLAS_PUBLIC_DEGREES" %in% ours)
+  expect_equal(setdiff(ours, namespace_exports(root)), character())
+})
+
 test_that("nothing is exported that does not exist", {
   exported <- namespace_exports(testthat::test_path("..", ".."))
-  missing <- exported[!vapply(exported, exists, logical(1), mode = "function")]
+  missing <- exported[!vapply(exported, exists, logical(1))]
   expect_equal(missing, character())
 })
