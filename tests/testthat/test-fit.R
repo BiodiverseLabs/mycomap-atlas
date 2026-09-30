@@ -623,3 +623,52 @@ test_that("a Maxent fit records that it left effort out", {
     expect_false("effort" %in% unlist(metrics$predictors))
   })
 })
+
+# --- Robust to a fit that does not converge -----------------------------------
+
+test_that("a short path that does not converge falls back to maxnet's own 200 steps", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 600, n_presence = 50)
+  calls <- integer()
+  real <- atlas_glmnet_path
+  testthat::local_mocked_bindings(atlas_glmnet_path = function(mm, p, reg, lambda, weights) {
+    calls <<- c(calls, length(lambda))
+    model <- real(mm, p, reg, lambda, weights)
+    # The first, short path stops short of its last penalty, as glmnet does
+    # when a step does not converge.
+    if (length(calls) == 1L) model$lambda <- model$lambda[-length(model$lambda)]
+    model
+  })
+  model <- atlas_fit_maxnet(training, classes = "lq")
+  expect_equal(calls, c(ATLAS_MAXNET_PATH_STEPS, 200L))
+  expect_equal(length(model$lambda), 200L)
+  expect_true(all(is.finite(atlas_suitability(model, training[, c("v1", "v2")]))))
+})
+
+test_that("a null model whose fit fails is replaced, so the test keeps all its nulls", {
+  set.seed(8)
+  n <- 300
+  table <- data.frame(presence = 0L, cell = seq_len(n),
+                      x = stats::runif(n, 0, 1e6), y = stats::runif(n, 0, 1e6),
+                      v1 = stats::runif(n), v2 = stats::runif(n))
+  table$presence[sample.int(n, 40, prob = table$v1^6)] <- 1L
+  folds <- atlas_spatial_folds(table$x, table$y, k = 4, block_km = 250,
+                               presence = table$presence)
+  fits <- 0L
+  algo <- list(
+    id = "stub",
+    default = function(training) list(),
+    fit = function(train, params, seed = 1L, tuning = FALSE) {
+      fits <<- fits + 1L
+      # The second null (fits 9-12, after the taxon's 4 and the first null's 4)
+      # cannot be fitted.
+      if (fits > 8L && fits <= 12L) stop("glmnet failed to complete regularization path")
+      stats::glm(presence ~ v1, data = train, family = stats::binomial())
+    },
+    score = function(model, newdata) as.numeric(stats::predict(model, newdata, type = "response"))
+  )
+  null <- atlas_null_test(table, folds, algo, reps = 19)
+  expect_equal(null$reps, 19L)
+  # A strong taxon that beats every null reaches p = 0.05, not 0.053.
+  expect_equal(null$auc_p, 0.05)
+})

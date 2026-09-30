@@ -149,6 +149,14 @@ atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort =
   )
 }
 
+#' One penalised fit along a path of penalties: maxnet's glmnet call.
+atlas_glmnet_path <- function(mm, p, reg, lambda, weights) {
+  suppressWarnings(glmnet::glmnet(
+    x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
+    penalty.factor = reg, lambda = lambda, weights = weights
+  ))
+}
+
 #' maxnet::maxnet, stepping through `steps` penalty values instead of 200.
 #'
 #' The same code as maxnet 0.1.4's fit (MIT licence, Steven Phillips), with
@@ -166,11 +174,18 @@ atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult =
   reg <- regfun(p, mm) * regmult
   weights <- p + (1 - p) * 100
   glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
-  lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
-  model <- glmnet::glmnet(
-    x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
-    penalty.factor = reg, lambda = lambda, weights = weights
-  )
+  path <- function(steps) {
+    lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
+    atlas_glmnet_path(mm, p, reg, lambda, weights)
+  }
+  model <- path(steps)
+  # A short path takes big steps, and now and then one does not converge
+  # within glmnet's iterations, which a 200-step path would have: fall back
+  # to maxnet's own path for that fit, so it fails only where maxnet would.
+  if (length(model$lambda) < steps && steps < 200L) {
+    steps <- 200L
+    model <- path(steps)
+  }
   class(model) <- c("maxnet", class(model))
   if (length(model$lambda) < steps) {
     stop("Error: glmnet failed to complete regularization path.  Model may be infeasible.",
@@ -503,12 +518,19 @@ atlas_null_test <- function(training, folds, algo, reps = ATLAS_NULL_REPS, seed 
     return(list(reps = 0L))
   }
   n <- sum(training$presence == 1L)
-  runs <- lapply(seq_len(reps), function(r) {
+  # A null whose fit fails is replaced by another draw, up to as many again:
+  # with one of 19 missing, even a taxon that beats every null has p = 0.053
+  # and would fail a test it passed.
+  runs <- list()
+  draw <- 0L
+  while (length(runs) < reps && draw < 2L * reps) {
+    draw <- draw + 1L
     null <- training
-    null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + r)
-    run(null)
-  })
-  runs <- do.call(rbind, runs)
+    null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + draw)
+    result <- run(null)
+    if (is.finite(result[["auc"]])) runs[[length(runs) + 1L]] <- result
+  }
+  runs <- do.call(rbind, c(runs, list(matrix(numeric(), 0, 2, dimnames = list(NULL, c("auc", "boyce"))))))
   auc <- runs[, "auc"][is.finite(runs[, "auc"])]
   boyce <- runs[, "boyce"][is.finite(runs[, "boyce"])]
   p_value <- function(null, observed) {
