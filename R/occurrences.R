@@ -2,7 +2,8 @@
 # coordinates good enough for a 1 km model, in North America.
 #
 # Eligibility (decided 2026-09-28):
-#   - green in at least one validation project, and red in none;
+#   - green in at least one validation project (decided 2026-09-30: a red in
+#     another project does not rule it out; the green project settled the name);
 #   - coordinates present, not obscured, accuracy within 1 km where recorded;
 #   - in North America (or a Puerto Rico record with a blank country);
 #   - a species-level name, provisional temp codes included.
@@ -38,7 +39,6 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
   sql <- sprintf(
     "SELECT %s FROM observations o
      WHERE 'yes' IN (%s)
-       AND 'no' NOT IN (%s)
        AND o.latitude IS NOT NULL
        AND o.longitude IS NOT NULL
        AND NOT EXISTS (
@@ -57,7 +57,7 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
      ORDER BY o.id
      LIMIT %d",
     paste0("o.", ATLAS_OCCURRENCE_FIELDS, collapse = ", "),
-    statuses, statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
+    statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
     as.integer(after_id), as.integer(limit)
   )
   atlas_one_line(sql)

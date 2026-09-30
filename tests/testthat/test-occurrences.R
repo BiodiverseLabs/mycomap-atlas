@@ -1,8 +1,16 @@
-test_that("a record must be green in a project and red in none", {
+test_that("a record must be green in at least one project, all three slots checked", {
   sql <- atlas_occurrence_sql()
   expect_match(sql, "'yes' IN (", fixed = TRUE)
-  expect_match(sql, "'no' NOT IN (", fixed = TRUE)
-  expect_match(sql, "coalesce(o.validation_status_3, '')", fixed = TRUE)
+  for (slot in 1:3) {
+    expect_match(sql, sprintf("coalesce(o.validation_status_%d, '')", slot), fixed = TRUE)
+  }
+})
+
+test_that("a red in another project does not rule out a record that is green in one", {
+  # Steve, 2026-09-30: the green project settled the name.
+  sql <- atlas_occurrence_sql()
+  expect_false(grepl("'no'", sql, fixed = TRUE))
+  expect_false(grepl("NOT IN (coalesce", sql, fixed = TRUE))
 })
 
 test_that("obscured and coarse coordinates are excluded", {

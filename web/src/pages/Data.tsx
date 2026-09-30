@@ -37,10 +37,11 @@ export default function Data() {
         <section>
           <SectionTitle>Training records</SectionTitle>
           <p className="mb-4 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
-            A record counts when it is green in at least one MycoMap validation project and red in
-            none, has coordinates accurate to 1 km or better, and carries a species-level name —
-            provisional names included, since a third of the mappable taxa have no formal name
-            yet. Unassessed records, photo identifications and eDNA are left out.
+            A record counts when it is green in at least one MycoMap validation project (a red in
+            another does not rule it out), has coordinates accurate to 1 km or better, and carries
+            a species-level name — provisional names included, since a third of the mappable taxa
+            have no formal name yet. Unassessed records, photo identifications and eDNA are left
+            out.
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Stat label="Records" value={formatNumber(status.data?.records)} />
