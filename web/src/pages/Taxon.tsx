@@ -6,6 +6,7 @@ import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-reac
 
 import { Help, Th } from "@/components/Common";
 import { WhatDrives } from "@/components/WhatDrives";
+import { MapStrength, defaultStrength } from "@/components/MapStrength";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,6 +133,10 @@ function ModelMap({
   const overlay = boundsOf(model);
   const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
   const failed = model?.skill === "failed";
+  // Starts where the model's null test puts it, and again whenever the model
+  // (or its verdict) changes; after that it is the viewer's.
+  const [strength, setStrength] = useState(defaultStrength(failed));
+  useEffect(() => setStrength(defaultStrength(failed)), [failed, model?.built_at]);
   return (
     <Card className={`overflow-hidden ${hidden ? "hidden" : expanded || alone ? "lg:col-span-3" : ""}`}>
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
@@ -182,8 +187,8 @@ function ModelMap({
             <ImageOverlay
               url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at)}
               bounds={overlay}
-              // A map that could not beat its null models is drawn faint.
-              opacity={failed ? 0.25 : 0.8}
+              // A map that could not beat its null models starts faint.
+              opacity={strength / 100}
             />
           )}
           {points.map((cell) => (
@@ -215,6 +220,9 @@ function ModelMap({
           </div>
         )}
       </div>
+      {overlay && (
+        <MapStrength value={strength} onChange={setStrength} algorithm={ALGORITHM_LABELS[algorithm]} />
+      )}
     </Card>
   );
 }
