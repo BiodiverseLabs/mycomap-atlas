@@ -5,14 +5,13 @@
 # the lower 48, and British Columbia alone holds 8% of the records — so the
 # registry uses global sources and accepts their coarser detail.
 #
-# The exceptions are the two host-tree layers (R/hosts.R, R/layersources.R).
-# No continental map of tree species exists, so each joins a United States
-# inventory to Canada's, and neither inventory speaks for Alaska, Hawaii,
-# Puerto Rico or Mexico. A layer's gap must not take ground away from every
-# model, so there the shares are filled with 0 and a band beside them
-# (host_known, hostw_known) says the inventories were silent: the ground stays
-# in every fit and on every map, and a model can tell "no such trees" from
-# "nobody mapped the trees" (atlas_fill_outside).
+# The exception is the host-tree layer (R/hosts.R). No continental map of
+# tree species exists, so it joins the United States inventory to Canada's,
+# and neither speaks for Alaska, Hawaii, Puerto Rico or Mexico. A layer's gap
+# must not take ground away from every model, so there the shares are filled
+# with 0 and a band beside them (host_known) says the inventories were silent:
+# the ground stays in every fit and on every map, and a model can tell "no
+# such trees" from "nobody mapped the trees" (atlas_fill_outside).
 #
 # Sources are brought onto the grid by averaging the source cells each grid
 # cell covers, never by interpolation. Interpolating a 1 km source onto a 5 km
@@ -25,10 +24,15 @@
 # land-cover layer has data, the finest coastline among the sources; land
 # cover is therefore built first.
 #
-# Layers after landcover are candidates, measured by atlas sweep-layers before
-# any of them is fitted on in production (R/layersweep.R). Building a layer is
-# what puts it into every fit on that grid, so candidates are built only into
-# a separate data directory until they are chosen.
+# Production fits on ATLAS_PRODUCTION_LAYERS (R/layersweep.R). The rest are
+# candidates, measured by atlas sweep-layers before any is fitted on in
+# production. Building a layer is what puts it into every fit on that grid,
+# so a candidate is built only into a separate data directory until it is
+# chosen. Measured on 152 taxa (2026-09-30): host trees earned their place
+# (+0.008 +/- 0.004 AUC, the second most important layer after climate);
+# forest type was kept; water balance is held; carbonate bedrock, landform
+# (wetness, northness, heat load) and a second host layer from USFS basal
+# area added nothing and were dropped.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -175,22 +179,6 @@ atlas_layer_registry <- function() {
       # genus before anything is averaged.
       build = function(raw_dir, grid) atlas_build_hosts(raw_dir, grid)
     ),
-    landform = list(
-      id = "landform",
-      title = "Wetness, northness and heat load",
-      source = "Derived from the 1 km elevation layer",
-      url = NA_character_,
-      license = "Follows the elevation layer",
-      citation = paste(
-        "McCune B, Keon D (2002) Equations for potential annual direct incident",
-        "radiation and heat load. J Veg Sci 13:603-606; wetness index after",
-        "Beven KJ, Kirkby MJ (1979) Hydrol Sci Bull 24:43-69"
-      ),
-      # Averaged, not interpolated: a draft cell keeps the share of wet
-      # hollows and shaded slopes its 1 km cells had. See R/landform.R.
-      method = "average",
-      fetch = function(path, res) atlas_landform_source(path)
-    ),
     foresttype = list(
       id = "foresttype",
       title = "Needleleaf, broadleaf and mixed forest",
@@ -212,32 +200,6 @@ atlas_layer_registry <- function() {
       supplement = function(path, res) atlas_copernicus_source(path),
       supplement_known = "forest_known"
     ),
-    hosts_wilson = list(
-      id = "hosts_wilson",
-      title = "Host tree genera from basal area 2000-2009 (share of the stand)",
-      source = paste(
-        "USFS live tree species basal area 2000-2009 (US lower 48);",
-        "NFI kNN species composition 2011 (Canada)"
-      ),
-      url = "https://doi.org/10.2737/RDS-2013-0013",
-      license = "US Government work; Open Government Licence - Canada",
-      citation = paste(
-        "Wilson BT, Lister AJ, Riemann RI, Griffith DM (2013) Live tree species basal",
-        "area of the contiguous United States (2000-2009). USDA Forest Service,",
-        "doi:10.2737/RDS-2013-0013; Beaudoin A et al. (2017) Species composition,",
-        "forest properties and land cover types across Canada's forests at 250m",
-        "resolution for 2001 and 2011. NRCan, doi:10.23687/ec9e2659-1c29-4ddb-87a2-6aced147a990"
-      ),
-      note = paste(
-        "Two national products joined at the border: basal-area share in the US,",
-        "stand-composition share in Canada. Alaska, Mexico and the islands are in",
-        "neither: their shares are 0 and hostw_known is 0. An alternative to hosts,",
-        "kept to be measured against it."
-      ),
-      fill_outside = "hostw_known",
-      method = "average",
-      fetch = function(path, res) atlas_hosts_wilson_source(path)
-    ),
     waterbalance = list(
       id = "waterbalance",
       title = "Moisture deficit, autumn climate, snow, humidity, AET and VPD",
@@ -252,19 +214,6 @@ atlas_layer_registry <- function() {
       ),
       method = "average",
       fetch = function(path, res) atlas_waterbalance_source(path)
-    ),
-    bedrock = list(
-      id = "bedrock",
-      title = "Carbonate bedrock (share of the cell)",
-      source = "GLiM global lithological map (Hartmann & Moosdorf 2012)",
-      url = "https://www.geo.uni-hamburg.de/en/geologie/forschung/aquatische-geochemie/glim.html",
-      license = "Not stated by the authors: confirm before publishing maps built on it",
-      citation = paste(
-        "Hartmann J, Moosdorf N (2012) The new global lithological map database GLiM.",
-        "Geochem Geophys Geosyst 13:Q12004"
-      ),
-      method = "average",
-      fetch = function(path, res) atlas_bedrock_source(path)
     )
   )
 }

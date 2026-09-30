@@ -294,13 +294,22 @@ test_that("a filled layer costs a training table no rows", {
   expect_equal(filled$host_known, c(1, 0, 0))
 })
 
-test_that("both host layers are filled, each with its own flag", {
+test_that("the host layer is filled where the inventories are silent, with its flag", {
   registry <- atlas_layer_registry()
   expect_equal(registry$hosts$fill_outside, "host_known")
-  expect_equal(registry$hosts_wilson$fill_outside, "hostw_known")
-  expect_setequal(ATLAS_HOST_KNOWN_BANDS, c("host_known", "hostw_known"))
+  expect_equal(ATLAS_HOST_KNOWN_BANDS, "host_known")
   filled <- Filter(function(x) !is.null(x$fill_outside), registry)
-  expect_setequal(names(filled), c("hosts", "hosts_wilson"))
+  expect_equal(names(filled), "hosts")
+})
+
+test_that("production fits on the five first layers plus host trees and forest type, and the dropped layers are gone", {
+  registry <- atlas_layer_registry()
+  expect_equal(ATLAS_PRODUCTION_LAYERS,
+               c("elevation", "bioclim", "terrain", "soil", "landcover", "hosts", "foresttype"))
+  expect_true(all(ATLAS_PRODUCTION_LAYERS %in% names(registry)))
+  expect_false(any(c("bedrock", "landform", "hosts_wilson") %in% names(registry)))
+  expect_equal(unlist(ATLAS_NEW_LAYER_GROUPS, use.names = FALSE), "waterbalance")
+  expect_false(any(c("bedrock_carbonate", "twi", "northness", "heat_load") %in% ATLAS_PREDICTOR_PRIORITY))
 })
 
 test_that("a filled layer refuses to build before the land it is filled up to", {

@@ -290,6 +290,17 @@ test_that("with no cap there is no allowance either", {
 
 test_that("the flag for ground the inventories missed is not counted as a tree", {
   expect_false(any(atlas_is_host_share(ATLAS_HOST_KNOWN_BANDS)))
-  expect_true(all(atlas_is_host_share(c("host_pinus", "hostw_pinus", "host_conifer"))))
+  expect_true(all(atlas_is_host_share(c("host_pinus", "host_conifer"))))
+  expect_false(atlas_is_host_share("forest_known"))
   expect_false(atlas_is_host_share("cover_trees"))
+})
+
+test_that("which source described a cell is never a Maxent predictor", {
+  training <- host_training(40)
+  training$forest_known <- 1
+  training$host_known <- 1
+  training$forest_known[1:3] <- 0
+  kept <- atlas_choose_predictors(training, per_presence = Inf)
+  expect_false(any(ATLAS_SOURCE_FLAGS %in% kept))
+  expect_setequal(ATLAS_SOURCE_FLAGS, c("host_known", "forest_known"))
 })

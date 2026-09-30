@@ -26,8 +26,8 @@ test_that("an arm needing a layer that is not built is skipped, and named", {
   expect_equal(attr(kept, "skipped"), "+y")
 })
 
-test_that("the production baseline is the five layers fitted on today", {
-  expect_setequal(ATLAS_BASE_LAYERS, c("elevation", "bioclim", "terrain", "soil", "landcover"))
+test_that("the sweep's baseline is what production fits on", {
+  expect_equal(ATLAS_BASE_LAYERS, ATLAS_PRODUCTION_LAYERS)
   expect_true(all(ATLAS_BASE_LAYERS %in% names(atlas_layer_registry())))
 })
 
