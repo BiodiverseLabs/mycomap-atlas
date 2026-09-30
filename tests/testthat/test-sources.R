@@ -117,7 +117,11 @@ test_that("the server finds the sources in a source checkout", {
 test_that("every dataset production fits on is explained beside its bar on the taxon page", {
   # The ? beside each dataset in "What drives this map" says what it is, which
   # variables it offers and why. A dataset without one would show a bare bar.
-  notes <- readLines(file.path(sources_root(), "web", "src", "lib", "layerNotes.tsx"), warn = FALSE)
+  path <- file.path(sources_root(), "web", "src", "lib", "layerNotes.tsx")
+  # As for the credits above: the release image has no web sources, and CI's
+  # R tests on the full checkout are where this is checked.
+  skip_if_not(file.exists(path), "the web app's sources are not here (release image)")
+  notes <- readLines(path, warn = FALSE)
   keys <- sub(":.*$", "", trimws(grep("^  [a-z0-9_]+: ", notes, value = TRUE)))
   expect_equal(setdiff(ATLAS_PRODUCTION_LAYERS, keys), character())
 })
