@@ -32,8 +32,8 @@ ATLAS_XGBOOST_NULL_ROUNDS <- 200L
 # Tree depths boosted trees try; the tree count is set by early stopping.
 ATLAS_XGBOOST_DEPTHS <- c(2L, 3L, 5L)
 
-# Trees in each forest while tuning. 250 trees ranked cells within 0.994
-# (Spearman) of 1,000 on 24 taxa, at a sixth of the cost.
+# Trees in each forest while tuning and in the null test: as many as a map's
+# forest has (R/forest.R).
 ATLAS_RF_TUNE_TREES <- 250L
 
 ATLAS_ALGORITHMS <- list(

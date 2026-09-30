@@ -119,7 +119,7 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 54 environmental predictors, including which trees grow there.</li>
+                <li>Describe every cell of North America (5 km now, 1 km for releases) with 58 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
@@ -179,10 +179,12 @@ export default function Methods() {
 
             <Section id="predictors" title="Environmental predictors">
               <p>
-                Fifty-four predictors. All but the host trees come from sources that cover the
-                whole continent: the obvious United States products (TreeMap, NLCD, PAD-US) stop at
-                the border, and British Columbia alone holds 8% of the records. No continental map of
-                tree species exists, so the host trees join the two national forest inventories.
+                Fifty-eight predictors. All but the host trees and forest type come from sources
+                that cover the whole continent: the obvious United States products (TreeMap, NLCD,
+                PAD-US) stop at the border, and British Columbia alone holds 8% of the records. No
+                continental map of tree species exists, so the host trees join the two national
+                forest inventories, and the forest type joins North America's land cover map to a
+                global one where it stops.
               </p>
               <Table
                 head={["Group", "Predictors", "Source"]}
@@ -207,6 +209,13 @@ export default function Methods() {
                       <DatasetLink id="bigmap" /> (lower 48), <DatasetLink id="nfi" /> (Canada)
                     </span>,
                   ],
+                  [
+                    "Forest type",
+                    "share of each cell under needleleaf, broadleaf and mixed forest, counted from 30 m pixels; Hawaii and the Caribbean islands from a 100 m global map, with a predictor saying which",
+                    <span>
+                      <DatasetLink id="nalcms" />, filled from <DatasetLink id="copernicus-lc100" />
+                    </span>,
+                  ],
                 ]}
               />
               <p>
@@ -225,9 +234,15 @@ export default function Methods() {
                 <Ext href={`${GITHUB_URL}/blob/main/R/hosts.R`}>R/hosts.R</Ext>.
               </p>
               <p>
-                Each source is cropped to the region before it is reprojected, then resampled onto
-                the grid. Sea level is filled as 0 before slope is computed; without that, every
-                coastal cell came out empty and 10.7% of records were silently dropped. The build is{" "}
+                Each source is cropped to the region before it is reprojected, then brought onto
+                the grid by <B>averaging</B> the source cells each grid cell covers, never by
+                interpolation, which reads only the four source cells nearest a cell's centre and
+                leaves the cell empty if any of them is: measured at the records, that had cost
+                soil 10,321 records against 117. Land cells still empty afterwards, along the coast
+                mostly, are filled from the cells around them up to 10 km away, where land is
+                wherever the land-cover layer has data. Sea level is filled as 0 before slope is
+                computed; without that, every coastal cell came out empty and 10.7% of records
+                were silently dropped. The build is{" "}
                 <Ext href={`${GITHUB_URL}/blob/main/R/layers.R`}>R/layers.R</Ext>.
               </p>
             </Section>
@@ -285,7 +300,7 @@ export default function Methods() {
 
             <Section id="selection" title="Choosing predictors">
               <p>
-                Fifty-four predictors is a lot of rope for a taxon with forty records, and the
+                Fifty-eight predictors is a lot of rope for a taxon with forty records, and the
                 bioclim variables are near-copies of one another. For Maxent, correlated predictors
                 are pruned before fitting:
               </p>
@@ -333,7 +348,7 @@ export default function Methods() {
                 cap stops binding.
               </p>
               <p>
-                The two tree models get all 54 predictors, in any order. Trees are not confused by correlated
+                The two tree models get all 58 predictors, in any order; Maxent is never given the two that only say which source described a cell. Trees are not confused by correlated
                 inputs the way a regression is, and in the benchmark boosted trees did worse when
                 restricted to Maxent's list (−0.011 ± 0.003 AUC).
               </p>
@@ -372,7 +387,7 @@ export default function Methods() {
                     <B>Random forest</B>,
                     <Ext href="https://github.com/imbs-hl/ranger">ranger</Ext>,
                     <>
-                      1,000 probability trees, each grown on as many non-detection sites as
+                      250 probability trees, each grown on as many non-detection sites as
                       detections, drawn afresh per tree (down-sampling; Valavi et al. 2021);{" "}
                       <B>predictors tried at each split</B> 2, √p or p/3.
                     </>,

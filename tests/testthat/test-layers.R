@@ -294,13 +294,22 @@ test_that("a filled layer costs a training table no rows", {
   expect_equal(filled$host_known, c(1, 0, 0))
 })
 
-test_that("both host layers are filled, each with its own flag", {
+test_that("the host layer is filled where the inventories are silent, with its flag", {
   registry <- atlas_layer_registry()
   expect_equal(registry$hosts$fill_outside, "host_known")
-  expect_equal(registry$hosts_wilson$fill_outside, "hostw_known")
-  expect_setequal(ATLAS_HOST_KNOWN_BANDS, c("host_known", "hostw_known"))
+  expect_equal(ATLAS_HOST_KNOWN_BANDS, "host_known")
   filled <- Filter(function(x) !is.null(x$fill_outside), registry)
-  expect_setequal(names(filled), c("hosts", "hosts_wilson"))
+  expect_equal(names(filled), "hosts")
+})
+
+test_that("production fits on the five first layers plus host trees and forest type, and the dropped layers are gone", {
+  registry <- atlas_layer_registry()
+  expect_equal(ATLAS_PRODUCTION_LAYERS,
+               c("elevation", "bioclim", "terrain", "soil", "landcover", "hosts", "foresttype"))
+  expect_true(all(ATLAS_PRODUCTION_LAYERS %in% names(registry)))
+  expect_false(any(c("bedrock", "landform", "hosts_wilson") %in% names(registry)))
+  expect_equal(unlist(ATLAS_NEW_LAYER_GROUPS, use.names = FALSE), "waterbalance")
+  expect_false(any(c("bedrock_carbonate", "twi", "northness", "heat_load") %in% ATLAS_PREDICTOR_PRIORITY))
 })
 
 test_that("a filled layer refuses to build before the land it is filled up to", {
@@ -310,5 +319,146 @@ test_that("a filled layer refuses to build before the land it is filled up to", 
       outside_setup()$source
     })
     expect_error(atlas_build_layer("hosts", "draft", quiet = TRUE), "build elevation")
+  })
+})
+
+# --- Empty land cells are filled from their neighbours -------------------
+
+near_setup <- function() {
+  # A 5 x 5 grid of 1 km cells. Land is the left four columns; the right
+  # column is sea. The layer is empty on the coast (column 4) and at one
+  # inland cell, and has a value in the sea it should not keep.
+  land <- terra::rast(nrows = 5, ncols = 5, xmin = 0, xmax = 5000, ymin = 0, ymax = 5000,
+                      crs = ATLAS_CRS)
+  terra::values(land) <- rep(c(TRUE, TRUE, TRUE, TRUE, FALSE), 5)
+  x <- land
+  v <- rep(c(10, 20, 30, NA, 99), 5)
+  v[12] <- NA   # row 3, column 2: an inland hole
+  terra::values(x) <- v
+  names(x) <- "soil_phh2o"
+  list(land = land, x = x)
+}
+
+test_that("an empty land cell takes the mean of its neighbours, and cells with data keep theirs", {
+  skip_if_not_installed("terra")
+  s <- near_setup()
+  out <- atlas_fill_near(s$x, s$land, max_km = 1)
+  v <- matrix(terra::values(out), 5, byrow = TRUE)
+  expect_equal(v[1, 1:3], c(10, 20, 30))
+  # The coast: neighbours are 30 (left column) and, diagonally, 30s; the sea
+  # (99) is empty by then, so it cannot leak in... unless it was there first.
+  expect_true(is.finite(v[1, 4]))
+  expect_equal(v[3, 2], mean(c(10, 10, 10, 20, 20, 30, 30, 30)))
+  expect_equal(names(out), "soil_phh2o")
+})
+
+test_that("the sea stays empty, whatever the source said there", {
+  skip_if_not_installed("terra")
+  s <- near_setup()
+  out <- atlas_fill_near(s$x, s$land, max_km = 3)
+  v <- matrix(terra::values(out), 5, byrow = TRUE)
+  expect_true(all(is.na(v[, 5])))
+  expect_true(all(is.finite(v[, 1:4])))
+})
+
+test_that("a cell further than the limit from any data stays empty", {
+  skip_if_not_installed("terra")
+  land <- terra::rast(nrows = 2, ncols = 6, xmin = 0, xmax = 6000, ymin = 0, ymax = 2000,
+                      crs = ATLAS_CRS)
+  terra::values(land) <- TRUE
+  x <- land
+  terra::values(x) <- rep(c(5, NA, NA, NA, NA, NA), 2)
+  one <- terra::values(atlas_fill_near(x, land, max_km = 1))
+  expect_equal(as.numeric(one), rep(c(5, 5, NA, NA, NA, NA), 2))
+  three <- terra::values(atlas_fill_near(x, land, max_km = 3))
+  expect_equal(as.numeric(three), rep(c(5, 5, 5, 5, NA, NA), 2))
+})
+
+test_that("the current layers are averaged onto the grid, filled to the land, and land cover comes first", {
+  registry <- atlas_layer_registry()
+  for (id in c("elevation", "bioclim", "soil", "landcover", "terrain")) {
+    expect_equal(registry[[id]]$method, "average", info = id)
+  }
+  expect_true(all(vapply(c("elevation", "bioclim", "soil"), function(id) isTRUE(registry[[id]]$fill_near), logical(1))))
+  expect_false(isTRUE(registry$landcover$fill_near))
+  expect_equal(ATLAS_FILL_NEAR_KM, 10)
+})
+
+test_that("a filled layer refuses to build before land cover, and land cover is built first", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    built <- character()
+    fake <- terra::rast(nrows = 2, ncols = 2, xmin = 0, xmax = 2000, ymin = 0, ymax = 2000,
+                        crs = ATLAS_CRS)
+    terra::values(fake) <- 1
+    testthat::local_mocked_bindings(
+      atlas_project_to_grid = function(x, grid, method) x,
+      atlas_layer_registry = function() {
+        list(
+          soil = list(id = "soil", title = "Soil", source = "s", url = "u", license = "l",
+                      citation = "c", method = "average", fill_near = TRUE,
+                      fetch = function(path, res) { built <<- c(built, "soil"); fake }),
+          landcover = list(id = "landcover", title = "Cover", source = "s", url = "u",
+                           license = "l", citation = "c", method = "average",
+                           fetch = function(path, res) { built <<- c(built, "landcover"); fake })
+        )
+      }
+    )
+    expect_error(atlas_build_layer("soil", "draft", quiet = TRUE), "build landcover")
+    built <- character()
+    atlas_build_layers(c("soil", "landcover"), "draft", quiet = TRUE)
+    expect_equal(built, c("landcover", "soil"))
+    expect_true(file.exists(atlas_layer_path("soil", "draft")))
+  })
+})
+
+# --- A second source fills where the first is silent ---------------------------
+
+test_that("a supplement fills only the cells the main source left empty, and is flagged", {
+  skip_if_not_installed("terra")
+  main <- terra::rast(nrows = 1, ncols = 4, xmin = 0, xmax = 4000, ymin = 0, ymax = 1000,
+                      crs = ATLAS_CRS, nlyrs = 2)
+  terra::values(main) <- cbind(c(0.5, NA, 0.2, NA), c(0.1, NA, NA, NA))
+  names(main) <- c("forest_needleleaf", "forest_broadleaf")
+  extra <- main
+  terra::values(extra) <- cbind(c(0.9, 0.7, 0.9, NA), c(0.9, 0.3, 0.9, NA))
+  out <- atlas_supplement(main, extra, known = "forest_known")
+  v <- terra::values(out)
+  expect_equal(names(out), c("forest_needleleaf", "forest_broadleaf", "forest_known"))
+  # Described by the main source: kept, flagged 1.
+  expect_equal(unname(v[1, ]), c(0.5, 0.1, 1))
+  # Empty in the main source: the supplement's values, flagged 0.
+  expect_equal(unname(v[2, ]), c(0.7, 0.3, 0), tolerance = 1e-6)
+  # Half described counts as empty, so no cell mixes the two sources.
+  expect_equal(unname(v[3, ]), c(0.9, 0.9, 0), tolerance = 1e-6)
+  # Neither speaks: still empty.
+  expect_true(all(is.na(v[4, ])))
+})
+
+test_that("building a supplemented layer projects the supplement and fills from it", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    fake <- function(values) {
+      r <- terra::rast(nrows = 1, ncols = 2, xmin = 0, xmax = 2000, ymin = 0, ymax = 1000,
+                       crs = ATLAS_CRS)
+      terra::values(r) <- values
+      names(r) <- "forest_mixed"
+      r
+    }
+    testthat::local_mocked_bindings(
+      atlas_project_to_grid = function(x, grid, method) x,
+      atlas_layer_registry = function() list(
+        foresttype = list(id = "foresttype", title = "Forest", source = "s", url = "u",
+                          license = "l", citation = "c", method = "average",
+                          fetch = function(path, res) fake(c(0.4, NA)),
+                          supplement = function(path, res) fake(c(0.9, 0.6)),
+                          supplement_known = "forest_known")
+      )
+    )
+    record <- atlas_build_layer("foresttype", "draft", quiet = TRUE)
+    expect_equal(unlist(record$bands), c("forest_mixed", "forest_known"))
+    v <- terra::values(terra::rast(atlas_layer_path("foresttype", "draft")))
+    expect_equal(unname(v[1, ]), c(0.4, 1))
+    expect_equal(unname(v[2, ]), c(0.6, 0), tolerance = 1e-6)
   })
 })

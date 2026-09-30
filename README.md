@@ -154,21 +154,25 @@ three hours, and 2 GB of NFI files).
 ./atlas build-layers --only=hosts --grid=draft
 ```
 
-### Candidate layers
+### The production layers, and the candidates
 
-Five more layers are built only into a separate data directory, and measured
-by `./atlas sweep-layers` before any of them is fitted on in production
-(R/layersweep.R): forest type (`foresttype`, NALCMS 2020), water balance and
-fruiting-season climate (`waterbalance`, ClimateNA 1991-2020 and
-TerraClimate), carbonate bedrock (`bedrock`, GLiM), landform (`landform`:
-wetness, northness, heat load) and a second host-tree layer (`hosts_wilson`,
-bands `hostw_*`: USFS basal area 2000-2009 with the Canadian inventory, ten
-genera), kept as a rival to `hosts` so the two can be compared. The sweep
-scores every arm on the same sites and folds, under the design production
-uses, and reports how many records each layer cannot describe.
+Production fits on seven layers (`ATLAS_PRODUCTION_LAYERS`, R/layersweep.R):
+climate, elevation, terrain, soil, land cover, host trees and forest type
+(`foresttype`, NALCMS 2020, with Hawaii and the Caribbean filled from
+Copernicus Global Land Cover). Any other layer is a candidate: built only into
+a separate data directory and measured by `./atlas sweep-layers` before it is
+fitted on (R/layersweep.R). The sweep scores every arm on the same sites and
+folds, under the design production uses, and reports how many records each
+layer cannot describe and what each predictor and layer was worth on held-out
+ground.
 
-On the draft grid, 99.3% of pulled records land on a cell with climate data;
-five records fall outside the grid altogether.
+Measured on 152 taxa (2026-09-30): host trees earned their place (+0.008 +/-
+0.004 blocked AUC when added, and the second most important layer after
+climate, most of all for ectomycorrhizal fungi); forest type was kept; water
+balance and fruiting-season climate (`waterbalance`, ClimateNA 1991-2020 and
+TerraClimate) is held as a candidate; carbonate bedrock, landform (wetness,
+northness, heat load) and a second host-tree layer from USFS basal area added
+nothing and were dropped.
 
 ## Training data
 
@@ -425,8 +429,10 @@ Maxent in any band, and Maxent still had the best AUC for a third of the
 sparsest taxa. Boosted trees match Maxent, and do worse when restricted to
 Maxent's predictors, which is why the trees get every predictor. Scoring time
 is the five blocked folds; drawing a forest's map is slower (about 2.5 minutes
-for a widespread taxon), since a thousand trees have to be asked about every
-cell.
+for a widespread taxon at the thousand trees the benchmark used), since every
+tree has to be asked about every cell. Forests are now 250 trees: on 24 taxa
+that ranked cells within 0.994 of a thousand trees, every cell within one
+decile, at about a sixth of the time.
 
 ### Colours are ranks
 

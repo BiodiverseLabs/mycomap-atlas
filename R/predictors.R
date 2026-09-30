@@ -45,16 +45,19 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   # What it grows on or with.
   "forest_needleleaf", "forest_broadleaf", "forest_mixed",
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
-  # The rest of the soil, and the rock beneath.
-  "bedrock_carbonate", "soil_soc", "soil_clay", "soil_sand", "soil_cec",
+  # The rest of the soil.
+  "soil_soc", "soil_clay", "soil_sand", "soil_cec",
   # Secondary climate.
   "clim_rh", "clim_vpd", "clim_aet", "clim_pas",
-  # The shape of the ground: where water gathers, which way it faces.
-  "elevation", "twi", "northness", "heat_load", "slope", "roughness"
+  # The shape of the ground.
+  "elevation", "slope", "roughness"
 )
 
 # Whether the inventories spoke for a cell (R/layers.R, atlas_fill_outside).
-ATLAS_HOST_KNOWN_BANDS <- c("host_known", "hostw_known")
+ATLAS_HOST_KNOWN_BANDS <- "host_known"
+# Bands that say which source described a cell, not what is there. The trees
+# take them; Maxent's pruning leaves them out (atlas_choose_predictors).
+ATLAS_SOURCE_FLAGS <- c("host_known", "forest_known")
 
 # The share of a model's predictors the host trees may take. There are twenty
 # host bands and they are barely correlated, so placed straight after soil pH
@@ -88,15 +91,14 @@ atlas_predictor_priority <- function(guild = ATLAS_GUILD_UNKNOWN) {
   )
 }
 
-#' Every host-tree column either host layer can bring, flags first.
+#' Every host-tree column, the flag first.
 atlas_host_columns <- function() {
-  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS,
-    atlas_wilson_band(names(ATLAS_WILSON_GENERA)))
+  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS)
 }
 
 #' Whether a column is a host tree's share (not the flag beside them).
 atlas_is_host_share <- function(columns) {
-  grepl("^hostw?_", columns) & !columns %in% ATLAS_HOST_KNOWN_BANDS
+  grepl("^host_", columns) & !columns %in% ATLAS_HOST_KNOWN_BANDS
 }
 
 #' The share of its predictors a guild's model may spend on host trees.
@@ -192,6 +194,9 @@ atlas_choose_predictors <- function(training, threshold = 0.7,
   # Effort is not habitat: it is never pruned against a habitat variable,
   # never counts against the cap, and always goes in.
   available <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
+  # Which source a cell came from is bookkeeping, not habitat: it is 1 nearly
+  # everywhere and says nothing a regression should lean on.
+  available <- setdiff(available, ATLAS_SOURCE_FLAGS)
   effort <- intersect(ATLAS_EFFORT_COLUMN, atlas_predictor_columns(training))
   background <- training[training$presence == 0L, available, drop = FALSE]
   kept <- if (nrow(background)) {
