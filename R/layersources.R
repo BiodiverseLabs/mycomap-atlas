@@ -41,10 +41,30 @@ atlas_fetch_once <- function(url, path) {
 
 #' Write a raster beside the raw downloads, compressed and tiled.
 atlas_write_cached <- function(x, path) {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  terra::writeRaster(x, path, overwrite = TRUE,
-                     gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
+  atlas_write_raster_whole(x, path, gdal = c("COMPRESS=DEFLATE", "TILED=YES", "BIGTIFF=IF_SAFER"))
   terra::rast(path)
+}
+
+#' Write a raster that a later run will trust because it exists.
+#'
+#' Every raw cache here is reused on sight, so a write that dies halfway (out
+#' of memory, a full disk) must not leave a file at the cache's own path: the
+#' next run would read the stub as the cache, or fail on it. The raster is
+#' written to <path>.part and renamed into place only once the write returns;
+#' a .part left behind is never read, and the next write replaces it.
+atlas_write_raster_whole <- function(x, path, gdal = c("COMPRESS=DEFLATE")) {
+  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+  part <- paste0(path, ".part")
+  unlink(part)
+  ok <- FALSE
+  on.exit(if (!ok) unlink(part), add = TRUE)
+  terra::writeRaster(x, part, filetype = "GTiff", overwrite = TRUE, gdal = gdal)
+  if (file.exists(path)) unlink(path)
+  if (!file.rename(part, path)) {
+    stop("could not move ", basename(part), " into place", call. = FALSE)
+  }
+  ok <- TRUE
+  invisible(path)
 }
 
 # ---- Forest type: NALCMS 2020 ------------------------------------------------

@@ -406,7 +406,7 @@ atlas_bigmap_fetch_species <- function(fn, window, dir, http = atlas_host_http, 
   })
   merged <- if (length(parts) == 1L) parts[[1]] else terra::merge(terra::sprc(parts))
   names(merged) <- fn
-  terra::writeRaster(merged, out, overwrite = TRUE, gdal = c("COMPRESS=DEFLATE"))
+  atlas_write_raster_whole(merged, out)
   if (!quiet) message("    ", fn, ": ", round(bytes / 1e6, 1), " MB")
   invisible(list(path = out, bytes = bytes))
 }
@@ -448,7 +448,7 @@ atlas_bigmap_sums <- function(dir, window, http = atlas_host_http, quiet = FALSE
   groups <- atlas_bigmap_groups(species, set$genera, totals = set$totals)
   sums <- terra::rast(atlas_group_sums(layers, groups))
   names(sums) <- names(groups)
-  terra::writeRaster(sums, out, overwrite = TRUE, gdal = c("COMPRESS=DEFLATE"))
+  atlas_write_raster_whole(sums, out)
   if (!isTRUE(keep_species)) unlink(species_dir, recursive = TRUE)
   terra::rast(out)
 }
@@ -566,7 +566,7 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
     terra::rast(bands[genera])
   }
   names(sums) <- c(if (isTRUE(set$totals)) c("total", "conifer"), genera)
-  terra::writeRaster(sums, out, overwrite = TRUE, gdal = c("COMPRESS=DEFLATE"))
+  atlas_write_raster_whole(sums, out)
   terra::rast(out)
 }
 

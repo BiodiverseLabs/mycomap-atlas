@@ -719,3 +719,60 @@ test_that("the decay-host candidate refuses before reading anything when product
   expect_equal(list.files(file.path(dir, "hosts")), character())
   unlink(dir, recursive = TRUE)
 })
+
+# ---- raw caches are whole or absent ---------------------------------------------
+
+test_that("a cache write that fails leaves no cache file for the next run to trust", {
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("half-", as.integer(stats::runif(1, 1, 1e9))))
+  offsets <- c(SPCD_0122_Pinus_ponderosa = 10, SPCD_0802_Quercus_alba = 40, other_hosts())
+  server <- fake_bigmap(offsets)
+  window <- c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000)
+  # Species files write; the sums die halfway through their file, as an
+  # out-of-memory write did on 2026-09-30, leaving an 8-byte stub.
+  real_write <- terra::writeRaster
+  testthat::local_mocked_bindings(
+    writeRaster = function(x, filename, ...) {
+      if (grepl("bigmap-1km", filename)) {
+        writeBin(as.raw(1:8), filename)
+        stop("std::bad_alloc")
+      }
+      real_write(x, filename, ...)
+    },
+    .package = "terra"
+  )
+  expect_error(atlas_bigmap_sums(dir, window, http = server$http, quiet = TRUE,
+                                 functions = names(offsets), keep_species = TRUE),
+               "bad_alloc")
+  expect_false(file.exists(file.path(dir, "bigmap-1km.tif")))
+  expect_false(file.exists(file.path(dir, "bigmap-1km.tif.part")))
+  # The species files that did finish are whole and kept for the next run.
+  expect_true(file.exists(file.path(dir, "bigmap-species", "SPCD_0122_Pinus_ponderosa.tif")))
+  expect_length(list.files(dir, pattern = "[.]part$", recursive = TRUE), 0L)
+
+  # The same guard for every raster cache: NFI's sums and the NALCMS,
+  # Copernicus and water-balance caches all write through it.
+  r <- terra::rast(nrows = 2, ncols = 2)
+  terra::values(r) <- 1:4
+  cached <- file.path(dir, "nalcms", "bigmap-1km.tif")
+  expect_error(atlas_write_cached(r, cached), "bad_alloc")
+  expect_false(file.exists(cached))
+  expect_false(file.exists(paste0(cached, ".part")))
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("a leftover .part is never read as the cache, and the next write replaces it", {
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("part-", as.integer(stats::runif(1, 1, 1e9))))
+  dir.create(dir, recursive = TRUE)
+  writeBin(as.raw(1:8), file.path(dir, "bigmap-1km.tif.part"))
+  offsets <- c(SPCD_0122_Pinus_ponderosa = 10, SPCD_0802_Quercus_alba = 40, other_hosts())
+  server <- fake_bigmap(offsets)
+  sums <- atlas_bigmap_sums(dir, c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000),
+                            http = server$http, quiet = TRUE, functions = names(offsets))
+  expect_true(length(server$requested()) > 0)
+  expect_equal(names(sums), c("total", "conifer", tolower(ATLAS_HOST_GENERA)))
+  expect_equal(unname(terra::values(sums)[1, "pinus"]), 12.5)
+  expect_false(file.exists(file.path(dir, "bigmap-1km.tif.part")))
+  unlink(dir, recursive = TRUE)
+})
