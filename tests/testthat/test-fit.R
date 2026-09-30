@@ -499,7 +499,7 @@ test_that("boosted trees meet their nulls at a fixed tree count", {
 
 test_that("the design a model records names the effort, the index and the null test", {
   design <- atlas_design()
-  expect_match(design$effort, "other taxa")
+  expect_match(design$effort, "counted once")
   expect_match(design$skill$boyce, "every fold")
   expect_match(design$skill$nulls, "untuned")
 })

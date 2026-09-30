@@ -19,7 +19,7 @@
 #
 # For one species, a site is a detection when any of its records is that
 # species, and a non-detection otherwise. Effort goes into every model as a
-# predictor (log of one plus the other taxa's records at the site, R/background.R)
+# predictor (log of the site's records, the taxon's own counted once, R/background.R)
 # and is held at one value when a map is
 # drawn or scored, so the map shows habitat and effort explains the rest
 # (Warton, Renner & Ramp 2013; Fithian et al. 2015).

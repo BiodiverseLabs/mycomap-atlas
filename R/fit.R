@@ -487,7 +487,7 @@ atlas_insufficient_evidence <- function(name, presences, grid, min_presences,
 #' the block limits live in R/sites.R, which loads after this file.
 atlas_design <- function() list(
   unit = "survey sites, detection/non-detection",
-  effort = "log(1 + records of other taxa at the site), held at the median of detection sites",
+  effort = "log(records at the site, the taxon's own counted once), held at the median of detection sites",
   block = list(method = "blockCV detection autocorrelation range",
                floor_km = ATLAS_BLOCK_FLOOR_KM, ceiling_km = ATLAS_BLOCK_CEILING_KM,
                fallback_km = ATLAS_BLOCK_FALLBACK_KM),
