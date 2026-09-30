@@ -90,7 +90,7 @@ ATLAS_SWEEP_DESIGNS <- c("sites", "no-effort", "per-record")
 #' "sites" leaves them alone. "no-effort" takes the effort column away.
 #' "per-record" is the design before survey sites: each non-detection site is
 #' repeated once for every record collected there (effort is
-#' log(1 + records)), at most n_background rows drawn from the repeats, each
+#' log(records)), at most n_background rows drawn from the repeats, each
 #' detection site counted once, and no effort column.
 atlas_design_rows <- function(train, design = "sites", n_background = 10000, seed = 1L) {
   design <- match.arg(design, ATLAS_SWEEP_DESIGNS)
@@ -104,7 +104,7 @@ atlas_design_rows <- function(train, design = "sites", n_background = 10000, see
   }
   found <- which(train$presence == 1L)
   others <- which(train$presence == 0L)
-  records <- pmax(1L, as.integer(round(expm1(effort[others]))))
+  records <- pmax(1L, as.integer(round(exp(effort[others]))))
   repeated <- rep(others, times = records)
   if (length(repeated) > n_background) {
     set.seed(seed)

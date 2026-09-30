@@ -145,7 +145,7 @@ test_that("the host trees get an arm in the order of an unknown guild", {
 design_table <- function() {
   data.frame(presence = c(1L, 1L, 0L, 0L, 0L), cell = 1:5, x = 0, y = 0,
              v1 = c(0.1, 0.2, 0.3, 0.4, 0.5),
-             effort = log1p(c(7, 0, 1, 4, 0)))
+             effort = log(c(8, 1, 1, 4, 1)))
 }
 
 test_that("production's design leaves the survey sites as they are", {
@@ -169,7 +169,7 @@ test_that("the old design repeats a non-detection site once per record, and dete
 
 test_that("the old design draws no more than its background size, the same way each time", {
   table <- design_table()
-  table$effort[4] <- log1p(5000)
+  table$effort[4] <- log(5000)
   rows <- atlas_design_rows(table, "per-record", n_background = 100, seed = 3L)
   expect_equal(sum(rows$presence == 0L), 100L)
   expect_equal(sum(rows$presence == 1L), 2L)

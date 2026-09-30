@@ -15,11 +15,16 @@
 # where the taxon was collected, a non-detection a site where other things
 # were collected but not it. How hard a site was worked is not counted by
 # repeating it, which confused effort with habitat, but carried as its own
-# predictor and held at one value when a map is drawn. Effort is
-# log(1 + records of other taxa at the site): the taxon's own records are left
-# out, or a fungus collected a hundred times in one wood would make that wood
-# look thoroughly surveyed by its own presence, and effort would explain the
-# detection it is meant to be independent of. Sites are drawn only from the
+# predictor and held at one value when a map is drawn. Effort is the log of
+# the site's records with the taxon's own counted once, however many there
+# are: a fungus collected a hundred times in one wood would otherwise make
+# that wood look thoroughly surveyed by its own presence. Its records are
+# counted once rather than left out, because leaving them out gave a site
+# where only the taxon was collected an effort of 0, which no non-detection
+# site can have (it holds at least one record), so effort alone told
+# detections apart and Maxent could not be fitted. Counted once, a site with
+# one record has the same effort whether or not that record is the taxon.
+# Sites are drawn only from the
 # taxon's accessible area, not the continent: a species is not absent from
 # Yukon because nobody looked there.
 
@@ -94,8 +99,8 @@ atlas_background_sample <- function(pool, area, n = 10000, seed = 1L) {
 #' Detections and non-detections for one taxon, ready to fit.
 #'
 #' One row per site: presence is 1 where the taxon was collected, effort is
-#' log(1 + records of other taxa at the site), and cell, x and y are the
-#' site's centre, where its predictors are read.
+#' log(records at the site, the taxon's own counted once), and cell, x and y
+#' are the site's centre, where its predictors are read.
 atlas_training_table <- function(name, points, n_background = 10000,
                                  buffer_km = 500, fingerprint = NULL,
                                  thin_km = ATLAS_SITE_KM) {
@@ -119,9 +124,9 @@ atlas_training_table <- function(name, points, n_background = 10000,
   }
   out <- rbind(
     data.frame(presence = rep(1L, nrow(presences)), presences[, columns, drop = FALSE],
-               effort = log1p(presences$records - own), stringsAsFactors = FALSE),
+               effort = log(presences$records - own + 1L), stringsAsFactors = FALSE),
     data.frame(presence = rep(0L, nrow(background)), background[, columns, drop = FALSE],
-               effort = log1p(background$records), stringsAsFactors = FALSE)
+               effort = log(background$records), stringsAsFactors = FALSE)
   )
   rownames(out) <- NULL
   attr(out, "area_km2") <- unname(terra::expanse(area, unit = "km"))

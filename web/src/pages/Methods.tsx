@@ -262,8 +262,8 @@ export default function Methods() {
                 <li>
                   <B>Effort as a predictor.</B> How hard a site was worked goes into every model,
                   and is held at one level, the median of the species' detection sites, whenever a
-                  map is drawn or scored. Effort is the log of one plus the records of{" "}
-                  <B>other</B> fungi at the site: the species' own records are left out, or a fungus
+                  map is drawn or scored. Effort is the log of the site's records, with the
+                  species' own records <B>counted once</B> however many there are, or a fungus
                   collected a hundred times in one wood would make that wood look well surveyed by
                   being there. Effort explains what effort explains, and the map shows the rest
                   (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015).
