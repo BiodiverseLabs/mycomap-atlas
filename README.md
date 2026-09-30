@@ -175,7 +175,7 @@ five records fall outside the grid altogether.
 A taxon's training table has one row per **survey site** inside its accessible
 area: detected (the taxon was collected there) or not (other DNA-validated
 fungi were collected there, but not it), with the site's predictors and its
-**effort**, log(1 + records of other taxa at the site). The comparison is the
+**effort**, log(records at the site, the taxon's own counted once). The comparison is the
 **target group**: every DNA-validated record of every taxon.
 
 ```bash
@@ -197,9 +197,9 @@ background per record, so a wood collected a hundred times counted a hundred
 times against every species found there, and well-surveyed ground looked worse
 than it was. Effort is now a predictor instead, held at the median of the
 taxon's detection sites whenever a map is drawn or scored (Warton, Renner &
-Ramp 2013; Fithian et al. 2015). A taxon's own records are left out of its
-sites' effort, or a fungus collected a hundred times in one wood would make
-that wood look well surveyed by being there. The spacing is in km, not cells, so the 1 km
+Ramp 2013; Fithian et al. 2015). A taxon's own records count once towards
+its sites' effort, however many there are, or a fungus collected a hundred
+times in one wood would make that wood look well surveyed by being there. The spacing is in km, not cells, so the 1 km
 grid does not turn one foray into five presences.
 
 The accessible area is the taxon's own sites buffered by 500 km, because a

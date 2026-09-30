@@ -1596,7 +1596,7 @@
           },
           "effort_at": {
             "type": "number",
-            "description": "The effort, log(1 + records of other taxa at the site), the map and scores are drawn at."
+            "description": "The effort, log(records at the site, the taxon's own counted once), the map and scores are drawn at."
           }
         }
       },

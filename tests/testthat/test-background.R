@@ -67,9 +67,8 @@ test_that("a much-visited site counts once, and says how busy it was", {
   )
   table <- atlas_training_table("Focal species", points, n_background = 500)
   expect_equal(nrow(table), 3L)
-  expect_equal(sort(table$effort[table$presence == 0L]), log1p(c(100, 900)))
-  # Nothing but the focal species was collected at its site.
-  expect_equal(table$effort[table$presence == 1L], 0)
+  expect_equal(sort(table$effort[table$presence == 0L]), log(c(100, 900)))
+  expect_equal(table$effort[table$presence == 1L], log(1))
 })
 
 test_that("a detection site is never also a non-detection", {
@@ -80,8 +79,9 @@ test_that("a detection site is never also a non-detection", {
   )
   table <- atlas_training_table("Focal species", points, n_background = 500)
   expect_equal(table$presence, c(1L, 0L))
-  # Three records at the site, two of them the focal species' own.
-  expect_equal(table$effort[1], log1p(1))
+  # Three records at the site, two of them the focal species' own, which
+  # count once.
+  expect_equal(table$effort[1], log(2))
 })
 
 test_that("a taxon's own records do not count as effort at its sites", {
@@ -99,10 +99,24 @@ test_that("a taxon's own records do not count as effort at its sites", {
   )
   table <- atlas_training_table("Focal species", points, n_background = 500)
   found <- table[table$presence == 1L, ]
-  expect_equal(found$effort[found$x == 0], 0)
-  expect_equal(found$effort[found$x == 30000], log1p(50))
-  # The same fifty records weigh the same whether or not the species was there.
-  expect_equal(table$effort[table$presence == 0L], log1p(50))
+  expect_equal(found$effort[found$x == 0], log(1))
+  expect_equal(found$effort[found$x == 30000], log(51))
+  expect_equal(table$effort[table$presence == 0L], log(50))
+})
+
+test_that("effort alone cannot tell a detection from a non-detection", {
+  skip_if_not_installed("terra")
+  # A site where only the focal species was collected, once, and a site where
+  # only another species was, once. Leaving a taxon's own records out
+  # altogether gave the first an effort no non-detection site can have.
+  points <- rbind(
+    fake_points(x = 0, y = 0, names = "Focal species", cells = 1L),
+    fake_points(x = 30000, y = 0, names = "Other species", cells = 2L)
+  )
+  table <- atlas_training_table("Focal species", points, n_background = 500)
+  expect_equal(table$effort[table$presence == 1L], table$effort[table$presence == 0L])
+  expect_gte(min(table$effort[table$presence == 1L]),
+             min(table$effort[table$presence == 0L]))
 })
 
 test_that("the same data always draws the same background", {
