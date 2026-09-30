@@ -167,6 +167,15 @@ genera), kept as a rival to `hosts` so the two can be compared. The sweep
 scores every arm on the same sites and folds, under the design production
 uses, and reports how many records each layer cannot describe.
 
+Sources are brought onto the grid by averaging the source cells each grid
+cell covers, never by interpolation: interpolating a 1 km source onto a 5 km
+cell reads only the four source cells nearest its centre and leaves the cell
+empty if any of them is empty, which, measured at the records, cost soil
+10,321 records against 117. Land cells still empty afterwards, coastal cells
+mostly, are filled from the cells around them up to 10 km away
+(`atlas_fill_near`); land is wherever the land-cover layer has data, so land
+cover is built first.
+
 On the draft grid, 99.3% of pulled records land on a cell with climate data;
 five records fall outside the grid altogether.
 
