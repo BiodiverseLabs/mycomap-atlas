@@ -8,7 +8,8 @@ records. See README.md for the pipeline and data layout.
 - **mycomap.org is read-only from here.** Records come from `ssh mycomap-sql`
   (database-enforced read-only, 60 s statement cap). Never write to .org, .com,
   iNaturalist or Mushroom Observer from this repo.
-- **Training data is DNA-validated only**: green in a project, red in none.
+- **Training data is DNA-validated only**: green in at least one project (a red
+  in another project does not rule a record out; Steve, 2026-09-30).
   Never train on unassessed records, on eDNA, or on MycoMap Vision's output.
   Vision calls Atlas for a prior; if Atlas learned from Vision, the two would
   feed each other their own guesses.

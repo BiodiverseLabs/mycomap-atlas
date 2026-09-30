@@ -728,10 +728,11 @@ Everything lives under `data/`, which is never committed (override with
 
 ### Eligibility
 
-A record is eligible when it is **green in at least one validation project and
-red in none**, has coordinates that are present, unobscured, and accurate to
-within 1 km where an accuracy was recorded, sits in North America, and carries
-a species-level name (provisional temp codes included).
+A record is eligible when it is **green in at least one validation project** (a
+red in another project does not rule it out), has coordinates that are present,
+unobscured, and accurate to within 1 km where an accuracy was recorded, sits in
+North America, and carries a species-level name (provisional temp codes
+included).
 
 Records green only in a fourth or later project are missed, because .org
 flattens three validation slots. Vision has the same limitation, and the fix

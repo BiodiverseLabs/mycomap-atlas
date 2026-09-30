@@ -131,7 +131,7 @@ export default function Methods() {
             <Section id="records" title="Records">
               <p>
                 A record trains a model only when its name is confirmed by DNA: it is{" "}
-                <B>green in at least one MycoMap validation project and red in none</B>. Photo
+                <B>green in at least one MycoMap validation project</B>, whatever another project said. Photo
                 identifications, herbarium names and unassessed records are left out. An old
                 species concept can be wrong even after its synonyms are sorted out, and a model
                 trained on a wrong name draws a confident, wrong map.
