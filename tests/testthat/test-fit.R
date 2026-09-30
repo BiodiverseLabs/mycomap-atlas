@@ -503,3 +503,24 @@ test_that("the design a model records names the effort, the index and the null t
   expect_match(design$skill$boyce, "every fold")
   expect_match(design$skill$nulls, "untuned")
 })
+
+test_that("a predictor that does not vary among the sites fitted is left out, not fatal", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 800, n_presence = 60)
+  # A flag that is 0 at two sites in all of them, as where the tree
+  # inventories were silent. Held out together, it is constant in the fit.
+  training$flag <- 1
+  training$flag[c(100, 200)] <- 0
+  fold <- rep(1L, nrow(training))
+  fold[c(100, 200)] <- 2L
+  fold[sample(setdiff(seq_len(nrow(training)), c(100, 200)), 200)] <- 2L
+  train <- training[fold == 1L, ]
+  expect_equal(length(unique(train$flag)), 1L)
+  model <- atlas_fit_maxnet(train, classes = "lqh")
+  scores <- atlas_suitability(model, training[fold == 2L, atlas_predictor_columns(training)])
+  expect_true(all(is.finite(scores)))
+  expect_false(any(grepl("flag", names(model$betas))))
+  # And cross-validation, where it happened, scores every fold.
+  folds <- atlas_cross_validate(training, fold, classes = "lqh")
+  expect_true(all(is.finite(folds$auc)))
+})
