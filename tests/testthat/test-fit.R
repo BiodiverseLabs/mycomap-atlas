@@ -672,3 +672,207 @@ test_that("a null model whose fit fails is replaced, so the test keeps all its n
   # A strong taxon that beats every null reaches p = 0.05, not 0.053.
   expect_equal(null$auc_p, 0.05)
 })
+
+# --- Fits of the same sites share their features ---------------------------------
+
+# A taxon with enough detections for hinges, on a landscape with folds.
+shared_features_table <- function(n = 600, presences = 60, seed = 8) {
+  set.seed(seed)
+  table <- data.frame(presence = 0L, cell = seq_len(n),
+                      x = stats::runif(n, 0, 1e6), y = stats::runif(n, 0, 1e6),
+                      v1 = stats::runif(n, -3, 3), v2 = stats::runif(n), v3 = stats::runif(n),
+                      effort = stats::runif(n, 0, 3))
+  table$presence[sample.int(n, presences, prob = exp(-((table$v1 - 1)^2) / 0.5))] <- 1L
+  table
+}
+
+shared_features_folds <- function(table) {
+  atlas_spatial_folds(table$x, table$y, k = 4, block_km = 250, presence = table$presence)
+}
+
+# Maxent exactly as production fits it, but with no way to share features.
+maxnet_unshared <- function() {
+  algo <- atlas_algorithm("maxnet")
+  algo$fit <- function(train, params, seed = 1L, tuning = FALSE) {
+    atlas_fit_maxnet(train, classes = params$classes, regmult = params$regmult)
+  }
+  algo
+}
+
+test_that("Maxent's regularization is maxnet's own, number for number", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  # A predictor the detections all share, so its penalty is the floor set by
+  # its range over every site.
+  table$v4 <- ifelse(table$presence == 1L, 0.5, stats::runif(nrow(table)))
+  for (classes in c("l", "lq", "lqh", "lqph")) {
+    data <- table[, c("v1", "v2", "v3", "v4")]
+    f <- maxnet::maxnet.formula(table$presence, data, classes = classes)
+    mm <- stats::model.matrix(f, data)
+    expect_identical(atlas_maxnet_regularization(table$presence, mm),
+                     maxnet::maxnet.default.regularization(table$presence, mm))
+  }
+})
+
+test_that("a shared feature matrix is the one model.matrix builds, names and all", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  predictors <- table[table$cell > 100, c("v1", "v2", "v3")]
+  presence <- table$presence[table$cell > 100]
+  data <- rbind(predictors, predictors[presence == 1L, , drop = FALSE])
+  p <- c(presence, rep(0L, sum(presence == 1L)))
+  f <- maxnet::maxnet.formula(p, data, classes = "lqh")
+  shared <- atlas_cached_features(atlas_feature_cache(), f, predictors, data,
+                                  rows = c(seq_len(nrow(predictors)), which(presence == 1L)))
+  built <- stats::model.matrix(f, data)
+  expect_identical(shared$matrix, built)
+  expect_identical(shared$lower, apply(built, 2, min))
+  expect_identical(shared$upper, apply(built, 2, max))
+})
+
+test_that("a null test gives exactly the same answer whether or not its fits share features", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  folds <- shared_features_folds(table)
+  expect_equal(atlas_null_params(atlas_algorithm("maxnet"), table)$classes, "lqh")
+  shared <- atlas_null_test(table, folds, atlas_algorithm("maxnet"), reps = 3)
+  alone <- atlas_null_test(table, folds, maxnet_unshared(), reps = 3)
+  expect_equal(shared$reps, 3L)
+  expect_identical(shared, alone)
+  # Tuning shares them too, and chooses the same settings on the same scores.
+  expect_identical(atlas_tune(table, folds, atlas_algorithm("maxnet")),
+                   atlas_tune(table, folds, maxnet_unshared()))
+})
+
+test_that("fits share features only when they fit the same sites, predictors and classes", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  folds <- shared_features_folds(table)
+  store <- atlas_feature_cache()
+  check <- function(train, classes = "lqh", built) {
+    expect_identical(atlas_fit_maxnet(train, classes = classes, features = store),
+                     atlas_fit_maxnet(train, classes = classes))
+    expect_equal(store$built, built)
+  }
+  first <- table[folds != 1L, ]
+  check(first, built = 1L)
+  # The same sites with other detections: the same matrix.
+  relabelled <- first
+  relabelled$presence <- atlas_null_presence(first, sum(first$presence), seed = 3)
+  check(relabelled, built = 1L)
+  # Other sites, as many of them as before: a matrix of their own.
+  other <- table[folds != 2L, ]
+  other <- other[seq_len(min(nrow(other), nrow(first))), ]
+  swapped <- first
+  swapped[, c("v1", "v2", "v3")] <- table[rev(seq_len(nrow(first))), c("v1", "v2", "v3")]
+  check(swapped, built = 2L)
+  check(other, built = 3L)
+  # Fewer predictors, or other feature classes: each their own.
+  check(first[, setdiff(names(first), "v3")], built = 4L)
+  check(first, classes = "lq", built = 5L)
+  # And every one of them is still there to share.
+  check(relabelled, built = 5L)
+  check(swapped, built = 5L)
+})
+
+test_that("a null test builds each fold's features once, for the taxon and all its nulls", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  folds <- shared_features_folds(table)
+  built <- 0L
+  real <- atlas_model_matrix
+  testthat::local_mocked_bindings(atlas_model_matrix = function(f, data) {
+    built <<- built + 1L
+    real(f, data)
+  })
+  null <- atlas_null_test(table, folds, atlas_algorithm("maxnet"), reps = 3)
+  expect_equal(null$reps, 3L)
+  expect_equal(built, length(unique(folds)))
+})
+
+# Maxent that throws on one fold of one training table, with or without a
+# feature store, as a fit that does not converge would.
+maxnet_failing_on <- function(algo, table, presence, fold_cells) {
+  inner <- algo$fit
+  fails <- function(train) {
+    identical(sort(train$cell), sort(fold_cells)) &&
+      identical(train$presence, presence[match(train$cell, table$cell)])
+  }
+  if (atlas_shares_features(algo)) {
+    algo$fit <- function(train, params, seed = 1L, tuning = FALSE, features = NULL) {
+      if (fails(train)) stop("glmnet failed to complete regularization path")
+      inner(train, params, seed, tuning, features = features)
+    }
+  } else {
+    algo$fit <- function(train, params, seed = 1L, tuning = FALSE) {
+      if (fails(train)) stop("glmnet failed to complete regularization path")
+      inner(train, params, seed, tuning)
+    }
+  }
+  algo
+}
+
+test_that("a null whose fit fails is replaced by the same draw, fold by fold or run by run", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  folds <- shared_features_folds(table)
+  n <- sum(table$presence)
+  # The second null draw fails on its third fold, after two folds were fitted.
+  second <- atlas_null_presence(table, n, seed = 1L + 1000L + 2L)
+  cells <- table$cell[folds != 3L]
+  shared <- atlas_null_test(table, folds,
+                            maxnet_failing_on(atlas_algorithm("maxnet"), table, second, cells),
+                            reps = 3)
+  alone <- atlas_null_test(table, folds,
+                           maxnet_failing_on(maxnet_unshared(), table, second, cells),
+                           reps = 3)
+  expect_equal(shared$reps, 3L)
+  expect_identical(shared, alone)
+  # The failure did happen: the nulls counted are not the first three.
+  expect_false(identical(shared, atlas_null_test(table, folds, atlas_algorithm("maxnet"), reps = 3)))
+  # And the random number stream ends where it would have.
+  set.seed(5)
+  atlas_null_test(table, folds,
+                  maxnet_failing_on(atlas_algorithm("maxnet"), table, second, cells), reps = 3)
+  after_shared <- .Random.seed
+  set.seed(5)
+  atlas_null_test(table, folds, maxnet_failing_on(maxnet_unshared(), table, second, cells), reps = 3)
+  expect_identical(after_shared, .Random.seed)
+})
+
+test_that("a taxon its null test cannot score leaves the random stream as it found it", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  folds <- shared_features_folds(table)
+  cells <- table$cell[folds != 2L]
+  algo <- maxnet_failing_on(atlas_algorithm("maxnet"), table, table$presence, cells)
+  set.seed(5)
+  before <- .Random.seed
+  expect_identical(atlas_null_test(table, folds, algo, reps = 3), list(reps = 0L))
+  expect_identical(.Random.seed, before)
+  expect_identical(atlas_null_test(table, folds, maxnet_failing_on(
+    maxnet_unshared(), table, table$presence, cells), reps = 3), list(reps = 0L))
+})
+
+test_that("the null test and tuning hold one fold's features at a time", {
+  skip_if_not_installed("maxnet")
+  table <- shared_features_table()
+  folds <- shared_features_folds(table)
+  stores <- list()
+  real <- atlas_feature_cache
+  testthat::local_mocked_bindings(atlas_feature_cache = function() {
+    store <- real()
+    stores[[length(stores) + 1L]] <<- store
+    store
+  })
+  atlas_null_test(table, folds, atlas_algorithm("maxnet"), reps = 3)
+  expect_length(stores, 1L)
+  expect_equal(stores[[1]]$built, length(unique(folds)))
+  expect_equal(stores[[1]]$folds_held, 1L)
+  expect_length(stores[[1]]$entries, 0L)
+  atlas_tune(table, folds, atlas_algorithm("maxnet"))
+  expect_length(stores, 2L)
+  # Two feature classes a fold, each built once for its five penalties.
+  expect_equal(stores[[2]]$built, 2L * length(unique(folds)))
+  expect_equal(stores[[2]]$folds_held, 1L)
+})
