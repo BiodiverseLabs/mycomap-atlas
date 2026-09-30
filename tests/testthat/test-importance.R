@@ -234,3 +234,21 @@ test_that("each scored fold gives one column of falls", {
   expect_null(attr(atlas_nested_cross_validate(table, folds, atlas_algorithm("maxnet"),
                                                block_km = 250, tune = FALSE), "falls"))
 })
+
+test_that("a fall is marked clear only when it stands out from the spread between folds", {
+  groups <- atlas_importance_groups(c("a", "b", "c"), c(a = "L", b = "L", c = "L"))
+  falls <- rbind(
+    "predictor\ra" = c(0.05, 0.06, 0.05, 0.04),   # steady and large
+    "predictor\rb" = c(0.04, -0.03, 0.05, -0.04), # large swings around nothing
+    "predictor\rc" = c(0.001, 0.001, 0.001, 0.001), # steady but negligible
+    "layer\rL" = c(0.08, 0.07, 0.09, 0.08)
+  )
+  table <- atlas_importance_table(falls, c(a = "L", b = "L", c = "L"))
+  clear <- stats::setNames(vapply(table[[1]]$predictors, function(p) p$clear, logical(1)),
+                           vapply(table[[1]]$predictors, function(p) p$name, character(1)))
+  expect_true(clear[["a"]])
+  expect_false(clear[["b"]])
+  expect_false(clear[["c"]])
+  expect_true(table[[1]]$clear)
+  expect_equal(ATLAS_IMPORTANCE_REPEATS, 5L)
+})

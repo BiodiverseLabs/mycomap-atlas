@@ -20,8 +20,10 @@
 # the model (atlas_fit_taxon, importance = TRUE), so a taxon's page can say
 # what its maps rest on, dataset by dataset and variable by variable.
 
-# Times each predictor is shuffled in each fold.
-ATLAS_IMPORTANCE_REPEATS <- 2L
+# Times each predictor is shuffled in each fold. Two left one shuffle's luck
+# in the answer: on Laccaria laccata's forest the elevation layer read -0.010
+# and its only predictor, elevation, +0.005, the same measurement twice.
+ATLAS_IMPORTANCE_REPEATS <- 5L
 
 #' Fall in held-out AUC when columns are shuffled, for one fitted model.
 #'
@@ -169,6 +171,9 @@ atlas_importance_groups <- function(predictors, layer_of) {
     stats::setNames(layers, paste0("layer\r", names(layers))))
 }
 
+# A fall in held-out AUC smaller than this is not read as an effect.
+ATLAS_IMPORTANCE_FLOOR <- 0.002
+
 #' What a model owed to each layer and each predictor, as stored with it.
 #'
 #' falls is a matrix, one row per group (as named by atlas_importance_groups),
@@ -183,9 +188,16 @@ atlas_importance_table <- function(falls, layer_of) {
   name <- vapply(parts, `[[`, character(1), 2L)
   mean_fall <- apply(falls, 1, function(v) if (all(is.na(v))) NA_real_ else mean(v, na.rm = TRUE))
   sd_fall <- apply(falls, 1, function(v) if (sum(is.finite(v)) < 2L) NA_real_ else stats::sd(v, na.rm = TRUE))
+  scored <- apply(falls, 1, function(v) sum(is.finite(v)))
   entry <- function(i, labels) {
+    # Whether the fall is told apart from nothing: more than twice its
+    # standard error between folds, and more than the smallest step a few
+    # hundred sites can register.
+    se <- if (is.finite(sd_fall[[i]])) sd_fall[[i]] / sqrt(scored[[i]]) else NA_real_
+    clear <- is.finite(mean_fall[[i]]) && mean_fall[[i]] > ATLAS_IMPORTANCE_FLOOR &&
+      (!is.finite(se) || mean_fall[[i]] > 2 * se)
     list(name = name[[i]], label = atlas_label(name[[i]], labels),
-         fall = round(mean_fall[[i]], 4), sd = round(sd_fall[[i]], 4))
+         fall = round(mean_fall[[i]], 4), sd = round(sd_fall[[i]], 4), clear = clear)
   }
   layers <- which(kind == "layer")
   out <- lapply(layers, function(i) {

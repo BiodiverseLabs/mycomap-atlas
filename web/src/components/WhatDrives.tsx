@@ -17,9 +17,10 @@ function firstWithBreakdown(models: Partial<Record<Algorithm, Model | null>>): A
   return order.find((a) => models[a]?.importance?.length);
 }
 
-function Bar({ value, max }: { value: number; max: number }) {
+function Bar({ value, max, clear }: { value: number; max: number; clear?: boolean }) {
   const width = max > 0 ? Math.max(0, Math.min(1, value / max)) * 100 : 0;
-  const faint = value < NO_EFFECT;
+  // Older fits have no clear flag: fall back to the size of the effect.
+  const faint = clear === false || value < NO_EFFECT;
   return (
     <div className="h-2 w-full rounded-full bg-[#A87146]/10" aria-hidden="true">
       <div
@@ -30,9 +31,10 @@ function Bar({ value, max }: { value: number; max: number }) {
   );
 }
 
-function fall(value?: number) {
+function fall(value?: number, clear?: boolean) {
   if (value == null || !Number.isFinite(value)) return "—";
   if (value < NO_EFFECT) return "no measurable effect";
+  if (clear === false) return `${value.toFixed(3)}, within noise`;
   return value.toFixed(3);
 }
 
@@ -52,8 +54,8 @@ function Layer({ layer, max }: { layer: ModelImportance; max: number }) {
           aria-hidden="true"
         />
         <span className="font-medium text-[#4a3728]">{layer.label}</span>
-        <Bar value={layer.fall ?? 0} max={max} />
-        <span className="w-36 text-right tabular-nums text-xs text-[#5c4a3a]">{fall(layer.fall)}</span>
+        <Bar value={layer.fall ?? 0} max={max} clear={layer.clear} />
+        <span className="w-36 text-right tabular-nums text-xs text-[#5c4a3a]">{fall(layer.fall, layer.clear)}</span>
       </button>
       {open && (
         <ul className="mb-2 ml-8">
@@ -63,8 +65,8 @@ function Layer({ layer, max }: { layer: ModelImportance; max: number }) {
               className="grid grid-cols-[minmax(7rem,14rem)_1fr_auto] items-center gap-3 py-1 text-xs text-[#5c4a3a]"
             >
               <span title={p.name}>{p.label}</span>
-              <Bar value={p.fall ?? 0} max={max} />
-              <span className="w-36 text-right tabular-nums">{fall(p.fall)}</span>
+              <Bar value={p.fall ?? 0} max={max} clear={p.clear} />
+              <span className="w-36 text-right tabular-nums">{fall(p.fall, p.clear)}</span>
             </li>
           ))}
           {predictors.length > 1 && (
@@ -135,10 +137,20 @@ export function WhatDrives({ models }: { models: Partial<Record<Algorithm, Model
                 A dataset's drop is usually more than any one of its variables', because related
                 variables stand in for one another when only one is scrambled.
               </p>
+              <p className="mt-1.5">
+                A pale bar marked "within noise" is one the folds disagree about: its average is
+                less than twice its standard error, so it cannot be told apart from no effect.
+              </p>
             </Help>
           </span>
         </div>
-        <ul>
+        {model.skill === "failed" && (
+          <p className="mb-3 rounded-md bg-[#A87146]/10 px-3 py-2 text-xs text-[#5c4a3a]">
+            This map did no better than its null models, so what it leans on says little about
+            this fungus: the bars below are shown for completeness, not as findings.
+          </p>
+        )}
+        <ul className={model.skill === "failed" ? "opacity-60" : undefined}>
           {layers.map((layer) => (
             <Layer key={layer.name} layer={layer} max={max} />
           ))}

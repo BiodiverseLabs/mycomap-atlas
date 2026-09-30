@@ -113,6 +113,8 @@ export interface ModelImportance {
   label: string;
   fall?: number;
   sd?: number;
+  /** Whether the fall stands out from its spread between folds. */
+  clear?: boolean;
   /** A dataset's own variables, largest first. */
   predictors?: ModelImportance[];
 }
