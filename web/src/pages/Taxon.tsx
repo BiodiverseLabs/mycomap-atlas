@@ -333,7 +333,7 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
           <p>
             How many environmental variables the model used, out of the {considered} every model
             is offered: climate (WorldClim bio1–19), elevation, slope and terrain roughness,
-            soil pH, carbon, clay, sand and exchange capacity (SoilGrids), and tree, shrub,
+            soil pH, carbon, nitrogen, clay, sand and exchange capacity (SoilGrids), and tree, shrub,
             grassland, wetland, water and built-up cover (ESA WorldCover).
           </p>
           <p className="mt-1.5">

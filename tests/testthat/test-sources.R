@@ -113,3 +113,11 @@ test_that("the layer overview hands out each provider's link", {
 test_that("the server finds the sources in a source checkout", {
   expect_true(file.exists(atlas_sources_path(sources_root())))
 })
+
+test_that("every dataset production fits on is explained beside its bar on the taxon page", {
+  # The ? beside each dataset in "What drives this map" says what it is, which
+  # variables it offers and why. A dataset without one would show a bare bar.
+  notes <- readLines(file.path(sources_root(), "web", "src", "lib", "layerNotes.tsx"), warn = FALSE)
+  keys <- sub(":.*$", "", trimws(grep("^  [a-z0-9_]+: ", notes, value = TRUE)))
+  expect_equal(setdiff(ATLAS_PRODUCTION_LAYERS, keys), character())
+})

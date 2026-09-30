@@ -46,7 +46,7 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   "forest_needleleaf", "forest_broadleaf", "forest_mixed",
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
   # The rest of the soil.
-  "soil_soc", "soil_clay", "soil_sand", "soil_cec",
+  "soil_soc", "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec",
   # Secondary climate.
   "clim_rh", "clim_vpd", "clim_aet", "clim_pas",
   # The shape of the ground.
@@ -247,6 +247,7 @@ ATLAS_PREDICTOR_LABELS <- c(
   roughness = "Terrain roughness",
   soil_phh2o = "Soil pH",
   soil_soc = "Soil organic carbon",
+  soil_nitrogen = "Soil nitrogen",
   soil_clay = "Clay content",
   soil_sand = "Sand content",
   soil_cec = "Cation exchange capacity",

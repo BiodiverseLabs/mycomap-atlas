@@ -32,7 +32,13 @@
 # (+0.008 +/- 0.004 AUC, the second most important layer after climate);
 # forest type was kept; water balance is held; carbonate bedrock, landform
 # (wetness, northness, heat load) and a second host layer from USFS basal
-# area added nothing and were dropped.
+# area added nothing and were dropped. More of SoilGrids, measured on 158
+# taxa (2026-09-30): pH at 15-30 cm is a copy of surface pH (Maxent never
+# kept it; the forest valued it exactly as surface pH), and bulk density with
+# coarse fragments made Maxent slightly worse (-0.0008 +/- 0.0004 AUC), so
+# both were dropped. Total nitrogen was neutral (+0.0001 +/- 0.0003 AUC) and
+# joined the soil layer on ecological grounds (Steve): fungal communities,
+# ectomycorrhizal ones above all, are known to follow soil nitrogen.
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -113,7 +119,7 @@ atlas_layer_registry <- function() {
     ),
     soil = list(
       id = "soil",
-      title = "Soil pH, carbon, texture and exchange capacity (0-5 cm)",
+      title = "Soil pH, carbon, nitrogen, texture and exchange capacity (0-5 cm)",
       source = "SoilGrids 2.0",
       url = "https://soilgrids.org",
       license = "CC BY 4.0",
@@ -126,7 +132,7 @@ atlas_layer_registry <- function() {
       # pull over HTTP for a 5 km layer. geodata's pre-aggregated copy is the
       # right source for a grid this size.
       fetch = function(path, res) {
-        vars <- c("phh2o", "soc", "clay", "sand", "cec")
+        vars <- c("phh2o", "soc", "nitrogen", "clay", "sand", "cec")
         parts <- lapply(vars, function(v) {
           geodata::soil_world(var = v, depth = 5, stat = "mean", path = path)
         })

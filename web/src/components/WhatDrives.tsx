@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { Help } from "@/components/Common";
+import { LAYER_NOTES } from "@/lib/layerNotes";
 import { Card, CardContent } from "@/components/ui/card";
 import { ALGORITHMS, ALGORITHM_LABELS, type Algorithm, type Model, type ModelImportance } from "@/lib/api";
 
@@ -41,22 +42,40 @@ function fall(value?: number, clear?: boolean) {
 function Layer({ layer, max }: { layer: ModelImportance; max: number }) {
   const [open, setOpen] = useState(false);
   const predictors = layer.predictors ?? [];
+  const note = LAYER_NOTES[layer.name];
   return (
     <li className="border-b border-[#A87146]/10 last:border-0">
-      <button
-        type="button"
+      {/* The whole row opens the dataset; the name is the button, and the ? beside it
+          explains the dataset without opening it (a button cannot hold another). */}
+      <div
         onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="grid w-full grid-cols-[1.25rem_minmax(7rem,11rem)_1fr_auto] items-center gap-3 py-2 text-left text-sm hover:bg-[#A87146]/5"
+        className="grid w-full cursor-pointer grid-cols-[1.25rem_minmax(7rem,11rem)_1fr_auto] items-center gap-3 py-2 text-left text-sm hover:bg-[#A87146]/5"
       >
         <ChevronRight
           className={`h-4 w-4 text-[#A87146] transition-transform ${open ? "rotate-90" : ""}`}
           aria-hidden="true"
         />
-        <span className="font-medium text-[#4a3728]">{layer.label}</span>
+        <span className="flex items-center">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setOpen(!open);
+            }}
+            aria-expanded={open}
+            className="text-left font-medium text-[#4a3728]"
+          >
+            {layer.label}
+          </button>
+          {note && (
+            <span onClick={(event) => event.stopPropagation()}>
+              <Help label={layer.label}>{note}</Help>
+            </span>
+          )}
+        </span>
         <Bar value={layer.fall ?? 0} max={max} clear={layer.clear} />
         <span className="w-36 text-right tabular-nums text-xs text-[#5c4a3a]">{fall(layer.fall, layer.clear)}</span>
-      </button>
+      </div>
       {open && (
         <ul className="mb-2 ml-8">
           {predictors.map((p) => (
