@@ -122,10 +122,11 @@ ATLAS_MAXNET_PATH_STEPS <- 20L
 #' is constant whenever both are held out; maxnet cannot build a hinge on it
 #' and the fit fails. Left out, it simply has no say in that model.
 #'
-#' With use_effort FALSE, as production fits it (R/algorithms.R), the effort
-#' column is left out of the model though it stays in the table, where the
-#' null models read it.
-atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort = TRUE) {
+#' Effort is left out unless use_effort is TRUE, as production fits it
+#' (R/algorithms.R), so every study that calls this fits Maxent as
+#' production does. The column stays in the table, where the null models
+#' read it.
+atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort = FALSE) {
   if (!requireNamespace("maxnet", quietly = TRUE)) {
     stop("maxnet is needed to fit: install.packages('maxnet')", call. = FALSE)
   }
