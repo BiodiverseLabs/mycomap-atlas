@@ -12,7 +12,13 @@
 # from boosting, which fits trees in sequence and can chase noise on small
 # samples — which is the point of keeping both.
 
-ATLAS_RF_TREES <- 1000
+# Trees in a forest. 250, not the 1,000 Atlas began with: on 24 taxa scored
+# on the same folds, 250 trees ranked cells within 0.994 (Spearman) of 1,000,
+# with every cell within one decile, AUC 0.002 +/- 0.002 higher and Boyce
+# 0.010 +/- 0.009 lower, at about a sixth of the time. A map asks every tree
+# about every cell, so on the 1 km grid that is about 120 CPU-hours for every
+# forest map instead of about 730.
+ATLAS_RF_TREES <- 250
 
 #' ranger's own default for a forest over p predictors.
 atlas_rf_default_mtry <- function(p) max(1L, floor(sqrt(p)))
@@ -56,7 +62,7 @@ atlas_fit_rf <- function(training, num_trees = ATLAS_RF_TREES, seed = 1L, mtry =
 # vote for every row before averaging, so memory grows with rows x trees: a
 # map chunk of half a million rows took one worker to 4.5 GB, and twelve
 # workers doing that at once ran a 64 GB machine out of memory. 20,000 rows is
-# about 320 MB with a thousand trees.
+# about 320 MB with a thousand trees, and a quarter of that with 250.
 ATLAS_RF_PREDICT_ROWS <- 20000L
 
 #' Suitability from the forest: the share of trees voting "presence".

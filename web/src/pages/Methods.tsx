@@ -372,7 +372,7 @@ export default function Methods() {
                     <B>Random forest</B>,
                     <Ext href="https://github.com/imbs-hl/ranger">ranger</Ext>,
                     <>
-                      1,000 probability trees, each grown on as many non-detection sites as
+                      250 probability trees, each grown on as many non-detection sites as
                       detections, drawn afresh per tree (down-sampling; Valavi et al. 2021);{" "}
                       <B>predictors tried at each split</B> 2, √p or p/3.
                     </>,

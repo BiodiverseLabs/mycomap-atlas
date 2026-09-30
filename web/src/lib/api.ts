@@ -94,7 +94,7 @@ export const ALGORITHM_NOTES: Record<Algorithm, string> = {
   xgboost:
     "Hundreds of small decision trees, each correcting the last. Finds combinations of conditions a smooth curve cannot. Drawn only from 50 presence cells: with fewer it overfits and ranks ground wrongly.",
   rf:
-    "A thousand trees grown independently, each on as many background records as presences, then left to vote.",
+    "250 trees grown independently, each on as many background records as presences, then left to vote.",
 };
 
 export interface Model {

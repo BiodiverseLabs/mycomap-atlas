@@ -425,8 +425,10 @@ Maxent in any band, and Maxent still had the best AUC for a third of the
 sparsest taxa. Boosted trees match Maxent, and do worse when restricted to
 Maxent's predictors, which is why the trees get every predictor. Scoring time
 is the five blocked folds; drawing a forest's map is slower (about 2.5 minutes
-for a widespread taxon), since a thousand trees have to be asked about every
-cell.
+for a widespread taxon at the thousand trees the benchmark used), since every
+tree has to be asked about every cell. Forests are now 250 trees: on 24 taxa
+that ranked cells within 0.994 of a thousand trees, every cell within one
+decile, at about a sixth of the time.
 
 ### Colours are ranks
 
