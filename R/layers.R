@@ -33,7 +33,9 @@
 # forest type was kept; water balance is held; carbonate bedrock, landform
 # (wetness, northness, heat load) and a second host layer from USFS basal
 # area added nothing and were dropped. Candidates now: more of SoilGrids
-# (nitrogen; bulk density and coarse fragments; pH at 15-30 cm).
+# (nitrogen; bulk density and coarse fragments; pH at 15-30 cm); more of
+# WorldCover (cropland, bare ground, moss and lichen); and the host trees of
+# wood-decay and parasitic fungi (maple, ash, elm, juniper, cedar and others).
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -136,11 +138,7 @@ atlas_layer_registry <- function() {
       method = "average",
       note = "Tree cover is a fraction, not host identity.",
       fetch = function(path, res) {
-        vars <- c("trees", "shrubs", "grassland", "wetland", "water", "built")
-        parts <- lapply(vars, function(v) geodata::landcover(var = v, path = path))
-        out <- terra::rast(parts)
-        names(out) <- paste0("cover_", vars)
-        out
+        atlas_worldcover(c("trees", "shrubs", "grassland", "wetland", "water", "built"), path)
       }
     ),
     hosts = list(
@@ -215,8 +213,70 @@ atlas_layer_registry <- function() {
     ),
     soildepth = atlas_soilgrids_layer(
       "soildepth", "Soil pH below the surface (15-30 cm)", "phh2o", depth = 30
+    ),
+    # More of WorldCover, as a candidate beside the land-cover layer: the same
+    # files, so the same credit, and like land cover it is not filled near the
+    # coast — land cover is the land mask the other layers are filled up to,
+    # and these classes are read from that same product.
+    landcover2 = list(
+      id = "landcover2",
+      title = "Cropland, bare ground, and moss and lichen",
+      source = "ESA WorldCover 2021 v200, aggregated to 30 arc-seconds by geodata",
+      url = "https://esa-worldcover.org",
+      license = "CC BY 4.0",
+      citation = "Zanaga D et al. (2022) ESA WorldCover 10 m 2021 v200",
+      method = "average",
+      bands = c("cover_cropland", "cover_bare", "cover_moss"),
+      fetch = function(path, res) atlas_worldcover(c("cropland", "bare", "moss"), path)
+    ),
+    # The trees wood-decay and parasitic fungi live on, as a candidate beside
+    # the host layer (R/hosts.R, ATLAS_DECAY_HOST_GENERA): shares of the same
+    # tree totals, from the same inventories.
+    hostsdecay = list(
+      id = "hostsdecay",
+      title = "Host trees of wood-decay and parasitic fungi: share of trees by genus",
+      source = "USFS FIA BIGMAP 2018 (lower 48) and Canada NFI kNN 2011",
+      url = ATLAS_BIGMAP_URL,
+      urls = c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL),
+      license = "BIGMAP: US public domain; NFI: Open Government Licence - Canada",
+      citation = paste(
+        "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series",
+        "for modeling attributes from national forest inventory data. ISPRS J Photogramm",
+        "Remote Sens 137:29-46; Beaudoin A et al. (2014) Mapping attributes of Canada's",
+        "forests at moderate resolution through kNN and MODIS imagery. Can J For Res",
+        "44:521-532, doi:10.1139/cjfr-2013-0401"
+      ),
+      method = "share of genus in the host layer's total trees; BIGMAP sampled at 250 m and block-averaged, NFI area-averaged",
+      note = paste(
+        "Lower 48 and Canada only. Alaska, Hawaii, Puerto Rico and Mexico have no tree",
+        "inventory here: their shares are 0, and the host layer's host_known is 0 there.",
+        "NFI does not map tulip tree, sweetgum, sycamore or black locust: 0 in Canada."
+      ),
+      bands = ATLAS_HOST_DECAY_BANDS,
+      # Filled as the host layer is, without a flag of its own. The two layers
+      # are read from the same two inventories inside the same lower-48
+      # boundary, so the inventories are silent on exactly the ground where
+      # the host layer's host_known is 0; a second flag would be a copy of it
+      # under another name. The candidate is only ever fitted beside the host
+      # layer (it is in every arm's base), so host_known is always there to
+      # say it. Without the fill, the ground no inventory covers would drop out
+      # of every fit on the grid.
+      fill_outside = "host_known",
+      fill_flag = FALSE,
+      build = function(raw_dir, grid) atlas_build_decay_hosts(raw_dir, grid)
     )
   )
+}
+
+#' WorldCover classes, as bands named cover_<class>.
+#'
+#' geodata serves ESA WorldCover aggregated to 30 arc-seconds, one file per
+#' class, each the fraction of the cell in that class.
+atlas_worldcover <- function(vars, path) {
+  parts <- lapply(vars, function(v) geodata::landcover(var = v, path = path))
+  out <- terra::rast(parts)
+  names(out) <- paste0("cover_", vars)
+  out
 }
 
 #' SoilGrids properties at one depth, as bands named soil_<property>, with the
@@ -410,7 +470,8 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
       stop(id, " is filled where its source is silent, up to the land the elevation ",
            "layer knows: build elevation on the ", grid, " grid first", call. = FALSE)
     }
-    built <- atlas_fill_outside(built, terra::rast(land_path), known = entry$fill_outside)
+    built <- atlas_fill_outside(built, terra::rast(land_path), known = entry$fill_outside,
+                                flag = !isFALSE(entry$fill_flag))
   }
 
   terra::writeRaster(
@@ -502,8 +563,9 @@ atlas_fill_near <- function(x, land, max_km = ATLAS_FILL_NEAR_KM) {
 #' source does not reach gets 0 in every band and known = 0. The sea, where
 #' land is NA, stays NA. Without this, one layer's gap removes that ground
 #' from every model fitted on the grid, whether or not the model needs the
-#' layer.
-atlas_fill_outside <- function(x, land, known = "known") {
+#' layer. flag = FALSE leaves the known band off, for a layer whose gaps
+#' another layer's flag already names.
+atlas_fill_outside <- function(x, land, known = "known", flag = TRUE) {
   bands <- names(x)
   land <- land[[1]]
   if (!terra::compareGeom(x, land, stopOnError = FALSE)) {
@@ -512,6 +574,11 @@ atlas_fill_outside <- function(x, land, known = "known") {
   # Known where every band has a value: a cell half described is not known.
   described <- !is.na(terra::app(x, "sum", na.rm = FALSE))
   filled <- terra::ifel(described, x, 0)
+  if (!isTRUE(flag)) {
+    out <- terra::mask(filled, land)
+    names(out) <- bands
+    return(out)
+  }
   out <- terra::mask(c(filled, described * 1), land)
   names(out) <- c(bands, known)
   out

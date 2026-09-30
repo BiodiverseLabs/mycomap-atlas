@@ -296,3 +296,67 @@ test_that("every band a soil candidate brings is labelled and has a place in the
   expect_true(all(c("soilnitrogen", "soilstructure", "soildepth") %in% unlist(ATLAS_NEW_LAYER_GROUPS)))
   expect_length(intersect(unlist(ATLAS_NEW_LAYER_GROUPS), ATLAS_PRODUCTION_LAYERS), 0L)
 })
+
+# ---- more of WorldCover, and the host trees of wood-decay fungi -----------
+
+# What a WorldCover layer asks geodata for, and the bands it hands back.
+worldcover_calls <- function(id) {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("geodata")
+  asked <- character()
+  testthat::local_mocked_bindings(
+    landcover = function(var, path, ...) {
+      asked <<- c(asked, var)
+      r <- terra::rast(nrows = 2, ncols = 2)
+      terra::values(r) <- 1:4
+      r
+    },
+    .package = "geodata"
+  )
+  out <- atlas_layer_registry()[[id]]$fetch(tempdir(), 2.5)
+  list(asked = asked, names = names(out))
+}
+
+test_that("the production land-cover layer still asks for the same six classes", {
+  got <- worldcover_calls("landcover")
+  expect_equal(got$asked, c("trees", "shrubs", "grassland", "wetland", "water", "built"))
+  expect_equal(got$names, paste0("cover_", got$asked))
+})
+
+test_that("the land-cover candidate reads cropland, bare ground and moss from the same credited files", {
+  got <- worldcover_calls("landcover2")
+  expect_equal(got$asked, c("cropland", "bare", "moss"))
+  expect_equal(got$names, c("cover_cropland", "cover_bare", "cover_moss"))
+  registry <- atlas_layer_registry()
+  expect_equal(registry$landcover2$bands, got$names)
+  # No new dataset to credit: the same source, link, licence and citation.
+  for (field in c("source", "url", "license", "citation", "method")) {
+    expect_equal(registry$landcover2[[field]], registry$landcover[[field]], info = field)
+  }
+  # Filled as land cover is, which is not at all: land cover is the land mask.
+  expect_false(isTRUE(registry$landcover2$fill_near))
+  expect_null(registry$landcover2$fill_outside)
+})
+
+test_that("every band the land-cover and decay-host candidates bring is labelled and has a place in the priority order", {
+  registry <- atlas_layer_registry()
+  for (id in c("landcover2", "hostsdecay")) {
+    for (band in registry[[id]]$bands) {
+      expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
+      expect_true(band %in% atlas_predictor_priority("ectomycorrhizal"), label = paste(band, "has a priority"))
+    }
+    expect_true(id %in% names(ATLAS_LAYER_LABELS), label = paste(id, "has a label"))
+  }
+  # Cropland, bare ground and moss follow the grassland they sit beside.
+  at <- match(c("cover_grassland", "cover_cropland", "cover_bare", "cover_moss"), ATLAS_PREDICTOR_PRIORITY)
+  expect_equal(diff(at), c(1L, 1L, 1L))
+  expect_equal(registry$hostsdecay$bands, ATLAS_HOST_DECAY_BANDS)
+  # Each is measured in its own arm, and neither is fitted on in production.
+  expect_equal(ATLAS_NEW_LAYER_GROUPS$landcover, "landcover2")
+  expect_equal(ATLAS_NEW_LAYER_GROUPS$decay_hosts, "hostsdecay")
+  expect_length(intersect(unlist(ATLAS_NEW_LAYER_GROUPS), ATLAS_PRODUCTION_LAYERS), 0L)
+  arms <- atlas_layer_sweep_arms(built = c(ATLAS_BASE_LAYERS, "landcover2", "hostsdecay"))
+  by_arm <- stats::setNames(arms, vapply(arms, `[[`, "", "arm"))
+  expect_equal(by_arm[["+decay_hosts"]]$layers, c(ATLAS_BASE_LAYERS, "hostsdecay"))
+  expect_equal(by_arm[["+landcover"]]$layers, c(ATLAS_BASE_LAYERS, "landcover2"))
+})

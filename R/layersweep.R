@@ -121,7 +121,9 @@ ATLAS_NEW_LAYER_GROUPS <- list(
   climate = "waterbalance",
   nitrogen = "soilnitrogen",
   structure = "soilstructure",
-  deeper_ph = "soildepth"
+  deeper_ph = "soildepth",
+  landcover = "landcover2",
+  decay_hosts = "hostsdecay"
 )
 
 #' Keep the arms whose layers are all built, and say which were dropped.

@@ -45,6 +45,8 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   # What it grows on or with.
   "forest_needleleaf", "forest_broadleaf", "forest_mixed",
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
+  # Candidates (R/layers.R, landcover2): more of the same land cover.
+  "cover_cropland", "cover_bare", "cover_moss",
   # The rest of the soil.
   "soil_soc", "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec",
   # Candidates (R/layers.R): the soil's structure, and its pH below the surface.
@@ -93,9 +95,13 @@ atlas_predictor_priority <- function(guild = ATLAS_GUILD_UNKNOWN) {
   )
 }
 
-#' Every host-tree column, the flag first.
+#' Every host-tree column, the flag first. The decay-host candidate's genera
+#' (R/hosts.R, ATLAS_HOST_DECAY_BANDS) come after production's, so where both
+#' layers are built the ectomycorrhizal hosts are still offered first; where
+#' the candidate is not built its bands have no columns, and the order of the
+#' rest is what it was.
 atlas_host_columns <- function() {
-  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS)
+  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS, ATLAS_HOST_DECAY_BANDS)
 }
 
 #' Whether a column is a host tree's share (not the flag beside them).
@@ -262,6 +268,9 @@ ATLAS_PREDICTOR_LABELS <- c(
   cover_wetland = "Wetland",
   cover_water = "Open water",
   cover_built = "Built-up land",
+  cover_cropland = "Cropland",
+  cover_bare = "Bare ground",
+  cover_moss = "Moss and lichen",
   host_conifer = "Conifers, share of the trees",
   host_pinus = "Pine", host_quercus = "Oak", host_picea = "Spruce", host_abies = "Fir",
   host_pseudotsuga = "Douglas-fir", host_tsuga = "Hemlock", host_betula = "Birch",
@@ -269,6 +278,10 @@ ATLAS_PREDICTOR_LABELS <- c(
   host_castanea = "Chestnut", host_notholithocarpus = "Tanoak", host_carya = "Hickory",
   host_alnus = "Alder", host_salix = "Willow", host_tilia = "Basswood",
   host_carpinus = "Hornbeam", host_ostrya = "Hophornbeam", host_arbutus = "Madrone",
+  host_acer = "Maple", host_fraxinus = "Ash", host_ulmus = "Elm",
+  host_juniperus = "Juniper and eastern redcedar", host_thuja = "Northern white-cedar and western redcedar",
+  host_liriodendron = "Tulip tree", host_prunus = "Cherry and plum", host_liquidambar = "Sweetgum",
+  host_platanus = "Sycamore", host_robinia = "Black locust",
   host_known = "Tree inventories cover this place",
   forest_needleleaf = "Needleleaf forest",
   forest_broadleaf = "Broadleaf forest",
@@ -289,7 +302,8 @@ ATLAS_LAYER_LABELS <- c(
   bioclim = "Climate", elevation = "Elevation", terrain = "Terrain", soil = "Soil",
   landcover = "Land cover", hosts = "Host trees", foresttype = "Forest type",
   waterbalance = "Water balance", soilnitrogen = "Soil nitrogen",
-  soilstructure = "Soil structure", soildepth = "Soil pH below the surface"
+  soilstructure = "Soil structure", soildepth = "Soil pH below the surface",
+  landcover2 = "Cropland, bare ground and moss", hostsdecay = "Host trees of wood-decay fungi"
 )
 
 #' A predictor's or layer's name for people, or its own name when none is known.
