@@ -118,6 +118,6 @@ test_that("every dataset production fits on is explained beside its bar on the t
   # The ? beside each dataset in "What drives this map" says what it is, which
   # variables it offers and why. A dataset without one would show a bare bar.
   notes <- readLines(file.path(sources_root(), "web", "src", "lib", "layerNotes.tsx"), warn = FALSE)
-  keys <- sub("^  ([a-z0-9_]+):.*$", "\1", grep("^  [a-z0-9_]+: ", notes, value = TRUE))
+  keys <- sub(":.*$", "", trimws(grep("^  [a-z0-9_]+: ", notes, value = TRUE)))
   expect_equal(setdiff(ATLAS_PRODUCTION_LAYERS, keys), character())
 })
