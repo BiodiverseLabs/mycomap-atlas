@@ -14,6 +14,17 @@
 # in every fit and on every map, and a model can tell "no such trees" from
 # "nobody mapped the trees" (atlas_fill_outside).
 #
+# Sources are brought onto the grid by averaging the source cells each grid
+# cell covers, never by interpolation. Interpolating a 1 km source onto a 5 km
+# cell reads only the four source cells nearest its centre, so the cell is a
+# sample rather than a description, and it comes out empty if any of the four
+# is empty: measured at the records, that cost soil 10,321 records against
+# 117. Averaging keeps every cell that holds any data. What is still empty
+# on land afterwards, coastal cells mostly, is filled from the cells around it
+# up to ATLAS_FILL_NEAR_KM away (atlas_fill_near), where land is wherever the
+# land-cover layer has data, the finest coastline among the sources; land
+# cover is therefore built first.
+#
 # Layers after landcover are candidates, measured by atlas sweep-layers before
 # any of them is fitted on in production (R/layersweep.R). Building a layer is
 # what puts it into every fit on that grid, so candidates are built only into
@@ -55,7 +66,8 @@ atlas_layer_registry <- function() {
       url = "https://worldclim.org/data/worldclim21.html",
       license = "CC BY-SA 4.0",
       citation = "Fick SE, Hijmans RJ (2017) WorldClim 2. Int J Climatol 37:4302-4315",
-      method = "bilinear",
+      method = "average",
+      fill_near = TRUE,
       fetch = function(path, res) geodata::elevation_global(res = res, path = path),
       rename = function(x) {
         names(x) <- "elevation"
@@ -69,7 +81,8 @@ atlas_layer_registry <- function() {
       url = "https://worldclim.org/data/worldclim21.html",
       license = "CC BY-SA 4.0",
       citation = "Fick SE, Hijmans RJ (2017) WorldClim 2. Int J Climatol 37:4302-4315",
-      method = "bilinear",
+      method = "average",
+      fill_near = TRUE,
       fetch = function(path, res) geodata::worldclim_global(var = "bio", res = res, path = path),
       rename = atlas_rename_bioclim
     ),
@@ -80,7 +93,7 @@ atlas_layer_registry <- function() {
       url = NA_character_,
       license = "Follows the elevation layer",
       citation = "Derived with terra::terrain()",
-      method = "bilinear",
+      method = "average",
       depends = "elevation",
       # Slope needs a cell's neighbours, so computed naively every coastal cell
       # comes back empty — which cost 10.7% of the records, most of them on the
@@ -101,7 +114,8 @@ atlas_layer_registry <- function() {
       url = "https://soilgrids.org",
       license = "CC BY 4.0",
       citation = "Poggio L et al. (2021) SoilGrids 2.0. SOIL 7:217-240",
-      method = "bilinear",
+      method = "average",
+      fill_near = TRUE,
       # Downloaded rather than read remotely. SoilGrids' own service serves the
       # native 250 m grid — 58,034 x 159,246 cells in Interrupted Goode
       # Homolosine — and a continental window of that is a billion pixels to
@@ -126,7 +140,7 @@ atlas_layer_registry <- function() {
       url = "https://esa-worldcover.org",
       license = "CC BY 4.0",
       citation = "Zanaga D et al. (2022) ESA WorldCover 10 m 2021 v200",
-      method = "bilinear",
+      method = "average",
       note = "Tree cover is a fraction, not host identity.",
       fetch = function(path, res) {
         vars <- c("trees", "shrubs", "grassland", "wetland", "water", "built")
@@ -382,6 +396,14 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     built <- atlas_project_to_grid(raw, grid, entry$method)
   }
 
+  if (isTRUE(entry$fill_near)) {
+    land <- atlas_land_mask(grid)
+    if (is.null(land)) {
+      stop(id, " is filled up to the land the land-cover layer knows: build landcover on the ",
+           grid, " grid first", call. = FALSE)
+    }
+    built <- atlas_fill_near(built, land, max_km = ATLAS_FILL_NEAR_KM)
+  }
   if (!is.null(entry$fill_outside)) {
     land_path <- atlas_layer_path("elevation", grid)
     if (!file.exists(land_path)) {
@@ -423,6 +445,39 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
   invisible(record)
 }
 
+# How far from a cell with data an empty land cell may be filled.
+ATLAS_FILL_NEAR_KM <- 10
+
+#' Where there is land on a grid: wherever the land-cover layer has data.
+#' NULL when land cover is not built.
+atlas_land_mask <- function(grid = "draft") {
+  path <- atlas_layer_path("landcover", grid)
+  if (!file.exists(path)) {
+    return(NULL)
+  }
+  !is.na(terra::rast(path)[[1]])
+}
+
+#' Fill empty land cells from the cells around them.
+#'
+#' Each pass gives an empty cell the mean of its eight neighbours that have
+#' data; a pass reaches one cell further, so as many passes are run as cells
+#' fit in max_km. Cells that had data keep it exactly. Everything off the land
+#' mask ends empty, whatever the passes put there, so the sea is not painted
+#' with the coast's values.
+atlas_fill_near <- function(x, land, max_km = ATLAS_FILL_NEAR_KM) {
+  passes <- max(1L, as.integer(ceiling(max_km * 1000 / terra::res(x)[1])))
+  filled <- x
+  for (pass in seq_len(passes)) {
+    empty_land <- terra::global(is.na(filled[[1]]) & land, "sum", na.rm = TRUE)[[1]]
+    if (!is.finite(empty_land) || empty_land == 0) break
+    filled <- terra::focal(filled, w = 3, fun = "mean", na.policy = "only", na.rm = TRUE)
+  }
+  out <- terra::mask(filled, land, maskvalues = c(FALSE, NA))
+  names(out) <- names(x)
+  out
+}
+
 #' Fill a layer where its source is silent but there is land.
 #'
 #' Cells the source describes keep their values and get known = 1. Land the
@@ -454,7 +509,8 @@ atlas_build_layers <- function(ids = NULL, grid = "draft", overwrite = FALSE,
     stop("unknown layer(s): ", paste(unknown, collapse = ", "), call. = FALSE)
   }
   derived <- vapply(registry[ids], function(x) !is.null(x$derive), logical(1))
-  ordered <- c(ids[!derived], ids[derived])
+  # Land cover first: the others are filled up to the land it knows.
+  ordered <- c(intersect("landcover", ids), setdiff(ids[!derived], "landcover"), ids[derived])
   for (id in ordered) {
     atlas_build_layer(id, grid = grid, overwrite = overwrite, quiet = quiet)
   }

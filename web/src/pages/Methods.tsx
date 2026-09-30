@@ -225,9 +225,15 @@ export default function Methods() {
                 <Ext href={`${GITHUB_URL}/blob/main/R/hosts.R`}>R/hosts.R</Ext>.
               </p>
               <p>
-                Each source is cropped to the region before it is reprojected, then resampled onto
-                the grid. Sea level is filled as 0 before slope is computed; without that, every
-                coastal cell came out empty and 10.7% of records were silently dropped. The build is{" "}
+                Each source is cropped to the region before it is reprojected, then brought onto
+                the grid by <B>averaging</B> the source cells each grid cell covers, never by
+                interpolation, which reads only the four source cells nearest a cell's centre and
+                leaves the cell empty if any of them is: measured at the records, that had cost
+                soil 10,321 records against 117. Land cells still empty afterwards, along the coast
+                mostly, are filled from the cells around them up to 10 km away, where land is
+                wherever the land-cover layer has data. Sea level is filled as 0 before slope is
+                computed; without that, every coastal cell came out empty and 10.7% of records
+                were silently dropped. The build is{" "}
                 <Ext href={`${GITHUB_URL}/blob/main/R/layers.R`}>R/layers.R</Ext>.
               </p>
             </Section>
