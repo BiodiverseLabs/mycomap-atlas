@@ -14,6 +14,19 @@
 # Learners run at their untuned settings: tuning every arm would cost ten
 # times as much and the arms are compared with each other, not with a map.
 #
+# The same sweep asks whether the design itself earns its place. Three arms
+# are fitted on production's layers the way Atlas used to fit, and scored
+# exactly as every other arm is, on the held-out survey sites:
+#
+#   base:no-effort   survey sites, but effort is not a predictor
+#   base:per-record  the design before survey sites: every non-detection site
+#                    repeated once for each record collected there, no effort
+#   base:flat        host trees in the order of a fungus of unknown guild
+#
+# The old design is judged by the new design's yardstick, held-out sites each
+# counted once with effort held fixed. That is the yardstick the maps are for:
+# ranking ground, not ranking how often ground was visited.
+#
 # Arms whose layers are not built are left out, so the sweep can run on
 # whatever has been built so far. Nothing here writes a model. It writes one
 # results file under data/layer-sweeps/.
@@ -30,7 +43,7 @@ ATLAS_BASE_LAYERS <- ATLAS_PRODUCTION_LAYERS
 # "all" means every new group that is built, so a sweep run before the last
 # download lands still compares the full set it has.
 atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
-                                   base = ATLAS_BASE_LAYERS) {
+                                   base = ATLAS_BASE_LAYERS, method = FALSE) {
   if (!is.null(built)) {
     new <- new[vapply(new, function(ids) all(ids %in% built), logical(1))]
   }
@@ -39,15 +52,68 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
          layers = c(base, new[[group]]))
   })
   everything <- c(base, unlist(new, use.names = FALSE))
+  # Host trees are in production now, so the arm that puts them in the order of
+  # a fungus of unknown guild is against the baseline, with nothing added.
+  flat <- if ("hosts" %in% base) {
+    list(list(arm = "base:flat", algorithm = "maxnet", layers = base, guild_order = FALSE))
+  }
+  designs <- if (isTRUE(method)) {
+    unlist(lapply(c("maxnet", "rf"), function(algorithm) {
+      prefix <- if (algorithm == "rf") "rf:base" else "base"
+      lapply(setdiff(ATLAS_SWEEP_DESIGNS, "sites"), function(design) {
+        list(arm = paste0(prefix, ":", design), algorithm = algorithm, layers = base,
+             design = design)
+      })
+    }), recursive = FALSE)
+  }
   c(
     list(list(arm = "base", algorithm = "maxnet", layers = base)),
     groups,
+    flat,
     list(
       list(arm = "all", algorithm = "maxnet", layers = everything),
       list(arm = "rf:base", algorithm = "rf", layers = base),
       list(arm = "rf:all", algorithm = "rf", layers = everything)
-    )
+    ),
+    designs
   )
+}
+
+# The arms whose predictors and layers are measured for what each was worth
+# on held-out ground (R/importance.R): both learners, on everything.
+ATLAS_IMPORTANCE_ARMS <- c("all", "rf:all")
+
+# How an arm's training rows are made. "sites" is production's design.
+ATLAS_SWEEP_DESIGNS <- c("sites", "no-effort", "per-record")
+
+#' An arm's training rows under its design, from the survey-site rows.
+#'
+#' "sites" leaves them alone. "no-effort" takes the effort column away.
+#' "per-record" is the design before survey sites: each non-detection site is
+#' repeated once for every record collected there (effort is
+#' log(records)), at most n_background rows drawn from the repeats, each
+#' detection site counted once, and no effort column.
+atlas_design_rows <- function(train, design = "sites", n_background = 10000, seed = 1L) {
+  design <- match.arg(design, ATLAS_SWEEP_DESIGNS)
+  if (design == "sites" || !ATLAS_EFFORT_COLUMN %in% names(train)) {
+    return(train)
+  }
+  effort <- train[[ATLAS_EFFORT_COLUMN]]
+  train[[ATLAS_EFFORT_COLUMN]] <- NULL
+  if (design == "no-effort") {
+    return(train)
+  }
+  found <- which(train$presence == 1L)
+  others <- which(train$presence == 0L)
+  records <- pmax(1L, as.integer(round(exp(effort[others]))))
+  repeated <- rep(others, times = records)
+  if (length(repeated) > n_background) {
+    set.seed(seed)
+    repeated <- sort(repeated[sample.int(length(repeated), n_background)])
+  }
+  out <- train[c(found, repeated), , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }
 
 # The candidate layers, by the question each one asks.
@@ -76,7 +142,8 @@ atlas_layer_sweep_taxon <- function(name, fingerprint, points, stack, arms,
                                     buffer_km = 500, folds = 5, block_km = "auto",
                                     regmult = 1, correlation = 0.7,
                                     min_presences = 20,
-                                    guilds = atlas_guild_table()) {
+                                    guilds = atlas_guild_table(),
+                                    importance = ATLAS_IMPORTANCE_ARMS) {
   started <- Sys.time()
   training <- atlas_build_training(
     name, grid, n_background = n_background, buffer_km = buffer_km,
@@ -99,35 +166,52 @@ atlas_layer_sweep_taxon <- function(name, fingerprint, points, stack, arms,
   )
   guild <- atlas_taxon_guild(name, guilds)
   effort_at <- atlas_effort_level(training)
+  effort_column <- intersect(ATLAS_EFFORT_COLUMN, names(training))
   bookkeeping <- c("presence", "cell", "x", "y")
 
   run_arm <- function(arm) {
     arm_started <- Sys.time()
     columns <- intersect(unlist(bands[arm$layers], use.names = FALSE), names(training))
-    columns <- c(columns, intersect(ATLAS_EFFORT_COLUMN, names(training)))
-    available <- training[, c(bookkeeping, columns), drop = FALSE]
+    design <- arm$design %||% "sites"
+    ordered_as <- if (isFALSE(arm$guild_order)) ATLAS_GUILD_UNKNOWN else guild
+    available <- training[, c(bookkeeping, columns, effort_column), drop = FALSE]
     algo <- atlas_algorithm(arm$algorithm)
     keep <- if (isTRUE(algo$prune)) {
       atlas_choose_predictors(available, threshold = correlation,
-                              priority = atlas_predictor_priority(guild),
-                              host_share = atlas_host_allowance(guild))
+                              priority = atlas_predictor_priority(ordered_as),
+                              host_share = atlas_host_allowance(ordered_as))
     } else {
       atlas_predictor_columns(available)
     }
-    table <- available[, c(bookkeeping, keep), drop = FALSE]
-    scores <- atlas_cross_validate(
-      table, fold_ids,
-      fit = function(train) algo$fit(train, atlas_null_params(algo, train), seed, tuning = TRUE),
-      score = algo$score, effort_at = effort_at
-    )
+    # The effort column stays in the table so a design can count records from
+    # it; atlas_design_rows takes it out of the designs that fit without it.
+    table <- available[, c(bookkeeping, union(keep, effort_column)), drop = FALSE]
+    fit_arm <- function(train) {
+      rows <- atlas_design_rows(train, design, n_background = n_background, seed = seed)
+      algo$fit(rows, atlas_null_params(algo, rows), seed, tuning = TRUE)
+    }
+    scores <- if (arm$arm %in% importance) {
+      atlas_cross_validate_importance(
+        table, fold_ids, fit = fit_arm, score = algo$score, effort_at = effort_at,
+        layers = bands[arm$layers], seed = seed
+      )
+    } else {
+      atlas_cross_validate(table, fold_ids, fit = fit_arm, score = algo$score,
+                           effort_at = effort_at)
+    }
+    measured <- attr(scores, "importance")
     keep <- setdiff(keep, ATLAS_EFFORT_COLUMN)
     list(
       arm = arm$arm,
+      design = design,
       predictors = length(keep),
       kept = as.list(keep),
       auc = round(mean(scores$auc, na.rm = TRUE), 4),
       boyce = round(atlas_pooled_boyce(scores), 4),
       folds_scored = sum(!is.na(scores$auc)),
+      importance = if (is.null(measured)) NULL else {
+        lapply(seq_len(nrow(measured)), function(i) as.list(measured[i, ]))
+      },
       seconds = round(as.numeric(difftime(Sys.time(), arm_started, units = "secs")), 1)
     )
   }
@@ -137,7 +221,16 @@ atlas_layer_sweep_taxon <- function(name, fingerprint, points, stack, arms,
     band = atlas_presence_band(presences),
     guild = guild, block_km = block,
     dropped = attr(training, "dropped"),
-    arms = lapply(arms, run_arm),
+    # One arm failing to fit (glmnet can refuse a regularisation path) must
+    # not cost the taxon its other arms: it is recorded, with its reason, and
+    # has no scores.
+    arms = lapply(arms, function(arm) {
+      tryCatch(run_arm(arm), error = function(e) {
+        list(arm = arm$arm, design = arm$design %||% "sites", predictors = NA,
+             auc = NA_real_, boyce = NA_real_, folds_scored = 0L,
+             error = conditionMessage(e))
+      })
+    }),
     seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   )
 }
@@ -176,7 +269,7 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
                               seed = 1L, min_presences = 20,
                               n_background = 10000, buffer_km = 500,
                               folds = 5, block_km = "auto", regmult = 1,
-                              correlation = 0.7, quiet = FALSE,
+                              correlation = 0.7, quiet = FALSE, method = TRUE,
                               base = ATLAS_BASE_LAYERS,
                               groups = ATLAS_NEW_LAYER_GROUPS,
                               occurrences = NULL, points = NULL,
@@ -185,7 +278,7 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
   built <- names(bands)
   unbuilt <- names(groups)[!vapply(groups, function(ids) all(ids %in% built), logical(1))]
   arms <- atlas_runnable_arms(
-    atlas_layer_sweep_arms(groups, built = built, base = base), built
+    atlas_layer_sweep_arms(groups, built = built, base = base, method = method), built
   )
   skipped <- c(attr(arms, "skipped"), paste0("+", unbuilt))
   if (!length(arms)) {
@@ -205,10 +298,15 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
     regmult = regmult, correlation = correlation, min_presences = min_presences
   )
   settings <- c(args[setdiff(names(args), c("arms", "bands"))],
-                list(arms = lapply(arms, function(a) a[c("arm", "algorithm", "layers")]),
+                list(arms = lapply(arms, function(a) {
+                       c(a[c("arm", "algorithm", "layers")],
+                         list(design = a$design %||% "sites",
+                              guild_order = !isFALSE(a$guild_order)))
+                     }),
+                     design = atlas_design(),
                      skipped = as.list(skipped),
                      coverage = coverage, per_band = per_band, seed = seed))
-  atlas_run_study(
+  result <- atlas_run_study(
     kind = "layer-sweeps", file_prefix = "layers", taxon_fn = "atlas_layer_sweep_taxon",
     sample = sample, fingerprints = fingerprints, args = args,
     settings = settings, baseline = "base", grid = grid, workers = workers,
@@ -223,4 +321,11 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
                    character(1)), collapse = ", ")
     )
   )
+  # What each predictor and layer was worth, beside the results.
+  importance <- atlas_importance_summary(result$taxa)
+  result$importance <- importance
+  result$importance_path <- sub("layers-([^/]*)[.]json$", "importance-\\1.json", result$path)
+  atlas_write_json(list(arms = as.list(ATLAS_IMPORTANCE_ARMS), repeats = ATLAS_IMPORTANCE_REPEATS,
+                        summary = importance), result$importance_path)
+  invisible(result)
 }
