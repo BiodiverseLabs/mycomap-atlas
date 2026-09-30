@@ -58,3 +58,38 @@ release_paths <- function(release) vapply(release$files, function(f) f$path, "")
 release_hash <- function(release, path) {
   Filter(function(f) f$path == path, release$files)[[1]]$sha256
 }
+
+# A fit that stops the whole worker once it has run `n` times, as a spot
+# reclaim does. What it signals is not an error, so nothing in the batch
+# catches it: the shard ends where it was, as a lost worker's would.
+lost_after <- function(n, fit = fake_fit) {
+  calls <- 0L
+  function(name, ...) {
+    if (calls >= n) {
+      stop(structure(class = c("atlas_test_lost", "condition"),
+                     list(message = "the worker was taken back", call = NULL)))
+    }
+    calls <<- calls + 1L
+    fit(name, ...)
+  }
+}
+
+# Runs a shard until its worker is lost; returns nothing.
+run_until_lost <- function(store, job, shard, fit, ...) {
+  tryCatch(on_machine(machine(), atlas_run_shard(store, job$id, shard, quiet = TRUE, fit = fit, ...)),
+           atlas_test_lost = function(e) NULL)
+  invisible(NULL)
+}
+
+# A fit that remembers which taxa it was asked for.
+counting_fit <- function(fit = fake_fit) {
+  seen <- new.env()
+  seen$taxa <- character()
+  f <- function(name, ...) {
+    seen$taxa <- c(seen$taxa, name)
+    fit(name, ...)
+  }
+  list(fit = f, taxa = function() seen$taxa)
+}
+
+MORE_TAXA <- c("Taxon A" = 25, "Taxon B" = 30, "Taxon C" = 22, "Taxon D" = 26, "Taxon E" = 28)

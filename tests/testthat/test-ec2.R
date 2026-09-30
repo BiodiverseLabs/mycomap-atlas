@@ -25,7 +25,8 @@ tag_values <- function(tags) {
 }
 
 # A fake EC2. `script(shard, attempt)` says what each worker does: "work",
-# "reclaim", "hang" or "vanish". `refuse(request, call)` may return an error
+# "partial" (saves one more model, then is reclaimed), "reclaim", "hang" or
+# "vanish". `refuse(request, call)` may return an error
 # message for a run_instances call.
 fake_ec2 <- function(store, script = function(shard, attempt) "work",
                      refuse = function(request, call) NULL) {
@@ -41,6 +42,10 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
       if (!worker$state %in% c("pending", "running")) next
       if (worker$behaviour == "work") {
         on_machine(machine(), atlas_run_shard(store, worker$job, worker$shard, quiet = TRUE, fit = fake_fit))
+        worker$state <- "terminated"
+      } else if (worker$behaviour == "partial") {
+        # Fits one more model, saves it, and is taken back.
+        run_until_lost(store, list(id = worker$job), worker$shard, lost_after(1L), save_seconds = 0)
         worker$state <- "terminated"
       } else if (worker$behaviour == "reclaim") {
         worker$state <- "terminated"
@@ -541,6 +546,7 @@ test_that("a worker may write its results, shard record and log, and nothing tha
   may_write <- function(key) glob_matches(writes, key)
   expect_true(may_write(atlas_object_key(strrep("ab", 32))))
   expect_true(may_write("jobs/draft/job1/shards/1.json"))
+  expect_true(may_write("jobs/draft/job1/shards/1.progress.json"))
   expect_true(may_write("jobs/draft/job1/logs/1.log"))
   for (key in c("current/draft.json", "releases/draft/r1.json", "layers/draft/current.json",
                 "jobs/draft/job1/job.json", "jobs/draft/job1/finished.json")) {
@@ -568,4 +574,32 @@ test_that("the committed AWS templates name no account, network or bucket of our
     expect_false(grepl("[0-9]{12}|vpc-[0-9a-f]{4,}|sg-[0-9a-f]{4,}|subnet-[0-9a-f]{4,}|mycomap-atlas", text),
                  info = basename(file))
   }
+})
+
+# ---- workers lost part way -----------------------------------------------------
+
+test_that("a worker lost after saving does not use up its shard's attempts, and its replacement starts from there", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(MORE_TAXA)))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  setup <- list(store = store, boss = boss, job = job)
+  # Four workers in a row are taken back, each after saving one more model:
+  # more than the three attempts a worker that saves nothing is allowed.
+  ec2 <- fake_ec2(store, script = function(shard, attempt) if (attempt <= 4L) "partial" else "work")
+  release <- run_on(setup, ec2)
+  expect_length(ec2$state$requests, 5L)
+  expect_length(release$index, 5L)
+  expect_equal(release$job_results$fitted, 5L)
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("a relaunched worker asks first for the next instance type", {
+  skip_if_not_installed("terra")
+  setup <- planned(shards = 1L)
+  ec2 <- fake_ec2(setup$store, script = function(shard, attempt) if (attempt == 1L) "reclaim" else "work")
+  run_on(setup, ec2)
+  types <- vapply(ec2$state$requests, function(r) r$InstanceType, "")
+  expect_equal(types, c("c7a.8xlarge", "m7a.8xlarge"))
 })
