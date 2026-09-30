@@ -184,7 +184,7 @@
       "group": "r",
       "license": "GPL-2",
       "url": "https://glmnet.stanford.edu",
-      "role": "Solves Maxent's penalised fit, called directly so the penalty path can be shorter than maxnet's own.",
+      "role": "Solves Maxent's penalised fit, called directly so the penalty path can be shorter than maxnet's own, and fits the ridge-penalised regressions that ensembles of small models are made of.",
       "citation": "Friedman J, Hastie T, Tibshirani R (2010) Regularization paths for generalized linear models via coordinate descent. Journal of Statistical Software 33(1):1-22.",
       "doi": "10.18637/jss.v033.i01"
     },

@@ -28,9 +28,9 @@ atlas_presence_cell_counts <- function(points) {
 #' The cell count here is before cells without predictor data are dropped, so
 #' a taxon just over the line can still be refused by the fit itself.
 atlas_batch_candidates <- function(points, min_presences = 20, limit = Inf,
-                                   taxa = NULL) {
+                                   taxa = NULL, max_presences = Inf) {
   counts <- atlas_presence_cell_counts(points)
-  counts <- counts[counts$cells >= min_presences, , drop = FALSE]
+  counts <- counts[counts$cells >= min_presences & counts$cells <= max_presences, , drop = FALSE]
   if (!is.null(taxa)) {
     counts <- counts[counts$scientific_name %in% taxa, , drop = FALSE]
   }
@@ -225,7 +225,7 @@ atlas_worker_value <- function(result) {
 #' predict    draw maps; FALSE writes scores only
 #' force      refit even when the stored model is current
 #' workers    R processes to fit in parallel; 1 fits in this process
-#' algorithm  which model to fit: maxnet, xgboost or rf
+#' algorithm  which model to fit: maxnet, xgboost, rf or esm
 #' fit        the per-taxon fitting function, replaceable in tests
 atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             force = FALSE, workers = 1L, min_presences = 20,
@@ -264,7 +264,9 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     algorithm = algo$id, nulls = nulls, tune = tune
   )
 
-  candidates <- atlas_batch_candidates(points, min_presences, limit, taxa)
+  max_presences <- atlas_algorithm_max(algo)
+  candidates <- atlas_batch_candidates(points, min_presences, limit, taxa,
+                                       max_presences = max_presences + ATLAS_RANGE_MARGIN)
   fingerprints <- atlas_fingerprints_for(occurrences, candidates$scientific_name)
   current <- vapply(candidates$scientific_name, function(name) {
     if (isTRUE(force)) return(FALSE)
@@ -274,7 +276,8 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     # model with fewer presences than the minimum goes back to the fit, which
     # refuses it and removes it.
     atlas_fit_is_current(metrics, fingerprints[[name]], settings, predict) &&
-      (as.numeric(metrics$presences %||% 0) >= min_presences)
+      (as.numeric(metrics$presences %||% 0) >= min_presences) &&
+      (as.numeric(metrics$presences %||% 0) <= max_presences)
   }, logical(1))
   to_fit <- candidates$scientific_name[!current]
 

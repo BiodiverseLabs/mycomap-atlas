@@ -121,11 +121,18 @@ ATLAS_MAXNET_PATH_STEPS <- 20L
 #' in seven thousand (whether the tree inventories spoke for the ground, say)
 #' is constant whenever both are held out; maxnet cannot build a hinge on it
 #' and the fit fails. Left out, it simply has no say in that model.
-atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1) {
+#'
+#' Effort is left out unless use_effort is TRUE, as production fits it
+#' (R/algorithms.R), so every study that calls this fits Maxent as
+#' production does. The column stays in the table, where the null models
+#' read it.
+atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort = FALSE) {
   if (!requireNamespace("maxnet", quietly = TRUE)) {
     stop("maxnet is needed to fit: install.packages('maxnet')", call. = FALSE)
   }
-  predictors <- training[, atlas_predictor_columns(training), drop = FALSE]
+  columns <- atlas_predictor_columns(training)
+  if (!isTRUE(use_effort)) columns <- setdiff(columns, ATLAS_EFFORT_COLUMN)
+  predictors <- training[, columns, drop = FALSE]
   predictors <- predictors[, atlas_drop_constant(predictors), drop = FALSE]
   presence <- as.integer(training$presence)
   if (sum(presence == 1L) < 2L) {
@@ -140,6 +147,14 @@ atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1) {
     f = maxnet::maxnet.formula(p, data, classes = classes),
     regmult = regmult
   )
+}
+
+#' One penalised fit along a path of penalties: maxnet's glmnet call.
+atlas_glmnet_path <- function(mm, p, reg, lambda, weights) {
+  suppressWarnings(glmnet::glmnet(
+    x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
+    penalty.factor = reg, lambda = lambda, weights = weights
+  ))
 }
 
 #' maxnet::maxnet, stepping through `steps` penalty values instead of 200.
@@ -159,11 +174,18 @@ atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult =
   reg <- regfun(p, mm) * regmult
   weights <- p + (1 - p) * 100
   glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
-  lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
-  model <- glmnet::glmnet(
-    x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
-    penalty.factor = reg, lambda = lambda, weights = weights
-  )
+  path <- function(steps) {
+    lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
+    atlas_glmnet_path(mm, p, reg, lambda, weights)
+  }
+  model <- path(steps)
+  # A short path takes big steps, and now and then one does not converge
+  # within glmnet's iterations, which a 200-step path would have: fall back
+  # to maxnet's own path for that fit, so it fails only where maxnet would.
+  if (length(model$lambda) < steps && steps < 200L) {
+    steps <- 200L
+    model <- path(steps)
+  }
   class(model) <- c("maxnet", class(model))
   if (length(model$lambda) < steps) {
     stop("Error: glmnet failed to complete regularization path.  Model may be infeasible.",
@@ -378,10 +400,15 @@ atlas_tune <- function(training, folds, algo, seed = 1L,
 #' spatial folds, settings are tuned there, a model with those settings is
 #' fitted on all the other regions, and the held-out region is scored. The
 #' scores are therefore what a model tuned without this ground makes of it.
+#'
+#' With importance (a named list of column groups, atlas_importance_groups),
+#' each fold's model is also scored with each group shuffled among the
+#' held-out sites, and the falls come back as attr(, "falls"): one row per
+#' group, one column per fold.
 atlas_nested_cross_validate <- function(training, folds, algo, block_km, seed = 1L,
                                         inner_folds = ATLAS_INNER_FOLDS,
                                         effort_at = atlas_effort_level(training),
-                                        tune = TRUE) {
+                                        tune = TRUE, importance = NULL) {
   held_score <- atlas_score_at_effort(algo$score, effort_at)
   rows <- lapply(sort(unique(folds)), function(fold) {
     held <- folds == fold
@@ -413,9 +440,19 @@ atlas_nested_cross_validate <- function(training, folds, algo, block_km, seed = 
       params = atlas_params_label(params)
     )
     attr(row, "held") <- data.frame(fold = fold, presence = test$presence, score = scores)
+    if (length(importance)) {
+      attr(row, "falls") <- atlas_permutation_falls(model, test, importance, held_score,
+                                                    seed = seed + fold)
+    }
     row
   })
-  atlas_bind_folds(rows)
+  out <- atlas_bind_folds(rows)
+  if (length(importance)) {
+    falls <- lapply(rows, attr, "falls")
+    falls <- falls[!vapply(falls, is.null, logical(1))]
+    attr(out, "falls") <- if (length(falls)) do.call(cbind, falls) else NULL
+  }
+  out
 }
 
 #' Settings as a short readable label, for logs and the stored folds.
@@ -481,12 +518,19 @@ atlas_null_test <- function(training, folds, algo, reps = ATLAS_NULL_REPS, seed 
     return(list(reps = 0L))
   }
   n <- sum(training$presence == 1L)
-  runs <- lapply(seq_len(reps), function(r) {
+  # A null whose fit fails is replaced by another draw, up to as many again:
+  # with one of 19 missing, even a taxon that beats every null has p = 0.053
+  # and would fail a test it passed.
+  runs <- list()
+  draw <- 0L
+  while (length(runs) < reps && draw < 2L * reps) {
+    draw <- draw + 1L
     null <- training
-    null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + r)
-    run(null)
-  })
-  runs <- do.call(rbind, runs)
+    null$presence <- atlas_null_presence(training, n, seed = seed + 1000L + draw)
+    result <- run(null)
+    if (is.finite(result[["auc"]])) runs[[length(runs) + 1L]] <- result
+  }
+  runs <- do.call(rbind, c(runs, list(matrix(numeric(), 0, 2, dimnames = list(NULL, c("auc", "boyce"))))))
   auc <- runs[, "auc"][is.finite(runs[, "auc"])]
   boyce <- runs[, "boyce"][is.finite(runs[, "boyce"])]
   p_value <- function(null, observed) {
@@ -520,6 +564,15 @@ atlas_skill <- function(null, boyce, alpha = ATLAS_SKILL_ALPHA) {
 atlas_model_path <- function(name, grid = "draft", extension = ".tif", algorithm = "maxnet") {
   slug <- gsub("(^-|-$)", "", gsub("[^a-z0-9]+", "-", tolower(name)))
   file.path(atlas_model_dir(grid, algorithm), paste0(slug, extension))
+}
+
+#' A refusal for any other reason: a message, classed like the others.
+atlas_refusal <- function(name, presences, reason) {
+  structure(
+    class = c("atlas_insufficient_evidence", "error", "condition"),
+    list(message = paste0("not modelled with this algorithm: ", name, " has ", reason, "."),
+         call = NULL, presences = presences)
+  )
 }
 
 #' A refusal to model, as opposed to a failure: the taxon is fine, there is
@@ -594,6 +647,10 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
                                min_blocks = ATLAS_MIN_BLOCKS,
                                guild_table = atlas_guild_table_key()) {
   algo <- atlas_algorithm(algorithm)
+  design <- atlas_algorithm_design(algo, folds, block_km, min_blocks)
+  folds <- design$folds
+  block_km <- design$block_km
+  min_blocks <- design$min_blocks
   list(
     grid = grid,
     algorithm = algo$id,
@@ -667,12 +724,17 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             layers = NULL, algorithm = "maxnet",
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
                             tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
-                            guilds = atlas_guild_table()) {
+                            guilds = atlas_guild_table(), importance = TRUE) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
+  max_presences <- atlas_algorithm_max(algo)
+  design <- atlas_algorithm_design(algo, folds, block_km, min_blocks)
+  folds <- design$folds
+  block_km <- design$block_km
+  min_blocks <- design$min_blocks
   stack <- stack %||% atlas_predictor_stack(grid)
   settings <- atlas_fit_settings(
     grid = grid, n_background = n_background, buffer_km = buffer_km,
@@ -700,11 +762,20 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   if (presences < min_presences) {
     refuse(atlas_insufficient_evidence(name, presences, grid, min_presences))
   }
+  if (presences > max_presences) {
+    refuse(atlas_refusal(name, presences, paste0(
+      "enough detection sites (", presences, ") for the full models; the ", algo$label,
+      " is for taxa with ", min_presences, " to ", max_presences)))
+  }
 
   considered <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
   if (isTRUE(prune)) {
-    keep <- atlas_choose_predictors(training, threshold = correlation, priority = priority,
-                                    host_share = atlas_host_allowance(guild))
+    keep <- if (is.function(algo$choose)) {
+      algo$choose(training, correlation, priority, atlas_host_allowance(guild))
+    } else {
+      atlas_choose_predictors(training, threshold = correlation, priority = priority,
+                              host_share = atlas_host_allowance(guild))
+    }
     kept_attributes <- attributes(training)[c("area_km2", "seed", "fingerprint", "dropped", "thin_km")]
     training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
     attributes(training)[names(kept_attributes)] <- kept_attributes
@@ -729,9 +800,18 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   )
   effort_at <- atlas_effort_level(training)
 
+  bands <- atlas_layer_bands(grid)
+  layer_of <- atlas_layer_of(atlas_predictor_columns(training), bands)
+  # Layers the taxon's predictors came from before pruning, less those the
+  # model kept any predictor of: what a page lists as not used.
+  layers_unused <- setdiff(unique(atlas_layer_of(considered, bands)), unique(layer_of[
+    setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)]))
+  groups <- if (isTRUE(importance)) {
+    atlas_importance_groups(atlas_predictor_columns(training), layer_of)
+  }
   scores <- atlas_nested_cross_validate(
     training, fold_ids, algo, block_km = block$block_km, seed = seed,
-    effort_at = effort_at, tune = tune
+    effort_at = effort_at, tune = tune, importance = groups
   )
   final <- if (isTRUE(tune)) {
     atlas_tune(training, fold_ids, algo, seed, effort_at)
@@ -748,10 +828,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     list(reps = 0L)
   }
   skill <- atlas_skill(null, boyce_pooled)
+  # From very few sites a map is drawn only once it has shown it knows
+  # something; the scores are kept either way.
+  withheld <- presences < (algo$map_needs_skill_below %||% 0) && !identical(skill, "passed")
 
   held_score <- atlas_score_at_effort(algo$score, effort_at)
   suitability <- NULL
-  if (isTRUE(predict)) {
+  if (isTRUE(predict) && !withheld) {
     occupied <- training[training$presence == 1L, , drop = FALSE]
     area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
     suitability <- atlas_predict_raster(model, stack, area, score = held_score)
@@ -794,6 +877,12 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     area_km2 = round(attr(training, "area_km2")),
     cells_without_data = attr(training, "dropped"),
     predictors = as.list(setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)),
+    uses_effort = !isFALSE(algo$use_effort),
+    # What the map rests on: the fall in held-out AUC when each layer, and
+    # each predictor within it, is shuffled (R/importance.R).
+    importance = atlas_importance_table(attr(scores, "falls"), layer_of),
+    layers_unused = as.list(atlas_label(layers_unused, ATLAS_LAYER_LABELS)),
+    map_withheld = withheld,
     predictors_considered = length(considered),
     genus = atlas_taxon_genus(name),
     guild = guild,
@@ -905,7 +994,7 @@ atlas_fit_is_current <- function(metrics, fingerprint, settings, predict = TRUE)
   if (!identical(as.character(metrics$settings_key %||% ""), atlas_settings_key(settings))) {
     return(FALSE)
   }
-  if (isTRUE(predict)) {
+  if (isTRUE(predict) && !isTRUE(metrics$map_withheld)) {
     # A fit without a map stores its raster as an empty JSON object, which
     # comes back as an empty list rather than NULL.
     raster <- metrics$raster

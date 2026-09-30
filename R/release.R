@@ -249,6 +249,8 @@ atlas_model_index_entry <- function(metrics, algorithm) {
     presences = number(metrics$presences),
     area_km2 = number(metrics$area_km2),
     map = is.character(metrics$raster) && length(metrics$raster) == 1L,
+    # Drawn only once it passes its null test (a taxon with 3 or 4 sites).
+    map_withheld = if (isTRUE(metrics$map_withheld)) TRUE else NULL,
     # Whether the map beat its null models; anything reading a release to
     # use a map (mycomap.org, Vision) should take only "passed".
     skill = text(metrics$skill)

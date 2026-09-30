@@ -355,7 +355,7 @@ function(grid = "draft", res) {
 }
 
 #* One taxon's fitted model: its scores, settings and map bounds.
-#* @param algorithm maxnet (default), xgboost or rf
+#* @param algorithm maxnet (default), xgboost, rf or esm
 #* @get /api/taxa/<name>/model
 #* @serializer unboxedJSON
 function(name, grid = "draft", algorithm = "maxnet", res) {
@@ -373,7 +373,7 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 }
 
 #* A taxon's suitability map, ready to lay over a slippy map.
-#* @param algorithm maxnet (default), xgboost or rf
+#* @param algorithm maxnet (default), xgboost, rf or esm
 #* @get /api/taxa/<name>/map.png
 #* @serializer contentType list(type = "image/png")
 function(name, grid = "draft", algorithm = "maxnet", res) {
@@ -391,7 +391,7 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 }
 
 #* A taxon's suitability raster as a GeoTIFF. Needs a session or a token.
-#* @param algorithm maxnet (default), xgboost or rf
+#* @param algorithm maxnet (default), xgboost, rf or esm
 #* @get /api/taxa/<name>/raster.tif
 function(name, grid = "draft", algorithm = "maxnet", req, res) {
   atlas_send(res, atlas_raster_response(

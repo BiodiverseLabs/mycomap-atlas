@@ -26,7 +26,7 @@ interface Point {
   lng: number;
 }
 
-const SHORT: Record<Algorithm, string> = { maxnet: "M", xgboost: "B", rf: "R" };
+const SHORT: Record<Algorithm, string> = { maxnet: "M", xgboost: "B", rf: "R", esm: "E" };
 
 function readPoint(search: string): Point | null {
   const params = new URLSearchParams(search);

@@ -90,7 +90,8 @@ atlas_fetch_entries <- function(store, entries) {
 # boosted trees 27 s. Maxent's glmnet path is fitted ~260 times per taxon;
 # a forest's map adds about 2.5 minutes for a widespread taxon. A map's cost
 # grows with its area.
-ATLAS_SHARD_WEIGHTS <- c(maxnet = 7, xgboost = 0.5, rf = 3)
+# The small-model ensemble is not yet timed on its own; its taxa are small.
+ATLAS_SHARD_WEIGHTS <- c(maxnet = 7, xgboost = 0.5, rf = 3, esm = 1)
 
 #' The relative cost of one task.
 atlas_task_cost <- function(algorithm, area_km2, typical_area = 5e6) {
@@ -116,7 +117,8 @@ atlas_assign_shards <- function(costs, n) {
 #' Is an index entry still current for these records and settings? A
 #' refusal is current while the record set and settings are unchanged: the
 #' same records would be refused again.
-atlas_index_current <- function(entry, fingerprint, settings, min_presences) {
+atlas_index_current <- function(entry, fingerprint, settings, min_presences,
+                                max_presences = Inf) {
   if (!is.null(entry) && isTRUE(entry$refused)) {
     return(identical(as.character(entry$fingerprint %||% ""), as.character(fingerprint)) &&
              identical(as.character(entry$settings_key %||% ""), atlas_settings_key(settings)))
@@ -124,8 +126,9 @@ atlas_index_current <- function(entry, fingerprint, settings, min_presences) {
   !is.null(entry) &&
     identical(as.character(entry$fingerprint %||% ""), as.character(fingerprint)) &&
     identical(as.character(entry$settings_key %||% ""), atlas_settings_key(settings)) &&
-    isTRUE(entry$map) &&
-    as.numeric(entry$presences %||% 0) >= min_presences
+    (isTRUE(entry$map) || isTRUE(entry$map_withheld)) &&
+    as.numeric(entry$presences %||% 0) >= min_presences &&
+    as.numeric(entry$presences %||% 0) <= max_presences
 }
 
 #' Plan a job: what needs fitting, split into shards, with its inputs stored.
@@ -195,11 +198,13 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
       prune = algo$prune, layers = layers_key, algorithm = algo$id,
       nulls = nulls, tune = tune
     )
-    candidates <- atlas_batch_candidates(points, minimum)$scientific_name
+    maximum <- atlas_algorithm_max(algo)
+    candidates <- atlas_batch_candidates(points, minimum,
+                                         max_presences = maximum + ATLAS_RANGE_MARGIN)$scientific_name
     fingerprints <- atlas_fingerprints_for(occurrences, candidates)
     for (name in candidates) {
       entry <- index[[paste(algorithm, name)]]
-      if (atlas_index_current(entry, fingerprints[[name]], settings, minimum)) next
+      if (atlas_index_current(entry, fingerprints[[name]], settings, minimum, maximum)) next
       tasks[[length(tasks) + 1L]] <- list(
         taxon = name, algorithm = algorithm, fingerprint = fingerprints[[name]],
         cost = atlas_task_cost(algorithm, entry$area_km2, typical)

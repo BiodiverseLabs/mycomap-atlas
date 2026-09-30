@@ -121,7 +121,7 @@ export default function Methods() {
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
                 <li>Describe every cell of North America (5 km now, 1 km for releases) with 58 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
-                <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
+                <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor for the trees, held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
                 <li>Test each map against null models, random handfuls of collections fitted the same way; a map that cannot beat them is marked and kept out of Explore.</li>
                 <li>Publish maps and scores as a versioned, reproducible release.</li>
@@ -275,13 +275,16 @@ export default function Methods() {
                   every species found there, and the best-surveyed ground looked worse than it was.
                 </li>
                 <li>
-                  <B>Effort as a predictor.</B> How hard a site was worked goes into every model,
-                  and is held at one level, the median of the species' detection sites, whenever a
+                  <B>Effort as a predictor.</B> How hard a site was worked goes into the boosted
+                  trees and the random forest, and is held at one level, the median of the species' detection sites, whenever a
                   map is drawn or scored. Effort is the log of the site's records, with the
                   species' own records <B>counted once</B> however many there are, or a fungus
                   collected a hundred times in one wood would make that wood look well surveyed by
                   being there. Effort explains what effort explains, and the map shows the rest
-                  (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015).
+                  (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015). Maxent is fitted without
+                  it: measured twice on 150-odd species, Maxent scored better without effort (+0.02
+                  blocked AUC, Boyce unchanged), while the random forest did markedly worse
+                  without it. Effort still decides where every null model draws its sites.
                 </li>
                 <li>
                   Sites are drawn only from the <B>accessible area</B>, the species' own sites
@@ -472,17 +475,37 @@ export default function Methods() {
 
             <Section id="thresholds" title="How much data a map needs">
               <p>
-                A map needs <B>at least 20 detection sites</B>, in <B>at least 5 blocks</B> so that
-                every fold has something to score; boosted trees need 50 sites. Record counts
-                mislead: <Sci>Lysurus mokusin</Sci> has 105 records from 4 distinct places — one
-                urban population, collected over and over. Below the line a taxon is refused rather
-                than modelled, and it becomes a survey target: every sequenced collection from a new
-                place brings its map closer. Clearing the line does not mean a map is trusted; the
-                null models decide that.
+                The three full models need <B>at least 20 detection sites</B>, in{" "}
+                <B>at least 5 blocks</B> so that every fold has something to score; boosted trees
+                need 50. Record counts mislead: <Sci>Lysurus mokusin</Sci> has 105 records from 4
+                distinct places — one urban population, collected over and over.
               </p>
               <p>
-                On the draft grid, 1,274 taxa have 20 detection sites and 285 have 50; the block
-                rule removes about 8 more, taxa whose finds all sit in a few blocks.
+                A taxon with <B>3 to 19 sites</B> gets one map instead, an{" "}
+                <B>ensemble of small models</B> (Breiner et al. 2015). Every pair of its first ten
+                predictors, in the same ecological order Maxent uses, gets a small regression of its
+                own: the two variables and their squares, and effort, penalised so that a handful of
+                detections cannot push it to certainty. Each small model is scored on blocks held
+                out inside the taxon's sites, and the map averages them weighted by how well each
+                did there; one no better than chance has no say. These taxa are scored on three
+                folds of 100 km blocks rather than five of up to 300 km: few sites are rarely
+                spread over five large blocks.
+              </p>
+              <p>
+                How few sites can carry a map was measured, not assumed. Well-recorded fungi (40
+                sites or more, 118 of them) were cut down to a few sites and fitted, and every map
+                was scored on all the sites held out. At 8 sites the ensemble's Boyce index stayed
+                within 0.04 of what all the sites gave it; at 5, half the maps still showed clear
+                skill and 7% were no better than chance; at 3, 40% and 8%. Maxent fell apart below 20 on the same
+                test, and a random forest cannot be fitted at 5. So from <B>5 sites</B> an ensemble
+                map is drawn like any other, faint when it fails its null test; from{" "}
+                <B>3 or 4</B> it is drawn only when it passes.
+              </p>
+              <p>
+                Below 3 sites a taxon is a survey target: every sequenced collection from a new
+                place brings its map closer. On the draft grid, 1,274 taxa have 20 or more sites,
+                3,340 have 5 to 19 and 2,219 have 3 or 4. Clearing a line does not mean a map is
+                trusted; the null models decide that.
               </p>
             </Section>
 

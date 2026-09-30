@@ -203,7 +203,11 @@ than it was. Effort is now a predictor instead, held at the median of the
 taxon's detection sites whenever a map is drawn or scored (Warton, Renner &
 Ramp 2013; Fithian et al. 2015). A taxon's own records count once towards
 its sites' effort, however many there are, or a fungus collected a hundred
-times in one wood would make that wood look well surveyed by being there. The spacing is in km, not cells, so the 1 km
+times in one wood would make that wood look well surveyed by being there.
+The trees use effort; Maxent does not. Measured twice on 150-odd taxa,
+Maxent scored better without it (+0.017 and +0.020 blocked AUC, Boyce
+unchanged), while the forest's Boyce fell 0.084 without it. Effort still
+decides where the null models draw their sites, for Maxent too. The spacing is in km, not cells, so the 1 km
 grid does not turn one foray into five presences.
 
 The accessible area is the taxon's own sites buffered by 500 km, because a
@@ -444,6 +448,47 @@ the ground that model rates highest. Stored rasters keep the raw values.
 
 The Models page in the app shows the latest benchmark and, for the maps in
 production, how many taxa each model has mapped and their median scores.
+
+## Taxa with few sites: ensembles of small models
+
+A taxon with 3 to 19 detection sites is too sparse for the three models and
+gets one map from an ensemble of small models instead (`esm`, R/esm.R;
+Breiner et al. 2015). Every pair of its first ten predictors, chosen in
+Maxent's ecological order with the same host-tree allowance, gets a ridge
+logistic regression on the two variables, their squares and effort, with
+detections and non-detections weighing the same. Each is scored on blocks
+held out inside the training sites, and the map averages them weighted by
+Somers' D there; a small model no better than chance has no say.
+
+These taxa are scored on three folds of 100 km blocks, not five of up to 300
+km: at 300 km only 38% of taxa with 5-7 sites, and none with 3-4, have
+detections in five blocks; at 100 km, 98% and 80% have them in three.
+
+```bash
+./atlas fit --taxon="Rhodotus reticeps" --algorithm=esm
+./atlas study-sparse --per-band=40 --workers=16            # how few sites carry a map
+```
+
+`study-sparse` thins well-recorded taxa (40+ sites) to 5, 8, 12 and 16
+detection sites, fits the ensemble, Maxent and the forest on what is left,
+and scores each on every held-out detection. Measured on 118 taxa
+(2026-09-30):
+
+| Sites | Ensemble AUC / Boyce | Maxent | Random forest |
+|---|---|---|---|
+| 3 | 0.592 / 0.495 | 0.570 / 0.305 | 0.500 / — |
+| 4 | 0.608 / 0.564 | 0.578 / 0.402 | 0.500 / — |
+| 5 | 0.603 / 0.598 | 0.580 / 0.394 | 0.500 / — |
+| 8 | 0.623 / 0.677 | 0.598 / 0.492 | 0.617 / 0.480 |
+| 12 | 0.630 / 0.681 | 0.605 / 0.552 | 0.641 / 0.590 |
+| 16 | 0.635 / 0.654 | 0.607 / 0.522 | 0.652 / 0.604 |
+| all | 0.657 / 0.717 | 0.652 / 0.677 | 0.692 / 0.776 |
+
+At 3 sites 40% of the thinned taxa still showed clear skill (AUC above 0.6
+and a positive Boyce index) and 8% were no better than chance; at 4, 58% and
+9%. From 5 sites an ensemble map is drawn like any other, faint when it fails
+its null test. From 3 or 4 it is drawn only when it passes (`map_withheld`
+otherwise); its scores are kept either way.
 
 ## Releases
 
