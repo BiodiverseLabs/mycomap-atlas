@@ -101,11 +101,19 @@ atlas_spatial_folds <- function(x, y, k = 5, block_km = 200, seed = 1L,
 #' maxnet adds presences to the background itself, but checks every presence
 #' against every background row to do it, which was 90% of a fit's time. A
 #' site is either a detection or not, so presences are simply appended.
+#'
+#' A predictor that does not vary among the sites being fitted is left out.
+#' The predictors are chosen on all of a taxon's sites, but a model is fitted
+#' on four fifths of them at a time, and a predictor that varies at two sites
+#' in seven thousand (whether the tree inventories spoke for the ground, say)
+#' is constant whenever both are held out; maxnet cannot build a hinge on it
+#' and the fit fails. Left out, it simply has no say in that model.
 atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1) {
   if (!requireNamespace("maxnet", quietly = TRUE)) {
     stop("maxnet is needed to fit: install.packages('maxnet')", call. = FALSE)
   }
   predictors <- training[, atlas_predictor_columns(training), drop = FALSE]
+  predictors <- predictors[, atlas_drop_constant(predictors), drop = FALSE]
   presence <- as.integer(training$presence)
   if (sum(presence == 1L) < 2L) {
     stop("a fit needs at least two presences", call. = FALSE)
