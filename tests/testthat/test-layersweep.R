@@ -213,3 +213,31 @@ test_that("every design is scored on the same held-out sites, each counted once"
   expect_equal(seen[[2]]$fitted, seen[[1]]$fitted)
   expect_gt(seen[[3]]$fitted, seen[[1]]$fitted)
 })
+
+test_that("an arm that cannot be fitted is recorded, and the taxon keeps its other arms", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  skip_if_not_installed("ranger")
+  s <- signal_setup()
+  real <- atlas_algorithm
+  testthat::local_mocked_bindings(atlas_algorithm = function(name = "maxnet") {
+    algo <- real(name)
+    if (identical(name, "rf")) {
+      algo$fit <- function(...) stop("glmnet failed to complete regularization path")
+    }
+    algo
+  })
+  row <- atlas_layer_sweep_taxon(
+    "Eastern fungus", fingerprint = "f00dfeed", points = s$world$points,
+    stack = s$world$stack, arms = s$arms, bands = s$bands,
+    n_background = 500, buffer_km = 300
+  )
+  expect_equal(row$status, "scored")
+  by_arm <- stats::setNames(row$arms, vapply(row$arms, function(a) a$arm, character(1)))
+  expect_true(is.finite(by_arm[["base"]]$auc))
+  expect_true(is.na(by_arm[["rf:base"]]$auc))
+  expect_match(by_arm[["rf:base"]]$error, "regularization path")
+  # A failed arm is left out of the comparison, not counted as a zero.
+  summary <- atlas_sweep_summary(list(row), baseline = "base")
+  expect_true(is.na(summary$auc[summary$arm == "rf:base" & summary$band == "all"]))
+})

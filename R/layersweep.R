@@ -228,7 +228,16 @@ atlas_layer_sweep_taxon <- function(name, fingerprint, points, stack, arms,
     band = atlas_presence_band(presences),
     guild = guild, block_km = block,
     dropped = attr(training, "dropped"),
-    arms = lapply(arms, run_arm),
+    # One arm failing to fit (glmnet can refuse a regularisation path) must
+    # not cost the taxon its other arms: it is recorded, with its reason, and
+    # has no scores.
+    arms = lapply(arms, function(arm) {
+      tryCatch(run_arm(arm), error = function(e) {
+        list(arm = arm$arm, design = arm$design %||% "sites", predictors = NA,
+             auc = NA_real_, boyce = NA_real_, folds_scored = 0L,
+             error = conditionMessage(e))
+      })
+    }),
     seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   )
 }
