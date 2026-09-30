@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v4
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
       - name: Check the checker
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v4
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       # The deploy scripts' refusals, and Ubuntu 24.04's nginx serving the
       # site in front of a stand-in API (deploy/lightsail/test-box-config.sh).
       - name: Check the server's scripts, units and nginx site
@@ -43,7 +43,7 @@ jobs:
     container: rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
     steps:
       # actions/checkout v4
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Install test dependencies
         run: install2.r --error --skipinstalled digest jsonlite plumber testthat maxnet glmnet xgboost ranger blockCV curl
       - name: terra and every model package must be present
@@ -68,7 +68,7 @@ jobs:
       packages: write
     steps:
       # actions/checkout v4
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       # The build runs the whole test suite inside the image, so a green build
       # means the image that would compute a release passes its tests.
       - name: Build the image
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v4
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       # pnpm/action-setup v4
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
