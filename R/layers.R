@@ -32,7 +32,8 @@
 # (+0.008 +/- 0.004 AUC, the second most important layer after climate);
 # forest type was kept; water balance is held; carbonate bedrock, landform
 # (wetness, northness, heat load) and a second host layer from USFS basal
-# area added nothing and were dropped.
+# area added nothing and were dropped. Candidates now: more of SoilGrids
+# (nitrogen; bulk density and coarse fragments; pH at 15-30 cm).
 
 #' Rename WorldClim's bioclim bands to bio1..bio19, in numeric order.
 #'
@@ -120,20 +121,8 @@ atlas_layer_registry <- function() {
       citation = "Poggio L et al. (2021) SoilGrids 2.0. SOIL 7:217-240",
       method = "average",
       fill_near = TRUE,
-      # Downloaded rather than read remotely. SoilGrids' own service serves the
-      # native 250 m grid — 58,034 x 159,246 cells in Interrupted Goode
-      # Homolosine — and a continental window of that is a billion pixels to
-      # pull over HTTP for a 5 km layer. geodata's pre-aggregated copy is the
-      # right source for a grid this size.
-      fetch = function(path, res) {
-        vars <- c("phh2o", "soc", "clay", "sand", "cec")
-        parts <- lapply(vars, function(v) {
-          geodata::soil_world(var = v, depth = 5, stat = "mean", path = path)
-        })
-        out <- terra::rast(parts)
-        names(out) <- paste0("soil_", vars)
-        out
-      }
+      # Downloaded from geodata's aggregated copy (atlas_soilgrids).
+      fetch = function(path, res) atlas_soilgrids(c("phh2o", "soc", "clay", "sand", "cec"), path)
     ),
     landcover = list(
       id = "landcover",
@@ -214,7 +203,56 @@ atlas_layer_registry <- function() {
       ),
       method = "average",
       fetch = function(path, res) atlas_waterbalance_source(path)
+    ),
+    # More of SoilGrids, as candidates beside the production soil layer. Silt
+    # is not among them: sand, silt and clay add up to the whole, so silt is
+    # already fixed by the two the soil layer has.
+    soilnitrogen = atlas_soilgrids_layer(
+      "soilnitrogen", "Soil total nitrogen (0-5 cm)", "nitrogen"
+    ),
+    soilstructure = atlas_soilgrids_layer(
+      "soilstructure", "Soil bulk density and coarse fragments (0-5 cm)", c("bdod", "cfvo")
+    ),
+    soildepth = atlas_soilgrids_layer(
+      "soildepth", "Soil pH below the surface (15-30 cm)", "phh2o", depth = 30
     )
+  )
+}
+
+#' SoilGrids properties at one depth, as bands named soil_<property>, with the
+#' depth added to the name below the 0-5 cm the production soil layer uses.
+#'
+#' Downloaded rather than read remotely. SoilGrids' own service serves the
+#' native 250 m grid — 58,034 x 159,246 cells in Interrupted Goode Homolosine
+#' — and a continental window of that is a billion pixels to pull over HTTP
+#' for a 5 km layer. geodata's pre-aggregated copy is the right source for a
+#' grid this size.
+atlas_soilgrids <- function(vars, path, depth = 5) {
+  parts <- lapply(vars, function(v) {
+    geodata::soil_world(var = v, depth = depth, stat = "mean", path = path)
+  })
+  out <- terra::rast(parts)
+  names(out) <- atlas_soilgrids_names(vars, depth)
+  out
+}
+
+atlas_soilgrids_names <- function(vars, depth = 5) {
+  paste0("soil_", vars, if (depth != 5) paste0("_", depth))
+}
+
+#' A candidate layer of SoilGrids properties, credited as the soil layer is.
+atlas_soilgrids_layer <- function(id, title, vars, depth = 5) {
+  list(
+    id = id,
+    title = title,
+    source = "SoilGrids 2.0",
+    url = "https://soilgrids.org",
+    license = "CC BY 4.0",
+    citation = "Poggio L et al. (2021) SoilGrids 2.0. SOIL 7:217-240",
+    method = "average",
+    fill_near = TRUE,
+    bands = atlas_soilgrids_names(vars, depth),
+    fetch = function(path, res) atlas_soilgrids(vars, path, depth)
   )
 }
 

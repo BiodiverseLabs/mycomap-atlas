@@ -46,7 +46,9 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   "forest_needleleaf", "forest_broadleaf", "forest_mixed",
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
   # The rest of the soil.
-  "soil_soc", "soil_clay", "soil_sand", "soil_cec",
+  "soil_soc", "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec",
+  # Candidates (R/layers.R): the soil's structure, and its pH below the surface.
+  "soil_bdod", "soil_cfvo", "soil_phh2o_30",
   # Secondary climate.
   "clim_rh", "clim_vpd", "clim_aet", "clim_pas",
   # The shape of the ground.
@@ -250,6 +252,10 @@ ATLAS_PREDICTOR_LABELS <- c(
   soil_clay = "Clay content",
   soil_sand = "Sand content",
   soil_cec = "Cation exchange capacity",
+  soil_nitrogen = "Soil nitrogen",
+  soil_bdod = "Soil bulk density",
+  soil_cfvo = "Coarse fragments",
+  soil_phh2o_30 = "Soil pH at 15-30 cm",
   cover_trees = "Tree cover",
   cover_shrubs = "Shrub cover",
   cover_grassland = "Grassland",
@@ -282,7 +288,8 @@ ATLAS_PREDICTOR_LABELS <- c(
 ATLAS_LAYER_LABELS <- c(
   bioclim = "Climate", elevation = "Elevation", terrain = "Terrain", soil = "Soil",
   landcover = "Land cover", hosts = "Host trees", foresttype = "Forest type",
-  waterbalance = "Water balance"
+  waterbalance = "Water balance", soilnitrogen = "Soil nitrogen",
+  soilstructure = "Soil structure", soildepth = "Soil pH below the surface"
 )
 
 #' A predictor's or layer's name for people, or its own name when none is known.

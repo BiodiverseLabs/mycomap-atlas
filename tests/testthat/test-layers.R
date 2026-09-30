@@ -308,7 +308,8 @@ test_that("production fits on the five first layers plus host trees and forest t
                c("elevation", "bioclim", "terrain", "soil", "landcover", "hosts", "foresttype"))
   expect_true(all(ATLAS_PRODUCTION_LAYERS %in% names(registry)))
   expect_false(any(c("bedrock", "landform", "hosts_wilson") %in% names(registry)))
-  expect_equal(unlist(ATLAS_NEW_LAYER_GROUPS, use.names = FALSE), "waterbalance")
+  expect_equal(unlist(ATLAS_NEW_LAYER_GROUPS, use.names = FALSE),
+               c("waterbalance", "soilnitrogen", "soilstructure", "soildepth"))
   expect_false(any(c("bedrock_carbonate", "twi", "northness", "heat_load") %in% ATLAS_PREDICTOR_PRIORITY))
 })
 

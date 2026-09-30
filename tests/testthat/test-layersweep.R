@@ -241,3 +241,58 @@ test_that("an arm that cannot be fitted is recorded, and the taxon keeps its oth
   summary <- atlas_sweep_summary(list(row), baseline = "base")
   expect_true(is.na(summary$auc[summary$arm == "rf:base" & summary$band == "all"]))
 })
+
+# ---- more of SoilGrids -----------------------------------------------------
+
+# What each SoilGrids layer asks geodata for, and the bands it hands back.
+soilgrids_calls <- function(id) {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("geodata")
+  asked <- list()
+  testthat::local_mocked_bindings(
+    soil_world = function(var, depth, stat, path, ...) {
+      asked[[length(asked) + 1L]] <<- list(var = var, depth = depth, stat = stat)
+      r <- terra::rast(nrows = 2, ncols = 2)
+      terra::values(r) <- 1:4
+      r
+    },
+    .package = "geodata"
+  )
+  out <- atlas_layer_registry()[[id]]$fetch(tempdir(), 2.5)
+  list(asked = asked, names = names(out))
+}
+
+test_that("the production soil layer still asks for the same five properties at 0-5 cm", {
+  got <- soilgrids_calls("soil")
+  expect_equal(vapply(got$asked, `[[`, "", "var"), c("phh2o", "soc", "clay", "sand", "cec"))
+  expect_true(all(vapply(got$asked, `[[`, 0, "depth") == 5))
+  expect_equal(got$names, c("soil_phh2o", "soil_soc", "soil_clay", "soil_sand", "soil_cec"))
+})
+
+test_that("each SoilGrids candidate asks for its own properties, at its own depth", {
+  nitrogen <- soilgrids_calls("soilnitrogen")
+  expect_equal(nitrogen$names, "soil_nitrogen")
+  expect_equal(nitrogen$asked[[1]]$depth, 5)
+  structure <- soilgrids_calls("soilstructure")
+  expect_equal(structure$names, c("soil_bdod", "soil_cfvo"))
+  deeper <- soilgrids_calls("soildepth")
+  expect_equal(deeper$asked[[1]]$var, "phh2o")
+  expect_equal(deeper$asked[[1]]$depth, 30)
+  # Not the surface pH's name: two bands of one name would be one predictor.
+  expect_equal(deeper$names, "soil_phh2o_30")
+  expect_true(all(vapply(c(nitrogen$asked, structure$asked, deeper$asked), `[[`, "", "stat") == "mean"))
+})
+
+test_that("every band a soil candidate brings is labelled and has a place in the priority order", {
+  registry <- atlas_layer_registry()
+  for (id in c("soilnitrogen", "soilstructure", "soildepth")) {
+    for (band in registry[[id]]$bands) {
+      expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
+      expect_true(band %in% ATLAS_PREDICTOR_PRIORITY, label = paste(band, "has a priority"))
+    }
+    expect_true(id %in% names(ATLAS_LAYER_LABELS), label = paste(id, "has a label"))
+  }
+  # Each is measured on its own, and none is fitted on in production yet.
+  expect_true(all(c("soilnitrogen", "soilstructure", "soildepth") %in% unlist(ATLAS_NEW_LAYER_GROUPS)))
+  expect_length(intersect(unlist(ATLAS_NEW_LAYER_GROUPS), ATLAS_PRODUCTION_LAYERS), 0L)
+})

@@ -118,7 +118,10 @@ atlas_design_rows <- function(train, design = "sites", n_background = 10000, see
 
 # The candidate layers, by the question each one asks.
 ATLAS_NEW_LAYER_GROUPS <- list(
-  climate = "waterbalance"
+  climate = "waterbalance",
+  nitrogen = "soilnitrogen",
+  structure = "soilstructure",
+  deeper_ph = "soildepth"
 )
 
 #' Keep the arms whose layers are all built, and say which were dropped.
