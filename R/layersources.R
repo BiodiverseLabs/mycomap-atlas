@@ -143,6 +143,65 @@ atlas_nalcms_source <- function(raw_dir, fact = 33L) {
   atlas_write_cached(out, cached)
 }
 
+# ---- Forest type where NALCMS is silent: Copernicus Global Land Cover -------
+#
+# NALCMS has nothing for Hawaii or the Caribbean islands, which hold about
+# 1,700 records. Copernicus Global Land Cover (100 m, 2019, CC BY 4.0) covers
+# the globe and splits forest the same three ways, so it fills whatever NALCMS
+# leaves empty. Only the windows NALCMS misses are read from the 1.6 GB file.
+
+ATLAS_COPERNICUS_FILE <- "PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif"
+ATLAS_COPERNICUS_URL <- paste0("https://zenodo.org/api/records/3939050/files/",
+                               ATLAS_COPERNICUS_FILE, "/content")
+
+# Copernicus discrete classes by leaf type: closed (11x) and open (12x)
+# forest, evergreen and deciduous. Forest of unknown type (116, 126) counts
+# for none of the three, as NALCMS's own "unknown" would.
+ATLAS_COPERNICUS_GROUPS <- list(
+  forest_needleleaf = c(111L, 113L, 121L, 123L),
+  forest_broadleaf = c(112L, 114L, 122L, 124L),
+  forest_mixed = c(115L, 125L)
+)
+
+# Where NALCMS is silent and there are records: Hawaii, and the Caribbean
+# from the Bahamas to Trinidad. Longitude and latitude.
+ATLAS_COPERNICUS_WINDOWS <- list(
+  hawaii = c(xmin = -161, xmax = -154, ymin = 18.5, ymax = 22.5),
+  caribbean = c(xmin = -85.5, xmax = -59, ymin = 10, ymax = 27.5)
+)
+
+#' Forest fractions from a window of a Copernicus class raster: one 0/1
+#' band per group, averaged by fact (100 m to 1 km is 10).
+atlas_copernicus_fractions <- function(classes, fact = 10L, groups = ATLAS_COPERNICUS_GROUPS) {
+  bands <- lapply(groups, function(codes) {
+    terra::ifel(is.na(classes), NA, as.numeric(terra::`%in%`(classes, codes)))
+  })
+  out <- terra::rast(bands)
+  # Copernicus's 0 is "no input data", not a class: read it as missing.
+  out <- terra::mask(out, classes, maskvalues = 0)
+  if (fact > 1L) out <- terra::aggregate(out, fact = fact, fun = "mean", na.rm = TRUE)
+  names(out) <- names(groups)
+  out
+}
+
+#' Copernicus forest fractions at 1 km over the windows NALCMS misses, as a
+#' collection of one raster per window.
+atlas_copernicus_source <- function(raw_dir, windows = ATLAS_COPERNICUS_WINDOWS) {
+  cached <- file.path(raw_dir, "copernicus", "forest-fractions-1km.tif")
+  if (file.exists(cached)) {
+    return(terra::rast(cached))
+  }
+  path <- atlas_fetch_once(ATLAS_COPERNICUS_URL, file.path(raw_dir, "copernicus", ATLAS_COPERNICUS_FILE))
+  classes <- terra::rast(path)
+  parts <- lapply(windows, function(w) {
+    atlas_copernicus_fractions(terra::crop(classes, terra::ext(w[["xmin"]], w[["xmax"]],
+                                                                 w[["ymin"]], w[["ymax"]])))
+  })
+  out <- if (length(parts) == 1L) parts[[1]] else terra::merge(terra::sprc(parts))
+  names(out) <- names(ATLAS_COPERNICUS_GROUPS)
+  atlas_write_cached(out, cached)
+}
+
 # ---- Water balance: AdaptWest (ClimateNA) and TerraClimate ------------------
 
 # ClimateNA 1991-2020 normals, and the name each takes as a predictor.

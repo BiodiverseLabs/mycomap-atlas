@@ -201,9 +201,16 @@ atlas_layer_registry <- function() {
         "Commission for Environmental Cooperation (2024) North American Environmental",
         "Atlas - Land Cover 2020 30m. NALCMS; CCRS, USGS, CONABIO, CONAFOR, INEGI. Ed. 2.0"
       ),
-      note = "Share of each cell under each forest type, counted from 30 m pixels.",
+      note = paste(
+        "Share of each cell under each forest type, counted from 30 m pixels. Hawaii and",
+        "the Caribbean islands, which NALCMS does not map, are filled from Copernicus",
+        "Global Land Cover 2019 (100 m, CC BY 4.0), and forest_known is 0 there."
+      ),
       method = "average",
-      fetch = function(path, res) atlas_nalcms_source(path)
+      fetch = function(path, res) atlas_nalcms_source(path),
+      # Wherever the main source is empty and the supplement is not.
+      supplement = function(path, res) atlas_copernicus_source(path),
+      supplement_known = "forest_known"
     ),
     hosts_wilson = list(
       id = "hosts_wilson",
@@ -396,6 +403,12 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     built <- atlas_project_to_grid(raw, grid, entry$method)
   }
 
+  if (!is.null(entry$supplement)) {
+    if (!quiet) message("  ", id, ": filling where the source is silent, from the supplement")
+    extra <- atlas_project_to_grid(entry$supplement(raw_dir, atlas_source_resolution(grid)),
+                                   grid, entry$method)
+    built <- atlas_supplement(built, extra, known = entry$supplement_known)
+  }
   if (isTRUE(entry$fill_near)) {
     land <- atlas_land_mask(grid)
     if (is.null(land)) {
@@ -443,6 +456,24 @@ atlas_build_layer <- function(id, grid = "draft", overwrite = FALSE, quiet = FAL
     message("  ", id, ": ", length(record$bands), " band(s), ", record$size_mb, " MB")
   }
   invisible(record)
+}
+
+#' Fill a layer from a second source wherever the first is silent.
+#'
+#' A cell keeps the main source's values wherever it has all of them; where it
+#' has none, it takes the supplement's; a band named known is 1 for the first
+#' and 0 for the second, and empty where neither speaks.
+atlas_supplement <- function(x, extra, known = "known") {
+  bands <- names(x)
+  extra <- terra::resample(extra, x, method = "near")
+  names(extra) <- bands
+  described <- !is.na(terra::app(x, "sum", na.rm = FALSE))
+  supplied <- !described & !is.na(terra::app(extra, "sum", na.rm = FALSE))
+  filled <- terra::ifel(described, x, extra)
+  flag <- terra::ifel(described, 1, terra::ifel(supplied, 0, NA))
+  out <- c(filled, flag)
+  names(out) <- c(bands, known)
+  out
 }
 
 # How far from a cell with data an empty land cell may be filled.

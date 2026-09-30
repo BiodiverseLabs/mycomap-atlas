@@ -143,3 +143,45 @@ test_that("carbonate cover is the share of each land cell the rock covers", {
   # The third cell is sea.
   expect_true(is.na(v[3]))
 })
+
+# --- Copernicus fills the forest type where NALCMS is silent ------------------
+
+test_that("Copernicus classes become the three forest fractions, unknown forest counting for none", {
+  skip_if_not_installed("terra")
+  classes <- terra::rast(nrows = 2, ncols = 4, xmin = 0, xmax = 4, ymin = 0, ymax = 2,
+                         crs = "EPSG:4326")
+  # closed evergreen needle, open deciduous broadleaf, mixed, unknown forest,
+  # shrub, no data, crops, closed evergreen broadleaf
+  terra::values(classes) <- c(111L, 124L, 115L, 116L, 20L, 0L, 40L, 112L)
+  out <- atlas_copernicus_fractions(classes, fact = 1L)
+  v <- terra::values(out)
+  expect_equal(names(out), c("forest_needleleaf", "forest_broadleaf", "forest_mixed"))
+  expect_equal(unname(v[1, ]), c(1, 0, 0))
+  expect_equal(unname(v[2, ]), c(0, 1, 0))
+  expect_equal(unname(v[3, ]), c(0, 0, 1))
+  expect_equal(unname(v[4, ]), c(0, 0, 0))
+  expect_equal(unname(v[5, ]), c(0, 0, 0))
+  expect_true(all(is.na(v[6, ])))
+  expect_equal(unname(v[8, ]), c(0, 1, 0))
+  # Averaged up, a cell is the share of its pixels with data under each type:
+  # here needleleaf, broadleaf, shrub and a no-data pixel.
+  coarse <- atlas_copernicus_fractions(classes, fact = 2L)
+  expect_equal(unname(terra::values(coarse)[1, ]), c(1 / 3, 1 / 3, 0), tolerance = 1e-6)
+})
+
+test_that("the windows read are Hawaii and the Caribbean, in longitude and latitude", {
+  expect_setequal(names(ATLAS_COPERNICUS_WINDOWS), c("hawaii", "caribbean"))
+  h <- ATLAS_COPERNICUS_WINDOWS$hawaii
+  expect_true(h[["xmin"]] < -159.8 && h[["xmax"]] > -154.8)   # Kauai to Hawaii
+  expect_true(h[["ymin"]] < 18.9 && h[["ymax"]] > 22.3)
+  c <- ATLAS_COPERNICUS_WINDOWS$caribbean
+  expect_true(c[["xmin"]] < -67.3 && c[["xmax"]] > -64.5)     # Puerto Rico and the Virgin Islands
+  expect_true(c[["ymin"]] < 17.6 && c[["ymax"]] > 18.6)
+})
+
+test_that("the forest-type layer is supplemented from Copernicus and says where", {
+  registry <- atlas_layer_registry()
+  expect_true(is.function(registry$foresttype$supplement))
+  expect_equal(registry$foresttype$supplement_known, "forest_known")
+  expect_match(registry$foresttype$note, "Copernicus")
+})

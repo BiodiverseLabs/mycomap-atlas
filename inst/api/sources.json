@@ -83,6 +83,17 @@
       "citation": "Commission for Environmental Cooperation (2024) North American Environmental Atlas - Land Cover 2020 30m. NALCMS. Ed. 2.0."
     },
     {
+      "id": "copernicus-lc100",
+      "name": "Copernicus Global Land Cover 100 m, collection 3, 2019",
+      "provider": "Copernicus Global Land Service (VITO)",
+      "url": "https://zenodo.org/records/3939050",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "role": "Forest type where NALCMS is silent: Hawaii and the Caribbean islands, read from the discrete classification map and split into needleleaf, broadleaf and mixed forest.",
+      "citation": "Buchhorn M, Smets B, Bertels L, De Roo B, Lesiv M, Tsendbazar N-E, Herold M, Fritz S (2020) Copernicus Global Land Service: Land Cover 100m: collection 3: epoch 2019: Globe. Zenodo.",
+      "doi": "10.5281/zenodo.3939050"
+    },
+    {
       "id": "usfs-basal-area",
       "name": "Live tree species basal area of the contiguous United States (2000-2009)",
       "provider": "USDA Forest Service",

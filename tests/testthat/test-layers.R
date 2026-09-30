@@ -402,3 +402,54 @@ test_that("a filled layer refuses to build before land cover, and land cover is 
     expect_true(file.exists(atlas_layer_path("soil", "draft")))
   })
 })
+
+# --- A second source fills where the first is silent ---------------------------
+
+test_that("a supplement fills only the cells the main source left empty, and is flagged", {
+  skip_if_not_installed("terra")
+  main <- terra::rast(nrows = 1, ncols = 4, xmin = 0, xmax = 4000, ymin = 0, ymax = 1000,
+                      crs = ATLAS_CRS, nlyrs = 2)
+  terra::values(main) <- cbind(c(0.5, NA, 0.2, NA), c(0.1, NA, NA, NA))
+  names(main) <- c("forest_needleleaf", "forest_broadleaf")
+  extra <- main
+  terra::values(extra) <- cbind(c(0.9, 0.7, 0.9, NA), c(0.9, 0.3, 0.9, NA))
+  out <- atlas_supplement(main, extra, known = "forest_known")
+  v <- terra::values(out)
+  expect_equal(names(out), c("forest_needleleaf", "forest_broadleaf", "forest_known"))
+  # Described by the main source: kept, flagged 1.
+  expect_equal(unname(v[1, ]), c(0.5, 0.1, 1))
+  # Empty in the main source: the supplement's values, flagged 0.
+  expect_equal(unname(v[2, ]), c(0.7, 0.3, 0), tolerance = 1e-6)
+  # Half described counts as empty, so no cell mixes the two sources.
+  expect_equal(unname(v[3, ]), c(0.9, 0.9, 0), tolerance = 1e-6)
+  # Neither speaks: still empty.
+  expect_true(all(is.na(v[4, ])))
+})
+
+test_that("building a supplemented layer projects the supplement and fills from it", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    fake <- function(values) {
+      r <- terra::rast(nrows = 1, ncols = 2, xmin = 0, xmax = 2000, ymin = 0, ymax = 1000,
+                       crs = ATLAS_CRS)
+      terra::values(r) <- values
+      names(r) <- "forest_mixed"
+      r
+    }
+    testthat::local_mocked_bindings(
+      atlas_project_to_grid = function(x, grid, method) x,
+      atlas_layer_registry = function() list(
+        foresttype = list(id = "foresttype", title = "Forest", source = "s", url = "u",
+                          license = "l", citation = "c", method = "average",
+                          fetch = function(path, res) fake(c(0.4, NA)),
+                          supplement = function(path, res) fake(c(0.9, 0.6)),
+                          supplement_known = "forest_known")
+      )
+    )
+    record <- atlas_build_layer("foresttype", "draft", quiet = TRUE)
+    expect_equal(unlist(record$bands), c("forest_mixed", "forest_known"))
+    v <- terra::values(terra::rast(atlas_layer_path("foresttype", "draft")))
+    expect_equal(unname(v[1, ]), c(0.4, 1))
+    expect_equal(unname(v[2, ]), c(0.6, 0), tolerance = 1e-6)
+  })
+})
