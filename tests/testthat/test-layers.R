@@ -462,3 +462,30 @@ test_that("building a supplemented layer projects the supplement and fills from 
     expect_equal(unname(v[2, ]), c(0.6, 0), tolerance = 1e-6)
   })
 })
+
+# --- The soil layer ----------------------------------------------------------
+
+test_that("the soil layer brings six topsoil properties, nitrogen among them", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("geodata")
+  asked <- list()
+  testthat::local_mocked_bindings(
+    soil_world = function(var, depth, stat, path, ...) {
+      asked[[length(asked) + 1L]] <<- list(var = var, depth = depth, stat = stat)
+      r <- terra::rast(nrows = 2, ncols = 2)
+      terra::values(r) <- 1:4
+      r
+    },
+    .package = "geodata"
+  )
+  out <- atlas_layer_registry()$soil$fetch(tempdir(), 2.5)
+  expect_equal(names(out), c("soil_phh2o", "soil_soc", "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec"))
+  expect_true(all(vapply(asked, `[[`, 0, "depth") == 5))
+  expect_true(all(vapply(asked, `[[`, "", "stat") == "mean"))
+})
+
+test_that("soil nitrogen is labelled and ranked beside organic carbon", {
+  expect_equal(atlas_label("soil_nitrogen"), "Soil nitrogen")
+  expect_equal(match("soil_nitrogen", ATLAS_PREDICTOR_PRIORITY),
+               match("soil_soc", ATLAS_PREDICTOR_PRIORITY) + 1L)
+})

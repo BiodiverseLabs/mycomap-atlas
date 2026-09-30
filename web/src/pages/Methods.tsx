@@ -196,7 +196,7 @@ export default function Methods() {
                   ],
                   ["Elevation", "elevation", <DatasetLink id="worldclim" />],
                   ["Terrain", "slope, roughness (derived from elevation on the grid)", <Ext href="https://rspatial.github.io/terra/reference/terrain.html">terra::terrain</Ext>],
-                  ["Soil, 0–5 cm", "pH, organic carbon, clay, sand, cation exchange capacity", <DatasetLink id="soilgrids" />],
+                  ["Soil, 0–5 cm", "pH, organic carbon, total nitrogen, clay, sand, cation exchange capacity", <DatasetLink id="soilgrids" />],
                   [
                     "Land cover",
                     "fraction of each cell under trees, shrubs, grass, wetland, open water, built-up",
