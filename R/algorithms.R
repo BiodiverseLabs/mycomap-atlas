@@ -61,9 +61,11 @@ ATLAS_ALGORITHMS <- list(
     # which are about where people collect, not what Maxent is given.
     use_effort = FALSE,
     learner = function() list(path_steps = ATLAS_MAXNET_PATH_STEPS, effort = FALSE),
-    fit = function(train, params, seed = 1L, tuning = FALSE) {
+    # features: a store through which fits of the same sites share their
+    # feature matrices (atlas_feature_cache); the model is the same without.
+    fit = function(train, params, seed = 1L, tuning = FALSE, features = NULL) {
       atlas_fit_maxnet(train, classes = params$classes, regmult = params$regmult,
-                       use_effort = FALSE)
+                       use_effort = FALSE, features = features)
     },
     score = function(model, newdata) atlas_suitability(model, newdata),
     package = "maxnet"
