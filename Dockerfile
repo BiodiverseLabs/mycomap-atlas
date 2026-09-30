@@ -46,7 +46,7 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" \
 RUN . /etc/os-release \
  && install2.r --error --skipinstalled --ncpus -1 \
       -r "https://p3m.dev/cran/__linux__/${VERSION_CODENAME}/${CRAN_SNAPSHOT}" \
-      digest jsonlite plumber maxnet xgboost ranger blockCV paws.storage paws.compute curl openssl testthat targets \
+      digest jsonlite plumber maxnet glmnet xgboost ranger blockCV paws.storage paws.compute curl openssl testthat targets \
  && rm -rf /tmp/downloaded_packages
 
 WORKDIR /atlas

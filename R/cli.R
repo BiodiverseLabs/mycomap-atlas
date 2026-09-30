@@ -48,6 +48,12 @@ atlas_usage <- function() {
   message("      --per-band=N              taxa sampled per presence-cell band (default 40)")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
+  message("  study-sparse       how few sites carry a map: thin rich taxa, score on what was left out")
+  message("      --per-band=N              taxa per band of detection sites (default 40)")
+  message("      --min-presences=N         smallest taxon thinned (default 40)")
+  message("      --sizes=5,8,12,16         sites to thin to")
+  message("      --workers=N               taxa at once (default 1)")
+  message("      --seed=N                  which sample (default 1)")
   message("  benchmark-models   boosted trees against Maxent on the richest taxa")
   message("      --per-band=N              taxa per band of presence cells (default 40)")
   message("      --min-presences=N         smallest taxon included (default 50)")
@@ -308,6 +314,22 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       atlas_layer_sweep(
         grid = atlas_flag_grid(flags),
         per_band = atlas_flag_number(flags, "per_band", 40),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "study-sparse" = {
+      sizes <- if (is.null(flags$sizes)) {
+        ATLAS_SPARSE_SIZES
+      } else {
+        as.integer(strsplit(as.character(flags$sizes), ",", fixed = TRUE)[[1]])
+      }
+      atlas_sparse_study(
+        grid = atlas_flag_grid(flags),
+        per_band = atlas_flag_number(flags, "per_band", 40),
+        min_presences = atlas_flag_number(flags, "min_presences", 40),
+        sizes = sizes,
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )
