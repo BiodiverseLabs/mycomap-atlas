@@ -521,7 +521,7 @@ test_that("a treeless cell in the lower 48 reads 0 for every host, not missing",
   expect_equal(unlist(terra::extract(out, cbind(500, 500))[1, ])[["host_pinus"]], 1)
 })
 
-# ---- the decay-host candidate, beside production's host layer ----------------
+# ---- the decay hosts, a second set beside the host layer ----------------
 
 test_that("production's host builder still asks for exactly the same genera, bands and cache files", {
   set <- atlas_host_set("hosts")
@@ -573,7 +573,7 @@ test_that("production's host builder still asks for exactly the same genera, ban
   expect_equal(names(built), ATLAS_HOST_BANDS)
 })
 
-test_that("a candidate host set can never share production's files, nor name raw/hosts itself", {
+test_that("a second host set can never share production's files, nor name raw/hosts itself", {
   sets <- atlas_host_sets()
   expect_length(intersect(atlas_host_set_files(sets$hostsdecay), atlas_host_set_files(sets$hosts)), 0L)
   clash <- sets
@@ -591,7 +591,7 @@ test_that("a candidate host set can never share production's files, nor name raw
   expect_error(atlas_host_set("nothing"), "unknown host set")
 })
 
-test_that("the decay-host candidate reads only its own genera, into its own files, and leaves production's caches alone", {
+test_that("the decay-host layer reads only its own genera, into its own files, and leaves production's caches alone", {
   skip_if_not_installed("terra")
   dir <- file.path(tempdir(), paste0("decay-", as.integer(stats::runif(1, 1, 1e9))))
   dir.create(file.path(dir, "bigmap-species"), recursive = TRUE)
@@ -610,7 +610,7 @@ test_that("the decay-host candidate reads only its own genera, into its own file
   window <- c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000)
   sums <- atlas_bigmap_sums(dir, window, http = server$http, quiet = TRUE,
                             functions = names(offsets), set = set)
-  # Only the candidate's genera are read: the total is production's.
+  # Only the decay genera are read: the total is production's.
   expect_setequal(server$requested(), c(decay_fns, "SPCD_0316_Acer_rubrum"))
   expect_equal(names(sums), tolower(set$genera))
   # Two maples: 0 for the stand-in, 10 for red maple (column 2.5 plus 7.5).
@@ -624,7 +624,7 @@ test_that("the decay-host candidate reads only its own genera, into its own file
   unlink(dir, recursive = TRUE)
 })
 
-test_that("the decay-host candidate needs only its genera from NFI, and a genus NFI does not map is 0 in Canada", {
+test_that("the decay-host layer needs only its genera from NFI, and a genus NFI does not map is 0 in Canada", {
   files <- paste0("NFI_MODIS250m_2011_kNN_", c(
     "Species_Acer_Rub", "Species_Acer_Spp", "Species_Thuj_Occ", "Species_Pice_Mar",
     "SpeciesGroups_Needleleaf_Spp", "SpeciesGroups_Broadleaf_Spp"
@@ -705,7 +705,7 @@ test_that("each decay genus is a share of the host layer's own tree total", {
   unlink(dir, recursive = TRUE)
 })
 
-test_that("the decay-host candidate refuses before reading anything when production's totals are not built", {
+test_that("the decay-host layer refuses before reading anything when production's totals are not built", {
   dir <- file.path(tempdir(), paste0("decay-empty-", as.integer(stats::runif(1, 1, 1e9))))
   asked <- character()
   refuse <- function(url, dest) {

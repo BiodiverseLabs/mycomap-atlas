@@ -69,7 +69,7 @@ ATLAS_NFI_GENERA <- c(
   Arbu = "Arbutus"
 )
 
-# A candidate (R/layers.R, hostsdecay): the trees wood-decay and parasitic
+# The decay and parasite hosts (R/layers.R, hostsdecay): the trees wood-decay and parasitic
 # fungi live on, which the ectomycorrhizal hosts above leave out. Each is a
 # share of the same trees the host layer's genera are shares of — its totals
 # are read from the host layer's cache, not summed again — so the two layers'
@@ -91,10 +91,10 @@ ATLAS_NFI_DECAY_GENERA <- c(
 #'
 #' "hosts" is the production layer: it reads every BIGMAP species and both NFI
 #' groups, because its sums carry the tree total and the conifer band. A
-#' candidate set ("hostsdecay") reads only its own genera and takes the total
+#' second set ("hostsdecay") reads only its own genera and takes the total
 #' from production's cache, so its cache files and its species folder must
 #' never be production's: atlas_bigmap_sums deletes its species folder once it
-#' has summed, and a candidate that shared a name would delete or overwrite
+#' has summed, and a second set that shared a name would delete or overwrite
 #' what production built.
 atlas_host_set <- function(id = "hosts", sets = atlas_host_sets()) {
   if (!is.character(id) || length(id) != 1L || !id %in% names(sets)) {
@@ -415,7 +415,7 @@ atlas_bigmap_fetch_species <- function(fn, window, dir, http = atlas_host_http, 
 #' of the conifers, and of each host genus. The species files are removed once
 #' summed.
 #'
-#' A candidate set (atlas_host_set) sums only its own genera, into its own
+#' A second set (atlas_host_set) sums only its own genera, into its own
 #' cache file, from its own species folder.
 atlas_bigmap_sums <- function(dir, window, http = atlas_host_http, quiet = FALSE,
                               functions = NULL, keep_species = FALSE,
@@ -635,7 +635,7 @@ atlas_build_hosts <- function(raw_dir, grid = "draft", http = atlas_host_http, q
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   production <- atlas_host_set("hosts")
   if (!isTRUE(set$totals)) {
-    # Checked before anything is read: without them the candidate's genera
+    # Checked before anything is read: without them the set's genera
     # would be shares of nothing.
     cached <- file.path(dir, c(production$bigmap, production$nfi))
     if (!all(file.exists(cached))) {
@@ -659,19 +659,19 @@ atlas_build_hosts <- function(raw_dir, grid = "draft", http = atlas_host_http, q
   terra::extend(built, atlas_grid_template(grid))
 }
 
-#' Build the decay-host candidate on a grid (R/layers.R, hostsdecay).
+#' Build the decay-host layer on a grid (R/layers.R, hostsdecay).
 atlas_build_decay_hosts <- function(raw_dir, grid = "draft") {
   atlas_build_hosts(raw_dir, grid, set = atlas_host_set("hostsdecay"))
 }
 
-#' Put production's tree total in front of a candidate set's genus sums, so
+#' Put production's tree total in front of a second set's genus sums, so
 #' each genus becomes a share of the same whole the production genera are.
 #' Read, never written: the production cache is only opened.
 atlas_with_host_total <- function(sums, total_path) {
   total <- terra::rast(total_path)[["total"]]
   if (!terra::compareGeom(total, sums, stopOnError = FALSE)) {
     stop("the host total in ", basename(total_path), " is not on the same 1 km cells as ",
-         "the candidate's sums", call. = FALSE)
+         "the set's genus sums", call. = FALSE)
   }
   out <- c(total, sums)
   names(out) <- c("total", names(sums))
