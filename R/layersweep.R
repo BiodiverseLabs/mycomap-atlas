@@ -18,8 +18,10 @@
 # whatever has been built so far. Nothing here writes a model. It writes one
 # results file under data/layer-sweeps/.
 
-# The layers production fits on today: the baseline every arm adds to.
-ATLAS_BASE_LAYERS <- c("elevation", "bioclim", "terrain", "soil", "landcover")
+# The layers production fits on: the baseline every arm adds to.
+ATLAS_PRODUCTION_LAYERS <- c("elevation", "bioclim", "terrain", "soil", "landcover",
+                             "hosts", "foresttype")
+ATLAS_BASE_LAYERS <- ATLAS_PRODUCTION_LAYERS
 
 # Each arm: an algorithm, and the layers it may draw predictors from.
 # "maxnet" arms go through production's pruning and cap; "rf" uses every
@@ -36,9 +38,7 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
     list(arm = paste0("+", group), algorithm = "maxnet",
          layers = c(base, new[[group]]))
   })
-  # The two host layers are rivals: "all" takes the first of them that is built.
-  rivals <- intersect(ATLAS_RIVAL_LAYERS, unlist(new, use.names = FALSE))
-  everything <- setdiff(c(base, unlist(new, use.names = FALSE)), rivals[-1])
+  everything <- c(base, unlist(new, use.names = FALSE))
   c(
     list(list(arm = "base", algorithm = "maxnet", layers = base)),
     groups,
@@ -50,17 +50,9 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
   )
 }
 
-# Layers that answer the same question two ways; only one goes into "all".
-ATLAS_RIVAL_LAYERS <- c("hosts", "hosts_wilson")
-
 # The candidate layers, by the question each one asks.
 ATLAS_NEW_LAYER_GROUPS <- list(
-  forest = "foresttype",
-  hosts = "hosts",
-  hosts_wilson = "hosts_wilson",
-  climate = "waterbalance",
-  bedrock = "bedrock",
-  landform = "landform"
+  climate = "waterbalance"
 )
 
 #' Keep the arms whose layers are all built, and say which were dropped.
