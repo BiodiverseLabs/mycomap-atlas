@@ -1,4 +1,5 @@
 # Written by hand; this package does not use roxygen.
+export(ATLAS_PUBLIC_DEGREES)
 export(atlas_access_alerts)
 export(atlas_access_config)
 export(atlas_access_decision)
