@@ -62,6 +62,45 @@ and nginx replaces that header with the visitor's address from Cloudflare.
   nginx's in `/var/log/nginx/`.
 - **Is it up**: `curl -s http://127.0.0.1:5100/api/status` on the box.
 
+## A trial run
+
+Before the timer is trusted with a whole night's work, fit a few taxa end to
+end: records pulled, a job planned, a spot worker launched, its models
+published, the site showing them. On the box, after deploying the commit:
+
+```bash
+# Once per box: the guild table Maxent orders its predictors by. It is looked
+# up, never published; the plan ships it to the workers with the job.
+sudo /bin/sh -c '. /etc/atlas/image.env; docker run --rm --network host \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data "$ATLAS_IMAGE" fetch-guilds'
+
+# The trial, under systemd so it outlives the terminal: Maxent for the three
+# richest taxa. Maxent is the slow model; allow half an hour.
+sudo systemd-run --unit=atlas-trial --collect -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-trial --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
+  -v /home/atlas/.ssh:/home/atlas/.ssh:ro "$ATLAS_IMAGE" nightly --algorithms=maxnet --limit=3'
+
+sudo journalctl -fu atlas-trial          # watch it
+sudo systemctl stop atlas-trial          # stop it, then check no worker is left (deploy/aws/README.md)
+```
+
+It has worked when the journal ends with a published release, the release
+lists three models (`/api/models` on the site), and no worker is left running.
+Then bring the site up to it and let the timer run:
+
+```bash
+sudo /bin/sh -c '. /etc/atlas/image.env; docker run --rm --network host \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data "$ATLAS_IMAGE" pull-release --no-rasters'
+sudo systemctl restart atlas-api
+sudo systemctl enable --now atlas-nightly.timer
+```
+
+A blank line and "Execution halted" in the journal is R being interrupted,
+not an error of its own. A model fitted under an older design is stale under
+a newer one, so the first night after a change of method refits every taxon:
+raise `--limit` in steps (3, then 50) before leaving it to the timer.
+
 ## Checking the configuration
 
 ```bash

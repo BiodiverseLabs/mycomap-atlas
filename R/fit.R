@@ -397,8 +397,7 @@ atlas_null_test <- function(training, folds, algo, reps = ATLAS_NULL_REPS, seed 
     scores <- tryCatch(
       atlas_cross_validate(
         table, folds,
-        # Tuning size (250 trees for a forest, which ranks within 0.994 of
-        # 1,000): 100 fits per taxon.
+        # Tuning size: 100 fits per taxon.
         fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
         score = algo$score, effort_at = atlas_effort_level(table)
       ),
@@ -859,7 +858,7 @@ atlas_predict_raster <- function(model, stack, area, score = atlas_suitability) 
     stop("terra is needed to predict: install.packages('terra')", call. = FALSE)
   }
   # Mask before predicting, not after: the rectangle around the circles can be
-  # twice their area, and a thousand-tree forest spends minutes on cells that
+  # twice their area, and a forest spends minutes on cells that
   # would only be thrown away. Masked cells are NA, which predict skips.
   window <- terra::mask(terra::crop(stack, terra::ext(area)), area)
   predicted <- terra::predict(

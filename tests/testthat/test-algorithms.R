@@ -216,3 +216,22 @@ test_that("Maxent's settings hold the guild rule and the guild table; the trees'
   expect_equal(settings$priority$other, atlas_predictor_priority("unknown"))
   expect_equal(settings$priority$guild_table, a)
 })
+
+test_that("a forest is 250 trees, for a map as for tuning, and its settings say so", {
+  skip_if_not_installed("ranger")
+  expect_equal(ATLAS_RF_TREES, 250)
+  expect_equal(ATLAS_RF_TUNE_TREES, 250L)
+  algo <- atlas_algorithm("rf")
+  expect_equal(algo$learner()$num_trees, 250)
+  set.seed(2)
+  training <- data.frame(presence = rep(c(1L, 0L), c(30, 300)), cell = 1:330, x = 0, y = 0,
+                         v1 = stats::runif(330), v2 = stats::runif(330))
+  expect_equal(algo$fit(training, list(mtry = 1), 1L)$num.trees, 250)
+  expect_equal(algo$fit(training, list(mtry = 1), 1L, tuning = TRUE)$num.trees, 250)
+  # The tree count is part of what makes a stored forest current.
+  settings <- atlas_fit_settings(algorithm = "rf", layers = "x", guild_table = "g")
+  expect_equal(settings$learner$num_trees, 250)
+  thousand <- settings
+  thousand$learner$num_trees <- 1000
+  expect_false(identical(atlas_settings_key(settings), atlas_settings_key(thousand)))
+})
