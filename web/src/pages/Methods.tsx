@@ -468,7 +468,8 @@ export default function Methods() {
                 handed to the nulls would tilt the test towards the species. A map{" "}
                 <B>passes</B> when the species' blocked AUC
                 beats every null (p ≤ 0.05) and its Boyce index is above zero. A map that fails is
-                drawn faint, hidden from the Maps list unless asked for, and left out of Explore and
+                drawn faint (25%, against 80% for a map that passes; the slider under each map changes
+                either), hidden from the Maps list unless asked for, and left out of Explore and
                 of anything mycomap.org reads from a release.
               </p>
             </Section>

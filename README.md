@@ -241,7 +241,8 @@ says the model can interpolate 200 m.
   untuned settings, because settings tuned on the real detections and handed
   to the nulls would favour the taxon. A map is `skill: passed` when the
   taxon's AUC beats every null (p ≤ 0.05) and its Boyce index is above zero;
-  failed maps are drawn faint, hidden from the Maps list by default and left
+  failed maps are drawn faint (25%, against 80% for a passing map; a slider
+  under each map lets the viewer change either), hidden from the Maps list by default and left
   out of the Explore index and release consumers.
 - **One Boyce index** (`boyce`), over the held-out scores of every fold
   together. Twenty sites leave four detections in a fold, too few for an index
