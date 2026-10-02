@@ -327,9 +327,28 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     missing <- atlas_job_status(store, job$id, grid)$missing
     if (!length(missing)) break
     if (clock() > deadline) {
+      # Stop the workers first, so what they saved holds still, then publish
+      # it: the models fitted so far are not thrown away with the job, and
+      # the next job plans only what is left.
+      terminate_all()
+      saved <- sum(vapply(missing, function(n) atlas_shard_saved_count(store, job$id, n, grid), 0L))
+      reported <- length(missing) < job$shards
+      # Nothing saved and nothing reported: there is nothing to publish.
+      partial <- if (saved || reported) {
+        tryCatch(atlas_finish_job(store, job$id, grid, quiet = quiet, partial = TRUE),
+                 error = function(e) e)
+      }
       stop("job ", job$id, " ran past its ", config$max_hours, " h deadline with shard",
            if (length(missing) > 1L) "s " else " ", paste(missing, collapse = ", "),
-           " unreported; its workers were terminated", call. = FALSE)
+           " unreported; its workers were terminated",
+           if (is.null(partial)) {
+             ", having saved nothing"
+           } else if (inherits(partial, "error")) {
+             paste0(", and what they saved could not be published: ", conditionMessage(partial))
+           } else {
+             paste0("; release ", partial$id, " holds every model they saved")
+           },
+           call. = FALSE)
     }
     instances <- atlas_job_instances(ec2, job$id)
     seen <- union(seen, instances$instance)

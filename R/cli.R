@@ -88,6 +88,7 @@ atlas_usage <- function() {
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
+  message("      --partial                 publish what unreported shards saved (a job past its deadline)")
   message("  run-job-ec2        run a planned job's shards on EC2 spot workers, then finish it")
   message("      --job=ID                  which job (required)")
   message("  nightly            pull, plan, run the job on EC2 and finish it: the box's cron job")
@@ -435,7 +436,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     "finish-job" = {
       if (is.null(flags$job)) stop("finish-job needs --job=ID", call. = FALSE)
       atlas_finish_job(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
-                       promote = !isTRUE(flags$no_promote))
+                       promote = !isTRUE(flags$no_promote), partial = isTRUE(flags$partial))
       invisible(0L)
     },
     "run-job-ec2" = {
