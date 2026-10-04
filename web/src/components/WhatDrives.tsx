@@ -165,8 +165,9 @@ export function WhatDrives({ models }: { models: Partial<Record<Algorithm, Model
         </div>
         {model.skill === "failed" && (
           <p className="mb-3 rounded-md bg-[#A87146]/10 px-3 py-2 text-xs text-[#5c4a3a]">
-            This map did no better than its null models, so what it leans on says little about
-            this fungus: the bars below are shown for completeness, not as findings.
+            {model.algorithm === "esm"
+              ? "With so few sites this map cannot be tested against chance on its own, and what it leans on rests on very little: the bars below are shown for completeness, not as findings."
+              : "This map did no better than its null models, so what it leans on says little about this fungus: the bars below are shown for completeness, not as findings."}
           </p>
         )}
         <ul className={model.skill === "failed" ? "opacity-60" : undefined}>

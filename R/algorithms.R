@@ -138,9 +138,14 @@ ATLAS_ALGORITHMS <- list(
     # gave; at 5, half still showed clear skill (2026-09-30, 118 taxa).
     min_presences = 3,
     max_presences = 19,
-    # Below 5 sites a map is shown only when it beats its null models; from 5
-    # it is shown like any other, faint when it fails (Steve, 2026-09-30).
-    map_needs_skill_below = 5,
+    # Every ensemble is drawn, faint when it fails its null test (Steve,
+    # 2026-10-04). Until then a map from 3 or 4 sites was drawn only when it
+    # passed, but with so few sites the null models' AUC spreads so widely
+    # (sd 0.25 at 3-4 sites, 0.18 at 5-7) that no map can beat all nineteen:
+    # 64 of 1,801 passed, fewer than chance alone would let through. The test
+    # cannot vouch for a sparse map either way, so the page says how often
+    # maps of that size had clear skill on well-recorded fungi instead.
+    # (map_needs_skill_below, still honoured by the fit, is left unset.)
     # Few sites are rarely spread over five blocks of up to 300 km (38% of
     # taxa with 5-7 sites, none with 3-4), so these taxa are scored on three
     # folds of 100 km blocks (98% and 80%).
@@ -194,6 +199,14 @@ atlas_algorithm_min <- function(algo, min_presences = 20) {
 #' the other models.
 atlas_algorithm_max <- function(algo) {
   algo$max_presences %||% Inf
+}
+
+#' Whether an algorithm holds back the map of a taxon with this many sites
+#' until it passes its null test. algo is an algorithm or its id.
+atlas_map_withheld_at <- function(algo, presences) {
+  if (is.character(algo)) algo <- tryCatch(atlas_algorithm(algo), error = function(e) NULL)
+  below <- algo$map_needs_skill_below %||% 0
+  is.numeric(presences) && length(presences) == 1L && is.finite(presences) && presences < below
 }
 
 # Candidates are counted before sites without predictor data are dropped, so

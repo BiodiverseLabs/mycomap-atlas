@@ -505,9 +505,18 @@ and scores each on every held-out detection. Measured on 118 taxa
 
 At 3 sites 40% of the thinned taxa still showed clear skill (AUC above 0.6
 and a positive Boyce index) and 8% were no better than chance; at 4, 58% and
-9%. From 5 sites an ensemble map is drawn like any other, faint when it fails
-its null test. From 3 or 4 it is drawn only when it passes (`map_withheld`
-otherwise); its scores are kept either way.
+9%. Every ensemble map from 3 sites up is drawn, faint when it fails its null
+test (Steve, 2026-10-04).
+
+A sparse taxon's own null test has little power: the null models' AUC spreads
+by 0.25 at 3-4 sites, 0.18 at 5-7 and 0.10 at 16-19, so even a sound map
+rarely beats all nineteen. In the first full build 4% of 1,801 ensembles from
+3-4 sites passed (fewer than chance alone lets through) and 40% from 16-19.
+Until 2026-10-04 a map from 3 or 4 sites was drawn only when it passed
+(`map_withheld`); those are fitted again and drawn. The site labels a failed
+ensemble "too few sites to tell", with how often maps of its size had clear
+skill in the study above (`web/src/lib/sparseSkill.ts`). An algorithm can
+still hold maps back below a site count (`map_needs_skill_below`); none does.
 
 ## Releases
 

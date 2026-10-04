@@ -1086,9 +1086,9 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     list(reps = 0L)
   }
   skill <- atlas_skill(null, boyce_pooled)
-  # From very few sites a map is drawn only once it has shown it knows
-  # something; the scores are kept either way.
-  withheld <- presences < (algo$map_needs_skill_below %||% 0) && !identical(skill, "passed")
+  # An algorithm can hold back the maps of its sparsest taxa until they pass
+  # their null test; the scores are kept either way.
+  withheld <- atlas_map_withheld_at(algo, presences) && !identical(skill, "passed")
 
   held_score <- atlas_score_at_effort(algo$score, effort_at)
   suitability <- NULL
@@ -1250,6 +1250,12 @@ atlas_fit_is_current <- function(metrics, fingerprint, settings, predict = TRUE)
     return(FALSE)
   }
   if (!identical(as.character(metrics$settings_key %||% ""), atlas_settings_key(settings))) {
+    return(FALSE)
+  }
+  # A map withheld under a rule that no longer withholds it is not finished:
+  # it is fitted again, and drawn.
+  if (isTRUE(metrics$map_withheld) &&
+      !atlas_map_withheld_at(settings$algorithm %||% "maxnet", as.numeric(metrics$presences %||% NA))) {
     return(FALSE)
   }
   if (isTRUE(predict) && !isTRUE(metrics$map_withheld)) {
