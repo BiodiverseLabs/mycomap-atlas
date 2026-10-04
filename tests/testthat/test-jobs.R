@@ -343,3 +343,38 @@ test_that("a model that failed before its worker was lost is tried again by the 
   expect_equal(record$counts$fitted, 5L)
   expect_length(record$results, 5L)
 })
+
+# ---- finishing a job in part -------------------------------------------------
+
+test_that("a job whose shards did not all report is finished in part, with every model they saved", {
+  skip_if_not_installed("terra")
+  s <- lost_job()
+  first <- counting_fit()
+  run_until_lost(s$store, s$job, 1L, lost_after(3L, first$fit), save_seconds = 0)
+  # Not by accident: finishing an unreported job still has to be asked for.
+  expect_error(on_machine(s$boss, atlas_finish_job(s$store, s$job$id, quiet = TRUE)), "not reported")
+
+  release <- on_machine(s$boss, atlas_finish_job(s$store, s$job$id, quiet = TRUE, partial = TRUE))
+  expect_equal(atlas_current_release(s$store)$id, release$id)
+  expect_setequal(vapply(release$index, function(e) e$taxon, ""), first$taxa())
+  expect_equal(release$job_results$fitted, 3L)
+  expect_true(isTRUE(release$partial))
+  for (name in first$taxa()) {
+    expect_true(atlas_model_relpaths(name, "draft", "maxnet")[[1]] %in% release_paths(release), info = name)
+  }
+
+  # The next job plans only what was not saved.
+  again <- on_machine(s$boss, atlas_plan_job(s$store, algorithms = "maxnet", quiet = TRUE))
+  planned <- vapply(again$tasks, function(t) t$taxon, "")
+  expect_length(planned, 2L)
+  expect_length(intersect(planned, first$taxa()), 0L)
+})
+
+test_that("a job whose shards all reported finishes as before, and is not marked partial", {
+  skip_if_not_installed("terra")
+  s <- lost_job()
+  on_machine(machine(), atlas_run_shard(s$store, s$job$id, 1L, quiet = TRUE, fit = fake_fit))
+  release <- on_machine(s$boss, atlas_finish_job(s$store, s$job$id, quiet = TRUE, partial = TRUE))
+  expect_length(release$index, 5L)
+  expect_null(release$partial)
+})

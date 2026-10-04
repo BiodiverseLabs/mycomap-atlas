@@ -484,12 +484,18 @@ atlas_job_status <- function(store = atlas_store(), id, grid = "draft") {
 #' release with retired and refused models removed, refitted ones replaced,
 #' and the public files refreshed. A failed model keeps its previous version.
 #' Refuses if another release became current after the job was planned.
+#'
+#' partial = TRUE finishes a job whose shards did not all report, from what
+#' the missing ones saved on the way (atlas_shard_progress): a job stopped by
+#' its deadline still publishes every model it fitted, and the next job plans
+#' only what is left. A task no shard saved keeps its previous model, as a
+#' failed one does.
 atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote = TRUE,
-                             note = NULL, quiet = FALSE) {
+                             note = NULL, quiet = FALSE, partial = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   job <- atlas_read_job(store, id, grid)
   status <- atlas_job_status(store, id, grid)
-  if (length(status$missing)) {
+  if (length(status$missing) && !isTRUE(partial)) {
     stop("job ", id, " is not finished: shard", if (length(status$missing) > 1L) "s " else " ",
          paste(status$missing, collapse = ", "), " not reported", call. = FALSE)
   }
@@ -512,7 +518,11 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
   for (r in job$retire) drop(r$taxon, r$algorithm)
   counts <- c(fitted = 0L, refused = 0L, failed = 0L)
   for (n in seq_len(job$shards)) {
-    record <- atlas_store_text(store, paste0("jobs/", grid, "/", id, "/shards/", n, ".json"))
+    record <- if (n %in% status$missing) {
+      atlas_shard_progress(store, id, n, grid)
+    } else {
+      atlas_store_text(store, atlas_shard_key(id, n, grid))
+    }
     shard_files <- list()
     for (f in record$files) shard_files[[f$path]] <- f
     for (r in record$results) {
@@ -541,11 +551,18 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
     store, grid, unname(files), unname(index),
     previous = current$id, note = note %||% paste("job", id),
     pull = job$pull, layers_key = job$layers_key, promote = promote, quiet = quiet,
-    extra = list(job = id, job_results = as.list(counts), retired = length(job$retire))
+    extra = c(
+      list(job = id, job_results = as.list(counts), retired = length(job$retire)),
+      if (length(status$missing)) list(partial = TRUE, unreported_shards = as.list(status$missing))
+    )
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/finished.json"),
                    list(release = release$id, finished_at = release$created_at))
-  say("job ", id, " finished: ", counts[["fitted"]], " fitted, ", counts[["refused"]], " refused, ",
-      counts[["failed"]], " failed (kept their previous models), ", length(job$retire), " retired")
+  say("job ", id, " finished", if (length(status$missing)) " in part" else "", ": ",
+      counts[["fitted"]], " fitted, ", counts[["refused"]], " refused, ",
+      counts[["failed"]], " failed (kept their previous models), ", length(job$retire), " retired",
+      if (length(status$missing)) paste0("; shard", if (length(status$missing) > 1L) "s " else " ",
+                                         paste(status$missing, collapse = ", "),
+                                         " did not report, so only what they saved is in it"))
   invisible(release)
 }

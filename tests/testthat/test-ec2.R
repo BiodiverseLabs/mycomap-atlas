@@ -603,3 +603,22 @@ test_that("a relaunched worker asks first for the next instance type", {
   types <- vapply(ec2$state$requests, function(r) r$InstanceType, "")
   expect_equal(types, c("c7a.8xlarge", "m7a.8xlarge"))
 })
+
+test_that("a job past its deadline still publishes every model its workers saved", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(MORE_TAXA)))
+  job <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", shards = 1L, quiet = TRUE))
+  setup <- list(store = store, boss = boss, job = job)
+  # The first worker saves one model and is taken back; the next hangs until
+  # the deadline.
+  ec2 <- fake_ec2(store, script = function(shard, attempt) if (attempt == 1L) "partial" else "hang")
+  expect_error(run_on(setup, ec2, config = test_config(store$uri, ATLAS_EC2_MAX_HOURS = "1")),
+               "past its 1 h deadline.*holds every model they saved")
+  expect_length(still_running(ec2), 0L)
+  release <- atlas_current_release(store)
+  expect_false(is.null(release))
+  expect_length(release$index, 1L)
+  expect_true(isTRUE(release$partial))
+})
