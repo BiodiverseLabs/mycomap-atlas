@@ -509,15 +509,24 @@ export default function Methods() {
                 was scored on all the sites held out. At 8 sites the ensemble's Boyce index stayed
                 within 0.04 of what all the sites gave it; at 5, half the maps still showed clear
                 skill and 7% were no better than chance; at 3, 40% and 8%. Maxent fell apart below 20 on the same
-                test, and a random forest cannot be fitted at 5. So from <B>5 sites</B> an ensemble
-                map is drawn like any other, faint when it fails its null test; from{" "}
-                <B>3 or 4</B> it is drawn only when it passes.
+                test, and a random forest cannot be fitted at 5. So every ensemble map from{" "}
+                <B>3 sites</B> up is drawn, faint when it fails its null test.
+              </p>
+              <p>
+                A taxon's own null test cannot vouch for so few sites. Its made-up species score
+                so variously (their AUC spreads by 0.25 at 3 or 4 sites, 0.18 at 5 to 7, 0.10 at 16
+                to 19) that even a sound map rarely beats all nineteen: in the first full build 4%
+                of the ensembles from 3 or 4 sites passed, fewer than chance alone lets through,
+                and 40% of those from 16 to 19. So a small-model map that fails is labelled{" "}
+                <B>too few sites to tell</B>, with how often maps of its size had clear skill when
+                they could be checked: about half from 3 to 7 sites, 6 in 10 from 8 to 11, and 2
+                in 3 from 12 to 19.
               </p>
               <p>
                 Below 3 sites a taxon is a survey target: every sequenced collection from a new
                 place brings its map closer. On the draft grid, 1,274 taxa have 20 or more sites,
                 3,340 have 5 to 19 and 2,219 have 3 or 4. Clearing a line does not mean a map is
-                trusted; the null models decide that.
+                trusted.
               </p>
             </Section>
 

@@ -7,6 +7,7 @@ import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-reac
 import { Help, Th } from "@/components/Common";
 import { WhatDrives } from "@/components/WhatDrives";
 import { MapStrength, defaultStrength } from "@/components/MapStrength";
+import { sparseFailedNote } from "@/lib/sparseSkill";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -201,15 +202,17 @@ function ModelMap({
             />
           ))}
         </MapContainer>
-        {failed && (
+        {failed && !model?.map_withheld && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
-            No better than its null models: this map says little about habitat.
+            {algorithm === "esm"
+              ? sparseFailedNote(model?.presences ?? presences ?? 0)
+              : "No better than its null models: this map says little about habitat."}
           </div>
         )}
         {model?.map_withheld && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
-            Not drawn: from 3 or 4 sites a map is shown only when it beats its null models, and
-            this one did not. It is fitted again as records arrive.
+            Not drawn yet: maps from 3 or 4 sites used to be shown only when they passed a test
+            that so few sites cannot pass. This one is drawn at its next fit.
           </div>
         )}
         {!loading && !model && (
@@ -309,12 +312,17 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
             passes at p ≤ 0.05 with a Boyce index above zero. One that fails is drawn faint and left
             out of Explore: its colours rank ground no better than collecting effort does.
           </p>
+          <p className="mt-1.5">
+            Below 20 sites the test has too little to go on: the made-up species score so variously
+            that even a sound map rarely beats all of them. A small-model map that fails says
+            "too few sites to tell", not "no".
+          </p>
         </>
       ),
       cell: (m) =>
         m.skill === "passed" || m.skill === "failed" ? (
           <span className={m.skill === "passed" ? "text-myco-green" : "text-muted-foreground"}>
-            {m.skill === "passed" ? "Yes" : "No"}
+            {m.skill === "passed" ? "Yes" : m.algorithm === "esm" ? "Too few sites to tell" : "No"}
             {m.null?.auc_mean != null && (
               <span className="text-muted-foreground">
                 {" "}

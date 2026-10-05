@@ -143,7 +143,7 @@ export interface Model {
   /** What the map rests on, dataset by dataset, largest first. Absent on fits
    * from before it was measured. */
   importance?: ModelImportance[];
-  /** A map not drawn: from 3 or 4 sites, one that did not beat its nulls. */
+  /** A map not drawn: from 3 or 4 sites, held back before 2026-10-04 until it passed. */
   map_withheld?: boolean;
   /** Datasets this model kept no variable of (Maxent prunes). */
   layers_unused?: string[];

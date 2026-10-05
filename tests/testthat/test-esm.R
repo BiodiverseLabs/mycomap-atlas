@@ -289,25 +289,26 @@ test_that("an ensemble fitted on a dozen sites has a map, scores on three folds,
   })
 })
 
-test_that("from 3 or 4 sites a map is drawn only when it beats its null models", {
+test_that("from 3 or 4 sites a map that fails its null test is still drawn: no test can vouch for so few", {
   skip_if_not_installed("terra")
   skip_if_not_installed("glmnet")
   with_data_dir({
-    world <- sparse_world(4)
-    untested <- fit_sparse(world)$metrics
-    expect_equal(untested$presences, 4)
-    expect_true(untested$map_withheld)
-    expect_null(untested$raster)
-    expect_false(file.exists(atlas_model_path("Eastern fungus", "draft", ".tif", "esm")))
-    # Withheld is a finished state: the fit is current without a map.
-    settings <- untested$settings
-    expect_true(atlas_fit_is_current(untested, "f00dfeed", settings, predict = TRUE))
-
-    testthat::local_mocked_bindings(atlas_skill = function(null, boyce, alpha = 0.05) "passed")
-    passed <- fit_sparse(world)$metrics
-    expect_false(passed$map_withheld)
+    testthat::local_mocked_bindings(atlas_skill = function(null, boyce, alpha = 0.05) "failed")
+    m <- fit_sparse(sparse_world(4))$metrics
+    expect_equal(m$presences, 4)
+    expect_equal(m$skill, "failed")
+    expect_false(m$map_withheld)
     expect_true(file.exists(atlas_model_path("Eastern fungus", "draft", ".tif", "esm")))
   })
+})
+
+test_that("a map withheld under the old rule is fitted again, so that it is drawn", {
+  settings <- list(algorithm = "esm", a = 1)
+  key <- atlas_settings_key(settings)
+  metrics <- list(fingerprint = "f", settings_key = key, presences = 4, map_withheld = TRUE)
+  expect_false(atlas_fit_is_current(metrics, "f", settings, predict = TRUE))
+  entry <- list(fingerprint = "f", settings_key = key, map = FALSE, map_withheld = TRUE, presences = 4)
+  expect_false(atlas_index_current(entry, "f", settings, 3, 19))
 })
 
 test_that("from 5 sites up a map is drawn whatever its skill, as every other map is", {
@@ -336,7 +337,12 @@ test_that("the ensemble refuses a taxon rich enough for the other models, and th
   })
 })
 
-test_that("a withheld map is current in a release's index, and says so", {
+test_that("where an algorithm still withholds a map, the withheld fit is current and says so", {
+  # No algorithm withholds today; the rule is kept for one that would.
+  expect_false(atlas_map_withheld_at("esm", 4))
+  expect_true(atlas_map_withheld_at(list(map_needs_skill_below = 5), 4))
+  expect_false(atlas_map_withheld_at(list(map_needs_skill_below = 5), 5))
+  testthat::local_mocked_bindings(atlas_map_withheld_at = function(algo, presences) presences < 5)
   entry <- list(fingerprint = "f", settings_key = "k", map = FALSE, map_withheld = TRUE, presences = 4)
   settings <- list(a = 1)
   entry$settings_key <- atlas_settings_key(settings)

@@ -126,7 +126,10 @@ atlas_index_current <- function(entry, fingerprint, settings, min_presences,
   !is.null(entry) &&
     identical(as.character(entry$fingerprint %||% ""), as.character(fingerprint)) &&
     identical(as.character(entry$settings_key %||% ""), atlas_settings_key(settings)) &&
-    (isTRUE(entry$map) || isTRUE(entry$map_withheld)) &&
+    (isTRUE(entry$map) ||
+       (isTRUE(entry$map_withheld) &&
+          atlas_map_withheld_at(settings$algorithm %||% entry$algorithm %||% "maxnet",
+                                as.numeric(entry$presences %||% NA)))) &&
     as.numeric(entry$presences %||% 0) >= min_presences &&
     as.numeric(entry$presences %||% 0) <= max_presences
 }
