@@ -508,6 +508,47 @@ and a positive Boyce index) and 8% were no better than chance; at 4, 58% and
 9%. Every ensemble map from 3 sites up is drawn, faint when it fails its null
 test (Steve, 2026-10-04).
 
+## Virtual species: testing the method where the answer is known
+
+Blocked AUC and Boyce score a map against held-out detections, and those
+carry the same sampling bias as the training detections. A model that learns
+where people collect can score well on them. So the method is also tested on
+virtual species (R/virtual.R), whose habitat is written down first.
+
+A habitat species answers to two or three real predictors: one climate
+variable plus soil, cover or host trees, with optima drawn from where people
+actually collect. It is then collected the way MycoMap's records were. At
+every real survey site, each of the site's real records is the species with a
+chance proportional to the habitat there, so a site worked a hundred times
+has a hundred chances. The records drawn are relabelled, and the species goes
+through the same training table, blocks and folds as a real taxon. A
+geography species ignores the environment and follows only distance from one
+or two centres. Any map of one shows nothing but clustering, so if it passes
+the null test, that pass is false.
+
+Every species is fitted under several arms on the same table and folds:
+
+- Maxent's four ways of handling effort (`effort_mode` in R/fit.R): none
+  (production), effort as a predictor, background weighted by records, and
+  log effort as an offset.
+- A detection model (R/detection.R): a binomial on survey sites, with
+  complementary log-log link and log effort as an offset (Fithian et
+  al. 2015).
+- The forest as production fits it.
+
+Each arm is scored as production scores it, and against the truth: the
+Spearman correlation of its map with the true habitat over cells of the
+accessible area. With `--nulls`, production Maxent also runs its null test,
+which gives the false-pass rate on geography species and the power on
+habitat species.
+
+```bash
+./atlas study-virtual --species=100 --kinds=habitat,geography --nulls=19 --workers=16
+```
+
+Background weights and the offset are the same model in maxnet's
+formulation. They give identical maps, which checks the wiring of both.
+
 A sparse taxon's own null test has little power: the null models' AUC spreads
 by 0.25 at 3-4 sites, 0.18 at 5-7 and 0.10 at 16-19, so even a sound map
 rarely beats all nineteen. In the first full build 4% of 1,801 ensembles from

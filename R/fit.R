@@ -127,16 +127,23 @@ ATLAS_MAXNET_PATH_STEPS <- 20L
 #' production does. The column stays in the table, where the null models
 #' read it.
 #'
+#' effort_mode chooses among the ways Maxent can account for how hard each
+#' site was worked (ATLAS_EFFORT_MODES); use_effort = TRUE is "covariate".
+#' The virtual-species study (R/virtual.R) compares them on habitats known in
+#' advance.
+#'
 #' features, from atlas_feature_cache(), lets fits of the same sites share
 #' their feature matrix (atlas_cached_features); the model is the same with
 #' or without it.
 atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort = FALSE,
-                             features = NULL) {
+                             features = NULL,
+                             effort_mode = if (isTRUE(use_effort)) "covariate" else "none") {
   if (!requireNamespace("maxnet", quietly = TRUE)) {
     stop("maxnet is needed to fit: install.packages('maxnet')", call. = FALSE)
   }
+  effort_mode <- atlas_effort_mode(effort_mode)
   columns <- atlas_predictor_columns(training)
-  if (!isTRUE(use_effort)) columns <- setdiff(columns, ATLAS_EFFORT_COLUMN)
+  if (!identical(effort_mode, "covariate")) columns <- setdiff(columns, ATLAS_EFFORT_COLUMN)
   predictors <- training[, columns, drop = FALSE]
   predictors <- predictors[, atlas_drop_constant(predictors), drop = FALSE]
   presence <- as.integer(training$presence)
@@ -147,6 +154,14 @@ atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort =
   data <- rbind(predictors, predictors[presence == 1L, , drop = FALSE])
   p <- c(presence, rep(0L, sum(presence == 1L)))
   f <- maxnet::maxnet.formula(p, data, classes = classes)
+  # Records at each row's site: every site, then each detection site again.
+  records <- if (effort_mode %in% c("weights", "offset")) {
+    if (!ATLAS_EFFORT_COLUMN %in% names(training)) {
+      stop("effort mode '", effort_mode, "' needs the effort column", call. = FALSE)
+    }
+    site_records <- exp(training[[ATLAS_EFFORT_COLUMN]])
+    c(site_records, site_records[presence == 1L])
+  }
   atlas_maxnet(
     p = p,
     data = data,
@@ -155,8 +170,31 @@ atlas_fit_maxnet <- function(training, classes = NULL, regmult = 1, use_effort =
     features = if (!is.null(features)) {
       atlas_cached_features(features, f, predictors, data,
                             rows = c(seq_len(nrow(predictors)), which(presence == 1L)))
-    }
+    },
+    background_weight = if (identical(effort_mode, "weights")) records,
+    offset = if (identical(effort_mode, "offset")) log(records)
   )
+}
+
+# Ways Maxent can account for how hard each site was worked.
+#   none       effort left out; every site counts once (production)
+#   covariate  log effort as a predictor, held at one value when scoring
+#   weights    each non-detection site weighted by its records, as if every
+#              record were a background point: the classic target group
+#              (Phillips et al. 2009)
+#   offset     log effort as a fixed offset, so detections are expected in
+#              proportion to records: the thinned point process of Fithian
+#              et al. (2015), with the bias surface known rather than fitted
+ATLAS_EFFORT_MODES <- c("none", "covariate", "weights", "offset")
+
+#' One effort mode, refusing names Atlas does not know.
+atlas_effort_mode <- function(mode) {
+  mode <- as.character(mode %||% "none")[[1]]
+  if (!mode %in% ATLAS_EFFORT_MODES) {
+    stop("unknown effort mode '", mode, "': use one of ",
+         paste(ATLAS_EFFORT_MODES, collapse = ", "), call. = FALSE)
+  }
+  mode
 }
 
 #' A store of Maxent feature matrices, for fits that share their sites.
@@ -248,11 +286,12 @@ atlas_fit_sharing <- function(algo, params, seed, features, tuning = TRUE) {
   }
 }
 
-#' One penalised fit along a path of penalties: maxnet's glmnet call.
-atlas_glmnet_path <- function(mm, p, reg, lambda, weights) {
+#' One penalised fit along a path of penalties: maxnet's glmnet call. An
+#' offset, when given, is added to every row's linear predictor.
+atlas_glmnet_path <- function(mm, p, reg, lambda, weights, offset = NULL) {
   suppressWarnings(glmnet::glmnet(
     x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
-    penalty.factor = reg, lambda = lambda, weights = weights
+    penalty.factor = reg, lambda = lambda, weights = weights, offset = offset
   ))
 }
 
@@ -263,9 +302,17 @@ atlas_glmnet_path <- function(mm, p, reg, lambda, weights) {
 #' to the background, which atlas_fit_maxnet does itself. It returns an object
 #' of maxnet's own class, so maxnet's predict method reads it unchanged. The
 #' path begins and ends where maxnet's does; only the steps between are fewer.
+#'
+#' Two additions serve the effort modes of atlas_fit_maxnet and change
+#' nothing when left NULL: background_weight scales each background row's
+#' weight (normalised to average 1 over the background, so the penalty path
+#' keeps its scale), and offset is added to every row's linear predictor.
+#' Neither enters a map: maxnet's predict reads only the coefficients, so a
+#' map is drawn as if every site had been worked equally hard.
 atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult = 1,
                          regfun = atlas_maxnet_regularization,
-                         steps = ATLAS_MAXNET_PATH_STEPS, features = NULL) {
+                         steps = ATLAS_MAXNET_PATH_STEPS, features = NULL,
+                         background_weight = NULL, offset = NULL) {
   if (anyNA(data)) {
     stop("NA values in data table. Please remove them and rerun.", call. = FALSE)
   }
@@ -276,10 +323,14 @@ atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult =
   upper <- features$upper %||% apply(mm, 2, max)
   reg <- regfun(p, mm, lower, upper) * regmult
   weights <- p + (1 - p) * 100
+  if (!is.null(background_weight)) {
+    scale <- background_weight / mean(background_weight[p == 0])
+    weights <- p + (1 - p) * 100 * scale
+  }
   glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
   path <- function(steps) {
     lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
-    atlas_glmnet_path(mm, p, reg, lambda, weights)
+    atlas_glmnet_path(mm, p, reg, lambda, weights, offset = offset)
   }
   model <- path(steps)
   # A short path takes big steps, and now and then one does not converge

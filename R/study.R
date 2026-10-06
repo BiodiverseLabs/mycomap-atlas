@@ -23,10 +23,13 @@ atlas_study_worker_task <- function(name, fingerprints, taxon_fn, args) {
 #'           returns a row with status "scored" and a list of arms, each with
 #'           arm, auc and boyce
 #' baseline  the arm every other arm is compared with, taxon by taxon
+#' summarise function(rows, baseline) giving the results file's summary
+#' extra     function(rows) giving more named entries for the results file
 atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
                             args, settings, baseline, grid = "draft",
                             workers = 1L, points, stack = NULL, quiet = FALSE,
-                            opening = NULL) {
+                            opening = NULL, summarise = atlas_sweep_summary,
+                            extra = NULL) {
   started <- Sys.time()
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
   path <- atlas_path(kind, grid, paste0(file_prefix, "-", stamp, ".json"))
@@ -44,10 +47,12 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   rows <- list()
   save <- function() {
     atlas_write_json(
-      list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-           settings = settings, layers = atlas_layers_key(grid),
-           baseline = baseline,
-           summary = atlas_sweep_summary(rows, baseline = baseline), taxa = rows),
+      c(list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+             settings = settings, layers = atlas_layers_key(grid),
+             baseline = baseline,
+             summary = summarise(rows, baseline = baseline)),
+        if (is.function(extra)) extra(rows),
+        list(taxa = rows)),
       path
     )
   }
@@ -84,7 +89,7 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   }
 
   save()
-  summary <- atlas_sweep_summary(rows, baseline = baseline)
+  summary <- summarise(rows, baseline = baseline)
   if (!isTRUE(quiet) && nrow(summary)) {
     print(summary, row.names = FALSE)
   }

@@ -55,6 +55,16 @@ atlas_usage <- function() {
   message("      --sizes=5,8,12,16         sites to thin to")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
+  message("  study-virtual      virtual species with known habitats, collected at the real sites")
+  message("                     with their real effort: which model finds the habitat")
+  message("      --species=N               species of each kind (default 40)")
+  message("      --kinds=habitat,geography habitat follows the environment; geography only")
+  message("                                distance from a centre (default habitat)")
+  message("      --arms=maxnet:none,...    arms to fit (default: Maxent's four effort modes,")
+  message("                                the detection model and the forest)")
+  message("      --nulls=N                 run production Maxent's null test with N nulls")
+  message("      --workers=N               species at once (default 1)")
+  message("      --seed=N                  which species (default 1)")
   message("  benchmark-models   boosted trees against Maxent on the richest taxa")
   message("      --per-band=N              taxa per band of presence cells (default 40)")
   message("      --min-presences=N         smallest taxon included (default 50)")
@@ -334,6 +344,21 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         per_band = atlas_flag_number(flags, "per_band", 40),
         min_presences = atlas_flag_number(flags, "min_presences", 40),
         sizes = sizes,
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "study-virtual" = {
+      split_flag <- function(value, default) {
+        if (is.null(value)) default else trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
+      }
+      atlas_virtual_study(
+        grid = atlas_flag_grid(flags),
+        species = as.integer(atlas_flag_number(flags, "species", 40)),
+        kinds = split_flag(flags$kinds, "habitat"),
+        arms = split_flag(flags$arms, ATLAS_VIRTUAL_ARMS),
+        nulls = as.integer(atlas_flag_number(flags, "nulls", 0)),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )

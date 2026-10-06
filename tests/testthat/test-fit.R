@@ -631,9 +631,10 @@ test_that("a short path that does not converge falls back to maxnet's own 200 st
   training <- simulated_training(n_background = 600, n_presence = 50)
   calls <- integer()
   real <- atlas_glmnet_path
-  testthat::local_mocked_bindings(atlas_glmnet_path = function(mm, p, reg, lambda, weights) {
+  testthat::local_mocked_bindings(atlas_glmnet_path = function(mm, p, reg, lambda, weights,
+                                                               offset = NULL) {
     calls <<- c(calls, length(lambda))
-    model <- real(mm, p, reg, lambda, weights)
+    model <- real(mm, p, reg, lambda, weights, offset = offset)
     # The first, short path stops short of its last penalty, as glmnet does
     # when a step does not converge.
     if (length(calls) == 1L) model$lambda <- model$lambda[-length(model$lambda)]
