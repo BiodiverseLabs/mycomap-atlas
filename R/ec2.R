@@ -85,14 +85,22 @@ atlas_ec2_config <- function(env = function(name, unset = "") Sys.getenv(name, u
     max_workers = number("ATLAS_EC2_MAX_WORKERS", 4),
     max_hours = number("ATLAS_EC2_MAX_HOURS", 6),
     max_attempts = number("ATLAS_EC2_MAX_ATTEMPTS", 3),
+    # How long a finishing worker (R/finish.R) may take: counting thousands of
+    # maps by state the first time, then the could-grow-here index.
+    finish_hours = number("ATLAS_EC2_FINISH_HOURS", 3),
     volume_gb = number("ATLAS_EC2_VOLUME_GB", 60)
   )
 }
 
 #' The script a worker runs at boot. `minutes` is how long it may live: the
 #' time left before the job's deadline.
-atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config$max_hours * 60) {
+atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config$max_hours * 60,
+                                   command = NULL) {
   store <- config$store
+  # A fitting worker runs its shard; a finishing worker (R/finish.R) is
+  # given its own command.
+  command <- command %||% sprintf("run-shard --grid=%s --job=%s --shard=%d --workers=$WORKERS",
+                                  grid, job_id, as.integer(shard))
   paste(c(
     "#!/bin/bash",
     "# MycoMap Atlas worker. Runs one shard of a job, then shuts down (which",
@@ -109,22 +117,21 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
     "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 3 ))",
     "[ \"$WORKERS\" -gt \"$(nproc)\" ] && WORKERS=$(nproc)",
     "[ \"$WORKERS\" -lt 1 ] && WORKERS=1",
-    sprintf(paste("docker run --rm -v /data:/data -e ATLAS_STORE=%s -e AWS_REGION=%s",
-                  "%s run-shard --grid=%s --job=%s --shard=%d --workers=$WORKERS"),
-            shQuote(store), shQuote(config$region), config$image, grid, job_id, as.integer(shard)),
+    sprintf("docker run --rm -v /data:/data -e ATLAS_STORE=%s -e AWS_REGION=%s %s %s",
+            shQuote(store), shQuote(config$region), config$image, command),
     "STATUS=$?",
     if (grepl("^s3://", store)) {
       sprintf("aws s3 cp /var/log/atlas-worker.log %s/jobs/%s/%s/logs/%d.log || true",
               sub("/$", "", store), grid, job_id, as.integer(shard))
     },
-    "echo \"run-shard exited $STATUS\"",
+    sprintf("echo \"%s exited $STATUS\"", sub(" .*$", "", command)),
     "shutdown -h now"
   ), collapse = "\n")
 }
 
 #' The RunInstances request for one worker in one subnet with one type.
 atlas_worker_request <- function(config, job_id, shard, grid, attempt = 1L, subnet, instance_type,
-                                 minutes = config$max_hours * 60) {
+                                 minutes = config$max_hours * 60, command = NULL) {
   tags <- list(
     list(Key = "Name", Value = sprintf("atlas-%s-shard-%d", job_id, as.integer(shard))),
     list(Key = "atlas", Value = "worker"),
@@ -132,7 +139,7 @@ atlas_worker_request <- function(config, job_id, shard, grid, attempt = 1L, subn
     list(Key = "atlas-shard", Value = as.character(shard)),
     list(Key = "atlas-attempt", Value = as.character(attempt))
   )
-  user_data <- atlas_worker_user_data(job_id, shard, grid, config, minutes)
+  user_data <- atlas_worker_user_data(job_id, shard, grid, config, minutes, command = command)
   list(
     ImageId = config$ami,
     InstanceType = instance_type,
@@ -175,14 +182,16 @@ atlas_ec2_error_code <- function(error, codes = ATLAS_EC2_RETRY_ERRORS) {
 #' was taken because its type ran short, so its replacement asks first for
 #' a type that has not.
 atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
-                                minutes = config$max_hours * 60, say = function(...) NULL) {
+                                minutes = config$max_hours * 60, say = function(...) NULL,
+                                command = NULL) {
   refusals <- character()
   types <- config$instance_types
   turn <- (as.integer(attempt) - 1L) %% length(types)
   if (turn) types <- c(types[-seq_len(turn)], types[seq_len(turn)])
   for (instance_type in types) {
     for (subnet in config$subnets) {
-      request <- atlas_worker_request(config, job_id, shard, grid, attempt, subnet, instance_type, minutes)
+      request <- atlas_worker_request(config, job_id, shard, grid, attempt, subnet, instance_type, minutes,
+                                      command = command)
       result <- tryCatch(do.call(ec2$run_instances, request), error = function(e) e)
       if (!inherits(result, "error")) return(result$Instances[[1]]$InstanceId)
       code <- atlas_ec2_error_code(result)
@@ -404,6 +413,11 @@ atlas_nightly <- function(grid = "draft", algorithms = "all", pull = TRUE,
   if (isTRUE(pull)) pull_occurrences(quiet = quiet)
   job <- atlas_plan_job(store, grid, algorithms = algorithms, shards = config$max_workers,
                         tasks_per_shard = tasks_per_shard, limit = limit, quiet = quiet)
-  if (is.null(job)) return(invisible(NULL))
-  atlas_run_job_on_ec2(store, job, grid, ec2 = ec2, config = config, quiet = quiet, ...)
+  release <- if (!is.null(job)) {
+    atlas_run_job_on_ec2(store, job, grid, ec2 = ec2, config = config, quiet = quiet, ...)
+  }
+  # Then whatever needs every map at once (R/finish.R), even on a night with
+  # nothing to fit: a release that was never finished is finished now.
+  finished <- atlas_finish_on_ec2(store, grid, ec2 = ec2, config = config, quiet = quiet, ...)
+  invisible(finished %||% release)
 }

@@ -148,12 +148,21 @@ atlas_recount_regions <- function(raster_path, cells) {
 
 #' Count every stored map on a grid by state. Needs the rasters (a pull of a
 #' release with them, or the machine that fitted them) and the public cells.
-atlas_count_regions <- function(grid = "draft", quiet = FALSE, workers = 1L) {
+atlas_count_regions <- function(grid = "draft", quiet = FALSE, workers = 1L, only_missing = FALSE) {
   rasters <- unlist(lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
     list.files(atlas_model_dir(grid, algorithm), pattern = "[.]tif$", full.names = TRUE)
   }), use.names = FALSE)
+  if (isTRUE(only_missing)) {
+    # Maps fitted since counting began carry their counts already.
+    uncounted <- vapply(rasters, function(path) {
+      metrics <- tryCatch(jsonlite::fromJSON(sub("[.]tif$", ".json", path), simplifyVector = FALSE),
+                          error = function(e) NULL)
+      is.list(metrics) && is.null(metrics$regions)
+    }, logical(1))
+    rasters <- rasters[uncounted]
+  }
   if (!length(rasters)) {
-    message("no fitted models on the ", grid, " grid")
+    if (!quiet) message("no maps to count on the ", grid, " grid")
     return(invisible(0L))
   }
   occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)

@@ -563,7 +563,8 @@ with nothing new 17 s.
 The Explore page (`/here`, route `/api/here`) answers a click on the map with
 every mapped fungus whose maps rate that place highly. Asking 2,700 rasters
 about a point takes a minute, so it answers from an index built once from the
-maps (`R/here.R`):
+maps (`R/here.R`). Every release a job makes is finished on EC2, which builds
+it (see "Finishing a release" below); by hand, on a machine with the rasters:
 
 ```bash
 ./atlas build-here-index            # after a batch of fits or a redraw
@@ -598,10 +599,11 @@ as "top quarter" was tried first and dropped: it called Trametes versicolor
 unlikely in half the states it has been collected in. State outlines come from
 Natural Earth, simplified into `inst/boundaries` by `tools/build-boundaries.R`.
 
-Maps fitted before this count nothing until they are counted:
+Maps fitted before this are counted when their release is finished (below),
+or by hand on a machine with the rasters:
 
 ```bash
-./atlas count-regions --workers=8   # from a pull of a release with rasters
+./atlas count-regions --workers=8 --only-missing
 ```
 
 `/api/taxa/<name>/image.png` draws a taxon's map as one picture, over
@@ -765,6 +767,24 @@ worker has a shutdown timer set to the job's deadline (6 h by default), and
 if the job fails or overruns, the box terminates them all; the next night's
 plan picks the same work up. A box without layers of its own plans from the
 layer set in the store and fetches only its manifest.
+
+#### Finishing a release
+
+Two products need every map at once, so no shard can make them: the "what
+could grow here" index and each map's counts by state. After the job, and on
+any night whose current release is not marked finished, the box launches one
+more worker (`R/finish.R`). It pulls the release with its rasters, counts the
+maps not yet counted, builds the index, uploads what changed and reports it in
+a shard record under the job `finish-<release>`; workers may not write
+releases, so the box then writes the finished release (the same files with
+those added, marked `finished`) and promotes it. A worker lost without
+reporting is launched again; if finishing fails, the night's fitted models
+still stand and the next night tries again. `ATLAS_EC2_FINISH_HOURS` (default
+3) bounds it; the first run counts every map, later ones only new ones.
+
+```bash
+./atlas finish-release --release=<id> --workers=8   # what the finishing worker runs
+```
 
 What each identity may do is enforced by AWS, not only by this code: see
 [deploy/aws/README.md](deploy/aws/README.md) for the policies, the setup and
