@@ -187,10 +187,20 @@ function Footer() {
         </div>
         <div className="border-t border-white/10 mt-8 pt-4 text-white/50 text-sm space-y-1">
           <p>
-            Environmental data: WorldClim 2.1 (CC BY-SA 4.0), SoilGrids (CC BY 4.0), ESA WorldCover
-            (CC BY 4.0). Collection locations are shown only as 0.1° cells.
+            Maps and model outputs:{" "}
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" className="underline hover:text-myco-green">
+              CC BY-SA 4.0
+            </a>
+            , as they derive from WorldClim. Code: GPL-3.0-or-later.
           </p>
-          <p>&copy; {new Date().getFullYear()} MycoMap.org.</p>
+          <p>
+            Data: WorldClim 2.1 (CC BY-SA 4.0); SoilGrids 2.0, ESA WorldCover, NALCMS Land Cover
+            2020 and Copernicus Global Land Cover (CC BY 4.0); USFS FIA BIGMAP (public domain).
+            Contains information licensed under the Open Government Licence – Canada (National
+            Forest Inventory). Basemap © OpenStreetMap contributors (ODbL).{" "}
+            <a href="/sources" className="underline hover:text-myco-green">Every source</a>.
+          </p>
+          <p>Collection locations are shown only as 0.1° cells. &copy; {new Date().getFullYear()} MycoMap.org.</p>
         </div>
       </div>
     </footer>

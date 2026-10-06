@@ -956,9 +956,14 @@ GPL-3.0-or-later; see [LICENSE.md](LICENSE.md). The modelling stack Atlas is
 built on — terra, ENMeval, blockCV, ecospat — is GPL, so this is the licence
 that fits without an argument.
 
-Published maps and metrics are a separate question from the code. Their terms
-follow the source layers, and WorldClim's CC BY-SA 4.0 has to be settled before
-the first release.
+Published maps, rasters and model outputs are CC BY-SA 4.0, separate from the
+code: they are derived from WorldClim 2.1, which is CC BY-SA 4.0, and
+ShareAlike carries over. The Zenodo archives say so, every map image and
+raster response carries `Link: <https://creativecommons.org/licenses/by-sa/4.0/>; rel="license"`,
+and the site shows the licence and the sources' credits beside every map and in
+the footer. Each layer's own terms are in `inst/api/sources.json`; the Canadian
+forest inventory requires the line "Contains information licensed under the
+Open Government Licence - Canada".
 
 The MycoMap name and logo (`web/public/mycomap-logo.png`, `web/public/favicon.png`)
 are MycoMap's marks and are not covered by the GPL. A fork may keep the code but

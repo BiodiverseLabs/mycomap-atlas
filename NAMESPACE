@@ -1,5 +1,7 @@
 # Written by hand; this package does not use roxygen.
 export(ATLAS_IMAGE_WIDTHS)
+export(ATLAS_MAP_LICENSE_LINK)
+export(ATLAS_MAP_LICENSE_URL)
 export(ATLAS_PUBLIC_DEGREES)
 export(ATLAS_REGION_MIN_SHARE)
 export(atlas_access_alerts)

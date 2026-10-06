@@ -390,6 +390,7 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
     res$status <- 404L
     return(raw())
   }
+  res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)
 }
 
@@ -420,6 +421,7 @@ function(name, grid = "draft", layer = "map", res) {
     res$status <- 404L
     return(raw())
   }
+  res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)
 }
 

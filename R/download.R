@@ -89,6 +89,13 @@ atlas_release_sha <- function(services, grid, path, cache, now = as.numeric(Sys.
   entry$files[[path]]
 }
 
+# Published maps and rasters are CC BY-SA 4.0: they are derived from
+# WorldClim 2.1, which is CC BY-SA 4.0, and ShareAlike carries over. Every map
+# image and raster says so in a Link header, so the terms travel with a file
+# fetched on its own.
+ATLAS_MAP_LICENSE_URL <- "https://creativecommons.org/licenses/by-sa/4.0/"
+ATLAS_MAP_LICENSE_LINK <- paste0("<", ATLAS_MAP_LICENSE_URL, ">; rel=\"license\"")
+
 #' Answer GET /api/taxa/<name>/raster.tif.
 #'
 #' Signed out gets a 401 before anything is looked up. Then, in order: the
@@ -118,7 +125,8 @@ atlas_raster_response <- function(identity, name, grid, algorithm, services, cac
   filename <- paste0(slug, "-", algorithm, ".tif")
   file_headers <- list(
     `Content-Type` = "image/tiff",
-    `Content-Disposition` = paste0("attachment; filename=\"", filename, "\"")
+    `Content-Disposition` = paste0("attachment; filename=\"", filename, "\""),
+    Link = ATLAS_MAP_LICENSE_LINK
   )
 
   local <- file.path(services$data_dir(), path)
@@ -160,5 +168,5 @@ atlas_raster_response <- function(identity, name, grid, algorithm, services, cac
   if (!is.character(url) || length(url) != 1L || !startsWith(url, "https://")) {
     return(json(503L, list(error = "a download link could not be made; try again shortly")))
   }
-  list(status = 302L, headers = list(Location = url), body = "")
+  list(status = 302L, headers = list(Location = url, Link = ATLAS_MAP_LICENSE_LINK), body = "")
 }

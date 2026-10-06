@@ -6,7 +6,7 @@
     "summary": "Habitat models for North American fungi, built only from DNA-validated MycoMap records.",
     "description": "Every route is a read. Nothing here returns an exact collection coordinate: collection points are aggregated to 0.1 degree cells, and published rasters are 1 km or coarser.\n\nThis file is the contract. The web app's developer page is drawn from it, and a test in tests/testthat/test-openapi.R fails when a route in inst/plumber/atlas.R and this file disagree, so the documentation cannot drift from the code.\n\nReads are open: no account and no token are needed for anything the site's own pages use — taxa, scores, map images, collection cells. Two things need you to be known: downloading a model's GeoTIFF raster, and a higher rate limit. Either sign in on the site with your mycomap.org account, or send a token as \"Authorization: Bearer <token>\". Tokens are issued through a mycomap.org account at https://mycomap.org/atlas-tokens. A token mycomap.org does not recognise, or has revoked, is refused with 401 rather than served at the anonymous rate.\n\nEvery caller is rate limited: anonymous callers per address, signed-in people per person, tokens per token. Over the limit the answer is 429 with Retry-After in seconds. x-rate-limits at the end of this file gives the limits.",
     "license": {
-      "name": "GPL-3.0-or-later (code). Terms for published maps follow their source layers.",
+      "name": "Code GPL-3.0-or-later. Maps, rasters and model outputs CC BY-SA 4.0: they derive from WorldClim 2.1 (CC BY-SA 4.0); every map and raster response carries Link: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\". Each source layer's terms are at /api/sources.",
       "identifier": "GPL-3.0-or-later"
     },
     "contact": {
@@ -1006,6 +1006,12 @@
               },
               "X-Atlas-Tier": {
                 "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "Link": {
+                "description": "The map's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -1124,6 +1130,12 @@
               },
               "X-Atlas-Tier": {
                 "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "Link": {
+                "description": "The map's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -1189,6 +1201,12 @@
               },
               "X-Atlas-Tier": {
                 "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "Link": {
+                "description": "The raster's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -1197,6 +1215,12 @@
             "headers": {
               "Location": {
                 "description": "The download link.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "The raster's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
                 "schema": {
                   "type": "string"
                 }
