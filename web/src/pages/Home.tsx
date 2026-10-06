@@ -75,7 +75,7 @@ function FeaturedMap({ models }: { models?: ModelSummary[] }) {
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <ImageOverlay
               url={mapUrl(featured.taxon, "rf", model.data?.map_drawn_at ?? model.data?.built_at)}

@@ -10,6 +10,7 @@ import Home from "@/pages/Home";
 import Maps from "@/pages/Maps";
 import Methods from "@/pages/Methods";
 import Models from "@/pages/Models";
+import Privacy from "@/pages/Privacy";
 import Sources from "@/pages/Sources";
 import Taxa from "@/pages/Taxa";
 import Taxon from "@/pages/Taxon";
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="/methods" component={Methods} />
               <Route path="/sources" component={Sources} />
               <Route path="/developers" component={Developers} />
+              <Route path="/privacy" component={Privacy} />
               {/* How it works grew into the full methods page. */}
               <Route path="/about">
                 <Redirect to="/methods" />

@@ -331,6 +331,20 @@
       "role": "Icons."
     },
     {
+      "name": "@fontsource-variable/fraunces",
+      "group": "web",
+      "license": "OFL-1.1",
+      "url": "https://fontsource.org/fonts/fraunces",
+      "role": "Fraunces, the headings' typeface (Undercase Type), served from this site rather than Google Fonts."
+    },
+    {
+      "name": "@fontsource-variable/source-sans-3",
+      "group": "web",
+      "license": "OFL-1.1",
+      "url": "https://fontsource.org/fonts/source-sans-3",
+      "role": "Source Sans 3, the typeface of scientific names (Adobe), served from this site rather than Google Fonts."
+    },
+    {
       "name": "@radix-ui/react-slot",
       "group": "web",
       "license": "MIT",

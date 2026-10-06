@@ -176,6 +176,7 @@ function Footer() {
               ["/sources", "Data and sources"],
               ["/developers", "API for developers"],
               [GITHUB_URL, "Source code (GPL-3.0)"],
+              ["/privacy", "Privacy"],
             ].map(([href, label]) => (
               <li key={href}>
                 <a href={href} className="text-white/70 hover:text-myco-green transition-colors">
