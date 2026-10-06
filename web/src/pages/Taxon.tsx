@@ -2,12 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } f
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import type { LatLng, Map as LeafletMap } from "leaflet";
-import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowUpRight, Download, LogIn, Maximize, Maximize2, Minimize, Minimize2 } from "lucide-react";
 
 import { Help, Th } from "@/components/Common";
 import { WhatDrives } from "@/components/WhatDrives";
 import { MapStrength, defaultStrength } from "@/components/MapStrength";
 import { sparseFailedNote } from "@/lib/sparseSkill";
+import { openingView } from "@/lib/mapView";
+import { useFullscreen } from "@/components/Fullscreen";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,8 +140,28 @@ function ModelMap({
   // (or its verdict) changes; after that it is the viewer's.
   const [strength, setStrength] = useState(defaultStrength(failed));
   useEffect(() => setStrength(defaultStrength(failed)), [failed, model?.built_at]);
+  const screen = useFullscreen<HTMLDivElement>();
+  useLayoutEffect(() => {
+    const map = group.current.maps.get(algorithm);
+    if (!map) return;
+    // Leaflet does not notice its panel changing size. Going in or out of
+    // full screen opens the map on the taxon's ground again, sized to the new
+    // panel; with no page to scroll, the wheel can zoom it meanwhile.
+    map.invalidateSize({ animate: false });
+    if (view) map.fitBounds(view, { animate: false });
+    if (screen.full) map.scrollWheelZoom.enable();
+    else map.scrollWheelZoom.disable();
+    // Only on going in or out: a new view on its own is FitBounds' to show.
+  }, [screen.full, group, algorithm]);
+  const layout = screen.full
+    ? `flex flex-col ${screen.pinned ? "fixed inset-0 z-[2000] rounded-none" : ""}`
+    : hidden
+      ? "hidden"
+      : expanded || alone
+        ? "lg:col-span-3"
+        : "";
   return (
-    <Card className={`overflow-hidden ${hidden ? "hidden" : expanded || alone ? "lg:col-span-3" : ""}`}>
+    <Card ref={screen.ref} className={`overflow-hidden ${layout}`}>
       <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <CardTitle className="text-base text-[#4a3728]">{ALGORITHM_LABELS[algorithm]}</CardTitle>
@@ -166,12 +188,28 @@ function ModelMap({
             >
               {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>}
+            <button
+              type="button"
+              onClick={screen.toggle}
+              className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
+              title={screen.full ? "Leave full screen (Esc)" : "Full screen"}
+              aria-label={
+                screen.full
+                  ? "Leave full screen"
+                  : `Show the ${ALGORITHM_LABELS[algorithm]} map full screen`
+              }
+              aria-pressed={screen.full}
+            >
+              {screen.full ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </button>
           </span>
         </div>
       </CardHeader>
-      <div className={`relative ${expanded ? "h-[70vh] min-h-[420px]" : "h-[380px]"}`}>
+      <div
+        className={`relative ${screen.full ? "min-h-0 flex-1" : expanded ? "h-[70vh] min-h-[420px]" : "h-[380px]"}`}
+      >
         <MapContainer
-          // North America until the model arrives; FitBounds then fits its range.
+          // North America until the records arrive; FitBounds then opens on them.
           center={[44, -100]}
           zoom={3}
           className="h-full w-full"
@@ -444,6 +482,8 @@ export default function Taxon() {
   const loading = fits.some((f) => f.isLoading);
   const points = cells.data?.cells ?? [];
   const group = useRef<MapGroup>({ maps: new Map(), syncing: false });
+  // Opens on the collections and the ground around them, once they are in.
+  const opening = cells.isPending ? null : openingView(points, anyModel?.bounds);
 
   // One map can be expanded across all three panels. The others stay mounted
   // (hidden), so they keep following it and come back where it was.
@@ -567,7 +607,7 @@ export default function Taxon() {
                     model={models[algorithm]}
                     loading={loading}
                     points={points}
-                    view={boundsOf(anyModel)}
+                    view={opening}
                     group={group}
                     presences={anyModel?.presences}
                     expanded={expanded === algorithm}
