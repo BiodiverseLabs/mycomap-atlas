@@ -1,16 +1,108 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
 import { Link } from "wouter";
 
 import { ApiDown, Loading, Stat, Th } from "@/components/Common";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getLayers, getStatus, getTaxaCount } from "@/lib/api";
+import { checklistUrl, getLayers, getRegions, getStatus, getTaxaCount, type Region } from "@/lib/api";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
 // About 20 independent localities is where a map becomes worth drawing.
 const THRESHOLDS = [5, 10, 20, 30, 50, 100];
 const PUBLISH_AT = 20;
+
+const COUNTRIES = [
+  ["US", "United States"],
+  ["CA", "Canada"],
+  ["MX", "Mexico"],
+] as const;
+
+/** How a checklist download names its region: by code, or by name when it has none. */
+const regionKey = (region: Region) => region.code || region.region;
+
+/**
+ * Every taxon recorded in a state, province or territory, as a CSV that opens
+ * in Excel. One region, one country, or everything.
+ */
+function Checklists() {
+  const regions = useQuery({ queryKey: ["regions"], queryFn: getRegions });
+  const [picked, setPicked] = useState("");
+  const list = regions.data?.regions ?? [];
+  const countries = [...new Set(list.map((r) => r.country))];
+  const selected = list.find((r) => regionKey(r) === picked) ?? null;
+  const button =
+    "inline-flex items-center gap-1.5 rounded-md bg-myco-green px-3 py-2 text-sm font-medium text-white hover:bg-myco-green/90";
+
+  return (
+    <section id="checklists">
+      <SectionTitle>Species checklists by state and province</SectionTitle>
+      <p className="mb-4 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+        Every taxon with a DNA-validated record in a US state or territory, Canadian province or
+        territory, or Mexican state, with its records and independent localities there and a link
+        to its map. The CSV opens in Excel and Google Sheets. A species missing from a list may
+        still grow there: these are the collections that have been sequenced.
+      </p>
+      <Card className="max-w-3xl">
+        <CardContent className="space-y-4 p-4 text-sm">
+          {regions.isError && <p className="text-muted-foreground">Checklists are not available on this server yet.</p>}
+          {regions.isLoading && <Loading />}
+          {list.length > 0 && (
+            <>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  State, province or territory
+                  <select
+                    value={picked}
+                    onChange={(event) => setPicked(event.target.value)}
+                    className="min-w-[16rem] rounded-md border border-[#A87146]/30 bg-white px-2 py-2 text-sm text-[#4a3728]"
+                  >
+                    <option value="">Choose one…</option>
+                    {countries.map((country) => (
+                      <optgroup key={country} label={country}>
+                        {list
+                          .filter((r) => r.country === country)
+                          .map((r) => (
+                            <option key={regionKey(r)} value={regionKey(r)}>
+                              {r.region} ({formatNumber(r.taxa)} taxa)
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+                {selected && (
+                  <a href={checklistUrl({ region: regionKey(selected) })} className={button}>
+                    <Download className="h-4 w-4" /> {selected.region} CSV
+                  </a>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Or a whole country:{" "}
+                {COUNTRIES.map(([code, label], i) => (
+                  <span key={code}>
+                    {i > 0 && " · "}
+                    <a href={checklistUrl({ region: code })} className="text-myco-green hover:underline">
+                      {label}
+                    </a>
+                  </span>
+                ))}{" "}
+                · or{" "}
+                <a href={checklistUrl()} className="text-myco-green hover:underline">
+                  everything
+                </a>{" "}
+                (one row per taxon per region, about 6 MB). For a copy that stays current, give the
+                download link to Excel's Data › From Web or Google Sheets' IMPORTDATA.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
 
 export default function Data() {
   const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
@@ -89,6 +181,8 @@ export default function Data() {
             </CardContent>
           </Card>
         </section>
+
+        <Checklists />
 
         <section>
           <SectionTitle>Environmental layers</SectionTitle>

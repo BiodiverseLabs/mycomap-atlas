@@ -178,7 +178,7 @@ atlas_release_pull_summary <- function(manifest) {
 #' The files a release publishes, relative to the data directory.
 #'
 #' An allowlist: model scores, rasters and maps of every algorithm, per-taxon
-#' counts and fingerprints, the pull summary, public cells, the layer
+#' counts and fingerprints, the pull summary, public cells and regions, the layer
 #' manifest, and the newest benchmark. Nothing else under data/ can be
 #' published, whatever lands there.
 atlas_release_files <- function(grid = "draft") {
@@ -195,6 +195,7 @@ atlas_release_files <- function(grid = "draft") {
     atlas_name_merges_path(),
     atlas_public_pull_path(),
     atlas_public_cells_path(),
+    atlas_public_regions_path(),
     file.path(atlas_layer_dir(grid), "manifest.json"),
     utils::tail(benchmarks, 1),
     # Ranks by 20 km cell for "what could grow here", built from the maps above.
@@ -385,12 +386,14 @@ atlas_write_release <- function(store, grid, files, models_index, previous = NUL
 }
 
 #' Refresh the public files a release carries from this machine's pull: the
-#' collection cells at the public resolution, and the cut-down pull summary.
+#' collection cells at the public resolution, each taxon's states and
+#' provinces, and the cut-down pull summary.
 atlas_refresh_public_files <- function() {
   manifest <- atlas_read_manifest()
   occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
   if (!is.null(occurrences)) {
     atlas_write_tsv_gz(atlas_public_cells_table(occurrences), atlas_public_cells_path())
+    atlas_write_tsv_gz(atlas_region_table(occurrences), atlas_public_regions_path())
     # The pull's own manifest keeps its SQL and host; the published summary
     # is a separate, cut-down copy.
     atlas_write_json(atlas_release_pull_summary(manifest), atlas_public_pull_path())

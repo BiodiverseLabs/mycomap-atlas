@@ -291,6 +291,58 @@ export function rasterUrl(name: string, algorithm: Algorithm = "maxnet"): string
   return `/api/taxa/${encodeURIComponent(name)}/raster.tif?algorithm=${algorithm}`;
 }
 
+/** A state, province or territory, with how much it holds. */
+export interface Region {
+  country: string;
+  region: string;
+  /** ISO 3166-2, such as US-IN; empty when the records name no known region. */
+  code: string;
+  taxa: number;
+  records: number;
+}
+
+/** One taxon in one state, province or territory. */
+export interface TaxonRegion {
+  country: string;
+  region: string;
+  code: string;
+  records: number;
+  localities: number;
+}
+
+export function getRegions(): Promise<{ regions: Region[] }> {
+  return get<{ regions: Region[] }>("/api/regions");
+}
+
+export function getTaxonRegions(name: string): Promise<{ name: string; regions: TaxonRegion[] }> {
+  return get(`/api/taxa/${encodeURIComponent(name)}/regions`);
+}
+
+/**
+ * The checklist CSV: everything, one region (by code or name), one country,
+ * or one taxon. Relative, so it works on any copy of the site; absoluteUrl
+ * makes it pasteable into a spreadsheet.
+ */
+export function checklistUrl(params: { region?: string; taxon?: string } = {}): string {
+  const query = new URLSearchParams();
+  if (params.region) query.set("region", params.region);
+  if (params.taxon) query.set("taxon", params.taxon);
+  const text = query.toString();
+  return `/api/checklist.csv${text ? `?${text}` : ""}`;
+}
+
+/** The bare map page another site puts in an iframe. */
+export function embedPath(name: string, algorithm: Algorithm, points = true): string {
+  const query = new URLSearchParams({ model: algorithm });
+  if (!points) query.set("points", "0");
+  return `/embed/taxa/${encodeURIComponent(name)}?${query.toString()}`;
+}
+
+/** A path on this site as a full URL, for copying somewhere else. */
+export function absoluteUrl(path: string): string {
+  return new URL(path, window.location.origin).toString();
+}
+
 /** One row of a benchmark summary: an arm within a band of presence cells. */
 export interface BenchmarkRow {
   band: string;

@@ -484,6 +484,13 @@
     },
     {
       "stage": "1. Records",
+      "name": "Taxa by state and province",
+      "detail": "Every taxon in each US state, Canadian province or territory and Mexican state it has been recorded in, with its validated records and independent localities there.",
+      "availability": "published",
+      "where": "/api/checklist.csv, /api/regions, /api/taxa/{name}/regions, and regions.tsv.gz in every release"
+    },
+    {
+      "stage": "1. Records",
       "name": "Taxon counts and fingerprints",
       "detail": "Records, independent localities and the record-set hash for each of the 17,000+ taxa.",
       "availability": "published",

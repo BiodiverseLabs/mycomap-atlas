@@ -2,11 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } f
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import type { LatLng, Map as LeafletMap } from "leaflet";
-import { ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Download, LogIn, Maximize2, Minimize2 } from "lucide-react";
 
 import { Help, Th } from "@/components/Common";
 import { WhatDrives } from "@/components/WhatDrives";
 import { MapStrength, defaultStrength } from "@/components/MapStrength";
+import { ShareMap } from "@/components/ShareMap";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
@@ -496,6 +497,9 @@ export default function Taxon() {
           >
             On mycomap.org <ArrowUpRight className="h-3.5 w-3.5" />
           </a>
+          <a href="#use" className="inline-flex items-center gap-1 hover:text-myco-green">
+            Embed or download <ArrowDown className="h-3.5 w-3.5" />
+          </a>
         </div>
       </PageHeader>
 
@@ -620,6 +624,11 @@ export default function Taxon() {
             </section>
           </>
         )}
+
+        <ShareMap
+          name={name}
+          algorithms={shown.filter((a) => models[a]?.bounds && !models[a]?.map_withheld)}
+        />
       </Page>
     </>
   );
