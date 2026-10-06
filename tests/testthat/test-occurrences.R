@@ -28,9 +28,9 @@ test_that("a Mushroom Observer record needs a visible GPS point or a small named
   expect_match(clause, "AND (o.source <> 'MO Observations' OR ", fixed = TRUE)
   expect_match(clause, "m.source = 'mo' AND m.source_observation_id = o.observation_id", fixed = TRUE)
   # A hidden GPS point is treated as obscured.
-  expect_match(clause, "coalesce((m.api_response_json::jsonb ->> 'gps_hidden')::boolean, false) = false",
+  expect_match(clause, "coalesce((CAST(m.api_response_json AS jsonb) ->> 'gps_hidden')::boolean, false) = false",
                fixed = TRUE)
-  expect_match(clause, "(m.api_response_json::jsonb ->> 'latitude') IS NOT NULL", fixed = TRUE)
+  expect_match(clause, "(CAST(m.api_response_json AS jsonb) ->> 'latitude') IS NOT NULL", fixed = TRUE)
   # Without one, half the location box's diagonal must be within the limit, in km.
   for (side in c("latitude_north", "latitude_south", "longitude_east", "longitude_west")) {
     expect_match(clause, sprintf("'location' ->> '%s'", side), fixed = TRUE)

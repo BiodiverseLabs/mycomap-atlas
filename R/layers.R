@@ -248,6 +248,25 @@ atlas_layer_registry <- function() {
       supplement = function(path, res) atlas_copernicus_source(path),
       supplement_known = "forest_known"
     ),
+    climatena = list(
+      id = "climatena",
+      title = "Climate 1991-2020: temperature, precipitation, heat-moisture",
+      source = "AdaptWest ClimateNA v7.3 normals 1991-2020, 1 km",
+      url = "https://adaptwest.databasin.org/pages/adaptwest-climatena/",
+      license = "CC BY 4.0",
+      citation = paste(
+        "AdaptWest Project (2022) Gridded current and projected climate data for North",
+        "America at 1km resolution, ClimateNA v7.30; Wang T, Hamann A, Spittlehouse D,",
+        "Carroll C (2016) PLoS One 11:e0156720"
+      ),
+      note = paste(
+        "With the water-balance layer, the candidate replacement for WorldClim's",
+        "1970-2000 bioclim. ClimateNA does not cover Hawaii or the Caribbean islands."
+      ),
+      method = "average",
+      fill_near = TRUE,
+      fetch = function(path, res) atlas_climatena_source(path)
+    ),
     waterbalance = list(
       id = "waterbalance",
       title = "Moisture deficit, autumn climate, snow, humidity, AET and VPD",

@@ -38,10 +38,14 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   # Soil pH: which fungi a soil holds follows its acidity more than its climate.
   "soil_phh2o",
   # Moisture: the first thing that decides whether a fungus fruits at all.
-  "clim_cmd", "bio12", "clim_ppt_autumn", "bio17", "bio15", "bio14",
+  # ClimateNA's 1991-2020 measures (cna_*) sit beside WorldClim's 1970-2000
+  # ones, ahead where they measure the same thing more directly.
+  "clim_cmd", "cna_ahm", "bio12", "cna_map", "clim_ppt_autumn", "cna_msp", "cna_shm",
+  "bio17", "bio15", "bio14",
   # Temperature: means, then the fruiting season, then the extremes that set
   # a range's edges.
-  "bio1", "clim_tave_autumn", "clim_ffp", "bio6", "bio5", "bio4",
+  "bio1", "cna_mat", "clim_tave_autumn", "clim_ffp", "cna_nffd", "bio6", "cna_mcmt",
+  "bio5", "cna_mwmt", "cna_td", "bio4",
   # What it grows on or with.
   "forest_needleleaf", "forest_broadleaf", "forest_mixed",
   "cover_trees", "cover_wetland", "cover_shrubs", "cover_grassland",
@@ -49,6 +53,9 @@ ATLAS_PREDICTOR_PRIORITY <- c(
   "soil_soc", "soil_nitrogen", "soil_clay", "soil_sand", "soil_cec",
   # Secondary climate.
   "clim_rh", "clim_vpd", "clim_aet", "clim_pas",
+  "cna_cmi", "cna_dd5", "cna_dd0", "cna_emt", "cna_ext", "cna_eref",
+  "cna_ppt_summer", "cna_ppt_winter", "cna_ppt_spring",
+  "cna_tave_summer", "cna_tave_winter", "cna_tave_spring",
   # The shape of the ground.
   "elevation", "slope", "roughness"
 )
@@ -284,14 +291,36 @@ ATLAS_PREDICTOR_LABELS <- c(
   clim_pas = "Precipitation as snow",
   clim_rh = "Relative humidity",
   clim_aet = "Actual evapotranspiration",
-  clim_vpd = "Vapour pressure deficit"
+  clim_vpd = "Vapour pressure deficit",
+  cna_mat = "Mean annual temperature (1991-2020)",
+  cna_mwmt = "Mean temperature of the warmest month (1991-2020)",
+  cna_mcmt = "Mean temperature of the coldest month (1991-2020)",
+  cna_td = "Continentality: warmest minus coldest month",
+  cna_map = "Annual precipitation (1991-2020)",
+  cna_msp = "May-September precipitation",
+  cna_ahm = "Annual heat-moisture index",
+  cna_shm = "Summer heat-moisture index",
+  cna_cmi = "Climate moisture index",
+  cna_dd5 = "Growing degree-days above 5 C",
+  cna_dd0 = "Degree-days below 0 C",
+  cna_nffd = "Frost-free days",
+  cna_emt = "Coldest temperature in 30 years",
+  cna_ext = "Hottest temperature in 30 years",
+  cna_eref = "Reference evaporation",
+  cna_ppt_winter = "Winter precipitation",
+  cna_ppt_spring = "Spring precipitation",
+  cna_ppt_summer = "Summer precipitation",
+  cna_tave_winter = "Winter mean temperature",
+  cna_tave_spring = "Spring mean temperature",
+  cna_tave_summer = "Summer mean temperature"
 )
 
 # What each layer is, for people.
 ATLAS_LAYER_LABELS <- c(
   bioclim = "Climate", elevation = "Elevation", terrain = "Terrain", soil = "Soil",
   landcover = "Land cover", hosts = "Host trees", hostsdecay = "Decay and parasite hosts",
-  foresttype = "Forest type", waterbalance = "Water balance"
+  foresttype = "Forest type", waterbalance = "Water balance",
+  climatena = "Climate 1991-2020"
 )
 
 #' A predictor's or layer's name for people, or its own name when none is known.

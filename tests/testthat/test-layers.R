@@ -552,3 +552,23 @@ test_that("soil nitrogen is labelled and ranked beside organic carbon", {
   expect_equal(match("soil_nitrogen", ATLAS_PREDICTOR_PRIORITY),
                match("soil_soc", ATLAS_PREDICTOR_PRIORITY) + 1L)
 })
+
+test_that("the 1991-2020 climate layer is registered, credited and labelled band by band", {
+  registry <- atlas_layer_registry()
+  entry <- registry$climatena
+  expect_equal(entry$license, "CC BY 4.0")
+  expect_match(entry$source, "1991-2020")
+  bands <- unname(ATLAS_CLIMATENA_CORE_VARS)
+  expect_equal(length(bands), 21L)
+  # No band may share a name with the water-balance layer it is paired with.
+  expect_length(intersect(bands, unname(ATLAS_CLIMATENA_VARS)), 0L)
+  for (band in bands) {
+    expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
+    expect_true(band %in% ATLAS_PREDICTOR_PRIORITY, label = paste(band, "has a place in the order"))
+  }
+  expect_equal(atlas_label("climatena", ATLAS_LAYER_LABELS), "Climate 1991-2020")
+  # In the order, the newer moisture and temperature means sit beside WorldClim's.
+  order <- ATLAS_PREDICTOR_PRIORITY
+  expect_lt(abs(match("cna_map", order) - match("bio12", order)), 3)
+  expect_lt(abs(match("cna_mat", order) - match("bio1", order)), 3)
+})

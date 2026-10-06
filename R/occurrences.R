@@ -94,7 +94,7 @@ ATLAS_MO_UNKNOWN <- "keep"
 atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
                                      unknown = ATLAS_MO_UNKNOWN) {
   unknown <- match.arg(unknown, c("keep", "drop"))
-  json <- "m.api_response_json::jsonb"
+  json <- "CAST(m.api_response_json AS jsonb)"
   edge <- function(side) sprintf("(%s -> 'location' ->> '%s')::numeric", json, side)
   half_diagonal_km <- sprintf(
     "sqrt(power((%s - %s) * 111.2, 2) + power((%s - %s) * 111.2 * cos(radians((%s + %s) / 2)), 2)) / 2",

@@ -43,7 +43,8 @@ ATLAS_BASE_LAYERS <- ATLAS_PRODUCTION_LAYERS
 # "all" means every new group that is built, so a sweep run before the last
 # download lands still compares the full set it has.
 atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
-                                   base = ATLAS_BASE_LAYERS, method = FALSE) {
+                                   base = ATLAS_BASE_LAYERS, method = FALSE,
+                                   swaps = list()) {
   if (!is.null(built)) {
     new <- new[vapply(new, function(ids) all(ids %in% built), logical(1))]
   }
@@ -66,9 +67,23 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
       })
     }), recursive = FALSE)
   }
+  # A swap replaces production layers with candidates rather than adding to
+  # them: the question is not "does this add anything" but "is this better
+  # than what it would replace". Maxent and the forest both answer it.
+  if (!is.null(built)) {
+    swaps <- swaps[vapply(swaps, function(s) all(s$add %in% built), logical(1))]
+  }
+  swapped <- unlist(lapply(names(swaps), function(name) {
+    layers <- c(setdiff(base, swaps[[name]]$drop), swaps[[name]]$add)
+    list(
+      list(arm = paste0("swap:", name), algorithm = "maxnet", layers = layers),
+      list(arm = paste0("rf:swap:", name), algorithm = "rf", layers = layers)
+    )
+  }), recursive = FALSE)
   c(
     list(list(arm = "base", algorithm = "maxnet", layers = base)),
     groups,
+    swapped,
     flat,
     list(
       list(arm = "all", algorithm = "maxnet", layers = everything),
@@ -119,6 +134,13 @@ atlas_design_rows <- function(train, design = "sites", n_background = 10000, see
 # The candidate layers, by the question each one asks.
 ATLAS_NEW_LAYER_GROUPS <- list(
   climate = "waterbalance"
+)
+
+# Candidates that would replace a production layer: what goes, what comes in.
+# climate1991: WorldClim's 1970-2000 bioclim out; ClimateNA's 1991-2020
+# normals (the climatena layer and the water-balance layer together) in.
+ATLAS_SWAP_LAYER_GROUPS <- list(
+  climate1991 = list(drop = "bioclim", add = c("climatena", "waterbalance"))
 )
 
 #' Keep the arms whose layers are all built, and say which were dropped.
@@ -272,13 +294,15 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
                               correlation = 0.7, quiet = FALSE, method = TRUE,
                               base = ATLAS_BASE_LAYERS,
                               groups = ATLAS_NEW_LAYER_GROUPS,
+                              swaps = ATLAS_SWAP_LAYER_GROUPS,
                               occurrences = NULL, points = NULL,
                               stack = NULL, bands = NULL, taxa = NULL) {
   bands <- bands %||% atlas_layer_bands(grid)
   built <- names(bands)
   unbuilt <- names(groups)[!vapply(groups, function(ids) all(ids %in% built), logical(1))]
   arms <- atlas_runnable_arms(
-    atlas_layer_sweep_arms(groups, built = built, base = base, method = method), built
+    atlas_layer_sweep_arms(groups, built = built, base = base, method = method,
+                           swaps = swaps), built
   )
   skipped <- c(attr(arms, "skipped"), paste0("+", unbuilt))
   if (!length(arms)) {

@@ -354,7 +354,7 @@ test_that("the decay-host bands sit in the host block, after the host genera, fo
 test_that("without the decay-host bands, every guild's priority is exactly what it was", {
   for (guild in names(PRIORITY_BEFORE_DECAY_HOSTS)) {
     order <- atlas_predictor_priority(guild)
-    expect_equal(order[!order %in% ATLAS_HOST_DECAY_BANDS], PRIORITY_BEFORE_DECAY_HOSTS[[guild]],
+    expect_equal(order[!order %in% c(ATLAS_HOST_DECAY_BANDS, unname(ATLAS_CLIMATENA_CORE_VARS))], PRIORITY_BEFORE_DECAY_HOSTS[[guild]],
                  info = guild)
   }
   # What a model is offered depends only on the columns it has: on a table
