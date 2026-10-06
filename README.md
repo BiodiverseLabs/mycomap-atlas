@@ -553,8 +553,11 @@ rarely beats all nineteen. In the first full build 4% of 1,801 ensembles from
 3-4 sites passed (fewer than chance alone lets through) and 40% from 16-19.
 Until 2026-10-04 a map from 3 or 4 sites was drawn only when it passed
 (`map_withheld`); those are fitted again and drawn. The site labels a failed
-ensemble "too few sites to tell", with how often maps of its size had clear
-skill in the study above (`web/src/lib/sparseSkill.ts`). An algorithm can
+ensemble "too few sites to tell" (`web/src/lib/sparseSkill.ts`), a hint about
+where to look rather than a finding. It used to add how often maps of its size
+had clear skill in the study above; that rate came from common, widespread
+fungi thinned at random, and a taxon with a handful of sites is usually rare or
+regional, so it is no longer offered as reassurance (2026-10-06). An algorithm can
 still hold maps back below a site count (`map_needs_skill_below`); none does.
 
 ## Virtual species: testing the method where the answer is known

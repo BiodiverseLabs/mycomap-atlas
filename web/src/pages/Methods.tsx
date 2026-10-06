@@ -518,9 +518,11 @@ export default function Methods() {
                 to 19) that even a sound map rarely beats all nineteen: in the first full build 4%
                 of the ensembles from 3 or 4 sites passed, fewer than chance alone lets through,
                 and 40% of those from 16 to 19. So a small-model map that fails is labelled{" "}
-                <B>too few sites to tell</B>, with how often maps of its size had clear skill when
-                they could be checked: about half from 3 to 7 sites, 6 in 10 from 8 to 11, and 2
-                in 3 from 12 to 19.
+                <B>too few sites to tell</B>, and drawn faint: a hint about where to look, not a
+                finding. The study above measured how often maps of a given size had clear skill,
+                but on common, widespread fungi thinned at random; a taxon with a handful of sites
+                is usually rare or known from one region, so that rate is not offered as
+                reassurance for it.
               </p>
               <p>
                 Below 3 sites a taxon is a survey target: every sequenced collection from a new
