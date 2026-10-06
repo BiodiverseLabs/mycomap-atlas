@@ -336,6 +336,13 @@ atlas_cache_control <- function(path, query = "") {
   if (identical(path, "/api/me") || endsWith(path, "/raster.tif")) {
     return("private, no-store")
   }
+  # A Here answer is about the point a visitor chose, which sits in the query
+  # to about 10 m. Kept, it would sit in nginx's cache (the cache key) for up
+  # to an hour; and points differ from visitor to visitor, so a cache would
+  # store them without ever serving one twice.
+  if (identical(path, "/api/here")) {
+    return("private, no-store")
+  }
   if ((endsWith(path, "/map.png") || endsWith(path, "/ensemble.png")) &&
       grepl("(^|&)v=", sub("^[?]", "", query))) {
     return("public, max-age=31536000, immutable")

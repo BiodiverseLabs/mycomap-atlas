@@ -413,3 +413,9 @@ test_that("an error answer is never left cacheable, whatever its path", {
     })
   })
 })
+
+test_that("a Here answer is never kept by a shared cache: it carries the visitor's point", {
+  expect_equal(atlas_cache_control("/api/here", "lat=44.0123&lng=-123.0456"), "private, no-store")
+  # Other public answers are still kept for five minutes.
+  expect_equal(atlas_cache_control("/api/taxa", "q=Amanita"), "public, max-age=300")
+})
