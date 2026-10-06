@@ -124,3 +124,6 @@ jobs:
       - name: Type-check and build
         working-directory: web
         run: pnpm build
+      - name: Test
+        working-directory: web
+        run: pnpm test

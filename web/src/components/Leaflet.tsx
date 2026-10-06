@@ -94,7 +94,10 @@ export function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null 
   const map = useMap();
   const key = bounds == null ? null : same(bounds);
   useEffect(() => {
-    if (bounds != null) map.fitBounds(bounds);
+    // Not animated: the maps are made and refitted while the page is still
+    // settling, and an animated fit started then did not always finish,
+    // which left taxon maps opening on the whole world.
+    if (bounds != null) map.fitBounds(bounds, { animate: false });
   }, [map, key]);
   return null;
 }

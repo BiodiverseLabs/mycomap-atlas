@@ -14,6 +14,9 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // The pure modules in src/lib are tested with `node --test`, which needs
+    // the .ts extension on their imports.
+    "allowImportingTsExtensions": true,
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
