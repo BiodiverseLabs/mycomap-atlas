@@ -924,7 +924,11 @@ atlas_design <- function() list(
   inner_folds = ATLAS_INNER_FOLDS,
   skill = list(alpha = ATLAS_SKILL_ALPHA, boyce_above = 0,
                boyce = "held-out scores of every fold together",
-               nulls = "taxon and nulls both at untuned settings")
+               nulls = "taxon and nulls both at untuned settings"),
+  applicability = list(method = "dissimilarity index, Meyer & Pebesma 2021",
+                       weights = "mean fall in held-out AUC per predictor",
+                       threshold = "upper whisker of the training sites' index across folds",
+                       pair_sites = ATLAS_AOA_PAIR_SITES)
 )
 
 #' Everything that decides a fit apart from the records themselves.
@@ -1142,11 +1146,19 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   withheld <- atlas_map_withheld_at(algo, presences) && !identical(skill, "passed")
 
   held_score <- atlas_score_at_effort(algo$score, effort_at)
+  # Where the map knows what it is talking about (R/aoa.R): the model's own
+  # predictors, weighted by what it owed each on held-out ground.
+  used <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
+  aoa <- atlas_aoa_train(training, used, atlas_aoa_weights(attr(scores, "falls"), used),
+                         fold_ids, seed = seed)
   suitability <- NULL
+  dissimilarity <- NULL
   if (isTRUE(predict) && !withheld) {
     occupied <- training[training$presence == 1L, , drop = FALSE]
     area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
     suitability <- atlas_predict_raster(model, stack, area, score = held_score)
+    dissimilarity <- atlas_predict_raster(aoa, stack, area, score = atlas_aoa_index)
+    names(dissimilarity) <- "dissimilarity"
   } else if (isTRUE(write)) {
     # A map left over from an older fit would be drawn beside scores it does
     # not belong to, so it goes.
@@ -1182,6 +1194,14 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
       error = function(e) NULL
     )
     if (!is.null(regions)) regions$from <- "detection sites"
+  }
+  dissimilarity_path <- NULL
+  if (isTRUE(write) && !is.null(dissimilarity)) {
+    dissimilarity_path <- atlas_model_path(name, grid, ".di.tif", algorithm = algo$id)
+    terra::writeRaster(
+      dissimilarity, dissimilarity_path, overwrite = TRUE,
+      gdal = c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
+    )
   }
 
   metrics <- list(
@@ -1230,6 +1250,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     boyce_sd = round(stats::sd(scores$boyce, na.rm = TRUE), 3),
     null = null,
     skill = skill,
+    applicability = atlas_aoa_summary(aoa, dissimilarity),
+    dissimilarity = if (is.null(dissimilarity_path)) NULL else basename(dissimilarity_path),
     raster = if (is.null(raster_path)) NULL else basename(raster_path),
     md5 = if (is.null(raster_path)) NULL else unname(tools::md5sum(raster_path)),
     map = if (is.null(drawn)) NULL else basename(drawn$path),
@@ -1276,12 +1298,12 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   }
 
   invisible(list(model = model, metrics = metrics, scores = scores,
-                 suitability = suitability))
+                 suitability = suitability, dissimilarity = dissimilarity))
 }
 
 #' Delete a taxon's map, leaving its scores.
 atlas_remove_map <- function(name, grid = "draft", algorithm = "maxnet") {
-  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml"), algorithm)
+  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml", ".di.tif"), algorithm)
   unlink(paths[file.exists(paths)])
   invisible(paths)
 }
