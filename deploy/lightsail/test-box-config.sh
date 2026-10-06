@@ -60,6 +60,11 @@ grep -q 'ExecStart=/usr/bin/flock --nonblock /run/atlas-nightly.lock /usr/local/
 grep -q -- '--network host' "$here/systemd/atlas-api.service" && grep -q 'api --port=5100' "$here/systemd/atlas-api.service" \
   && pass "the API shares the host network on port 5100 (nginx reaches it from 127.0.0.1)" \
   || fail "atlas-api.service must run the API with --network host on 5100"
+# Without an init, R is the container's PID 1 and the kernel drops the SIGTERM
+# that docker stop sends: every restart waited out the timeout and was killed.
+grep -q -- 'docker run --rm --init ' "$here/systemd/atlas-api.service" && grep -qx 'SuccessExitStatus=143' "$here/systemd/atlas-api.service" \
+  && pass "the API stops on SIGTERM (--init), and that stop counts as clean (143)" \
+  || fail "atlas-api.service must run the API with --init and SuccessExitStatus=143"
 
 echo "== setup-box.sh, run on Ubuntu 24.04 (systemd, swap and sysctl stubbed)"
 box="atlas-setup-test-$$"

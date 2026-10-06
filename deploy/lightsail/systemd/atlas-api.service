@@ -11,10 +11,14 @@ Wants=network-online.target
 [Service]
 EnvironmentFile=/etc/atlas/image.env
 ExecStartPre=-/usr/bin/docker rm -f atlas-api
-ExecStart=/usr/bin/docker run --rm --name atlas-api --network host --memory 900m \
+# --init: without it R is the container's PID 1, which the kernel spares from
+# SIGTERM, so every stop waited the full 20 s and ended in SIGKILL (137).
+# With it, R stops at once; docker run then exits 143, which is a clean stop.
+ExecStart=/usr/bin/docker run --rm --init --name atlas-api --network host --memory 900m \
   --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
   ${ATLAS_IMAGE} api --port=5100
 ExecStop=/usr/bin/docker stop -t 20 atlas-api
+SuccessExitStatus=143
 Restart=always
 RestartSec=5
 
