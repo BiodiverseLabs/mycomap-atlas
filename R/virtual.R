@@ -281,6 +281,7 @@ atlas_virtual_taxon <- function(name, fingerprint, points, stack,
                                 n_background = 10000, buffer_km = 500, folds = 5,
                                 block_km = "auto", correlation = 0.7,
                                 min_blocks = ATLAS_MIN_BLOCKS, nulls = 0L,
+                                null_designs = "scatter", stop_after = NULL,
                                 truth_cells = ATLAS_VIRTUAL_TRUTH_CELLS) {
   started <- Sys.time()
   parsed <- atlas_virtual_parse(name)
@@ -356,14 +357,26 @@ atlas_virtual_taxon <- function(name, fingerprint, points, stack,
   })
 
   if (nulls > 0L) {
-    row$null <- tryCatch({
-      null <- atlas_null_test(tables$pruned, fold_ids, atlas_algorithm("maxnet"),
-                              reps = nulls, seed = seed)
-      baseline <- Filter(function(a) identical(a$arm, ATLAS_VIRTUAL_BASELINE), row$arms)
-      boyce <- if (length(baseline)) baseline[[1]]$boyce else NA_real_
-      c(null[c("reps", "observed_auc", "auc_mean", "auc_sd", "auc_p")],
-        list(skill = atlas_skill(null, boyce)))
-    }, error = function(e) list(error = conditionMessage(e)))
+    baseline <- Filter(function(a) identical(a$arm, ATLAS_VIRTUAL_BASELINE), row$arms)
+    boyce <- if (length(baseline)) baseline[[1]]$boyce else NA_real_
+    # Production's test exactly, unless a design or early stopping is asked
+    # for; then the sequential test, which takes every design.
+    row$nulls <- stats::setNames(lapply(null_designs, function(design) {
+      tryCatch({
+        null <- if (identical(design, "scatter") && is.null(stop_after)) {
+          c(atlas_null_test(tables$pruned, fold_ids, atlas_algorithm("maxnet"),
+                            reps = nulls, seed = seed), list(design = "scatter"))
+        } else {
+          atlas_null_test_sequential(tables$pruned, fold_ids, atlas_algorithm("maxnet"),
+                                     reps = nulls, seed = seed, design = design,
+                                     stop_after = stop_after %||% (nulls + 1L))
+        }
+        keep <- intersect(c("design", "reps", "observed_auc", "auc_mean", "auc_sd", "auc_p",
+                            "stopped_early", "drawn", "fallbacks"), names(null))
+        c(null[keep], list(boyce = boyce, skill = atlas_skill(null, boyce)))
+      }, error = function(e) list(design = design, error = conditionMessage(e)))
+    }), null_designs)
+    row$null <- row$nulls[[1]]
   }
   c(row, list(status = "scored", blocks = blocks,
               seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)))
@@ -438,35 +451,62 @@ atlas_virtual_summary <- function(rows, baseline = ATLAS_VIRTUAL_BASELINE) {
   out
 }
 
-#' How often the null test passed, by kind: a pass is a false pass for a
-#' geography species and a true pass for a habitat species.
+#' How often the null test passed, by design and kind: a pass is a false
+#' pass for a geography species and a true pass for a habitat species.
+#'
+#' passed uses each map's own p at ATLAS_SKILL_ALPHA; fdr_passed uses
+#' Benjamini-Hochberg q-values over every species tested with that design
+#' (both kinds together, as a release would test every taxon), with the same
+#' Boyce condition. nulls is the mean number of nulls drawn, and fallback the
+#' share of shifted nulls that had to be scattered.
 atlas_virtual_null_summary <- function(rows) {
-  tested <- Filter(function(r) identical(r$status, "scored") && is.character(r$null$skill), rows)
+  tested <- Filter(function(r) identical(r$status, "scored") && length(r$nulls %||% r$null), rows)
   if (!length(tested)) return(data.frame())
-  long <- data.frame(
-    kind = vapply(tested, function(r) r$kind, character(1)),
-    band = vapply(tested, function(r) r$band, character(1)),
-    passed = vapply(tested, function(r) identical(r$null$skill, "passed"), logical(1)),
-    p = vapply(tested, function(r) as.numeric(r$null$auc_p %||% NA), numeric(1)),
-    stringsAsFactors = FALSE
-  )
-  do.call(rbind, lapply(split(long, long$kind), function(x) data.frame(
-    kind = x$kind[[1]], species = nrow(x), passed = sum(x$passed),
-    pass_rate = round(mean(x$passed), 3),
-    pass_se = round(sqrt(mean(x$passed) * (1 - mean(x$passed)) / nrow(x)), 3),
-    median_p = round(stats::median(x$p, na.rm = TRUE), 3),
-    stringsAsFactors = FALSE
-  )))
+  long <- do.call(rbind, lapply(tested, function(r) {
+    results <- r$nulls %||% list(scatter = r$null)
+    do.call(rbind, lapply(results, function(n) {
+      if (!is.character(n$skill)) return(NULL)
+      data.frame(
+        kind = r$kind, design = n$design %||% "scatter",
+        p = as.numeric(n$auc_p %||% NA), boyce = as.numeric(n$boyce %||% NA),
+        passed = identical(n$skill, "passed"),
+        drawn = as.numeric(n$drawn %||% n$reps %||% NA),
+        fallbacks = as.numeric(n$fallbacks %||% 0),
+        stringsAsFactors = FALSE
+      )
+    }))
+  }))
+  if (is.null(long) || !nrow(long)) return(data.frame())
+  long$q <- stats::ave(long$p, long$design, FUN = atlas_null_qvalues)
+  long$fdr_passed <- is.finite(long$q) & long$q <= ATLAS_SKILL_ALPHA &
+    is.finite(long$boyce) & long$boyce > 0
+  out <- do.call(rbind, lapply(split(long, list(long$design, long$kind), drop = TRUE), function(x) {
+    rate <- mean(x$passed)
+    data.frame(
+      design = x$design[[1]], kind = x$kind[[1]], species = nrow(x),
+      passed = sum(x$passed), pass_rate = round(rate, 3),
+      pass_se = round(sqrt(rate * (1 - rate) / nrow(x)), 3),
+      fdr_passed = sum(x$fdr_passed), fdr_rate = round(mean(x$fdr_passed), 3),
+      median_p = round(stats::median(x$p, na.rm = TRUE), 3),
+      nulls = round(mean(x$drawn, na.rm = TRUE), 1),
+      fallback = round(sum(x$fallbacks) / max(1, sum(x$drawn, na.rm = TRUE)), 3),
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(out) <- NULL
+  out
 }
 
 #' Run the virtual-species study: species of each kind, every arm.
 atlas_virtual_study <- function(grid = "draft", species = 40, kinds = "habitat",
-                                arms = ATLAS_VIRTUAL_ARMS, nulls = 0L, workers = 1L,
+                                arms = ATLAS_VIRTUAL_ARMS, nulls = 0L,
+                                null_designs = "scatter", stop_after = NULL, workers = 1L,
                                 seed = 1L, n_background = 10000, buffer_km = 500,
                                 folds = 5, block_km = "auto", correlation = 0.7,
                                 quiet = FALSE, occurrences = NULL, points = NULL,
                                 stack = NULL) {
   for (arm in arms) atlas_virtual_learner(arm)
+  for (design in null_designs) atlas_null_design(design)
   if (is.null(points)) {
     occurrences <- occurrences %||% atlas_read_occurrences()
     points <- atlas_occurrence_points(occurrences, grid)
@@ -476,7 +516,8 @@ atlas_virtual_study <- function(grid = "draft", species = 40, kinds = "habitat",
   fingerprints <- stats::setNames(lapply(names, atlas_virtual_fingerprint, seed = seed), names)
   args <- list(arms = arms, grid = grid, n_background = n_background, buffer_km = buffer_km,
                folds = folds, block_km = block_km, correlation = correlation,
-               nulls = as.integer(nulls))
+               nulls = as.integer(nulls), null_designs = null_designs,
+               stop_after = if (!is.null(stop_after)) as.integer(stop_after))
   settings <- c(args, list(
     species = species, kinds = as.list(kinds), seed = seed, design = atlas_design(),
     truth_cells = ATLAS_VIRTUAL_TRUTH_CELLS, targets = ATLAS_VIRTUAL_TARGETS,
@@ -492,7 +533,11 @@ atlas_virtual_study <- function(grid = "draft", species = 40, kinds = "habitat",
     opening = paste0(length(names), " virtual species (", paste(kinds, collapse = ", "),
                      ", ", species, " each), collected at the real survey sites with their ",
                      "real effort; arms: ", paste(arms, collapse = ", "),
-                     if (nulls > 0L) paste0("; ", nulls, " nulls for production Maxent") else "")
+                     if (nulls > 0L) paste0("; up to ", nulls, " nulls for production Maxent (",
+                                            paste(null_designs, collapse = ", "),
+                                            if (!is.null(stop_after)) paste0(", stopping after ",
+                                                                             stop_after, " as good"),
+                                            ")") else "")
   )
   nulls_table <- atlas_virtual_null_summary(result$taxa)
   if (!isTRUE(quiet) && nrow(nulls_table)) print(nulls_table, row.names = FALSE)

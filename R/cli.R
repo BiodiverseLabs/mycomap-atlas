@@ -62,7 +62,9 @@ atlas_usage <- function() {
   message("                                distance from a centre (default habitat)")
   message("      --arms=maxnet:none,...    arms to fit (default: Maxent's four effort modes,")
   message("                                the detection model and the forest)")
-  message("      --nulls=N                 run production Maxent's null test with N nulls")
+  message("      --nulls=N                 run production Maxent's null test with up to N nulls")
+  message("      --null-designs=scatter,shift,shift-effort  null designs to compare (default scatter)")
+  message("      --stop-after=N            stop a null test once N nulls do as well (default: never)")
   message("      --workers=N               species at once (default 1)")
   message("      --seed=N                  which species (default 1)")
   message("  study-blocks       which block size makes cross-validation test at the distances")
@@ -365,6 +367,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         kinds = split_flag(flags$kinds, "habitat"),
         arms = split_flag(flags$arms, ATLAS_VIRTUAL_ARMS),
         nulls = as.integer(atlas_flag_number(flags, "nulls", 0)),
+        null_designs = split_flag(flags$null_designs, "scatter"),
+        stop_after = if (is.null(flags$stop_after)) NULL else as.integer(atlas_flag_number(flags, "stop_after", 5)),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )
