@@ -1114,6 +1114,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
   raster_path <- NULL
   drawn <- NULL
+  regions <- NULL
   if (isTRUE(write) && !is.null(suitability)) {
     raster_path <- atlas_model_path(name, grid, algorithm = algo$id)
     dir.create(dirname(raster_path), recursive = TRUE, showWarnings = FALSE)
@@ -1123,6 +1124,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     )
     # Draw it too, so a new fit shows up in the app without a second command.
     drawn <- atlas_write_map_png(suitability, sub("[.]tif$", ".png", raster_path))
+    # And count it by state, for the lists of where it is likely
+    # (R/predictions.R). A failure here costs the lists, not the fit.
+    regions <- tryCatch(
+      atlas_region_counts(suitability, occupied$x, occupied$y),
+      error = function(e) NULL
+    )
+    if (!is.null(regions)) regions$from <- "detection sites"
   }
 
   metrics <- list(
@@ -1177,6 +1185,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     bounds = if (is.null(drawn)) NULL else drawn$bounds,
     map_scale = if (is.null(drawn)) NULL else drawn$scale,
     map_drawn_at = if (is.null(drawn)) NULL else drawn$drawn_at,
+    regions = regions,
     built_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     r_version = as.character(getRversion()),
     package = algo$package,

@@ -108,7 +108,8 @@ test_that("the checklist CSV opens in Excel with its accents, quotes and links i
   expect_true(startsWith(csv, "\ufeff"))
   lines <- strsplit(sub("^\ufeff", "", csv), "\r\n", fixed = TRUE)[[1]]
   expect_equal(lines[[1]], paste0("\"country\",\"state_province\",\"region_code\",\"scientific_name\",",
-                                  "\"validated_records\",\"independent_localities\",\"atlas_page\""))
+                                  "\"status\",\"validated_records\",\"independent_localities\",\"model\",",
+                                  "\"suitable_area_pct\",\"within_reach_pct\",\"atlas_page\""))
   expect_length(lines, 3L)
   parsed <- utils::read.csv(text = sub("^\ufeff", "", csv), stringsAsFactors = FALSE, encoding = "UTF-8")
   expect_equal(parsed$scientific_name[[1]], "Cortinarius sp. \"IN01\"")

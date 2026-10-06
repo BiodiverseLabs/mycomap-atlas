@@ -242,3 +242,20 @@ test_that("a drawn map records how its colours were scaled", {
   expect_equal(drawn$scale, "rank")
   expect_match(drawn$drawn_at, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T")
 })
+
+test_that("redrawing maps on one worker really redraws them", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    r <- terra::rast(xmin = 0, xmax = 5e5, ymin = 0, ymax = 5e5, resolution = 5000, crs = ATLAS_CRS)
+    terra::values(r) <- seq_len(terra::ncell(r))
+    dir.create(atlas_model_dir("draft", "maxnet"), recursive = TRUE, showWarnings = FALSE)
+    tif <- atlas_model_path("Redrawn fungus", "draft", ".tif", "maxnet")
+    terra::writeRaster(r, tif)
+    atlas_write_json(list(taxon = "Redrawn fungus"), sub("[.]tif$", ".json", tif))
+    atlas_rebuild_maps(quiet = TRUE)
+    expect_true(file.exists(sub("[.]tif$", ".png", tif)))
+    metrics <- jsonlite::fromJSON(sub("[.]tif$", ".json", tif))
+    expect_equal(metrics$map_scale, ATLAS_MAP_SCALE)
+    expect_false(is.null(metrics$bounds))
+  })
+})

@@ -537,6 +537,9 @@ export default function Taxon() {
           >
             On mycomap.org <ArrowUpRight className="h-3.5 w-3.5" />
           </a>
+          <a href="#where" className="inline-flex items-center gap-1 hover:text-myco-green">
+            Where it occurs <ArrowDown className="h-3.5 w-3.5" />
+          </a>
           <a href="#use" className="inline-flex items-center gap-1 hover:text-myco-green">
             Embed or download <ArrowDown className="h-3.5 w-3.5" />
           </a>

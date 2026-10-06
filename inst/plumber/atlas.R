@@ -16,6 +16,9 @@ if (requireNamespace("mycomapatlas", quietly = TRUE)) {
 
 cache <- new.env(parent = emptyenv())
 
+# Links written into downloaded files and pictures point at this site.
+site_origin <- atlas_site_origin()
+
 cached_occurrences <- function() {
   if (is.null(cache$occurrences)) {
     cache$occurrences <- atlas_read_occurrences()
@@ -400,6 +403,46 @@ function(name, grid = "draft", algorithm = "maxnet", req, res) {
   ))
 }
 
+#* A taxon's map as one picture for a spreadsheet, document or slide:
+#* Natural Earth land and state lines under the map, the collections, the
+#* name, a legend and the source. Excel shows it with =IMAGE(url).
+#* @param algorithm maxnet, xgboost, rf or esm; the taxon's main map when left out
+#* @param width 600, 900, 1200 (default) or 1600 pixels
+#* @param points 0 to leave out the collections
+#* @get /api/taxa/<name>/image.png
+function(name, algorithm = "", width = "1200", points = "1", res) {
+  decoded <- atlas_decode_name(name)
+  row <- atlas_taxon_row(cached_taxa(), decoded)
+  chosen <- atlas_image_algorithm(decoded, algorithm)
+  if (is.null(row) || is.null(chosen)) {
+    res$status <- if (is.null(row)) 404L else 400L
+    return(res)
+  }
+  width <- as.integer(width)
+  width <- if (is.na(width)) 1200L else ATLAS_IMAGE_WIDTHS[[which.min(abs(ATLAS_IMAGE_WIDTHS - width))]]
+  show_points <- !identical(points, "0")
+  metrics_path <- atlas_model_path(decoded, "draft", ".json", chosen)
+  metrics <- if (file.exists(metrics_path)) jsonlite::fromJSON(metrics_path, simplifyVector = FALSE) else NULL
+  if (!is.null(metrics)) metrics$algorithm <- chosen
+  source <- cached_cells_source()
+  cells <- atlas_taxon_cells(decoded, source$occurrences, source$public)
+  # Drawn once per map version, size and choice; a later request reads the file.
+  key <- digest::digest(list(decoded, chosen, metrics$map_drawn_at %||% metrics$built_at,
+                             width, show_points, nrow(cells), sum(cells$records)))
+  dir <- file.path(tempdir(), "atlas-images")
+  dir.create(dir, showWarnings = FALSE)
+  path <- file.path(dir, paste0(key, ".png"))
+  if (!file.exists(path)) {
+    atlas_write_map_image(path, decoded, metrics, atlas_model_path(decoded, "draft", ".png", chosen),
+                          cells, records = row$records, width = width, points = show_points,
+                          site = site_origin)
+  }
+  res$status <- 200L
+  res$setHeader("Content-Type", "image/png")
+  res$body <- readBin(path, "raw", file.info(path)$size)
+  res
+}
+
 #* Where a taxon has been collected, aggregated to the public grid.
 #* @get /api/taxa/<name>/cells
 #* @serializer unboxedJSON
@@ -411,9 +454,6 @@ function(name) {
 }
 
 # ---- states and provinces ----------------------------------------------------
-
-# Links written into a downloaded checklist point at this site.
-site_origin <- atlas_site_origin()
 
 # Every taxon by state, province and territory: built from the pull where this
 # machine has it, read from the release everywhere else.
@@ -429,46 +469,78 @@ cached_regions <- function() {
   cache$regions
 }
 
+# Recorded and predicted together (R/predictions.R): the record table, and
+# what every map that beat its null models says about each state. Rebuilt
+# when the model index has read new files, looked at once every few minutes.
+cached_region_status <- function() {
+  recorded <- cached_regions()
+  if (is.null(recorded)) return(NULL)
+  now <- as.numeric(Sys.time())
+  if (is.null(cache$region_status) || now - (cache$region_status_checked %||% 0) > 300) {
+    if (is.null(cache$models_draft)) cache$models_draft <- new.env(parent = emptyenv())
+    atlas_model_index("draft", cache$models_draft)
+    reads <- cache$models_draft$reads %||% 0L
+    if (is.null(cache$region_status) || !identical(cache$region_status_reads, reads)) {
+      predictions <- atlas_region_predictions(atlas_model_region_rows(cache$models_draft))
+      cache$region_status <- atlas_region_status(recorded, predictions)
+      cache$region_mapped <- unique(predictions$taxon)
+      cache$region_status_reads <- reads
+    }
+    cache$region_status_checked <- now
+  }
+  cache$region_status
+}
+
 # Built at boot: from the pull it takes several seconds, and plumber answers
 # one request at a time.
-invisible(tryCatch(cached_regions(), error = function(e) NULL))
+invisible(tryCatch(cached_region_status(), error = function(e) NULL))
+
+NO_REGIONS <- "no region table on this server yet"
 
 #* Every state, province and territory with validated records, with how many
-#* taxa each holds.
+#* taxa each holds and how many more its maps call likely.
 #* @get /api/regions
 #* @serializer unboxedJSON
 function(res) {
-  table <- cached_regions()
+  table <- cached_region_status()
   if (is.null(table)) {
     res$status <- 503L
-    return(list(error = "no region table on this server yet"))
+    return(list(error = NO_REGIONS))
   }
   list(regions = atlas_regions_summary(table))
 }
 
-#* Where one taxon has been recorded, by state, province or territory.
+#* Where one taxon has been recorded, and where its maps say it is likely,
+#* by state, province or territory.
 #* @get /api/taxa/<name>/regions
 #* @serializer unboxedJSON
 function(name, res) {
   decoded <- atlas_decode_name(name)
-  table <- cached_regions()
+  table <- cached_region_status()
   if (is.null(table)) {
     res$status <- 503L
-    return(list(error = "no region table on this server yet"))
+    return(list(error = NO_REGIONS))
   }
   rows <- atlas_checklist(table, taxon = decoded)
-  list(name = decoded, regions = rows[, c("country", "region", "code", "records", "localities"), drop = FALSE])
+  list(
+    name = decoded,
+    mapped = decoded %in% cache$region_mapped,
+    min_share = ATLAS_REGION_MIN_SHARE,
+    regions = rows[, c("country", "region", "code", "records", "localities",
+                       "model", "suitable_share", "reach_share"), drop = FALSE]
+  )
 }
 
 #* Taxa by state or province as a CSV that opens in Excel: everything, one
-#* region, one country, or one taxon.
+#* region, one country, or one taxon. Recorded taxa, and those the maps call
+#* likely without a record yet.
 #* @param region A region code such as US-IN or CA-BC, its name, or a country code (US, CA, MX)
 #* @param taxon An exact scientific name
 #* @get /api/checklist.csv
 function(region = "", taxon = "", res) {
-  table <- cached_regions()
+  table <- cached_region_status()
   if (is.null(table)) {
-    return(atlas_send(res, list(status = 503L, body = list(error = "no region table on this server yet"))))
+    return(atlas_send(res, list(status = 503L, body = list(error = NO_REGIONS))))
   }
   taxon <- atlas_decode_name(taxon)
   rows <- atlas_checklist(table, region, taxon)
