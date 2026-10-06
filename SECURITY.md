@@ -4,7 +4,7 @@
 
 Use GitHub's **Report a vulnerability** button under this repository's Security
 tab, which opens a private advisory. If that is not available to you, email
-steve@biodiverselabs.io.
+info@mycomap.org.
 
 Please do not open a public issue for a security report.
 

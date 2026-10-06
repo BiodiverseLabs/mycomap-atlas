@@ -2,7 +2,7 @@ Package: mycomapatlas
 Type: Package
 Title: MycoMap Atlas: Distribution Models from DNA-Validated Records
 Version: 0.0.0.9000
-Authors@R: person("MycoMap", role = c("aut", "cre"), email = "steve@biodiverselabs.io")
+Authors@R: person("MycoMap", role = c("aut", "cre"), email = "info@mycomap.org")
 Description: Fits and publishes species distribution models for fungi from
     DNA-validated MycoMap records. Reads mycomap.org through its read-only SQL
     route, fits Maxent (maxnet) and boosted-tree models against a target-group
