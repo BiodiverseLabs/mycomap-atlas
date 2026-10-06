@@ -339,13 +339,17 @@ PRIORITY_BEFORE_DECAY_HOSTS <- list(
 )
 
 test_that("the decay-host bands sit in the host block, after the host genera, for both guild kinds", {
+  species <- atlas_host_species_bands()
   for (guild in c("ectomycorrhizal", "unknown")) {
     order <- atlas_predictor_priority(guild)
     last_host <- match("host_arbutus", order)
     expect_equal(order[last_host + seq_along(ATLAS_HOST_DECAY_BANDS)],
                  ATLAS_HOST_DECAY_BANDS, info = guild)
     expect_true(all(match(ATLAS_HOST_BANDS, order) < min(match(ATLAS_HOST_DECAY_BANDS, order))))
-    after <- order[[max(match(ATLAS_HOST_DECAY_BANDS, order)) + 1L]]
+    # The species come after every genus, so a genus wins a tie with its species.
+    last_genus <- max(match(ATLAS_HOST_DECAY_BANDS, order))
+    expect_equal(order[last_genus + seq_along(species)], species, info = guild)
+    after <- order[[max(match(species, order)) + 1L]]
     expect_equal(after, if (guild == "ectomycorrhizal") "clim_cmd" else "forest_needleleaf",
                  info = guild)
   }
@@ -354,7 +358,8 @@ test_that("the decay-host bands sit in the host block, after the host genera, fo
 test_that("without the decay-host bands, every guild's priority is exactly what it was", {
   for (guild in names(PRIORITY_BEFORE_DECAY_HOSTS)) {
     order <- atlas_predictor_priority(guild)
-    expect_equal(order[!order %in% c(ATLAS_HOST_DECAY_BANDS, unname(ATLAS_CLIMATENA_CORE_VARS))], PRIORITY_BEFORE_DECAY_HOSTS[[guild]],
+    expect_equal(order[!order %in% c(ATLAS_HOST_DECAY_BANDS, atlas_host_species_bands(),
+                                     unname(ATLAS_CLIMATENA_CORE_VARS))], PRIORITY_BEFORE_DECAY_HOSTS[[guild]],
                  info = guild)
   }
   # What a model is offered depends only on the columns it has: on a table
@@ -375,6 +380,8 @@ test_that("a decay host's share counts against the host allowance like any host"
   n <- nrow(training)
   set.seed(11)
   for (band in ATLAS_HOST_DECAY_BANDS) training[[band]] <- stats::runif(n, 0, 0.02)
+  # Elm is all but absent here, so it is not pinned (see the elm test).
+  training$host_ulmus <- stats::runif(n, 0, 0.002)
   # Maple is the region's commonest tree after pine.
   training$host_acer <- stats::runif(n, 0.2, 0.5)
   kept <- atlas_choose_predictors(training, priority = atlas_predictor_priority("ectomycorrhizal"),
@@ -382,4 +389,46 @@ test_that("a decay host's share counts against the host allowance like any host"
   # Still three trees in ten predictors, and maple takes oak's place.
   expect_equal(sum(atlas_is_host_share(kept)), 3L)
   expect_equal(kept[atlas_is_host_share(kept)], c("host_conifer", "host_pinus", "host_acer"))
+})
+
+test_that("elm keeps a place among the trees wherever it grows, and only there", {
+  training <- host_training(40)
+  n <- nrow(training)
+  set.seed(12)
+  for (band in ATLAS_HOST_DECAY_BANDS) training[[band]] <- stats::runif(n, 0, 0.002)
+  training$host_acer <- stats::runif(n, 0.2, 0.5)
+  # Elm: 3% of the trees on average, far less than pine or maple.
+  training$host_ulmus <- stats::runif(n, 0.02, 0.04)
+  choose <- function(t) {
+    kept <- atlas_choose_predictors(t, priority = atlas_predictor_priority("ectomycorrhizal"),
+                                    host_share = atlas_host_allowance("ectomycorrhizal"))
+    kept[atlas_is_host_share(kept)]
+  }
+  expect_equal(choose(training), c("host_conifer", "host_ulmus", "host_pinus"))
+  # Where elm is under 1% of the trees it competes on share like any tree.
+  training$host_ulmus <- stats::runif(n, 0, 0.004)
+  expect_false("host_ulmus" %in% choose(training))
+  expect_equal(length(choose(training)), 3L)
+})
+
+test_that("tree species compete for the host allowance by share, so a northern and a southern oak region pick different oaks", {
+  training <- host_training(40)
+  n <- nrow(training)
+  set.seed(13)
+  for (band in ATLAS_HOST_DECAY_BANDS) training[[band]] <- stats::runif(n, 0, 0.002)
+  north <- training
+  north$host_quercus_rubra <- stats::runif(n, 0.3, 0.5)
+  north$host_quercus_virginiana <- stats::runif(n, 0, 0.001)
+  south <- training
+  south$host_quercus_rubra <- stats::runif(n, 0, 0.001)
+  south$host_quercus_virginiana <- stats::runif(n, 0.3, 0.5)
+  pick <- function(t) {
+    kept <- atlas_choose_predictors(t, priority = atlas_predictor_priority("ectomycorrhizal"),
+                                    host_share = atlas_host_allowance("ectomycorrhizal"))
+    kept[atlas_is_host_share(kept)]
+  }
+  expect_true("host_quercus_rubra" %in% pick(north))
+  expect_false("host_quercus_virginiana" %in% pick(north))
+  expect_true("host_quercus_virginiana" %in% pick(south))
+  expect_false("host_quercus_rubra" %in% pick(south))
 })

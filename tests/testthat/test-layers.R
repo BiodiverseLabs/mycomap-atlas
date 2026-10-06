@@ -300,7 +300,7 @@ test_that("the host layer is filled where the inventories are silent, with its f
   expect_false(isFALSE(registry$hosts$fill_flag))
   expect_equal(ATLAS_HOST_KNOWN_BANDS, "host_known")
   filled <- Filter(function(x) !is.null(x$fill_outside), registry)
-  expect_equal(names(filled), c("hosts", "hostsdecay"))
+  expect_equal(names(filled), c("hosts", "hostsdecay", "hostspecies"))
   # The decay hosts are silent where the host layer is, so they are filled
   # the same way and leave the saying of it to host_known.
   expect_equal(registry$hostsdecay$fill_outside, "host_known")
@@ -348,7 +348,8 @@ test_that("the decay hosts are a production layer, labelled, placed and credited
   expect_equal(entry$bands, ATLAS_HOST_DECAY_BANDS)
   expect_equal(ATLAS_HOST_DECAY_BANDS, paste0("host_", c(
     "acer", "fraxinus", "ulmus", "juniperus", "thuja", "liriodendron", "prunus",
-    "liquidambar", "platanus", "robinia"
+    "liquidambar", "platanus", "robinia", "juglans", "celtis", "taxodium", "sequoia",
+    "sequoiadendron", "calocedrus"
   )))
   for (field in c("source", "url", "license", "citation")) {
     expect_equal(entry[[field]], registry$hosts[[field]], info = field)
@@ -358,7 +359,10 @@ test_that("the decay hosts are a production layer, labelled, placed and credited
     expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
     expect_true(band %in% atlas_host_columns(), label = paste(band, "is in the host block"))
   }
-  expect_equal(atlas_label("hostsdecay", ATLAS_LAYER_LABELS), "Decay and parasite hosts")
+  # Shown as host trees, not as "decay hosts": maple, ash and elm host
+  # mycorrhizal fungi too.
+  expect_equal(atlas_label("hostsdecay", ATLAS_LAYER_LABELS), "Host trees")
+  expect_false(grepl("decay", registry$hostsdecay$title, ignore.case = TRUE))
   # Fitted on in production, built after the host layer whose totals it reads.
   expect_true("hostsdecay" %in% ATLAS_PRODUCTION_LAYERS)
   expect_gt(match("hostsdecay", ATLAS_PRODUCTION_LAYERS), match("hosts", ATLAS_PRODUCTION_LAYERS))
@@ -571,4 +575,17 @@ test_that("the 1991-2020 climate layer is registered, credited and labelled band
   order <- ATLAS_PREDICTOR_PRIORITY
   expect_lt(abs(match("cna_map", order) - match("bio12", order)), 3)
   expect_lt(abs(match("cna_mat", order) - match("bio1", order)), 3)
+})
+
+test_that("the species layer is a host-tree candidate, credited like the host trees and not yet in production", {
+  registry <- atlas_layer_registry()
+  entry <- registry$hostspecies
+  expect_equal(entry$bands, atlas_host_species_bands())
+  for (field in c("source", "url", "license", "citation")) {
+    expect_equal(entry[[field]], registry$hosts[[field]], info = field)
+  }
+  expect_equal(entry$fill_outside, "host_known")
+  expect_true(isFALSE(entry$fill_flag))
+  expect_true(all(entry$bands %in% atlas_host_columns()))
+  expect_false("hostspecies" %in% ATLAS_PRODUCTION_LAYERS)
 })

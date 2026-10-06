@@ -210,8 +210,8 @@ export default function Methods() {
                     </span>,
                   ],
                   [
-                    "Decay and parasite hosts",
-                    "share of a cell's trees that are each of 10 genera wood-decay and parasitic fungi live on (maple, ash, elm, juniper, cedar, tulip tree, cherry, sweetgum, sycamore, black locust), over the same trees as the host genera",
+                    "Host trees: more genera",
+                    "share of a cell's trees that are each of 16 more genera (maple, ash, elm, juniper, cedar, tulip tree, cherry, sweetgum, sycamore, black locust, walnut, hackberry, bald cypress, coast redwood, giant sequoia, incense-cedar), over the same trees as the host genera; maple, ash and elm host mycorrhizal, decay and parasitic fungi alike",
                     <span>
                       <DatasetLink id="bigmap" /> (lower 48), <DatasetLink id="nfi" /> (Canada)
                     </span>,
@@ -237,10 +237,9 @@ export default function Methods() {
                 gap should not take ground away from every model, so there the shares are 0 and one
                 more predictor says the inventories were silent: those records still train models,
                 those places are still mapped, and a model can tell "no such trees" from "nobody
-                mapped the trees". Hazel has no layer in BIGMAP and is left out. The decay and
-                parasite hosts are shares of the same trees, filled the same way; Canada's
-                inventory does not map tulip tree, sweetgum, sycamore or black locust, which read
-                0 there. Code:{" "}
+                mapped the trees". Hazel has no layer in either inventory and is left out. The
+                further genera are shares of the same trees, filled the same way; those Canada's
+                inventory does not map read 0 there. Code:{" "}
                 <Ext href={`${GITHUB_URL}/blob/main/R/hosts.R`}>R/hosts.R</Ext>.
               </p>
               <p>
@@ -340,12 +339,12 @@ export default function Methods() {
                 </li>
                 <li>
                   The trees have an <B>allowance</B>: a third of an ectomycorrhizal fungus's
-                  predictors, a fifth of any other's, the decay and parasite hosts included; they
-                  come after the 19 host genera. The host trees are barely correlated with one
-                  another, so without it a fungus with forty sites spent its ten predictors on soil
-                  pH and nine trees, and had no climate at all. The ones kept are the conifer share
-                  and then the commonest trees of the region, judged on the non-detection sites,
-                  never on the detections.
+                  predictors, a fifth of any other's, the further genera included; they come after
+                  the 19 host genera. The host trees are barely correlated with one another, so
+                  without it a fungus with forty sites spent its ten predictors on soil pH and nine
+                  trees, and had no climate at all. The ones kept are the conifer share, then elm
+                  wherever it is at least 1% of the region's trees, then the commonest trees of the
+                  region, judged on the non-detection sites, never on the detections.
                 </li>
                 <li>
                   The count is capped at about <B>one predictor per four detection sites</B>.

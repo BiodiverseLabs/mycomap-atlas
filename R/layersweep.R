@@ -75,9 +75,12 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
   }
   swapped <- unlist(lapply(names(swaps), function(name) {
     layers <- c(setdiff(base, swaps[[name]]$drop), swaps[[name]]$add)
+    # exclude: single predictors left out of the layers kept, for a swap that
+    # replaces part of a layer (the genus bands a species band refines).
+    exclude <- swaps[[name]]$exclude
     list(
-      list(arm = paste0("swap:", name), algorithm = "maxnet", layers = layers),
-      list(arm = paste0("rf:swap:", name), algorithm = "rf", layers = layers)
+      list(arm = paste0("swap:", name), algorithm = "maxnet", layers = layers, exclude = exclude),
+      list(arm = paste0("rf:swap:", name), algorithm = "rf", layers = layers, exclude = exclude)
     )
   }), recursive = FALSE)
   c(
@@ -194,6 +197,7 @@ atlas_layer_sweep_taxon <- function(name, fingerprint, points, stack, arms,
   run_arm <- function(arm) {
     arm_started <- Sys.time()
     columns <- intersect(unlist(bands[arm$layers], use.names = FALSE), names(training))
+    columns <- setdiff(columns, arm$exclude)
     design <- arm$design %||% "sites"
     ordered_as <- if (isFALSE(arm$guild_order)) ATLAS_GUILD_UNKNOWN else guild
     available <- training[, c(bookkeeping, columns, effort_column), drop = FALSE]
@@ -296,7 +300,8 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
                               groups = ATLAS_NEW_LAYER_GROUPS,
                               swaps = ATLAS_SWAP_LAYER_GROUPS,
                               occurrences = NULL, points = NULL,
-                              stack = NULL, bands = NULL, taxa = NULL) {
+                              stack = NULL, bands = NULL, taxa = NULL,
+                              importance = ATLAS_IMPORTANCE_ARMS) {
   bands <- bands %||% atlas_layer_bands(grid)
   built <- names(bands)
   unbuilt <- names(groups)[!vapply(groups, function(ids) all(ids %in% built), logical(1))]
@@ -319,13 +324,17 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
   args <- list(
     arms = arms, bands = bands, grid = grid, n_background = n_background,
     buffer_km = buffer_km, folds = folds, block_km = block_km,
-    regmult = regmult, correlation = correlation, min_presences = min_presences
+    regmult = regmult, correlation = correlation, min_presences = min_presences,
+    # Which arms are shuffled for importance: a forest given 300 tree species
+    # would be shuffled 300 times a fold, so a sweep can ask for fewer.
+    importance = importance
   )
   settings <- c(args[setdiff(names(args), c("arms", "bands"))],
                 list(arms = lapply(arms, function(a) {
                        c(a[c("arm", "algorithm", "layers")],
                          list(design = a$design %||% "sites",
-                              guild_order = !isFALSE(a$guild_order)))
+                              guild_order = !isFALSE(a$guild_order)),
+                         if (length(a$exclude)) list(exclude = as.list(a$exclude)))
                      }),
                      design = atlas_design(),
                      skipped = as.list(skipped),

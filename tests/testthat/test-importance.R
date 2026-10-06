@@ -252,3 +252,15 @@ test_that("a fall is marked clear only when it stands out from the spread betwee
   expect_true(table[[1]]$clear)
   expect_equal(ATLAS_IMPORTANCE_REPEATS, 5L)
 })
+
+test_that("every host layer is measured and shown as one: host trees", {
+  bands <- list(hosts = c("host_conifer", "host_pinus"), hostsdecay = "host_ulmus",
+                hostspecies = "host_quercus_rubra", bioclim = "bio1")
+  owner <- atlas_layer_of(c("host_pinus", "host_ulmus", "host_quercus_rubra", "bio1", "x"), bands)
+  expect_equal(unname(owner), c("hosts", "hosts", "hosts", "bioclim", "other"))
+  groups <- atlas_importance_groups(names(owner), owner)
+  expect_setequal(groups[["layer\rhosts"]], c("host_pinus", "host_ulmus", "host_quercus_rubra"))
+  expect_false(any(c("layer\rhostsdecay", "layer\rhostspecies") %in% names(groups)))
+  expect_equal(atlas_label(c("hosts", "hostsdecay", "hostspecies"), ATLAS_LAYER_LABELS),
+               rep("Host trees", 3))
+})

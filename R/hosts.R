@@ -69,25 +69,147 @@ ATLAS_NFI_GENERA <- c(
   Arbu = "Arbutus"
 )
 
-# The decay and parasite hosts (R/layers.R, hostsdecay): the trees wood-decay and parasitic
-# fungi live on, which the ectomycorrhizal hosts above leave out. Each is a
-# share of the same trees the host layer's genera are shares of — its totals
-# are read from the host layer's cache, not summed again — so the two layers'
-# bands are parts of one whole. BIGMAP has all ten. NFI maps six; tulip tree,
-# sweetgum, sycamore and black locust barely reach Canada, and are 0 there.
+# More host genera (R/layers.R, hostsdecay): the trees the ectomycorrhizal
+# partners above leave out. Maple, ash and elm are hosts of mycorrhizal, decay
+# and parasitic fungi alike (Steve, 2026-10-06), so the layer is shown as host
+# trees with the others, not as "decay hosts"; its id stays hostsdecay so
+# built layers and stored models keep their names. Each is a share of the same
+# trees the host layer's genera are shares of — its totals are read from the
+# host layer's cache, not summed again — so the two layers' bands are parts of
+# one whole. BIGMAP has all sixteen. NFI maps seven; the others barely reach
+# Canada, or not at all, and are 0 there.
 ATLAS_DECAY_HOST_GENERA <- c(
   "Acer", "Fraxinus", "Ulmus", "Juniperus", "Thuja", "Liriodendron", "Prunus",
-  "Liquidambar", "Platanus", "Robinia"
+  "Liquidambar", "Platanus", "Robinia", "Juglans", "Celtis", "Taxodium",
+  "Sequoia", "Sequoiadendron", "Calocedrus"
 )
 
 ATLAS_HOST_DECAY_BANDS <- paste0("host_", tolower(ATLAS_DECAY_HOST_GENERA))
 
 ATLAS_NFI_DECAY_GENERA <- c(
   Acer = "Acer", Frax = "Fraxinus", Ulmu = "Ulmus", Juni = "Juniperus",
-  Thuj = "Thuja", Prun = "Prunus"
+  Thuj = "Thuja", Prun = "Prunus", Jugl = "Juglans"
 )
 
-#' A set of host genera, and the files it keeps under raw/hosts.
+# ---- tree species ----------------------------------------------------------
+#
+# A genus can hide what a fungus follows: of 48 oaks BIGMAP maps, some run
+# from the middle of the continent south and others from the middle north
+# (Steve, 2026-10-06). The species layer (hostspecies) has one band per tree
+# species, as a share of the same trees the genus bands are shares of. FIA's
+# species codes name them: BIGMAP's raster functions carry the code, and
+# inst/extdata/fia-tree-species.csv (from FIA's REF_SPECIES, public domain)
+# gives each code's scientific and common name. A variety or subspecies with
+# its own code keeps its own band: black cottonwood is not balsam poplar.
+
+#' Where FIA's species table lives: the source tree when running from it (as
+#' batch workers in a checkout do, sourcing R/ without the package), the
+#' installed package otherwise.
+atlas_tree_species_path <- function(root = Sys.getenv("ATLAS_ROOT", unset = ".")) {
+  source <- file.path(root, "inst", "extdata", "fia-tree-species.csv")
+  if (file.exists(source)) {
+    return(source)
+  }
+  system.file("extdata", "fia-tree-species.csv", package = "mycomapatlas")
+}
+
+#' BIGMAP's tree species with FIA's names: spcd, genus, scientific_name,
+#' common_name, softwood.
+atlas_tree_species <- local({
+  table <- NULL
+  function() {
+    if (is.null(table)) {
+      path <- atlas_tree_species_path()
+      if (!nzchar(path) || !file.exists(path)) {
+        stop("FIA's tree species table (inst/extdata/fia-tree-species.csv) is missing", call. = FALSE)
+      }
+      table <<- utils::read.csv(path, stringsAsFactors = FALSE, encoding = "UTF-8")
+    }
+    table
+  }
+})
+
+#' The band a tree species is published as: host_<genus>_<epithet>, with a
+#' variety's or subspecies' name after it (host_populus_balsamifera_trichocarpa).
+atlas_species_band <- function(scientific_name) {
+  x <- tolower(scientific_name)
+  x <- gsub("\\b(var|ssp|subsp)[.]", " ", x)
+  x <- gsub("[^a-z]+", "_", trimws(x))
+  paste0("host_", gsub("^_+|_+$", "", x))
+}
+
+#' A species band's name for people: "Northern red oak (Quercus rubra)".
+atlas_species_label <- function(common_name, scientific_name) {
+  common <- paste0(toupper(substr(common_name, 1L, 1L)), substring(common_name, 2L))
+  paste0(common, " (", scientific_name, ")")
+}
+
+# Canada's NFI species files, by FIA species code. NFI names a file by four
+# letters of the genus and three of the epithet; where three letters are
+# ambiguous the file is matched by hand: Acer_Sac is sugar maple and Acer_Sah
+# silver maple, Pinu_Mon western white pine, Pinu_Str eastern white pine,
+# Popu_Tri black cottonwood (FIA's Populus balsamifera ssp. trichocarpa),
+# Abie_Las subalpine fir (corkbark fir does not reach Canada). A species NFI
+# does not map reads 0 in Canada; the trees of its genus NFI could not name
+# (the _Spp files) count toward the genus bands only.
+ATLAS_NFI_SPECIES <- c(
+  Abie_Ama = 11L, Abie_Bal = 12L, Abie_Las = 19L, Acer_Mac = 312L, Acer_Neg = 313L,
+  Acer_Pen = 315L, Acer_Rub = 316L, Acer_Sah = 317L, Acer_Sac = 318L, Acer_Spi = 319L,
+  Alnu_Rub = 351L, Arbu_Men = 361L, Betu_All = 371L, Betu_Pap = 375L, Betu_Pop = 379L,
+  Carp_Car = 391L, Cary_Cor = 402L, Cham_Noo = 42L, Fagu_Gra = 531L, Frax_Ame = 541L,
+  Frax_Nig = 543L, Frax_Pen = 544L, Jugl_Cin = 601L, Jugl_Nig = 602L, Juni_Vir = 68L,
+  Lari_Lar = 71L, Lari_Lya = 72L, Lari_Occ = 73L, Ostr_Vir = 701L, Pice_Abi = 91L,
+  Pice_Eng = 93L, Pice_Gla = 94L, Pice_Mar = 95L, Pice_Rub = 97L, Pice_Sit = 98L,
+  Pinu_Alb = 101L, Pinu_Ban = 105L, Pinu_Con = 108L, Pinu_Mon = 119L, Pinu_Pon = 122L,
+  Pinu_Res = 125L, Pinu_Str = 129L, Pinu_Syl = 130L, Popu_Bal = 741L, Popu_Gra = 743L,
+  Popu_Tre = 746L, Popu_Tri = 747L, Prun_Pen = 761L, Prun_Ser = 762L, Pseu_Men = 202L,
+  Quer_Alb = 802L, Quer_Mac = 823L, Quer_Rub = 833L, Sorb_Ame = 935L, Thuj_Occ = 241L,
+  Thuj_Pli = 242L, Tili_Ame = 951L, Tsug_Can = 261L, Tsug_Het = 263L, Tsug_Mer = 264L
+)
+
+# The species the species layer carries, by FIA code: every BIGMAP species
+# but the "spp." catch-alls (trees FIA could not name past the genus), written
+# out so the package needs no file to load. See atlas_host_species_bands for
+# their band names; a test checks the list against the species table.
+ATLAS_HOST_SPECIES <- c(
+  11L, 12L, 15L, 16L, 17L, 18L, 19L, 20L, 21L, 22L, 41L, 42L, 43L, 51L, 52L, 55L, 56L,
+  58L, 59L, 61L, 62L, 63L, 64L, 65L, 66L, 67L, 68L, 69L, 71L, 72L, 73L, 81L, 91L, 92L,
+  93L, 94L, 95L, 96L, 97L, 98L, 101L, 102L, 103L, 104L, 105L, 106L, 107L, 108L, 109L,
+  110L, 111L, 113L, 114L, 115L, 116L, 117L, 118L, 119L, 120L, 121L, 122L, 123L, 125L,
+  126L, 127L, 128L, 129L, 130L, 131L, 132L, 133L, 134L, 136L, 137L, 140L, 141L, 142L,
+  143L, 201L, 202L, 211L, 212L, 221L, 222L, 231L, 241L, 242L, 251L, 261L, 262L, 263L,
+  264L, 303L, 311L, 312L, 313L, 314L, 315L, 316L, 317L, 318L, 319L, 320L, 322L, 323L,
+  331L, 332L, 333L, 334L, 341L, 345L, 351L, 352L, 361L, 363L, 367L, 371L, 372L, 373L,
+  374L, 375L, 379L, 381L, 391L, 401L, 402L, 403L, 404L, 405L, 407L, 408L, 409L, 410L,
+  411L, 412L, 413L, 421L, 422L, 423L, 431L, 451L, 452L, 461L, 462L, 463L, 471L, 475L,
+  481L, 491L, 492L, 501L, 502L, 513L, 521L, 522L, 523L, 531L, 541L, 542L, 543L, 544L,
+  545L, 546L, 547L, 548L, 549L, 551L, 552L, 555L, 571L, 581L, 582L, 591L, 601L, 602L,
+  604L, 605L, 606L, 611L, 621L, 631L, 641L, 651L, 652L, 653L, 654L, 655L, 658L, 661L,
+  662L, 663L, 681L, 682L, 683L, 691L, 692L, 693L, 694L, 701L, 711L, 712L, 721L, 722L,
+  730L, 731L, 741L, 742L, 743L, 744L, 745L, 746L, 747L, 748L, 749L, 756L, 757L, 761L,
+  762L, 763L, 766L, 768L, 771L, 772L, 801L, 802L, 803L, 804L, 805L, 806L, 807L, 808L,
+  809L, 810L, 811L, 812L, 813L, 814L, 815L, 816L, 817L, 818L, 819L, 820L, 821L, 822L,
+  823L, 824L, 825L, 826L, 827L, 828L, 829L, 830L, 831L, 832L, 833L, 834L, 835L, 836L,
+  837L, 838L, 839L, 840L, 841L, 842L, 843L, 846L, 847L, 851L, 853L, 854L, 857L, 858L,
+  863L, 867L, 868L, 870L, 873L, 876L, 882L, 886L, 901L, 912L, 919L, 921L, 922L, 923L,
+  925L, 927L, 931L, 935L, 937L, 940L, 951L, 952L, 953L, 971L, 972L, 973L, 974L, 975L,
+  977L, 981L, 986L, 987L, 988L, 989L, 992L, 993L, 994L, 995L, 996L, 997L, 999L, 8513L,
+  8514L
+)
+
+#' The species layer's bands, one per species in `spcd`, in that order.
+atlas_host_species_bands <- function(spcd = ATLAS_HOST_SPECIES, species = atlas_tree_species()) {
+  atlas_species_band(species$scientific_name[match(spcd, species$spcd)])
+}
+
+#' Labels for the species bands, named by band.
+atlas_host_species_labels <- function(spcd = ATLAS_HOST_SPECIES, species = atlas_tree_species()) {
+  rows <- species[match(spcd, species$spcd), , drop = FALSE]
+  stats::setNames(atlas_species_label(rows$common_name, rows$scientific_name),
+                  atlas_species_band(rows$scientific_name))
+}
+
+#' A set of host genera (or species), and the files it keeps under raw/hosts.
 #'
 #' "hosts" is the production layer: it reads every BIGMAP species and both NFI
 #' groups, because its sums carry the tree total and the conifer band. A
@@ -131,6 +253,16 @@ atlas_host_sets <- function() {
       id = "hostsdecay", genera = ATLAS_DECAY_HOST_GENERA, nfi_codes = ATLAS_NFI_DECAY_GENERA,
       totals = FALSE, bigmap = "bigmap-decay-1km.tif", species_dir = "bigmap-species-decay",
       nfi = "nfi-decay-1km.tif", nfi_dir = "nfi-decay"
+    ),
+    # One band per tree species (ATLAS_HOST_SPECIES), not per genus. Its
+    # species files are kept: there are 300 of them, read one at a time from
+    # BIGMAP over hours, and a later choice of species should not mean
+    # reading them all again.
+    hostspecies = list(
+      id = "hostspecies", genera = character(), species = ATLAS_HOST_SPECIES,
+      nfi_codes = character(), nfi_species = ATLAS_NFI_SPECIES,
+      totals = FALSE, keep_species = TRUE, bigmap = "bigmap-species-1km.tif",
+      species_dir = "bigmap-species-all", nfi = "nfi-species-1km.tif", nfi_dir = "nfi-species"
     )
   )
 }
@@ -140,10 +272,20 @@ atlas_host_set_files <- function(set) {
   unlist(set[c("bigmap", "species_dir", "nfi", "nfi_dir")], use.names = FALSE)
 }
 
+#' The parts a host set sums its trees into, as named in its sums: one per
+#' genus (lower case), or one per species (the band name without host_).
+atlas_host_set_parts <- function(set) {
+  if (length(set[["species"]])) {
+    sub("^host_", "", atlas_host_species_bands(set[["species"]]))
+  } else {
+    tolower(set$genera)
+  }
+}
+
 #' The bands a host set's layer has: the conifer share when it carries the
-#' totals, then one share per genus.
+#' totals, then one share per genus or species.
 atlas_host_set_bands <- function(set) {
-  c(if (isTRUE(set$totals)) "host_conifer", paste0("host_", tolower(set$genera)))
+  c(if (isTRUE(set$totals)) "host_conifer", paste0("host_", atlas_host_set_parts(set)))
 }
 
 # How BIGMAP is sampled. Its server cannot block-average: asked for a coarse
@@ -306,7 +448,8 @@ atlas_bigmap_needed <- function(species, genera = NULL) {
 #' it would run about 15% low and a genus's share would not be its part of the
 #' same whole the other genera are parts of. Summing the species also matches
 #' NFI, whose percentages are shares of the species it identifies.
-atlas_bigmap_groups <- function(species, genera = ATLAS_HOST_GENERA, totals = TRUE) {
+atlas_bigmap_groups <- function(species, genera = ATLAS_HOST_GENERA, totals = TRUE,
+                                spcd = NULL) {
   groups <- if (isTRUE(totals)) {
     list(total = species$fn, conifer = species$fn[species$conifer])
   } else {
@@ -314,6 +457,14 @@ atlas_bigmap_groups <- function(species, genera = ATLAS_HOST_GENERA, totals = TR
   }
   for (genus in genera) {
     groups[[tolower(genus)]] <- species$fn[species$genus == genus]
+  }
+  # A species band is its own code's layer: a variety with a code of its own
+  # is a band of its own, never folded into its species.
+  if (length(spcd)) {
+    parts <- sub("^host_", "", atlas_host_species_bands(spcd))
+    for (i in seq_along(spcd)) {
+      groups[[parts[[i]]]] <- species$fn[species$spcd == spcd[[i]]]
+    }
   }
   groups
 }
@@ -426,11 +577,16 @@ atlas_bigmap_sums <- function(dir, window, http = atlas_host_http, quiet = FALSE
   }
   functions <- functions %||% atlas_bigmap_functions(http)
   species <- atlas_bigmap_species(functions, set$genera)
-  needed <- atlas_bigmap_needed(species, if (isTRUE(set$totals)) NULL else set$genera)
-  missing <- setdiff(set$genera, species$genus)
+  needed <- if (length(set[["species"]])) {
+    species$fn[species$spcd %in% set[["species"]]]
+  } else {
+    atlas_bigmap_needed(species, if (isTRUE(set$totals)) NULL else set$genera)
+  }
+  missing <- c(setdiff(set$genera, species$genus),
+               if (length(set[["species"]])) sprintf("SPCD %d", setdiff(set[["species"]], species$spcd)))
   if (!nrow(species) || length(missing)) {
-    stop("BIGMAP no longer offers every host genus; missing: ",
-         paste(missing, collapse = ", "), call. = FALSE)
+    stop("BIGMAP no longer offers every host ", if (length(set[["species"]])) "species" else "genus",
+         "; missing: ", paste(missing, collapse = ", "), call. = FALSE)
   }
   species_dir <- file.path(dir, set$species_dir)
   if (!quiet) message("  ", set$id, ": reading ", length(needed), " BIGMAP layers at ",
@@ -445,11 +601,11 @@ atlas_bigmap_sums <- function(dir, window, http = atlas_host_http, quiet = FALSE
   if (!quiet) message("  ", set$id, ": BIGMAP read, ", round(bytes / 1e9, 2), " GB this run")
   layers <- lapply(needed, function(fn) terra::rast(file.path(species_dir, paste0(fn, ".tif"))))
   names(layers) <- needed
-  groups <- atlas_bigmap_groups(species, set$genera, totals = set$totals)
+  groups <- atlas_bigmap_groups(species, set$genera, totals = set$totals, spcd = set[["species"]])
   sums <- terra::rast(atlas_group_sums(layers, groups))
   names(sums) <- names(groups)
   atlas_write_raster_whole(sums, out)
-  if (!isTRUE(keep_species)) unlink(species_dir, recursive = TRUE)
+  if (!isTRUE(keep_species) && !isTRUE(set$keep_species)) unlink(species_dir, recursive = TRUE)
   terra::rast(out)
 }
 
@@ -464,7 +620,7 @@ atlas_bigmap_sums <- function(dir, window, http = atlas_host_http, quiet = FALSE
 #' not all birches: it is smaller than paper birch in 94% of the pixels where
 #' paper birch passes 5%. The needleleaf and broadleaf group files give the
 #' total identified trees, and the conifer share.
-atlas_nfi_catalog <- function(files, codes = ATLAS_NFI_GENERA) {
+atlas_nfi_catalog <- function(files, codes = ATLAS_NFI_GENERA, species_codes = NULL) {
   files <- basename(as.character(files))
   species <- "^NFI_MODIS250m_2011_kNN_Species_([A-Za-z]{4})_([A-Za-z]{3})_v1[.]tif$"
   group <- "^NFI_MODIS250m_2011_kNN_SpeciesGroups_(Needleleaf|Broadleaf)_Spp_v1[.]tif$"
@@ -474,11 +630,15 @@ atlas_nfi_catalog <- function(files, codes = ATLAS_NFI_GENERA) {
   is_species <- grepl(species, files)
   code <- ifelse(is_species, sub(species, "\\1", files), NA_character_)
   genus <- unname(codes[code])
+  epithet <- ifelse(is_species, sub(species, "\\2", files), NA_character_)
+  # The FIA species a file maps, for a set built by species (ATLAS_NFI_SPECIES).
+  spcd <- if (length(species_codes)) unname(species_codes[paste(code, epithet, sep = "_")]) else NA_integer_
   data.frame(
     file = files,
     code = code,
-    species = ifelse(is_species, sub(species, "\\2", files), NA_character_),
+    species = epithet,
     genus = ifelse(is_species, genus, NA_character_),
+    spcd = as.integer(spcd),
     group = ifelse(is_species, NA_character_, tolower(sub(group, "\\1", files))),
     stringsAsFactors = FALSE
   )
@@ -487,12 +647,13 @@ atlas_nfi_catalog <- function(files, codes = ATLAS_NFI_GENERA) {
 #' The NFI files a host layer needs: the host genera's species and, for the
 #' set that carries the totals, the two groups.
 atlas_nfi_needed <- function(catalog, groups = TRUE) {
-  keep <- !is.na(catalog$genus) | (isTRUE(groups) & !is.na(catalog$group))
+  keep <- !is.na(catalog$genus) | !is.na(catalog$spcd %||% NA) |
+    (isTRUE(groups) & !is.na(catalog$group))
   catalog[keep, , drop = FALSE]
 }
 
 #' Which NFI files go into each band of the sums.
-atlas_nfi_groups <- function(catalog, genera = ATLAS_HOST_GENERA, totals = TRUE) {
+atlas_nfi_groups <- function(catalog, genera = ATLAS_HOST_GENERA, totals = TRUE, spcd = NULL) {
   groups <- list()
   if (isTRUE(totals)) {
     groups <- list(
@@ -505,6 +666,12 @@ atlas_nfi_groups <- function(catalog, genera = ATLAS_HOST_GENERA, totals = TRUE)
   }
   for (genus in genera) {
     groups[[tolower(genus)]] <- catalog$file[catalog$genus %in% genus]
+  }
+  if (length(spcd)) {
+    parts <- sub("^host_", "", atlas_host_species_bands(spcd))
+    for (i in seq_along(spcd)) {
+      groups[[parts[[i]]]] <- catalog$file[catalog$spcd %in% spcd[[i]]]
+    }
   }
   groups
 }
@@ -532,7 +699,8 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
   }
   nfi_dir <- file.path(dir, set$nfi_dir)
   dir.create(nfi_dir, recursive = TRUE, showWarnings = FALSE)
-  catalog <- atlas_nfi_needed(atlas_nfi_catalog(files %||% atlas_nfi_list(http), set$nfi_codes),
+  catalog <- atlas_nfi_needed(atlas_nfi_catalog(files %||% atlas_nfi_list(http), set$nfi_codes,
+                                                species_codes = set$nfi_species),
                               groups = set$totals)
   for (file in catalog$file) {
     dest <- file.path(nfi_dir, file)
@@ -543,7 +711,7 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
 
   first <- terra::rast(file.path(nfi_dir, catalog$file[[1]]))
   target <- atlas_window_template(atlas_extent_in_grid(first), ATLAS_HOST_BASE_M)
-  groups <- atlas_nfi_groups(catalog, set$genera, totals = set$totals)
+  groups <- atlas_nfi_groups(catalog, set$genera, totals = set$totals, spcd = set[["species"]])
   bands <- lapply(names(groups), function(band) {
     members <- groups[[band]]
     if (!quiet) message("  ", set$id, ": NFI ", band, " (", length(members), " file(s))")
@@ -556,16 +724,16 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
     terra::project(summed, target, method = "average")
   })
   names(bands) <- names(groups)
-  genera <- tolower(set$genera)
+  parts <- atlas_host_set_parts(set)
   sums <- if (isTRUE(set$totals)) {
     terra::rast(c(
       list(total = bands$needleleaf + bands$broadleaf, conifer = bands$needleleaf),
-      bands[genera]
+      bands[parts]
     ))
   } else {
-    terra::rast(bands[genera])
+    terra::rast(bands[parts])
   }
-  names(sums) <- c(if (isTRUE(set$totals)) c("total", "conifer"), genera)
+  names(sums) <- c(if (isTRUE(set$totals)) c("total", "conifer"), parts)
   atlas_write_raster_whole(sums, out)
   terra::rast(out)
 }
@@ -662,6 +830,11 @@ atlas_build_hosts <- function(raw_dir, grid = "draft", http = atlas_host_http, q
 #' Build the decay-host layer on a grid (R/layers.R, hostsdecay).
 atlas_build_decay_hosts <- function(raw_dir, grid = "draft") {
   atlas_build_hosts(raw_dir, grid, set = atlas_host_set("hostsdecay"))
+}
+
+#' Build the tree-species layer on a grid (R/layers.R, hostspecies).
+atlas_build_species_hosts <- function(raw_dir, grid = "draft") {
+  atlas_build_hosts(raw_dir, grid, set = atlas_host_set("hostspecies"))
 }
 
 #' Put production's tree total in front of a second set's genus sums, so

@@ -104,8 +104,17 @@ atlas_predictor_priority <- function(guild = ATLAS_GUILD_UNKNOWN) {
 #' decay-host layer is not built its bands have no columns, and the order of
 #' the rest is what it was.
 atlas_host_columns <- function() {
-  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS, ATLAS_HOST_DECAY_BANDS)
+  c(ATLAS_HOST_KNOWN_BANDS, ATLAS_HOST_BANDS, ATLAS_HOST_DECAY_BANDS, atlas_host_species_bands())
 }
+
+# Host bands that keep a place in a model before the rest are ranked by
+# abundance: the conifer share, and elm (Steve, 2026-10-06), whose hosts
+# include mycorrhizal, decay and parasitic fungi and which is rarely abundant
+# enough to win a place by share alone. Elm is pinned only where it grows: at
+# least ATLAS_HOST_PIN_MIN_SHARE of the region's trees on average, so a model
+# of the Pacific Northwest does not spend a tree on one that is not there.
+ATLAS_HOST_PINNED <- c("host_conifer", "host_ulmus")
+ATLAS_HOST_PIN_MIN_SHARE <- c(host_conifer = 0, host_ulmus = 0.01)
 
 #' Whether a column is a host tree's share (not the flag beside them).
 atlas_is_host_share <- function(columns) {
@@ -128,8 +137,10 @@ atlas_host_allowance <- function(guild = ATLAS_GUILD_UNKNOWN) {
 #' predictors the model may have. The host shares among them are ranked by how
 #' much of the region's trees each is, measured on the non-detection sites —
 #' never on the detections, so the choice cannot leak into a score — with the
-#' conifer share first, and only the first round(cap x share) stay, at least
-#' one. They keep the place in the order the first host had.
+#' conifer share first and elm next (ATLAS_HOST_PINNED), and only the first
+#' round(cap x share) stay, at least one. They keep the place in the order the
+#' first host had. A pinned band that pruning dropped (constant here, or a
+#' twin of an earlier one) is not brought back.
 atlas_limit_hosts <- function(kept, background, cap, share) {
   is_host <- atlas_is_host_share(kept)
   hosts <- kept[is_host]
@@ -139,8 +150,11 @@ atlas_limit_hosts <- function(kept, background, cap, share) {
   allowed <- max(1L, as.integer(round(cap * share)))
   abundance <- vapply(hosts, function(h) mean(background[[h]], na.rm = TRUE), numeric(1))
   abundance[!is.finite(abundance)] <- 0
-  not_conifer <- !grepl("_conifer$", hosts)
-  ranked <- hosts[order(not_conifer, -abundance, seq_along(hosts))]
+  pinned <- match(hosts, ATLAS_HOST_PINNED)
+  floor <- unname(ATLAS_HOST_PIN_MIN_SHARE[hosts])
+  pinned[!is.na(floor) & abundance < floor] <- NA
+  pinned[is.na(pinned)] <- length(ATLAS_HOST_PINNED) + 1L
+  ranked <- hosts[order(pinned, -abundance, seq_along(hosts))]
   chosen <- ranked[seq_len(min(allowed, length(ranked)))]
   before <- sum(!is_host[seq_len(match(hosts[1], kept))])
   others <- kept[!is_host]
@@ -279,6 +293,9 @@ ATLAS_PREDICTOR_LABELS <- c(
   host_juniperus = "Juniper and eastern redcedar", host_thuja = "Northern white-cedar and western redcedar",
   host_liriodendron = "Tulip tree", host_prunus = "Cherry and plum", host_liquidambar = "Sweetgum",
   host_platanus = "Sycamore", host_robinia = "Black locust",
+  host_juglans = "Walnut and butternut", host_celtis = "Hackberry and sugarberry",
+  host_taxodium = "Bald cypress and pondcypress", host_sequoia = "Coast redwood",
+  host_sequoiadendron = "Giant sequoia", host_calocedrus = "Incense-cedar",
   host_known = "Tree inventories cover this place",
   forest_needleleaf = "Needleleaf forest",
   forest_broadleaf = "Broadleaf forest",
@@ -318,7 +335,8 @@ ATLAS_PREDICTOR_LABELS <- c(
 # What each layer is, for people.
 ATLAS_LAYER_LABELS <- c(
   bioclim = "Climate", elevation = "Elevation", terrain = "Terrain", soil = "Soil",
-  landcover = "Land cover", hosts = "Host trees", hostsdecay = "Decay and parasite hosts",
+  landcover = "Land cover", hosts = "Host trees", hostsdecay = "Host trees",
+  hostspecies = "Host trees",
   foresttype = "Forest type", waterbalance = "Water balance",
   climatena = "Climate 1991-2020"
 )
@@ -326,5 +344,10 @@ ATLAS_LAYER_LABELS <- c(
 #' A predictor's or layer's name for people, or its own name when none is known.
 atlas_label <- function(name, labels = ATLAS_PREDICTOR_LABELS) {
   out <- unname(labels[name])
+  # Tree species are named from FIA's table rather than listed by hand.
+  if (identical(labels, ATLAS_PREDICTOR_LABELS) && anyNA(out)) {
+    species <- atlas_host_species_labels()
+    out[is.na(out)] <- unname(species[name[is.na(out)]])
+  }
   ifelse(is.na(out), name, out)
 }
