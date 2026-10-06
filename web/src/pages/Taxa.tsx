@@ -8,12 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getModels, getTaxa, searchTaxa } from "@/lib/api";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 const FILTERS = [0, 5, 10, 20, 30, 50];
 
 export default function Taxa() {
+  usePageMeta({
+    title: "Taxa",
+    description:
+      "Every fungus with DNA-validated, well-located MycoMap records in North America, and how close each is to a habitat map.",
+  });
   // ?q= comes from the header search: a genus, or every match for what was typed.
   const urlQuery = new URLSearchParams(useSearch()).get("q") ?? "";
   const [search, setSearch] = useState(urlQuery);

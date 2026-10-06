@@ -30,6 +30,7 @@ import {
   type ModelSummary,
 } from "@/lib/api";
 import { GITHUB_URL } from "@/lib/contract";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
 
 type Icon = ComponentType<{ className?: string }>;
@@ -205,6 +206,10 @@ const AUDIENCES: { icon: Icon; title: string; text: string }[] = [
 ];
 
 export default function Home() {
+  usePageMeta({
+    description:
+      "Habitat maps for North America's fungi, modelled only from DNA-validated MycoMap records. Search for a species, or see what could grow where you are.",
+  });
   const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
   const mappedModels = (models.data ?? []).filter((m) => m.map);

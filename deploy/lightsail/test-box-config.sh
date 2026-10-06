@@ -86,6 +86,11 @@ grep -qx 'ExecStart=/usr/local/lib/atlas/uptime.sh' "$here/systemd/atlas-uptime.
   && grep '^systemctl enable' "$here/setup-box.sh" | grep -q 'atlas-uptime.timer' \
   && pass "the uptime check runs every 5 minutes, enabled by setup" \
   || fail "atlas-uptime: the service, its 5-minute timer and setup's enable disagree"
+grep -q 'run atlas-sitemap sitemap --out=/data/sitemap.xml' "$here/nightly.sh" \
+  && grep -q 'install -m 644 /srv/atlas/data/sitemap.xml /srv/atlas/web/sitemap.xml' "$here/nightly.sh" \
+  && grep -qF 'cp /srv/atlas/data/sitemap.xml "$web.next/sitemap.xml"' "$here/deploy.sh" \
+  && pass "the nightly job puts the sitemap in the web root, and a deploy keeps it" \
+  || fail "nightly.sh must copy /data/sitemap.xml into /srv/atlas/web, and deploy.sh carry it over"
 grep -q -- '--network host' "$here/systemd/atlas-api.service" && grep -q 'api --port=5100' "$here/systemd/atlas-api.service" \
   && pass "the API shares the host network on port 5100 (nginx reaches it from 127.0.0.1)" \
   || fail "atlas-api.service must run the API with --network host on 5100"

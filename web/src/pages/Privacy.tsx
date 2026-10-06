@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { GITHUB_URL } from "@/lib/contract";
+import { usePageMeta } from "@/lib/usePageMeta";
 
 // What a visit leaves behind, here and with the services the pages call. Keep
 // it true: when the site starts storing or sending something new, say so here
@@ -17,6 +18,11 @@ function A({ href, children }: { href: string; children: ReactNode }) {
 }
 
 export default function Privacy() {
+  usePageMeta({
+    title: "Privacy",
+    description:
+      "What a visit to MycoMap Atlas leaves behind: no analytics, a cookie only if you sign in, and what Cloudflare and OpenStreetMap see.",
+  });
   return (
     <>
       <PageHeader title="Privacy">

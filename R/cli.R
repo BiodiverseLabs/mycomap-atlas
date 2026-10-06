@@ -74,6 +74,10 @@ atlas_usage <- function() {
   message("      --release=ID              a particular release (default: the current one)")
   message("      --keep-local              keep local model files the release does not have")
   message("      --no-rasters              leave model rasters in the store (a web server)")
+  message("  sitemap            write the site's sitemap: its pages, and every taxon with a")
+  message("                     passing map on this machine (a web server, after pull-release)")
+  message("      --out=PATH                where (default sitemap.xml in the data directory)")
+  message("      --origin=URL              the public site (default ATLAS_PUBLIC_ORIGIN)")
   message("  releases           list the releases in a store, marking the current one")
   message("  promote-release    make a release current (rolling back is promoting an older one)")
   message("      --release=ID              which release (required)")
@@ -386,6 +390,14 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         release = if (is.null(flags$release)) NULL else as.character(flags$release),
         keep_local = isTRUE(flags$keep_local),
         rasters = !isTRUE(flags$no_rasters)
+      )
+      invisible(0L)
+    },
+    "sitemap" = {
+      atlas_write_sitemap(
+        path = as.character(flags$out %||% file.path(atlas_data_dir(), "sitemap.xml")),
+        origin = as.character(flags$origin %||% Sys.getenv("ATLAS_PUBLIC_ORIGIN", unset = "")),
+        grid = atlas_flag_grid(flags)
       )
       invisible(0L)
     },

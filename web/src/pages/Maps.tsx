@@ -7,6 +7,7 @@ import { Page, PageHeader } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ALGORITHMS, ALGORITHM_LABELS, getModels, type Algorithm, type ModelSummary } from "@/lib/api";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -25,6 +26,11 @@ function value(row: Row, algorithm: Algorithm, measure: Measure): number {
 }
 
 export default function Maps() {
+  usePageMeta({
+    title: "Maps",
+    description:
+      "Every fungus with a fitted habitat map, and how each of three models scores it on regions it never saw.",
+  });
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
   const urlQuery = new URLSearchParams(useSearch()).get("q") ?? "";
   const [search, setSearch] = useState(urlQuery);

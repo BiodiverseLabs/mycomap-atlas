@@ -11,6 +11,7 @@ Cloudflare ──443──► nginx ──► /srv/atlas/web          the app, c
                         └───► 127.0.0.1:5100          the API container (atlas-api.service)
 07:00 UTC  atlas-nightly.timer ──► nightly.sh ──► `atlas nightly` in the image
                                                └► `pull-release --no-rasters`, restart the API
+                                               └► `sitemap`, copied to /srv/atlas/web/sitemap.xml
 every 5 min  atlas-uptime.timer ──► uptime.sh ──► GET 127.0.0.1:5100/api/status
 on failure   atlas-alert@<unit> ──► alert.sh ──► journal, /srv/atlas/data/health, login banner
 ```

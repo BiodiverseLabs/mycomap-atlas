@@ -15,6 +15,7 @@ import {
   type Parameter,
   type Schema,
 } from "@/lib/contract";
+import { usePageMeta } from "@/lib/usePageMeta";
 
 const PUBLIC_BASE = OPENAPI.servers[0]?.url ?? "https://atlas.mycomap.org";
 const RATES = OPENAPI["x-rate-limits"];
@@ -411,6 +412,11 @@ function EndpointCard({ endpoint, token }: { endpoint: Endpoint; token: string }
 }
 
 export default function Developers() {
+  usePageMeta({
+    title: "Developers",
+    description:
+      "The public API behind every Atlas map, score and count: routes, parameters, rate limits, and examples in curl, R, Python and JavaScript.",
+  });
   // Held only in this page's memory, for Try it; never stored.
   const [token, setToken] = useState("");
   const byTag = OPENAPI.tags.map((tag) => ({

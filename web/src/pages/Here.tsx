@@ -15,6 +15,7 @@ import {
   type Algorithm,
   type HereTaxon,
 } from "@/lib/api";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
 
 // What could grow here: pick a place, see every mapped fungus its maps rate
@@ -137,6 +138,11 @@ function SelectedOverlay({ taxon }: { taxon: HereTaxon }) {
 }
 
 export default function Here() {
+  usePageMeta({
+    title: "What could grow here?",
+    description:
+      "Pick a place in North America and see which mapped fungi its habitat suits, and which have been collected nearby.",
+  });
   const [, navigate] = useLocation();
   const point = readPoint(useSearch());
   const [topOnly, setTopOnly] = useState(false);

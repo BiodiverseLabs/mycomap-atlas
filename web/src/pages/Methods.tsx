@@ -5,6 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { GithubMark } from "@/components/Common";
 import { PageHeader } from "@/components/Layout";
 import { GITHUB_URL, SOURCES } from "@/lib/contract";
+import { usePageMeta } from "@/lib/usePageMeta";
 
 // The method in full, for someone deciding whether to build on Atlas. Numbers
 // here come from the README's measurements; when a setting changes in R/,
@@ -84,6 +85,11 @@ const Sci = ({ children }: { children: ReactNode }) => <span className="sci">{ch
 const B = ({ children }: { children: ReactNode }) => <strong className="text-[#4a3728]">{children}</strong>;
 
 export default function Methods() {
+  usePageMeta({
+    title: "Methods",
+    description:
+      "How every Atlas habitat map is made: the records, the background, the environmental layers, the models and their spatially blocked evaluation.",
+  });
   return (
     <>
       <PageHeader title="Methods">
