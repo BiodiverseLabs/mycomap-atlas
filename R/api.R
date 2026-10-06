@@ -181,6 +181,29 @@ atlas_status_manifest <- function() {
   jsonlite::fromJSON(path, simplifyVector = TRUE)
 }
 
+#' The release this machine serves, as /api/status reports it: its id, when
+#' it was made, from which code, and the records it was built from. NULL when
+#' no release has been pulled here.
+atlas_status_release <- function(grid = "draft") {
+  path <- atlas_path("releases", grid, "pulled.json")
+  if (!file.exists(path)) return(NULL)
+  pulled <- tryCatch(jsonlite::fromJSON(path, simplifyVector = TRUE), error = function(e) NULL)
+  if (is.null(pulled) || !is.character(pulled$release) || length(pulled$release) != 1L) return(NULL)
+  text <- function(x) if (is.character(x) && length(x) == 1L && !is.na(x)) x else NULL
+  number <- function(x) if (is.numeric(x) && length(x) == 1L && is.finite(x)) x else NULL
+  data <- pulled$data %||% list()
+  Filter(Negate(is.null), list(
+    id = pulled$release,
+    grid = text(pulled$grid),
+    createdAt = text(pulled$created_at),
+    commit = text(pulled$commit),
+    dataPulledAt = text(data$pulled_at),
+    records = number(data$records),
+    taxa = number(data$taxa),
+    fingerprint = text(data$fingerprint)
+  ))
+}
+
 #' The published cells for every taxon, or NULL when this machine has none.
 atlas_read_public_cells <- function() {
   path <- atlas_public_cells_path()

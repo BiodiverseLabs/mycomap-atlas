@@ -89,6 +89,31 @@ test_that("a pull reproduces the release exactly, and a second pull fetches noth
   })
 })
 
+test_that("a pulled release says what to cite and which records it was built from", {
+  store <- new_store()
+  release <- with_data_dir({
+    computed_data()
+    atlas_publish_release(store, quiet = TRUE)
+  })
+  with_data_dir({
+    atlas_pull_release(store, quiet = TRUE)
+    status <- atlas_status_release()
+    expect_equal(status$id, release$id)
+    expect_equal(status$createdAt, release$created_at)
+    expect_equal(status$grid, "draft")
+    if (!is.null(release$pull$pulled_at)) expect_equal(status$dataPulledAt, release$pull$pulled_at)
+    if (!is.null(release$pull$records)) expect_equal(status$records, release$pull$records)
+    # Through the API: status carries the release beside the newest pull.
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      body <- jsonlite::fromJSON(call_api(api, "/api/status")$body)
+      expect_equal(body$release$id, release$id)
+    })
+  })
+  # Nothing pulled: nothing to cite.
+  with_data_dir(expect_null(atlas_status_release()))
+})
+
 test_that("a pull removes local models the release does not have, unless told to keep them", {
   store <- new_store()
   with_data_dir({

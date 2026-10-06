@@ -1563,7 +1563,7 @@
           "pulledAt": {
             "type": "string",
             "format": "date-time",
-            "description": "When the records were read from mycomap.org."
+            "description": "When this machine last read records from mycomap.org. Nightly pulls run before fitting, so this can be newer than the maps; release.dataPulledAt is the pull the maps were built from."
           },
           "records": {
             "type": "integer",
@@ -1580,6 +1580,42 @@
           "since": {
             "type": "string",
             "description": "For an incremental pull, the date it started from. Absent for a full pull."
+          },
+          "release": {
+            "type": "object",
+            "description": "The release the maps come from: cite its id. Absent until a release has been pulled.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Release id, e.g. 20261004T041800Z-3b7439f8. Cite this."
+              },
+              "grid": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "commit": {
+                "type": "string",
+                "description": "The Atlas code commit the release was built from."
+              },
+              "dataPulledAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the records the release was fitted on were read."
+              },
+              "records": {
+                "type": "integer"
+              },
+              "taxa": {
+                "type": "integer"
+              },
+              "fingerprint": {
+                "type": "string",
+                "description": "Hash of the record set the release was fitted on."
+              }
+            }
           }
         }
       },

@@ -8,6 +8,19 @@ export interface Status {
   taxa?: number;
   fingerprint?: string;
   since?: string | null;
+  /** The release the maps come from: what to cite. */
+  release?: StatusRelease;
+}
+
+export interface StatusRelease {
+  id: string;
+  grid?: string;
+  createdAt?: string;
+  commit?: string;
+  dataPulledAt?: string;
+  records?: number;
+  taxa?: number;
+  fingerprint?: string;
 }
 
 export interface Taxon {

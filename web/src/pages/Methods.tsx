@@ -598,7 +598,8 @@ export default function Methods() {
 
             <Section id="cite" title="Cite and contribute">
               <p>
-                Cite the release you used: its id and fingerprint are in{" "}
+                Cite the release you used: every taxon page gives a citation with the release
+                id, and the id, date, code commit and record fingerprint are in{" "}
                 <Link href="/developers#getStatus" className="text-myco-green hover:underline">
                   /api/status
                 </Link>

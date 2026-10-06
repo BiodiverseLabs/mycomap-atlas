@@ -467,9 +467,10 @@ export default function Developers() {
                   — feed it to a client generator, Postman or an AI assistant.
                 </Fact>
                 <Fact icon={Scale} label="Terms">
-                  Code is GPL-3.0-or-later. Cite the release fingerprint from{" "}
-                  <a href="#getStatus" className="text-myco-green hover:underline">/api/status</a> alongside any
-                  map you use. Collection points are never served finer than 0.1°.
+                  Code is GPL-3.0-or-later; maps and rasters are CC BY-SA 4.0. Cite the release id
+                  from <a href="#getStatus" className="text-myco-green hover:underline">/api/status</a>{" "}
+                  (release.id) alongside any map you use. Collection points are never served finer
+                  than 0.1°.
                 </Fact>
               </div>
               <QuickStart />

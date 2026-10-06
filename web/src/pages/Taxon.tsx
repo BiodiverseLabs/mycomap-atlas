@@ -24,6 +24,7 @@ import {
   getCells,
   getEnsemble,
   getModel,
+  getStatus,
   getTaxon,
   mapUrl,
   rasterUrl,
@@ -104,6 +105,41 @@ export function isProvisionalName(name: string): boolean {
   return /["'‘’“”]|\bsp\.|-[A-Z]{2,}\d|\b[A-Z]{2,}\d{2}\b/.test(name);
 }
 
+/** The citation for a taxon's maps in the release this site serves. */
+export function mapCitation(name: string, release: string, accessed: Date, origin: string): string {
+  const year = release.slice(0, 4);
+  const day = accessed.toISOString().slice(0, 10);
+  return (
+    `MycoMap Atlas (${year}). Habitat maps of ${name}, release ${release}. ` +
+    `${origin}/taxa/${encodeURIComponent(name)} (accessed ${day}). CC BY-SA 4.0.`
+  );
+}
+
+function CiteThisMap({ name }: { name: string }) {
+  const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
+  const [copied, setCopied] = useState(false);
+  const release = status.data?.release?.id;
+  if (!release) return null;
+  const text = mapCitation(name, release, new Date(), window.location.origin);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <p className="text-xs text-muted-foreground">
+      Cite: <span className="select-all">{text}</span>{" "}
+      <button type="button" onClick={copy} className="underline hover:text-myco-green">
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </p>
+  );
+}
+
 /** What these maps are, and are not, said once above them. */
 function AboutTheseMaps({ name }: { name: string }) {
   return (
@@ -134,6 +170,7 @@ function AboutTheseMaps({ name }: { name: string }) {
         , built on WorldClim 2.1 and the other datasets listed under{" "}
         <a href="/sources" className="underline hover:text-myco-green">Sources</a>.
       </p>
+      <CiteThisMap name={name} />
     </div>
   );
 }

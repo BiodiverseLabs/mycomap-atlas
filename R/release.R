@@ -516,9 +516,14 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
     if (grepl("^archives/[^/]+[.]json$", key)) store$get(key, file.path(root, key))
   }
 
-  atlas_write_json(list(release = manifest$id, grid = grid,
-                        pulled_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")),
-                   atlas_path("releases", grid, "pulled.json"))
+  # What this machine now serves: enough to cite it, and the records it was
+  # built from, which a later nightly pull must not be mistaken for.
+  atlas_write_json(c(
+    list(release = manifest$id, grid = grid,
+         pulled_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+         created_at = manifest$created_at, commit = manifest$commit),
+    if (!is.null(manifest$pull)) list(data = manifest$pull)
+  ), atlas_path("releases", grid, "pulled.json"))
   say("release ", manifest$id, ": downloaded ", fetched, " of ", length(wanted),
       " files (", round(bytes / 1048576, 1), " MB)",
       if (removed) paste0(", removed ", removed, " local model files it does not have") else "")

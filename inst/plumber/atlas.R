@@ -220,6 +220,11 @@ function() {
   if (length(since) && !is.na(since)) {
     out$since <- as.character(since)
   }
+  # The release the maps come from, and the records it was built from. The
+  # box pulls every night before fitting, so the newest pull above can be
+  # ahead of the maps; the release is what to cite.
+  release <- atlas_status_release()
+  if (!is.null(release)) out$release <- release
   out
 }
 
