@@ -22,9 +22,10 @@ records. See README.md for the pipeline and data layout.
   They never reach a release, the API, the web app or this repository, and
   `data/` is never committed. Anything drawn is aggregated to 0.1 degrees;
   anything published is 1 km or coarser; no training points appear in any
-  published artifact. No taxon is singled out as sensitive at the
-  moment (Steve, 2026-09-28) — the resolution floor above applies to all of
-  them. Raise it again before the first public release of maps.
+  published artifact. That floor is the same for every taxon. **There are
+  no hidden or coarsened taxa** (Steve, settled 2026-10-06): no suppression
+  list, no sensitive-taxa file, no extra coarsening for rare taxa. Do not
+  propose one, raise it as a release blocker, or build one.
 - **Only the container publishes a release.** Iterate natively, but anything
   that reaches .org is built in the pinned Docker image. The Dockerfile pins
   its base by digest and R packages to a dated snapshot (`CRAN_SNAPSHOT`);
