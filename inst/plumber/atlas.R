@@ -393,6 +393,36 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
   readBin(path, "raw", file.info(path)$size)
 }
 
+#* A taxon's ensemble: its passing models averaged, with where they disagree.
+#* @get /api/taxa/<name>/ensemble
+#* @serializer unboxedJSON
+function(name, grid = "draft", res) {
+  path <- atlas_ensemble_path(atlas_decode_name(name), grid, ".json")
+  if (!file.exists(path)) {
+    res$status <- 404L
+    return(list(error = "no ensemble for this taxon: fewer than two of its models passed"))
+  }
+  jsonlite::fromJSON(path, simplifyVector = FALSE)
+}
+
+#* A taxon's ensemble map, or where its members disagree, as an image.
+#* @param layer map (default) or disagreement
+#* @get /api/taxa/<name>/ensemble.png
+#* @serializer contentType list(type = "image/png")
+function(name, grid = "draft", layer = "map", res) {
+  extension <- switch(layer, map = ".png", disagreement = ".disagreement.png", NULL)
+  if (is.null(extension)) {
+    res$status <- 400L
+    return(raw())
+  }
+  path <- atlas_ensemble_path(atlas_decode_name(name), grid, extension)
+  if (!file.exists(path)) {
+    res$status <- 404L
+    return(raw())
+  }
+  readBin(path, "raw", file.info(path)$size)
+}
+
 #* A taxon's suitability raster as a GeoTIFF. Needs a session or a token.
 #* @param algorithm maxnet (default), xgboost, rf or esm
 #* @get /api/taxa/<name>/raster.tif

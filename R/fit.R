@@ -1186,7 +1186,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
       gdal = c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
     )
     # Draw it too, so a new fit shows up in the app without a second command.
-    drawn <- atlas_write_map_png(suitability, sub("[.]tif$", ".png", raster_path))
+    drawn <- atlas_write_map_png(suitability, sub("[.]tif$", ".png", raster_path),
+                                 dissimilarity = dissimilarity, threshold = aoa$threshold)
     # And count it by state, for the lists of where it is likely
     # (R/predictions.R). A failure here costs the lists, not the fit.
     regions <- tryCatch(
@@ -1251,6 +1252,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     null = null,
     skill = skill,
     applicability = atlas_aoa_summary(aoa, dissimilarity),
+    map_strength = atlas_map_strength(null, skill),
     dissimilarity = if (is.null(dissimilarity_path)) NULL else basename(dissimilarity_path),
     raster = if (is.null(raster_path)) NULL else basename(raster_path),
     md5 = if (is.null(raster_path)) NULL else unname(tools::md5sum(raster_path)),

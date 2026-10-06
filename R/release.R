@@ -187,6 +187,9 @@ atlas_release_files <- function(grid = "draft") {
     list.files(atlas_model_dir(grid, algorithm), pattern = "[.](json|tif|png)$",
                full.names = TRUE)
   }), use.names = FALSE)
+  # The ensemble of each taxon's passing models, and where they disagree.
+  model_files <- c(model_files, list.files(atlas_path("models", grid, "ensemble"),
+                                           pattern = "[.](json|tif|png)$", full.names = TRUE))
   benchmarks <- sort(list.files(atlas_path("benchmarks", grid),
                                 pattern = "^models-[0-9T]+Z[.]json$", full.names = TRUE))
   files <- c(

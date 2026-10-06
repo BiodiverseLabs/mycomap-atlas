@@ -974,7 +974,7 @@
         ],
         "operationId": "getTaxonMap",
         "summary": "A taxon's habitat map as an image",
-        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks within the model's own accessible area, darkest green highest; outside that area the image is transparent. Add any v= query value to bust a cache.",
+        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks among the cells inside the model's area of applicability, darkest green highest; ground in the accessible area that no training site resembles is hatched grey, and beyond the accessible area the image is transparent. Add any v= query value to bust a cache.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -1017,6 +1017,124 @@
           },
           "404": {
             "description": "No map for this taxon and model. The body is empty."
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/taxa/{name}/ensemble": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "getTaxonEnsemble",
+        "summary": "A taxon's ensemble of its passing models",
+        "description": "Each model that passed its null test is ranked over the ground inside its own area of applicability, and the ranks are averaged, weighted by blocked AUC above 0.5. Lists the members and their weights, how much of the ground some member knows, and how much the members disagree. Absent when fewer than two models passed.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The ensemble.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ensemble"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/taxa/{name}/ensemble.png": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "getTaxonEnsembleMap",
+        "summary": "A taxon's ensemble map, or where its members disagree, as an image",
+        "description": "A PNG in web-map coordinates at the bounds the ensemble route gives. layer=map is the ensemble, coloured by rank, darkest green highest; ground no member knows is hatched grey. layer=disagreement runs from clear, where the members agree, to brown, where they rank a place at opposite ends.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          },
+          {
+            "name": "layer",
+            "in": "query",
+            "required": false,
+            "description": "map (default) or disagreement.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "map",
+                "disagreement"
+              ],
+              "default": "map"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown layer. The body is empty."
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "description": "No ensemble for this taxon. The body is empty."
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -1808,7 +1926,7 @@
               "maxnet",
               "xgboost",
               "rf",
-            "esm"
+              "esm"
             ],
             "description": "Absent on the oldest Maxent models, which are Maxent."
           },
@@ -1888,7 +2006,7 @@
           },
           "map_scale": {
             "type": "string",
-            "description": "rank: colours are percentiles within the map."
+            "description": "How the PNG's colours are scaled: ranks among the cells inside the area of applicability, on the equal-area grid. Older maps say \"rank\": percentiles over every cell of the image."
           },
           "map_drawn_at": {
             "type": "string",
@@ -2009,19 +2127,35 @@
             "items": {
               "type": "object",
               "properties": {
-                "name": {"type": "string"},
-                "label": {"type": "string"},
-                "fall": {"type": "number"},
-                "sd": {"type": "number"},
+                "name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "fall": {
+                  "type": "number"
+                },
+                "sd": {
+                  "type": "number"
+                },
                 "predictors": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "name": {"type": "string"},
-                      "label": {"type": "string"},
-                      "fall": {"type": "number"},
-                      "sd": {"type": "number"}
+                      "name": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "fall": {
+                        "type": "number"
+                      },
+                      "sd": {
+                        "type": "number"
+                      }
                     }
                   }
                 }
@@ -2030,7 +2164,9 @@
           },
           "layers_unused": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "Datasets the taxon's predictors came from that this model kept none of (Maxent prunes correlated predictors and caps their number)."
           },
           "uses_effort": {
@@ -2040,6 +2176,51 @@
           "effort_at": {
             "type": "number",
             "description": "The effort, log(records at the site, the taxon's own counted once), the map and scores are drawn at."
+          },
+          "map_strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "How strongly the map is drawn: 0 when it failed its null test; from 0.4 to 1 as its blocked AUC rises from just passing to five null standard deviations above its nulls. 0.5 when untested."
+          },
+          "applicability": {
+            "type": "object",
+            "description": "The map's area of applicability (Meyer & Pebesma 2021): threshold on the dissimilarity index, and the share of the accessible area inside it.",
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "inside_share": {
+                "type": "number"
+              },
+              "weights": {
+                "type": "string",
+                "enum": [
+                  "importance",
+                  "equal",
+                  "given"
+                ]
+              },
+              "predictors": {
+                "type": "integer"
+              },
+              "sites": {
+                "type": "integer"
+              },
+              "training_index_median": {
+                "type": "number"
+              },
+              "training_index_95": {
+                "type": "number"
+              }
+            }
+          },
+          "dissimilarity": {
+            "type": "string",
+            "description": "File name of the dissimilarity layer, published beside the raster."
           }
         }
       },
@@ -2055,7 +2236,7 @@
               "maxnet",
               "xgboost",
               "rf",
-            "esm"
+              "esm"
             ]
           },
           "presences": {
@@ -2479,7 +2660,7 @@
                 "maxnet",
                 "xgboost",
                 "rf",
-            "esm"
+                "esm"
               ]
             },
             "description": "Models with a map for this taxon; empty when it has none yet."
@@ -2573,7 +2754,7 @@
                 "maxnet",
                 "xgboost",
                 "rf",
-            "esm"
+                "esm"
               ]
             },
             "description": "Every model with a map for this taxon."
@@ -2648,6 +2829,77 @@
                 }
               }
             }
+          }
+        }
+      },
+      "Ensemble": {
+        "type": "object",
+        "properties": {
+          "taxon": {
+            "type": "string"
+          },
+          "grid": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "algorithm": {
+                  "type": "string"
+                },
+                "weight": {
+                  "type": "number"
+                },
+                "auc_mean": {
+                  "type": "number"
+                },
+                "map_strength": {
+                  "type": "number"
+                },
+                "md5": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "map_strength": {
+            "type": "number"
+          },
+          "known_share": {
+            "type": "number",
+            "description": "Share of the ground with a value that at least one member's area of applicability holds."
+          },
+          "disagreement_mean": {
+            "type": "number",
+            "description": "Mean weighted standard deviation of the members' ranks, 0 to 0.5."
+          },
+          "disagreement_high_share": {
+            "type": "number",
+            "description": "Share of cells where that spread is above 0.25."
+          },
+          "map": {
+            "type": "string"
+          },
+          "disagreement_map": {
+            "type": "string"
+          },
+          "raster": {
+            "type": "string"
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/ModelBounds"
+          },
+          "map_scale": {
+            "type": "string"
+          },
+          "built_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

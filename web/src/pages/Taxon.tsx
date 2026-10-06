@@ -20,13 +20,16 @@ import {
   ALGORITHM_MIN_PRESENCES,
   FULL_MODELS,
   SPARSE_MODELS,
+  ensembleMapUrl,
   getCells,
+  getEnsemble,
   getModel,
   getTaxon,
   mapUrl,
   rasterUrl,
   type Algorithm,
   type Cell,
+  type Ensemble,
   type Model,
 } from "@/lib/api";
 import { signInHere, useMe } from "@/lib/session";
@@ -67,14 +70,121 @@ function SyncWith({ group, id }: { group: MutableRefObject<MapGroup>; id: string
 
 function Legend() {
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>Lowest-rated ground</span>
-      <div
-        className="h-2 w-24 rounded"
-        style={{ background: "linear-gradient(to right, #f7f7e8, #94c440, #2e5a17)" }}
-      />
-      <span>Highest-rated</span>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <span className="flex items-center gap-2">
+        <span>Lowest-rated ground</span>
+        <span
+          className="h-2 w-24 rounded"
+          style={{ background: "linear-gradient(to right, #f7f7e8, #94c440, #2e5a17)" }}
+        />
+        <span>Highest-rated</span>
+      </span>
+      <span
+        className="flex items-center gap-2"
+        title="Conditions unlike any surveyed site the model learned from: it cannot say anything there"
+      >
+        <span
+          className="h-2 w-6 rounded"
+          style={{
+            background:
+              "repeating-linear-gradient(135deg, rgba(140,140,125,0.55) 0 2px, rgba(140,140,125,0.12) 2px 6px)",
+          }}
+        />
+        <span>No data like it</span>
+      </span>
     </div>
+  );
+}
+
+/**
+ * The taxon's passing models as one map, or where they disagree. Each model
+ * is ranked over the ground it knows, and the ranks are averaged, weighted by
+ * how far each model's blocked AUC is above chance.
+ */
+function EnsembleMap({
+  name,
+  ensemble,
+  points,
+  view,
+  group,
+}: {
+  name: string;
+  ensemble: Ensemble;
+  points: Cell[];
+  view: Bounds | null;
+  group: MutableRefObject<MapGroup>;
+}) {
+  const [layer, setLayer] = useState<"map" | "disagreement">("map");
+  const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
+  const b = ensemble.bounds;
+  const overlay: Bounds | null = b ? [[b.south, b.west], [b.north, b.east]] : null;
+  const members = ensemble.members
+    .map((m) => `${ALGORITHM_LABELS[m.algorithm]} (weight ${m.weight.toFixed(2)})`)
+    .join(", ");
+  const high = ensemble.disagreement_high_share;
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <CardTitle className="text-base text-[#4a3728]">All passing models together</CardTitle>
+          <div
+            className="inline-flex rounded-md border border-[#A87146]/20 p-0.5 text-xs"
+            role="group"
+            aria-label="Which ensemble layer to show"
+          >
+            {(["map", "disagreement"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLayer(l)}
+                aria-pressed={layer === l}
+                className={`rounded px-2 py-1 ${
+                  layer === l ? "bg-myco-green text-white" : "text-[#5c4a3a] hover:bg-[#A87146]/10"
+                }`}
+              >
+                {l === "map" ? "Combined map" : "Where they disagree"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <div className="relative h-[420px]">
+        <MapContainer center={[44, -100]} zoom={3} className="h-full w-full" scrollWheelZoom={false}>
+          <SyncWith group={group} id="ensemble" />
+          <FitBounds bounds={view} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {overlay && (
+            <ImageOverlay
+              url={ensembleMapUrl(name, layer, ensemble.built_at)}
+              bounds={overlay}
+              opacity={layer === "map" ? defaultStrength(false, ensemble.map_strength) / 100 : 0.85}
+            />
+          )}
+          {points.map((cell) => (
+            <CircleMarker
+              key={`${cell.lat}:${cell.lng}`}
+              center={[cell.lat, cell.lng]}
+              radius={2 + (cell.records / busiest) * 5}
+              pathOptions={{ color: "#4a3728", fillColor: "#ffffff", fillOpacity: 0.85, weight: 1 }}
+              tooltip={`${formatNumber(cell.records)} record${cell.records === 1 ? "" : "s"}`}
+            />
+          ))}
+        </MapContainer>
+      </div>
+      <CardContent className="px-4 py-3 text-xs text-muted-foreground">
+        {layer === "map" ? (
+          <>Averaged from {members}. Where a model has no data like a place, it has no say there.</>
+        ) : (
+          <>
+            Clear where the models rank a place alike; brown where they put it at opposite ends.
+            {high != null && ` They disagree strongly on ${Math.round(high * 100)}% of the ground.`}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -139,8 +249,11 @@ function ModelMap({
   const failed = model?.skill === "failed";
   // Starts where the model's null test puts it, and again whenever the model
   // (or its verdict) changes; after that it is the viewer's.
-  const [strength, setStrength] = useState(defaultStrength(failed));
-  useEffect(() => setStrength(defaultStrength(failed)), [failed, model?.built_at]);
+  const [strength, setStrength] = useState(defaultStrength(failed, model?.map_strength));
+  useEffect(
+    () => setStrength(defaultStrength(failed, model?.map_strength)),
+    [failed, model?.map_strength, model?.built_at],
+  );
   const screen = useFullscreen<HTMLDivElement>();
   useLayoutEffect(() => {
     const map = group.current.maps.get(algorithm);
@@ -227,7 +340,7 @@ function ModelMap({
             <ImageOverlay
               url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at)}
               bounds={overlay}
-              // A map that could not beat its null models starts faint.
+              // A map starts as strong as it beat its null models by.
               opacity={strength / 100}
             />
           )}
@@ -481,6 +594,7 @@ export default function Taxon() {
     shownModels[a] = models[a];
   });
   const loading = fits.some((f) => f.isLoading);
+  const ensemble = useQuery({ queryKey: ["ensemble", name], queryFn: () => getEnsemble(name) });
   const points = cells.data?.cells ?? [];
   const group = useRef<MapGroup>({ maps: new Map(), syncing: false });
   // Opens on the collections and the ground around them, once they are in.
@@ -568,6 +682,21 @@ export default function Taxon() {
           </Card>
         ) : (
           <>
+            {ensemble.data && (
+              <section className="mb-8">
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+                  <SectionTitle>The models together</SectionTitle>
+                  <Legend />
+                </div>
+                <EnsembleMap
+                  name={name}
+                  ensemble={ensemble.data}
+                  points={points}
+                  view={boundsOf(anyModel)}
+                  group={group}
+                />
+              </section>
+            )}
             <section>
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
                 <SectionTitle>{sparse ? "One map from many small models" : "Three models, same records"}</SectionTitle>

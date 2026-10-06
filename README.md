@@ -461,9 +461,48 @@ decile, at about a sixth of the time.
 
 The models put their scores on different scales — on *Pluteus petasatus*,
 Maxent spans 0.03–1.00 across its map, boosted trees 0.27–0.63 — so each map
-is drawn by percentile within its own accessible area: the darkest green is
-the ground that model rates highest. Stored rasters keep the raw values.
+is drawn by percentile: the darkest green is the ground that model rates
+highest. Ranks are taken on the equal-area grid, before the map is warped to
+Mercator, and only over ground inside the map's area of applicability (below);
+ground outside it is hatched grey. Stored rasters keep the raw values.
 `./atlas redraw-maps --workers=12` redraws every map without refitting.
+
+How strongly a map is drawn follows its skill. `map_strength` is 0 for a map
+that failed its null test, and for one that passed runs from 0.4 (just past
+p = 0.05) to 1 (blocked AUC five null standard deviations above its nulls).
+The site starts each map's opacity between 25% and 80% in proportion; the
+viewer can still move it.
+
+### Where a map applies
+
+Parts of a 500 km circle hold conditions no survey site has. Maxent clamps
+and trees hold their edge values there, so without a mask the map would show
+a confident colour resting on no data. Every fit computes the dissimilarity
+index of Meyer & Pebesma (2021) over its map (R/aoa.R). Predictors are
+standardised by the training sites and weighted by the model's own
+permutation importance on held-out ground. The index is the distance to the
+nearest training site, divided by the mean distance between training sites.
+The threshold is the upper whisker of the training sites' own index against
+the other folds, as CAST sets it. The index is written beside the map as
+`<taxon>.di.tif`, and the metrics keep the threshold and the share of the
+accessible area inside it.
+
+The search is exact. On a loaded PC with all 69 predictors weighted equally
+(the worst case), a widespread taxon's 377,000–456,000 cells took 10–13
+minutes. Real fits weight about a dozen predictors, and the cost scales with
+them.
+
+### The ensemble
+
+`./atlas build-ensembles` averages each taxon's passing models into one map
+(R/ensemble.R). Each member is ranked over the ground inside its own area of
+applicability, and the ranks are averaged, weighted by blocked AUC above 0.5.
+A cell takes its rank only from members that know it. Beside the average is
+a disagreement layer: the weighted standard deviation of the members' ranks,
+0 where they agree and 0.5 where two put a place at opposite ends. A taxon
+needs two passing models for an ensemble. Each member's raster md5 is kept,
+and an ensemble is rebuilt only when a member changes. Ensembles ship in
+releases under `models/<grid>/ensemble/`.
 
 The Models page in the app shows the latest benchmark and, for the maps in
 production, how many taxa each model has mapped and their median scores.
@@ -508,6 +547,16 @@ and a positive Boyce index) and 8% were no better than chance; at 4, 58% and
 9%. Every ensemble map from 3 sites up is drawn, faint when it fails its null
 test (Steve, 2026-10-04).
 
+A sparse taxon's own null test has little power: the null models' AUC spreads
+by 0.25 at 3-4 sites, 0.18 at 5-7 and 0.10 at 16-19, so even a sound map
+rarely beats all nineteen. In the first full build 4% of 1,801 ensembles from
+3-4 sites passed (fewer than chance alone lets through) and 40% from 16-19.
+Until 2026-10-04 a map from 3 or 4 sites was drawn only when it passed
+(`map_withheld`); those are fitted again and drawn. The site labels a failed
+ensemble "too few sites to tell", with how often maps of its size had clear
+skill in the study above (`web/src/lib/sparseSkill.ts`). An algorithm can
+still hold maps back below a site count (`map_needs_skill_below`); none does.
+
 ## Virtual species: testing the method where the answer is known
 
 Blocked AUC and Boyce score a map against held-out detections, and those
@@ -549,15 +598,45 @@ habitat species.
 Background weights and the offset are the same model in maxnet's
 formulation. They give identical maps, which checks the wiring of both.
 
-A sparse taxon's own null test has little power: the null models' AUC spreads
-by 0.25 at 3-4 sites, 0.18 at 5-7 and 0.10 at 16-19, so even a sound map
-rarely beats all nineteen. In the first full build 4% of 1,801 ensembles from
-3-4 sites passed (fewer than chance alone lets through) and 40% from 16-19.
-Until 2026-10-04 a map from 3 or 4 sites was drawn only when it passed
-(`map_withheld`); those are fitted again and drawn. The site labels a failed
-ensemble "too few sites to tell", with how often maps of its size had clear
-skill in the study above (`web/src/lib/sparseSkill.ts`). An algorithm can
-still hold maps back below a site count (`map_needs_skill_below`); none does.
+### Null models that keep clustering
+
+A lineage named for one region sits in that region, and within a 500 km
+circle almost any smooth predictor tells a cluster from the rest. The
+production nulls draw detection sites one by one ("scatter"), so a clustered
+taxon can beat them on clustering alone. R/nulls.R adds two designs that keep
+the pattern's shape:
+
+- **shift**: the real detections are rotated by one random angle, moved to a
+  random survey site and snapped to free sites.
+- **shift-effort**: the same, but each point snaps among nearby sites in
+  proportion to their records.
+
+The sequential test (Besag & Clifford 1991) draws up to 99 nulls and stops
+once a set number have done as well as the map. That gives the same verdict
+at 0.05 as drawing them all. `atlas_null_qvalues` gives Benjamini-Hochberg
+q-values across taxa. The virtual-species study compares the designs:
+
+```bash
+./atlas study-virtual --species=100 --kinds=habitat,geography --nulls=99 \
+  --null-designs=scatter,shift,shift-effort --stop-after=5 --arms=maxnet:none --workers=16
+```
+
+### Block size
+
+`./atlas study-blocks` asks kNNDM's question (Milà et al. 2022; Linnenbrink
+et al. 2024): which block size makes the distances cross-validation tests at
+match the distances a map predicts at? For each candidate size, it compares
+each held-out site's distance to the nearest training site with each mapped
+cell's distance to the nearest survey site, as a Wasserstein distance in km.
+It is measured over every cell of the accessible area, over cells near a
+survey site, and against distances to detections.
+
+On 153 taxa (2026-10-05), 100–200 km fit every cell best. The 300 km ceiling
+tests harder ground than the map's: held-out sites sit a median 79 km from
+training sites, mapped cells 35 km from a site. Measured to detections, even
+400 km falls short, because mapped cells sit about 150 km from the nearest
+detection. blockCV gave 8 taxa blocks of 50–85 km. Every size up to 400 km
+leaves about 99% of taxa scorable.
 
 ## Releases
 

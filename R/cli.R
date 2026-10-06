@@ -67,6 +67,9 @@ atlas_usage <- function() {
   message("      --stop-after=N            stop a null test once N nulls do as well (default: never)")
   message("      --workers=N               species at once (default 1)")
   message("      --seed=N                  which species (default 1)")
+  message("  build-ensembles    average each taxon's passing models into one map, with where")
+  message("                     they disagree (after fit-all, before a release)")
+  message("      --force                   rebuild even ensembles whose members have not changed")
   message("  study-blocks       which block size makes cross-validation test at the distances")
   message("                     a map predicts at (kNNDM's question)")
   message("      --per-band=N              taxa per band of detection sites (default 25)")
@@ -372,6 +375,10 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )
+      invisible(0L)
+    },
+    "build-ensembles" = {
+      atlas_build_ensembles(grid = atlas_flag_grid(flags), force = isTRUE(flags$force))
       invisible(0L)
     },
     "study-blocks" = {
