@@ -84,6 +84,8 @@ test_that("a fitted map carries its dissimilarity layer and says how much of it 
                            buffer_km = 300, quiet = TRUE, nulls = 0, tune = FALSE,
                            block_km = 200)
     applicability <- fit$metrics$applicability
+    # The synthetic records carry no dates, so the model says nothing about years.
+    expect_null(fit$metrics$record_years)
     expect_true(is.finite(applicability$threshold) && applicability$threshold > 0)
     expect_true(applicability$inside_share > 0 && applicability$inside_share <= 1)
     expect_equal(fit$metrics$dissimilarity, "eastern-fungus.di.tif")
@@ -107,4 +109,23 @@ test_that("a change to how applicability is judged makes every stored model stal
     design
   })
   expect_false(identical(atlas_settings_key(atlas_fit_settings(layers = "synthetic")), before))
+})
+
+test_that("a fitted model says what years its records were collected over", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    points <- world$points
+    points$year <- ifelse(points$scientific_name == "Eastern fungus", 1990L + seq_len(nrow(points)) %% 30L, 2000L)
+    fit <- atlas_fit_taxon("Eastern fungus", points = points, stack = world$stack,
+                           fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                           buffer_km = 300, quiet = TRUE, nulls = 0, tune = FALSE,
+                           block_km = 200, predict = FALSE, write = FALSE)
+    years <- fit$metrics$record_years
+    own <- points$year[points$scientific_name == "Eastern fungus"]
+    expect_equal(years$records, length(own))
+    expect_equal(c(years$first, years$last), range(own))
+    expect_equal(years$before_climate_period, round(mean(own < 1991L), 3))
+  })
 })

@@ -15,6 +15,41 @@ test_that("repeat visits to one place become one site", {
   expect_equal(sort(attr(points, "sites")$records), c(1L, 3L))
 })
 
+test_that("each record keeps the year it was collected, and an impossible date has none", {
+  skip_if_not_installed("terra")
+  points <- atlas_occurrence_points(
+    data.frame(
+      scientific_name = "Amanita muscaria",
+      latitude = c("45.10", "45.20", "45.30", "45.40"),
+      longitude = c("-122.50", "-122.50", "-122.50", "-122.50"),
+      observed_on = c("1948-06-17", "2021-09-14", "", "0200-01-01"),
+      stringsAsFactors = FALSE
+    ),
+    grid = "draft"
+  )
+  expect_equal(points$year, c(1948L, 2021L, NA, NA))
+  # Sites are untouched by the extra column.
+  expect_equal(sum(attr(points, "sites")$records), 4L)
+})
+
+test_that("a taxon's record years give first, median and last, and the share before the climate period", {
+  points <- data.frame(scientific_name = c(rep("A", 5), "B"),
+                       year = c(1948L, 1985L, 2015L, 2021L, NA, 1900L))
+  years <- atlas_record_years(points, "A")
+  expect_equal(years$records, 5L)
+  expect_equal(years$dated, 4L)
+  expect_equal(c(years$first, years$median, years$last), c(1948L, 2000L, 2021L))
+  expect_equal(years$before_climate_period, 0.5)
+  expect_equal(years$climate_period_start, ATLAS_CLIMATE_PERIOD_START)
+  # The first year of the period is inside it, the year before is not.
+  edge <- atlas_record_years(data.frame(scientific_name = "D", year = c(1990L, 1991L)), "D")
+  expect_equal(edge$before_climate_period, 0.5)
+  # No dated records: counts only. No year column at all: nothing to say.
+  undated <- atlas_record_years(data.frame(scientific_name = "C", year = NA_integer_), "C")
+  expect_equal(undated, list(records = 1L, dated = 0L))
+  expect_null(atlas_record_years(data.frame(scientific_name = "A"), "A"))
+})
+
 test_that("records off the grid are dropped rather than snapped to its edge", {
   skip_if_not_installed("terra")
   points <- atlas_occurrence_points(

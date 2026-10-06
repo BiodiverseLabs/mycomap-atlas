@@ -2221,6 +2221,33 @@
           "dissimilarity": {
             "type": "string",
             "description": "File name of the dissimilarity layer, published beside the raster."
+          },
+          "record_years": {
+            "type": "object",
+            "description": "The years the taxon's records were collected over: first, median and last year, how many records have a date, and the share collected before the climate period the layers describe (1991).",
+            "properties": {
+              "records": {
+                "type": "integer"
+              },
+              "dated": {
+                "type": "integer"
+              },
+              "first": {
+                "type": "integer"
+              },
+              "median": {
+                "type": "integer"
+              },
+              "last": {
+                "type": "integer"
+              },
+              "before_climate_period": {
+                "type": "number"
+              },
+              "climate_period_start": {
+                "type": "integer"
+              }
+            }
           }
         }
       },

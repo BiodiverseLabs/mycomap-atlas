@@ -162,6 +162,8 @@ export interface Model {
   map_strength?: number;
   /** Where the map has training data behind it (Meyer & Pebesma 2021). */
   applicability?: ModelApplicability;
+  /** The years the taxon's records were collected over. */
+  record_years?: RecordYears;
   null?: ModelNull;
   /** Settings chosen by tuning in nested spatial folds. */
   params?: Record<string, string | number>;
@@ -243,6 +245,18 @@ export function getTaxon(name: string): Promise<Taxon> {
 
 export function getCells(name: string): Promise<Cells> {
   return get<Cells>(`/api/taxa/${encodeURIComponent(name)}/cells`);
+}
+
+/** The years a taxon's records were collected over. */
+export interface RecordYears {
+  records: number;
+  dated: number;
+  first?: number;
+  median?: number;
+  last?: number;
+  /** Share of dated records collected before the climate period on the map. */
+  before_climate_period?: number;
+  climate_period_start?: number;
 }
 
 /** A map's area of applicability: ground like the sites it learned from. */

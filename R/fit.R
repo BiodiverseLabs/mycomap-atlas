@@ -1059,6 +1059,12 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   )
   guild <- atlas_taxon_guild(name, guilds)
   priority <- atlas_predictor_priority(guild)
+  # Built once here when not handed in, so the record years below come from
+  # the same points the training table does.
+  if (is.null(points)) {
+    occurrences <- occurrences %||% atlas_read_occurrences()
+    points <- atlas_occurrence_points(occurrences, grid)
+  }
   training <- atlas_build_training(
     name, grid,
     n_background = n_background, buffer_km = buffer_km,
@@ -1224,6 +1230,9 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     predictors_considered = length(considered),
     genus = atlas_taxon_genus(name),
     guild = guild,
+    # The years the taxon's records were collected over (every record, before
+    # any site is dropped for lack of predictor data).
+    record_years = atlas_record_years(points, name),
     # The order the predictors were pruned in; the trees take them all.
     priority = if (isTRUE(prune)) as.list(priority) else NULL,
     effort_at = round(effort_at %||% NA_real_, 4),

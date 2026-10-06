@@ -645,6 +645,19 @@ export default function Taxon() {
               {formatNumber(taxon.data.localities)} independent localities
             </span>
           )}
+          {anyModel?.record_years?.first != null && (
+            <span
+              className="tabular-nums"
+              title={
+                anyModel.record_years.before_climate_period != null
+                  ? `${Math.round(anyModel.record_years.before_climate_period * 100)}% of dated records were collected before ${anyModel.record_years.climate_period_start}, when the climate on the maps begins. ${formatNumber(anyModel.record_years.records - anyModel.record_years.dated)} records have no date.`
+                  : undefined
+              }
+            >
+              Collected {anyModel.record_years.first}–{anyModel.record_years.last} (median{" "}
+              {anyModel.record_years.median})
+            </span>
+          )}
           <a
             href={`https://mycomap.org/species/${encodeURIComponent(name)}`}
             className="inline-flex items-center gap-1 hover:text-myco-green"
