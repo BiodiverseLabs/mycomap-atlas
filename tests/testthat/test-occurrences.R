@@ -54,6 +54,44 @@ test_that("the MO condition survives the SQL route: one line, no double quote, n
   expect_false(grepl("%", sql, fixed = TRUE))
 })
 
+test_that("a MyCoPortal record needs MyCoPortal's own coordinates or a label no other label shares a point with", {
+  sql <- atlas_occurrence_sql()
+  clause <- atlas_mycoportal_location_clause()
+  expect_match(sql, clause, fixed = TRUE)
+  expect_match(clause, "AND (o.source NOT IN ('MycoPortal', 'MyCoPortal') OR ", fixed = TRUE)
+  expect_match(clause, "p.sync_status = 'success'", fixed = TRUE)
+  # Placed by MyCoPortal: within the limit, or no uncertainty recorded.
+  expect_match(clause, "coalesce(p.coordinate_uncertainty_in_meters, 0) <= 5000", fixed = TRUE)
+  expect_match(atlas_mycoportal_location_clause(max_m = 1000), "<= 1000)", fixed = TRUE)
+  # Geocoded: no record with another locality on the very same point.
+  expect_match(clause, "o2.latitude = o.latitude AND o2.longitude = o.longitude", fixed = TRUE)
+  expect_match(clause, "coalesce(p2.locality, '') <> coalesce(p.locality, '')", fixed = TRUE)
+  expect_match(clause, "o2.observation_id <> o.observation_id", fixed = TRUE)
+})
+
+test_that("every location condition opens as many brackets as it closes", {
+  # The other tests match fragments, which a stray bracket passes; Postgres
+  # would refuse the whole pull.
+  balanced <- function(x) {
+    depth <- cumsum(ifelse(strsplit(x, "")[[1]] == "(", 1, ifelse(strsplit(x, "")[[1]] == ")", -1, 0)))
+    all(depth >= 0) && depth[[length(depth)]] == 0
+  }
+  for (unknown in c("keep", "drop")) {
+    expect_true(balanced(atlas_mo_location_clause(unknown = unknown)), label = paste("MO", unknown))
+    expect_true(balanced(atlas_mycoportal_location_clause(unknown = unknown)),
+                label = paste("MyCoPortal", unknown))
+  }
+  expect_true(balanced(atlas_occurrence_sql()))
+})
+
+test_that("a MyCoPortal record with no answer yet is kept or dropped as configured", {
+  kept <- atlas_mycoportal_location_clause(unknown = "keep")
+  dropped <- atlas_mycoportal_location_clause(unknown = "drop")
+  expect_match(kept, "OR NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE", fixed = TRUE)
+  expect_false(grepl("OR NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE", dropped, fixed = TRUE))
+  expect_error(atlas_mycoportal_location_clause(unknown = "maybe"))
+})
+
 test_that("records without coordinates are excluded", {
   sql <- atlas_occurrence_sql()
   expect_match(sql, "o.latitude IS NOT NULL", fixed = TRUE)

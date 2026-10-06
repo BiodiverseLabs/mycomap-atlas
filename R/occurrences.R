@@ -9,6 +9,10 @@
 #     or else a named location small enough that its centre is within
 #     ATLAS_MO_MAX_LOCATION_M of every point in it (R/occurrences.R
 #     atlas_mo_location_clause);
+#   - for a MyCoPortal record, MyCoPortal's own coordinates within
+#     ATLAS_MO_MAX_LOCATION_M, or a place geocoded from its label that no
+#     record with a different label shares, which would make it a county's or
+#     state's centre (atlas_mycoportal_location_clause);
 #   - in North America (or a Puerto Rico record with a blank country);
 #   - a species-level name, provisional temp codes included.
 #
@@ -58,14 +62,54 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
        AND right(lower(o.scientific_name), 3) <> ' sp'
        %s
        %s
+       %s
        AND o.id > %d
      ORDER BY o.id
      LIMIT %d",
     paste0("o.", ATLAS_OCCURRENCE_FIELDS, collapse = ", "),
     statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
-    atlas_mo_location_clause(), as.integer(after_id), as.integer(limit)
+    atlas_mo_location_clause(), atlas_mycoportal_location_clause(),
+    as.integer(after_id), as.integer(limit)
   )
   atlas_one_line(sql)
+}
+
+# How .org labels MyCoPortal records (both spellings occur).
+ATLAS_MYCOPORTAL_SOURCES <- c("MycoPortal", "MyCoPortal")
+# What to do with a MyCoPortal record .org has not yet fetched MyCoPortal's
+# answer for: keep it ("keep") or leave it out ("drop").
+ATLAS_MYCOPORTAL_UNKNOWN <- "keep"
+
+#' The SQL condition that keeps only MyCoPortal records placed well enough
+#' to model.
+#'
+#' Legacy .com places a MyCoPortal record by geocoding its label: MyCoPortal's
+#' coordinates when it has them, else a place search on the locality, and
+#' when that fails the county or state alone. .org's mycoportal_data holds
+#' MyCoPortal's own answer for each record (filled by .org's
+#' backfillMycoportalData script). A record passes when MyCoPortal placed it
+#' with an uncertainty within max_m, or recorded none; or, when MyCoPortal
+#' gave no coordinates, when no record with a different locality sits on
+#' exactly the same point: many labels on one point means the geocoder fell
+#' back to the county or state. A record with no answer yet is kept or
+#' dropped as unknown says. Other sources are untouched.
+atlas_mycoportal_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
+                                             unknown = ATLAS_MYCOPORTAL_UNKNOWN) {
+  unknown <- match.arg(unknown, c("keep", "drop"))
+  sources <- paste(sprintf("'%s'", ATLAS_MYCOPORTAL_SOURCES), collapse = ", ")
+  answered <- "p.observation_id = o.observation_id AND p.sync_status = 'success'"
+  placed <- sprintf(paste(
+    "EXISTS (SELECT 1 FROM mycoportal_data p WHERE %s AND (",
+    "(p.decimal_latitude IS NOT NULL AND coalesce(p.coordinate_uncertainty_in_meters, 0) <= %d)",
+    "OR (p.decimal_latitude IS NULL AND NOT EXISTS (SELECT 1 FROM observations o2",
+    "JOIN mycoportal_data p2 ON p2.observation_id = o2.observation_id",
+    "WHERE o2.latitude = o.latitude AND o2.longitude = o.longitude",
+    "AND o2.observation_id <> o.observation_id",
+    "AND coalesce(p2.locality, '') <> coalesce(p.locality, '')))))"
+  ), answered, as.integer(max_m))
+  unanswered <- sprintf("NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE %s)", answered)
+  keep <- if (identical(unknown, "keep")) paste(placed, "OR", unanswered) else placed
+  sprintf("AND (o.source NOT IN (%s) OR %s)", sources, keep)
 }
 
 # How .org labels Mushroom Observer records, and how its cache labels their
