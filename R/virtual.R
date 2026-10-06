@@ -372,7 +372,7 @@ atlas_virtual_taxon <- function(name, fingerprint, points, stack,
                                      stop_after = stop_after %||% (nulls + 1L))
         }
         keep <- intersect(c("design", "reps", "observed_auc", "auc_mean", "auc_sd", "auc_p",
-                            "stopped_early", "drawn", "fallbacks"), names(null))
+                            "stopped_early", "drawn", "best_effort", "far_share"), names(null))
         c(null[keep], list(boyce = boyce, skill = atlas_skill(null, boyce)))
       }, error = function(e) list(design = design, error = conditionMessage(e)))
     }), null_designs)
@@ -457,8 +457,9 @@ atlas_virtual_summary <- function(rows, baseline = ATLAS_VIRTUAL_BASELINE) {
 #' passed uses each map's own p at ATLAS_SKILL_ALPHA; fdr_passed uses
 #' Benjamini-Hochberg q-values over every species tested with that design
 #' (both kinds together, as a release would test every taxon), with the same
-#' Boyce condition. nulls is the mean number of nulls drawn, and fallback the
-#' share of shifted nulls that had to be scattered.
+#' Boyce condition. nulls is the mean number of nulls drawn, best_effort the
+#' share of shifted nulls placed best-effort, and far the mean share of their
+#' points that landed far from a site.
 atlas_virtual_null_summary <- function(rows) {
   tested <- Filter(function(r) identical(r$status, "scored") && length(r$nulls %||% r$null), rows)
   if (!length(tested)) return(data.frame())
@@ -471,7 +472,8 @@ atlas_virtual_null_summary <- function(rows) {
         p = as.numeric(n$auc_p %||% NA), boyce = as.numeric(n$boyce %||% NA),
         passed = identical(n$skill, "passed"),
         drawn = as.numeric(n$drawn %||% n$reps %||% NA),
-        fallbacks = as.numeric(n$fallbacks %||% 0),
+        best_effort = as.numeric(n$best_effort %||% 0),
+        far = as.numeric(n$far_share %||% NA),
         stringsAsFactors = FALSE
       )
     }))
@@ -489,7 +491,8 @@ atlas_virtual_null_summary <- function(rows) {
       fdr_passed = sum(x$fdr_passed), fdr_rate = round(mean(x$fdr_passed), 3),
       median_p = round(stats::median(x$p, na.rm = TRUE), 3),
       nulls = round(mean(x$drawn, na.rm = TRUE), 1),
-      fallback = round(sum(x$fallbacks) / max(1, sum(x$drawn, na.rm = TRUE)), 3),
+      best_effort = round(sum(x$best_effort) / max(1, sum(x$drawn, na.rm = TRUE)), 3),
+      far = round(mean(x$far, na.rm = TRUE), 3),
       stringsAsFactors = FALSE
     )
   }))

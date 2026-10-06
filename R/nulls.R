@@ -15,8 +15,13 @@
 # then snaps to a survey site, never two to the same one. A draw is rejected
 # when more than a fifth of its points land further than ATLAS_NULL_SNAP_KM
 # from any free site, which is moving a cluster into ground nobody surveyed.
-# After ATLAS_NULL_SHIFT_TRIES rejections the null falls back to a scattered
-# draw, and the fallback is counted. "shift-effort" snaps each point among the
+# A big pattern spread over several regions can rarely be moved whole without
+# that (a 205-site species: every one of 200 tries rejected), and scattering
+# it instead would quietly turn the test back into the one it replaces. So
+# after ATLAS_NULL_SHIFT_TRIES rejections the null takes the try that left the
+# fewest points far from a site, snaps those to the nearest free site wherever
+# it is, and says so (best_effort, with the share of points that moved far).
+# "shift-effort" snaps each point among the
 # nearest free sites within snap distance in proportion to their records, so
 # the nulls keep both the clustering and the pull of busy sites.
 #
@@ -57,10 +62,11 @@ atlas_null_design <- function(design) {
 #' with weight, one of the choices nearest free sites within snap_km (always
 #' at least the nearest) in proportion to weight. Returns the row of each
 #' point's site, or NULL when more than far_share of the points land further
-#' than snap_km from a free site.
+#' than snap_km from a free site. With strict = FALSE every point is placed
+#' however far it lands, and attr(, "far_share") says how many landed far.
 atlas_snap_to_sites <- function(px, py, sx, sy, weight = NULL, snap_km = ATLAS_NULL_SNAP_KM,
                                 far_share = ATLAS_NULL_FAR_SHARE,
-                                choices = ATLAS_NULL_SNAP_CHOICES) {
+                                choices = ATLAS_NULL_SNAP_CHOICES, strict = TRUE) {
   n <- length(px)
   if (n > length(sx)) return(NULL)
   allowed_far <- floor(far_share * n)
@@ -79,19 +85,22 @@ atlas_snap_to_sites <- function(px, py, sx, sy, weight = NULL, snap_km = ATLAS_N
     }
     if (d[[j]] > snap_km) {
       far <- far + 1L
-      if (far > allowed_far) return(NULL)
+      if (isTRUE(strict) && far > allowed_far) return(NULL)
     }
     used[[j]] <- TRUE
     chosen[[i]] <- j
   }
+  attr(chosen, "far_share") <- far / n
   chosen
 }
 
 #' One shifted null: the real detections rotated, moved and snapped to
-#' sites. attr(, "tries") says how many draws it took; attr(, "fallback") is
-#' TRUE when every draw was rejected and the null was scattered instead.
+#' sites. attr(, "tries") says how many draws it took; attr(, "best_effort")
+#' is TRUE when every draw was rejected and the one that left the fewest
+#' points far from a site was placed anyway, and attr(, "far_share") is the
+#' share of points that landed further than snap_km from a free site.
 atlas_null_shift <- function(training, seed, effort = FALSE, tries = ATLAS_NULL_SHIFT_TRIES,
-                             snap_km = ATLAS_NULL_SNAP_KM) {
+                             snap_km = ATLAS_NULL_SNAP_KM, far_share = ATLAS_NULL_FAR_SHARE) {
   found <- which(training$presence == 1L)
   weight <- if (ATLAS_EFFORT_COLUMN %in% names(training)) {
     exp(training[[ATLAS_EFFORT_COLUMN]])
@@ -100,26 +109,38 @@ atlas_null_shift <- function(training, seed, effort = FALSE, tries = ATLAS_NULL_
   }
   dx <- training$x[found] - mean(training$x[found])
   dy <- training$y[found] - mean(training$y[found])
+  allowed_far <- floor(far_share * length(found))
+  place <- function(px, py, strict) {
+    atlas_snap_to_sites(px, py, training$x, training$y, weight = if (isTRUE(effort)) weight,
+                        snap_km = snap_km, far_share = far_share, strict = strict)
+  }
+  finish <- function(snapped, try, best_effort) {
+    presence <- integer(nrow(training))
+    presence[snapped] <- 1L
+    attr(presence, "tries") <- try
+    attr(presence, "best_effort") <- best_effort
+    attr(presence, "far_share") <- attr(snapped, "far_share") %||% 0
+    presence
+  }
   set.seed(seed)
+  best <- NULL
   for (try in seq_len(tries)) {
     angle <- stats::runif(1, 0, 2 * pi)
     anchor <- sample.int(nrow(training), 1L, prob = weight)
     px <- training$x[[anchor]] + dx * cos(angle) - dy * sin(angle)
     py <- training$y[[anchor]] + dx * sin(angle) + dy * cos(angle)
-    snapped <- atlas_snap_to_sites(px, py, training$x, training$y,
-                                   weight = if (isTRUE(effort)) weight, snap_km = snap_km)
-    if (!is.null(snapped)) {
-      presence <- integer(nrow(training))
-      presence[snapped] <- 1L
-      attr(presence, "tries") <- try
-      attr(presence, "fallback") <- FALSE
-      return(presence)
-    }
+    # A point far from every site is far from every free one too, so a draw
+    # this count already rejects is not worth snapping point by point.
+    far <- sum(atlas_nearest_km(px, py, training$x, training$y) > snap_km)
+    if (is.null(best) || far < best$far) best <- list(far = far, px = px, py = py, state = atlas_rng_state())
+    if (far > allowed_far) next
+    snapped <- place(px, py, strict = TRUE)
+    if (!is.null(snapped)) return(finish(snapped, try, FALSE))
   }
-  presence <- atlas_null_presence(training, length(found), seed = seed)
-  attr(presence, "tries") <- tries
-  attr(presence, "fallback") <- TRUE
-  presence
+  # Snapped from the random state it was drawn in, so the same seed gives the
+  # same null.
+  atlas_rng_restore(best$state)
+  finish(place(best$px, best$py, strict = FALSE), tries, TRUE)
 }
 
 #' A null's detections under any design.
@@ -138,7 +159,8 @@ atlas_null_draw <- function(training, n, seed, design = "scatter") {
 #' Same procedure as atlas_null_test (same sites, folds and untuned
 #' settings; a failed null is replaced, up to 2 x reps draws), and the same
 #' result, with the design, how many nulls were drawn, whether the test
-#' stopped early and how many shifted nulls fell back to scattered ones.
+#' stopped early, how many shifted nulls were placed best-effort, and the mean
+#' share of their points that landed far from a site.
 atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed = 1L,
                                        design = "scatter", stop_after = 5L, batch = 10L) {
   design <- atlas_null_design(design)
@@ -149,11 +171,13 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     if (is.null(scores)) return(c(auc = NA_real_, boyce = NA_real_))
     c(auc = mean(scores$auc, na.rm = TRUE), boyce = atlas_pooled_boyce(scores))
   }
-  fallbacks <- 0L
+  best_effort <- 0L
+  far_shares <- numeric()
   null_table <- function(draw) {
     null <- training
     null$presence <- atlas_null_draw(training, n, seed + 1000L + draw, design)
-    if (isTRUE(attr(null$presence, "fallback"))) fallbacks <<- fallbacks + 1L
+    if (isTRUE(attr(null$presence, "best_effort"))) best_effort <<- best_effort + 1L
+    if (!is.null(attr(null$presence, "far_share"))) far_shares <<- c(far_shares, attr(null$presence, "far_share"))
     attributes(null$presence) <- NULL
     null
   }
@@ -218,7 +242,8 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     boyce_mean = if (length(boyces)) round(mean(boyces), 3) else NA_real_,
     stopped_early = stopped,
     drawn = draw,
-    fallbacks = fallbacks
+    best_effort = best_effort,
+    far_share = if (length(far_shares)) round(mean(far_shares), 3) else NA_real_
   )
 }
 

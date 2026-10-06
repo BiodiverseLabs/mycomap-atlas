@@ -45,7 +45,7 @@ test_that("a shifted null keeps the clustering that a scattered null loses", {
   real <- stats::median(nearest_neighbour_km(world$x[found], world$y[found]))
   shifted <- vapply(1:5, function(s) {
     null <- atlas_null_shift(world, seed = s)
-    expect_false(attr(null, "fallback"))
+    expect_false(attr(null, "best_effort"))
     expect_equal(sum(null), sum(found))
     stats::median(nearest_neighbour_km(world$x[null == 1L], world$y[null == 1L]))
   }, numeric(1))
@@ -57,12 +57,20 @@ test_that("a shifted null keeps the clustering that a scattered null loses", {
   expect_gt(mean(scattered), 3 * real)
 })
 
-test_that("a shift null that cannot be placed falls back to a scattered one, and says so", {
+test_that("a shift null that cannot be placed cleanly takes its best try, keeps its clustering, and says so", {
   world <- null_world("cluster")
-  # Snap distance too small for any site to be in reach of a moved point.
+  found <- world$presence == 1L
+  real <- stats::median(nearest_neighbour_km(world$x[found], world$y[found]))
+  # Snap distance too small for any moved point to land near a site.
   null <- atlas_null_shift(world, seed = 1, tries = 3, snap_km = 0.001)
-  expect_true(attr(null, "fallback"))
-  expect_equal(sum(null), sum(world$presence))
+  expect_true(attr(null, "best_effort"))
+  expect_equal(sum(null), sum(found))
+  expect_gt(attr(null, "far_share"), 0.2)
+  # Still a cluster, not a scatter.
+  placed <- null == 1L
+  expect_lt(stats::median(nearest_neighbour_km(world$x[placed], world$y[placed])), 2 * real)
+  # The same seed gives the same null.
+  expect_identical(as.integer(null), as.integer(atlas_null_shift(world, seed = 1, tries = 3, snap_km = 0.001)))
 })
 
 test_that("an unknown null design is refused", {
