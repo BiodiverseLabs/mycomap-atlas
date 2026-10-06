@@ -18,6 +18,8 @@ import {
 import { usePageMeta } from "@/lib/usePageMeta";
 
 const PUBLIC_BASE = OPENAPI.servers[0]?.url ?? "https://atlas.mycomap.org";
+// How long before a breaking change ships it is announced (CHANGELOG.md).
+const BREAKING_NOTICE_DAYS = 30;
 const RATES = OPENAPI["x-rate-limits"];
 const TOKEN_REQUEST_URL = "https://mycomap.org/atlas-tokens";
 
@@ -437,6 +439,7 @@ export default function Developers() {
           <aside className="hidden lg:block">
             <nav className="sticky top-24 space-y-4 text-sm" aria-label="API reference">
               <a href="#start" className="block text-[#4a3728] hover:text-myco-green">Getting started</a>
+              <a href="#stability" className="block text-[#4a3728] hover:text-myco-green">Stability</a>
               <a href="#tokens" className="block text-[#4a3728] hover:text-myco-green">Access and tokens</a>
               {byTag.map((tag) => (
                 <div key={tag.name}>
@@ -479,6 +482,27 @@ export default function Developers() {
                 </Fact>
               </div>
               <QuickStart />
+            </section>
+
+            <section id="stability" className="scroll-mt-24 space-y-4">
+              <SectionTitle>Stability</SectionTitle>
+              <div className="max-w-3xl space-y-3 text-sm text-[#5c4a3a] leading-relaxed">
+                <p>
+                  <strong className="text-[#4a3728]">The API is in beta</strong>, version{" "}
+                  <code>{OPENAPI.info.version}</code> in the OpenAPI file. It can still change, but
+                  not without warning: a breaking change (a route or field removed or renamed, or
+                  its meaning changed) is announced in the{" "}
+                  <a href={`${GITHUB_URL}/blob/main/CHANGELOG.md`} className="text-myco-green hover:underline">
+                    changelog
+                  </a>{" "}
+                  and on this page at least {BREAKING_NOTICE_DAYS} days before it ships.
+                </p>
+                <p>
+                  New routes and new fields arrive without notice, so ignore fields you do not
+                  know. Maps and scores change with every release, as records are added and models
+                  refitted: cite the release fingerprint from /api/status with any result you keep.
+                </p>
+              </div>
             </section>
 
             <section id="tokens" className="scroll-mt-24 space-y-4">
