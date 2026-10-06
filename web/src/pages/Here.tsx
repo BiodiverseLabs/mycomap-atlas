@@ -195,7 +195,8 @@ export default function Here() {
       <PageHeader title="What could grow here?">
         Pick a place and see every mapped fungus whose habitat maps rate it highly, and which have
         actually been collected nearby. A high rank means the place resembles where a species has
-        been found, not that it is there — the best reason yet to go and look.
+        been found, not that it grows there or how common it is. Never use it to decide what is
+        safe to eat.
       </PageHeader>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">

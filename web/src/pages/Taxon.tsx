@@ -97,6 +97,48 @@ function Legend() {
 }
 
 /**
+ * A provisional name: a DNA lineage with a code rather than a published
+ * species, such as Mycena sp. 'IN10' or Amanita "gemmata-CA01".
+ */
+export function isProvisionalName(name: string): boolean {
+  return /["'‘’“”]|\bsp\.|-[A-Z]{2,}\d|\b[A-Z]{2,}\d{2}\b/.test(name);
+}
+
+/** What these maps are, and are not, said once above them. */
+function AboutTheseMaps({ name }: { name: string }) {
+  return (
+    <div className="mb-6 rounded-lg border border-[#A87146]/20 bg-[#f8f5f0] px-4 py-3 text-sm text-[#5c4a3a] space-y-1.5">
+      <p>
+        <strong className="text-[#4a3728]">What these maps show.</strong> How closely each place's
+        climate, soil and trees match the places where this fungus has been confirmed by DNA,
+        ranked within its own range. They show suitable habitat, not where it grows or how common
+        it is, and they know nothing about places unlike any surveyed site (hatched).
+      </p>
+      <p>
+        <strong className="text-[#4a3728]">Not for decisions about safety or land.</strong> Never use
+        them to decide what is safe to eat or where to forage, or for permits, land management or
+        other regulatory decisions.
+      </p>
+      {isProvisionalName(name) && (
+        <p>
+          <strong className="text-[#4a3728]">A provisional name.</strong> This is a DNA lineage
+          without a published species name yet. It may be renamed, split or merged, and its map
+          will change with it.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Maps:{" "}
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" className="underline hover:text-myco-green">
+          CC BY-SA 4.0
+        </a>
+        , built on WorldClim 2.1 and the other datasets listed under{" "}
+        <a href="/sources" className="underline hover:text-myco-green">Sources</a>.
+      </p>
+    </div>
+  );
+}
+
+/**
  * The taxon's passing models as one map, or where they disagree. Each model
  * is ranked over the ground it knows, and the ranks are averaged, weighted by
  * how far each model's blocked AUC is above chance.
@@ -197,7 +239,7 @@ function RasterDownload({ name, algorithm }: { name: string; algorithm: Algorith
   const cls = "inline-flex items-center gap-1 text-xs font-medium text-myco-green hover:underline";
   if (me.signedIn) {
     return (
-      <a href={rasterUrl(name, algorithm)} className={cls} title="The raw suitability values as a GeoTIFF">
+      <a href={rasterUrl(name, algorithm)} className={cls} title="The raw suitability values as a GeoTIFF, CC BY-SA 4.0">
         <Download className="h-3.5 w-3.5" /> GeoTIFF
       </a>
     );
@@ -695,6 +737,7 @@ export default function Taxon() {
           </Card>
         ) : (
           <>
+            <AboutTheseMaps name={name} />
             {ensemble.data && (
               <section className="mb-8">
                 <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
