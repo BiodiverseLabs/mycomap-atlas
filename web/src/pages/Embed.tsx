@@ -16,6 +16,7 @@ import {
   type Model,
 } from "@/lib/api";
 import { openingView } from "@/lib/mapView";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { formatNumber } from "@/lib/utils";
 
@@ -39,6 +40,9 @@ function pickAlgorithm(requested: string | null, models: Partial<Record<Algorith
 export default function Embed() {
   const params = useParams<{ name: string }>();
   const name = decodeURIComponent(params.name ?? "");
+  // A copy of the taxon page's map for other sites' iframes: search results
+  // should lead to the taxon page itself, so this one is never indexed.
+  usePageMeta({ title: name, description: `Habitat map of ${name}, embedded from MycoMap Atlas.`, noindex: true });
   const search = new URLSearchParams(useSearch());
   const showPoints = search.get("points") !== "0";
 

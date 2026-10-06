@@ -57,6 +57,14 @@ test("link previews carry the page's own title and address, without its query", 
   assert.equal(tag(tags, "og:url")?.content, "https://atlas.mycomap.org/maps");
 });
 
+test("an embedded map is kept out of search results, where crawlers can see that it is", () => {
+  const embed = readFileSync(new URL("../pages/Embed.tsx", import.meta.url), "utf8");
+  assert.match(embed, /usePageMeta\(\{[^;]*noindex: true[^;]*\}\);/);
+  // robots.txt must let crawlers fetch the page, or they never read its noindex.
+  const robots = readFileSync(new URL("../../public/robots.txt", import.meta.url), "utf8");
+  assert.doesNotMatch(robots, /^Disallow:\s*\/embed/m);
+});
+
 test("index.html, which crawlers that run no script read, carries the same defaults", () => {
   const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8").replace(/\s+/g, " ");
   const content = (attr: string, key: string) =>

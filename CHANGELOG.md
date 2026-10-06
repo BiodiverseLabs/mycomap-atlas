@@ -20,7 +20,8 @@ No change to any route or field.
   backgrounds come from `tile.openstreetmap.org` rather than its retired
   `{s}.` subdomains.
 - Every page has its own title and description, with link-preview tags;
-  `robots.txt` points to a sitemap; an unknown address is marked `noindex`.
+  `robots.txt` points to a sitemap; an unknown address and an embedded
+  map (`/embed/taxa/...`) are marked `noindex`.
 - The Developers page says how stable the API is (this file's promise).
 - The footer links to reporting a map problem on GitHub, and to the private
   route for a map that shows a collection site too precisely.
