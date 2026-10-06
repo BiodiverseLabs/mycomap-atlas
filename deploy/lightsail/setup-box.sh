@@ -12,6 +12,9 @@
 #   - /etc/atlas/atlas.env, empty and readable only by root and atlas;
 #   - nginx's site, the systemd units for the API and the nightly job, and the
 #     scripts they run;
+#   - monitoring: a failed nightly run, or an API that stops answering
+#     (checked every 5 minutes), is recorded in the journal, in
+#     /srv/atlas/data/health and in the login banner (alert.sh);
 #   - optionally, a read-only login for Claude: journal and nginx logs, no
 #     sudo, no Docker, no data.
 # It does not start anything: fill in atlas.env, install the TLS certificate,
@@ -56,7 +59,7 @@ id atlas >/dev/null 2>&1 || useradd --uid 10001 --create-home --shell /usr/sbin/
 # /srv/atlas itself is open to all, so nginx (www-data) reaches web/; the
 # data directory in it, which holds the pull, stays atlas's alone.
 install -d -o root -g root -m 755 /srv/atlas /srv/atlas/web /usr/local/lib/atlas
-install -d -o atlas -g atlas -m 750 /srv/atlas/data
+install -d -o atlas -g atlas -m 750 /srv/atlas/data /srv/atlas/data/health
 install -d -o root -g atlas -m 750 /etc/atlas
 [ -f /etc/atlas/atlas.env ] || install -o root -g atlas -m 640 /dev/null /etc/atlas/atlas.env
 chown root:atlas /etc/atlas/atlas.env
@@ -90,14 +93,20 @@ ln -sf /etc/nginx/sites-available/atlas /etc/nginx/sites-enabled/atlas
 rm -f /etc/nginx/sites-enabled/default
 install -d -o root -g root -m 700 /etc/ssl/atlas
 
-echo "== the API and the nightly job"
-install -m 755 "$here/nightly.sh" /usr/local/lib/atlas/nightly.sh
-install -m 755 "$here/deploy.sh" /usr/local/lib/atlas/deploy.sh
-for unit in atlas-api.service atlas-nightly.service atlas-nightly.timer; do
+echo "== the API, the nightly job and the checks on them"
+for script in nightly.sh deploy.sh alert.sh uptime.sh; do
+  install -m 755 "$here/$script" "/usr/local/lib/atlas/$script"
+done
+for unit in atlas-api.service atlas-nightly.service atlas-nightly.timer \
+            atlas-uptime.service atlas-uptime.timer atlas-alert@.service; do
   install -m 644 "$here/systemd/$unit" "/etc/systemd/system/$unit"
 done
+# A failing check greets whoever signs in next.
+install -d -m 755 /etc/update-motd.d
+printf '#!/bin/sh\nexec /usr/local/lib/atlas/alert.sh --summary\n' > /etc/update-motd.d/90-atlas-health
+chmod 755 /etc/update-motd.d/90-atlas-health
 systemctl daemon-reload
-systemctl enable atlas-api.service atlas-nightly.timer >/dev/null
+systemctl enable atlas-api.service atlas-nightly.timer atlas-uptime.timer >/dev/null
 
 if [ -n "$CLAUDE_KEY" ]; then
   echo "== read-only login for Claude"

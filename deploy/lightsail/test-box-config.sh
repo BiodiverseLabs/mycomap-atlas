@@ -8,6 +8,9 @@
 # setup-box.sh: run whole, twice, on a fresh Ubuntu 24.04 (only systemd, swap
 # and sysctl stubbed), then every account, permission, key, site and unit it
 # makes is checked; an unreachable SQL host stops it with a reason.
+# Monitoring: every unit is installed and valid to systemd-analyze, the
+# nightly job and the uptime check record a failure through atlas-alert@, and
+# alert.sh and uptime.sh behave on the box (state file, login banner).
 # nginx: Ubuntu 24.04's own nginx (the server's) loads the site, and with a
 # stand-in API that echoes what it receives:
 #   - /api/ and /auth/ reach the API, never the app's fallback page;
@@ -38,7 +41,7 @@ if [ "${1:-}" = "--check-cloudflare" ]; then
 fi
 
 echo "== scripts"
-for script in setup-box.sh deploy.sh nightly.sh; do
+for script in setup-box.sh deploy.sh nightly.sh alert.sh uptime.sh; do
   if bash -n "$here/$script"; then pass "$script parses"; else fail "$script does not parse"; fi
 done
 expect_exit() { # name, expected status, command...
@@ -51,12 +54,38 @@ expect_exit "deploy.sh refuses a short commit"     64 bash "$here/deploy.sh" 7a2
 expect_exit "deploy.sh refuses a tag"              64 bash "$here/deploy.sh" latest
 expect_exit "setup-box.sh refuses an unknown flag" 64 bash "$here/setup-box.sh" --sqlhost=x
 expect_exit "nightly.sh refuses with no image"     1  env -u ATLAS_IMAGE bash "$here/nightly.sh"
+expect_exit "alert.sh refuses no check"            64 bash "$here/alert.sh"
+expect_exit "alert.sh refuses a check that is a path" 64 env ATLAS_HEALTH_DIR=/nonexistent bash "$here/alert.sh" ../x boom
+expect_exit "alert.sh refuses a failure with no message" 64 env ATLAS_HEALTH_DIR=/nonexistent bash "$here/alert.sh" atlas-nightly
 
 echo "== systemd units"
+# setup-box.sh installs every script from one list and every unit from another.
+installed_scripts="$(sed -n 's/^for script in \(.*\); do$/\1/p' "$here/setup-box.sh")"
+installed_units="$(sed -n '/^for unit in /,/; do$/p' "$here/setup-box.sh" | tr -d '\\' | sed 's/for unit in//; s/; do//' | xargs)"
 grep -q 'ExecStart=/usr/bin/flock --nonblock /run/atlas-nightly.lock /usr/local/lib/atlas/nightly.sh' "$here/systemd/atlas-nightly.service" \
-  && grep -q 'install -m 755 "$here/nightly.sh" /usr/local/lib/atlas/nightly.sh' "$here/setup-box.sh" \
+  && grep -qw nightly.sh <<<"$installed_scripts" \
   && pass "the nightly unit runs the script setup installs, one run at a time" \
   || fail "the nightly unit and setup-box.sh disagree about nightly.sh"
+for unit in "$here"/systemd/*; do
+  base="$(basename "$unit")"
+  grep -qwF -- "$base" <<<"$installed_units" && pass "setup installs $base" || fail "setup-box.sh does not install $base"
+  for script in $(sed -n 's|.*/usr/local/lib/atlas/\([a-z-]*\.sh\).*|\1|p' "$unit"); do
+    grep -qw "$script" <<<"$installed_scripts" || fail "$base runs $script, which setup-box.sh does not install"
+  done
+done
+for unit in atlas-nightly.service atlas-uptime.service; do
+  grep -qx 'OnFailure=atlas-alert@%N.service' "$here/systemd/$unit" \
+    && grep -qx 'ExecStartPost=/usr/local/lib/atlas/alert.sh --ok %N' "$here/systemd/$unit" \
+    && pass "$unit records a failure, and clears it when it passes" \
+    || fail "$unit must have OnFailure=atlas-alert@%N.service and ExecStartPost=... alert.sh --ok %N"
+done
+grep -q '^ExecStart=/usr/local/lib/atlas/alert.sh %i ' "$here/systemd/atlas-alert@.service" \
+  && pass "atlas-alert@ records the failed unit by name" || fail "atlas-alert@.service must run alert.sh %i"
+grep -qx 'ExecStart=/usr/local/lib/atlas/uptime.sh' "$here/systemd/atlas-uptime.service" \
+  && grep -qx 'OnUnitActiveSec=5min' "$here/systemd/atlas-uptime.timer" \
+  && grep '^systemctl enable' "$here/setup-box.sh" | grep -q 'atlas-uptime.timer' \
+  && pass "the uptime check runs every 5 minutes, enabled by setup" \
+  || fail "atlas-uptime: the service, its 5-minute timer and setup's enable disagree"
 grep -q -- '--network host' "$here/systemd/atlas-api.service" && grep -q 'api --port=5100' "$here/systemd/atlas-api.service" \
   && pass "the API shares the host network on port 5100 (nginx reaches it from 127.0.0.1)" \
   || fail "atlas-api.service must run the API with --network host on 5100"
@@ -71,9 +100,11 @@ box="atlas-setup-test-$$"
 name="atlas-box-test-$$"
 trap 'docker rm -f "$box" "$name" >/dev/null 2>&1 || true' EXIT
 docker run -d --rm --name "$box" ubuntu:24.04 sleep 900 >/dev/null || { fail "could not start a container"; exit 1; }
-# What the real server has and the image lacks: sudo, ssh, the journal's
-# group; and an sshd standing in for mycomap.org, whose key setup reads.
-docker exec "$box" bash -c 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq sudo openssh-client openssh-server >/dev/null 2>&1 && getent group systemd-journal >/dev/null || groupadd systemd-journal' \
+# What the real server has and the image lacks: sudo, ssh, systemd (for
+# systemd-analyze; it does not run here), the journal's group; an sshd
+# standing in for mycomap.org, whose key setup reads; and busybox's httpd
+# standing in for the API the uptime check asks.
+docker exec "$box" bash -c 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq sudo openssh-client openssh-server systemd busybox procps >/dev/null 2>&1 && getent group systemd-journal >/dev/null || groupadd systemd-journal' \
   || { fail "could not prepare the setup container"; exit 1; }
 docker exec -i "$box" bash -s <<'STUBS'
 set -e
@@ -104,8 +135,33 @@ check "the SQL host entry names the given host and atlas_ro" 'grep -q "HostName 
 check "known_hosts holds exactly the host's own ed25519 key" \
   '[ "$(awk "{print \$3}" /home/atlas/.ssh/known_hosts)" = "$(awk "{print \$2}" /etc/ssh/ssh_host_ed25519_key.pub)" ]'
 check "nginx has the Atlas site and not the default" '[ -L /etc/nginx/sites-enabled/atlas ] && [ ! -e /etc/nginx/sites-enabled/default ] && [ -f /etc/nginx/snippets/atlas-proxy.conf ]'
-check "the units and scripts are installed" 'for f in atlas-api.service atlas-nightly.service atlas-nightly.timer; do [ -f /etc/systemd/system/$f ] || exit 1; done; [ -x /usr/local/lib/atlas/nightly.sh ] && [ -x /usr/local/lib/atlas/deploy.sh ]'
-check "the API unit and the nightly timer are enabled" 'grep -q "enable atlas-api.service atlas-nightly.timer" /tmp/stubbed'
+check "the units and scripts are installed" 'for f in atlas-api.service atlas-nightly.service atlas-nightly.timer atlas-uptime.service atlas-uptime.timer atlas-alert@.service; do [ -f /etc/systemd/system/$f ] || exit 1; done; for f in nightly.sh deploy.sh alert.sh uptime.sh; do [ -x /usr/local/lib/atlas/$f ] || exit 1; done'
+check "the API unit, the nightly timer and the uptime timer are enabled" 'grep -q "enable atlas-api.service atlas-nightly.timer atlas-uptime.timer" /tmp/stubbed'
+check "the units are valid to systemd" \
+  'systemd-analyze verify /etc/systemd/system/atlas-nightly.service /etc/systemd/system/atlas-uptime.service /etc/systemd/system/atlas-uptime.timer /etc/systemd/system/atlas-alert@atlas-nightly.service'
+# Monitoring: alert.sh as the failure handler runs it (root), then the API's
+# user reads what it wrote, and the login banner shows it.
+check "the health directory is in the data directory, atlas's" '[ "$(stat -c %U:%a /srv/atlas/data/health)" = atlas:750 ]'
+check "a failure is recorded where the API's user can read it" \
+  '/usr/local/lib/atlas/alert.sh atlas-nightly "atlas-nightly.service failed: journalctl -u atlas-nightly" &&
+   f=/srv/atlas/data/health/atlas-nightly.json && [ "$(stat -c %U:%a $f)" = atlas:640 ] &&
+   sudo -u atlas grep -q "\"state\":\"failed\"" $f'
+check "the login banner names a failing check and how to look" \
+  '/etc/update-motd.d/90-atlas-health | grep -q "ATLAS: atlas-nightly failing since .* (1 failures): atlas-nightly.service failed: journalctl -u atlas-nightly"'
+check "a second failure keeps when it started and counts" \
+  'f=/srv/atlas/data/health/atlas-nightly.json; since="$(grep -o "\"since\":\"[^\"]*\"" $f)"; sleep 1;
+   /usr/local/lib/atlas/alert.sh atlas-nightly "again" && grep -qF "$since" $f && grep -q "\"failures\":2," $f'
+check "a pass clears it, and the banner says nothing" \
+  '/usr/local/lib/atlas/alert.sh --ok atlas-nightly && grep -q "\"state\":\"ok\"" /srv/atlas/data/health/atlas-nightly.json &&
+   [ -z "$(/etc/update-motd.d/90-atlas-health)" ]'
+check "the uptime check passes when /api/status answers" \
+  'mkdir -p /tmp/www/api && echo "{}" > /tmp/www/api/status && busybox httpd -p 127.0.0.1:5100 -h /tmp/www &&
+   ATLAS_UPTIME_TRIES=3 ATLAS_UPTIME_WAIT=1 /usr/local/lib/atlas/uptime.sh'
+check "the uptime check fails when /api/status does not" \
+  'export ATLAS_UPTIME_TRIES=2 ATLAS_UPTIME_WAIT=0; missing=0; down=0
+   ATLAS_STATUS_URL=http://127.0.0.1:5100/api/missing /usr/local/lib/atlas/uptime.sh || missing=$?
+   pkill -x busybox; sleep 1; /usr/local/lib/atlas/uptime.sh || down=$?
+   [ $missing = 1 ] && [ $down = 1 ]'
 check "Claude reads the journal and logs, nothing more" \
   'g="$(id -nG claude)"; for want in systemd-journal adm; do grep -qw $want <<<"$g" || exit 1; done; for no in sudo docker atlas; do grep -qw $no <<<"$g" && exit 1; done; true'
 check "Claude's key has no forwarding" "grep -qxF 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding $claude_key' /home/claude/.ssh/authorized_keys"

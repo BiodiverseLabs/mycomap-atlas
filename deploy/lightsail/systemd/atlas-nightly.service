@@ -1,7 +1,9 @@
 # Pull, plan, fit on EC2, publish, then bring this server up to the release.
 # flock: a run still going when the next is due is left alone, not doubled.
+# A failed run is recorded by atlas-alert@ (alert.sh); a good one clears it.
 [Unit]
 Description=MycoMap Atlas nightly job
+OnFailure=atlas-alert@%N.service
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -10,5 +12,6 @@ Wants=network-online.target
 Type=oneshot
 EnvironmentFile=/etc/atlas/image.env
 ExecStart=/usr/bin/flock --nonblock /run/atlas-nightly.lock /usr/local/lib/atlas/nightly.sh
+ExecStartPost=/usr/local/lib/atlas/alert.sh --ok %N
 # A job's own deadline is 6 h (ATLAS_EC2_MAX_HOURS); this is the backstop.
 TimeoutStartSec=8h
