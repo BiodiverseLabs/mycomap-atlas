@@ -326,6 +326,8 @@ atlas_access_decision <- function(req, state, config, now = as.numeric(Sys.time(
 #' its version (?v=) never changes at that address. Rate-limit headers go out
 #' with a cached copy too, which only ever over-reports what is left.
 atlas_cache_control <- function(path, query = "") {
+  # (An error answer is never kept, whatever its path: see
+  # atlas_settle_cache_control, which runs after the route has answered.)
   if (!startsWith(path, "/api/")) {
     return(NULL)
   }
@@ -334,11 +336,23 @@ atlas_cache_control <- function(path, query = "") {
   if (identical(path, "/api/me") || endsWith(path, "/raster.tif")) {
     return("private, no-store")
   }
-  if (endsWith(path, "/map.png") && grepl("(^|&)v=", sub("^[?]", "", query))) {
+  if ((endsWith(path, "/map.png") || endsWith(path, "/ensemble.png")) &&
+      grepl("(^|&)v=", sub("^[?]", "", query))) {
     return("public, max-age=31536000, immutable")
   }
   if (identical(path, "/api/status")) {
     return("public, max-age=60")
   }
   "public, max-age=300"
+}
+
+#' The Cache-Control an answer leaves with, once its status is known.
+#'
+#' atlas_cache_control sets it from the path before the route runs, and a
+#' route can still answer 404 or 503, or fail with a 500. A kept error is worse
+#' than a slow answer: nginx or Cloudflare would hand a passing outage to every
+#' visitor for five minutes. So any answer from 400 up leaves with no-store.
+atlas_settle_cache_control <- function(status, current = NULL) {
+  if (is.numeric(status) && length(status) == 1L && status >= 400) return("no-store")
+  current
 }

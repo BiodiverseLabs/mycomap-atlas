@@ -123,6 +123,20 @@ invisible(tryCatch({
   cached_all_cells()
 }, error = function(e) NULL))
 
+#* After every answer: an error is never left with a cacheable header.
+#* @plumber
+function(pr) {
+  # After serialisation the answer is value, a list with status and headers:
+  # changing res then would change nothing that is sent.
+  pr$registerHooks(list(postserialize = function(req, res, value) {
+    if (startsWith(req$PATH_INFO %||% "", "/api/") && is.list(value) && !is.null(value$status)) {
+      settled <- atlas_settle_cache_control(value$status, value$headers[["Cache-Control"]])
+      if (!is.null(settled)) value$headers[["Cache-Control"]] <- settled
+    }
+    value
+  }))
+}
+
 #* @filter access
 function(req, res) {
   if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
@@ -334,13 +348,17 @@ function(name, res) {
 #* one model is at /api/taxa/<name>/model.
 #* @param grid draft or production
 #* @get /api/models
-#* @serializer unboxedJSON
+#* @serializer contentType list(type = "application/json")
 function(grid = "draft") {
   key <- paste0("models_", grid)
   if (is.null(cache[[key]])) {
     cache[[key]] <- new.env(parent = emptyenv())
   }
-  list(grid = grid, models = atlas_model_index(grid, cache[[key]]))
+  # Checking thousands of model files took seconds; the list changes only
+  # when a release is pulled, so it is rebuilt at most once a minute.
+  atlas_memo_json(cache, paste0("models_json_", grid), function() {
+    list(grid = grid, models = atlas_model_index(grid, cache[[key]]))
+  })
 }
 
 #* The models Atlas fits, with the labels people see.

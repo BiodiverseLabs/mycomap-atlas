@@ -181,6 +181,20 @@ atlas_status_manifest <- function() {
   jsonlite::fromJSON(path, simplifyVector = TRUE)
 }
 
+#' A JSON answer kept for ttl seconds in cache under key, so a route that is
+#' slow to build (reading thousands of model files) is built at most once a
+#' minute however many visitors ask. compute() returns the value; the answer
+#' is its JSON, as plumber's unboxed serializer would write it, as raw bytes.
+atlas_memo_json <- function(cache, key, compute, ttl = 60, now = as.numeric(Sys.time())) {
+  entry <- cache[[key]]
+  if (!is.null(entry) && is.numeric(entry$at) && now - entry$at < ttl) {
+    return(entry$body)
+  }
+  body <- charToRaw(as.character(jsonlite::toJSON(compute(), auto_unbox = TRUE)))
+  assign(key, list(at = now, body = body), envir = cache)
+  body
+}
+
 #' The release this machine serves, as /api/status reports it: its id, when
 #' it was made, from which code, and the records it was built from. NULL when
 #' no release has been pulled here.

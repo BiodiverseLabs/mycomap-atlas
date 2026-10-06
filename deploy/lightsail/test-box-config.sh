@@ -126,18 +126,27 @@ docker exec -i "$name" bash -s <<'SETUP'
 set -e
 rm -f /etc/nginx/sites-enabled/default
 mkdir -p /etc/ssl/atlas /srv/atlas/web/assets
+install -d -o www-data -g www-data -m 700 /var/cache/nginx/atlas
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=atlas.mycomap.org \
   -keyout /etc/ssl/atlas/origin.key -out /etc/ssl/atlas/origin.pem 2>/dev/null
 echo '<html>the app</html>' > /srv/atlas/web/index.html
 echo 'console.log(1)' > /srv/atlas/web/assets/app-abc123.js
 cat > /tmp/api.py <<'PY'
-import http.server, json
+import http.server, json, itertools
+served = itertools.count(1)
 class H(http.server.BaseHTTPRequestHandler):
     def reply(self):
         status = 502 if self.path.startswith("/api/broken") else 200
+        # Like the real API: public answers may be kept a while; who-is-asking
+        # answers may not. "n" counts the requests that reached the API.
+        if self.path.startswith("/api/me") or self.path.endswith("raster.tif") or status >= 400:
+            cache = "private, no-store" if status < 400 else "no-store"
+        else:
+            cache = "public, max-age=300"
         body = json.dumps({"path": self.path, "xff": self.headers.get("X-Forwarded-For"),
-                           "proto": self.headers.get("X-Forwarded-Proto")}).encode()
+                           "proto": self.headers.get("X-Forwarded-Proto"), "n": next(served)}).encode()
         self.send_response(status); self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", cache)
         self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
     do_GET = do_POST = reply
     def log_message(self, *a): pass
@@ -167,6 +176,36 @@ body="$(get https://atlas.mycomap.org/api/broken)"
   || fail "/api/broken: $code $body"
 body="$(get https://atlas.mycomap.org/taxa/Pluteus%20petasatus)"
 grep -q 'the app' <<<"$body" && pass "app routes fall back to index.html" || fail "app route: $body"
+code="$(get -o /dev/null -w '%{http_code}' https://atlas.mycomap.org/taxa/Pluteus%20petasatus)"
+[ "$code" = 200 ] && pass "an app route is a 200" || fail "app route status: $code"
+code="$(get -o /dev/null -w '%{http_code}' https://atlas.mycomap.org/)"
+[ "$code" = 200 ] && pass "the home page is a 200" || fail "home status: $code"
+code="$(get -o /dev/null -w '%{http_code}' https://atlas.mycomap.org/no-such-page)"
+body="$(get https://atlas.mycomap.org/no-such-page)"
+[ "$code" = 404 ] && grep -q 'the app' <<<"$body" && pass "an unknown address is the app's page with a 404" \
+  || fail "unknown address: $code $body"
+# Every route the app declares must be one nginx serves as a page.
+routes="$(sed -n 's/.*path="\/\([a-z]*\).*/\1/p' "$here/../../web/src/App.tsx" | sort -u)"
+for route in $routes; do
+  [ -z "$route" ] && continue
+  code="$(get -o /dev/null -w '%{http_code}' "https://atlas.mycomap.org/$route")"
+  [ "$code" = 200 ] && pass "/$route (App.tsx) is served as a page" || fail "/$route from App.tsx answers $code"
+done
+
+# The API cache.
+n1="$(get https://atlas.mycomap.org/api/models | docker exec -i "$name" python3 -c 'import sys,json;print(json.load(sys.stdin)["n"])')"
+hit="$(get -o /dev/null -D - https://atlas.mycomap.org/api/models | grep -i '^x-cache-status' | tr -d '\r')"
+n2="$(get https://atlas.mycomap.org/api/models | docker exec -i "$name" python3 -c 'import sys,json;print(json.load(sys.stdin)["n"])')"
+[ "$n1" = "$n2" ] && grep -qi 'HIT' <<<"$hit" && pass "a public answer is served from the cache" \
+  || fail "public answer not cached: n $n1 then $n2, $hit"
+m1="$(get https://atlas.mycomap.org/api/me | docker exec -i "$name" python3 -c 'import sys,json;print(json.load(sys.stdin)["n"])')"
+m2="$(get https://atlas.mycomap.org/api/me | docker exec -i "$name" python3 -c 'import sys,json;print(json.load(sys.stdin)["n"])')"
+[ "$m1" != "$m2" ] && pass "who-is-asking answers are never cached" || fail "/api/me was cached ($m1, $m2)"
+t1="$(get -H 'Authorization: Bearer x' https://atlas.mycomap.org/api/models | docker exec -i "$name" python3 -c 'import sys,json;print(json.load(sys.stdin)["n"])')"
+[ "$t1" != "$n2" ] && pass "a token holder's request bypasses the cache" || fail "token request served from cache"
+b1="$(docker exec "$name" curl -sk -o /dev/null -D - --resolve atlas.mycomap.org:443:127.0.0.1 https://atlas.mycomap.org/api/broken | grep -i '^x-cache-status' | tr -d '\r')"
+b2="$(docker exec "$name" curl -sk -o /dev/null -D - --resolve atlas.mycomap.org:443:127.0.0.1 https://atlas.mycomap.org/api/broken | grep -i '^x-cache-status' | tr -d '\r')"
+grep -qi 'HIT' <<<"$b2" && fail "an API error was cached: $b1 / $b2" || pass "an API error is never cached"
 code="$(get -o /dev/null -w '%{http_code}' https://atlas.mycomap.org/assets/missing-000.js)"
 [ "$code" = 404 ] && pass "a missing asset is a 404, not the app" || fail "missing asset: $code"
 cache="$(get -o /dev/null -D - https://atlas.mycomap.org/assets/app-abc123.js | grep -i '^cache-control')"

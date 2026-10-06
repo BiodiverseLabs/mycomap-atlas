@@ -349,3 +349,67 @@ test_that("an allowlist of * opens the API to every site", {
   expect_equal(atlas_allowed_origin("https://someone.example", allowed = "*"), "*")
   expect_null(atlas_allowed_origin("", allowed = "*"))
 })
+
+test_that("a slow answer is built once a minute however many ask, then built again", {
+  cache <- new.env(parent = emptyenv())
+  built <- 0L
+  compute <- function() { built <<- built + 1L; list(grid = "draft", models = data.frame(taxon = c("a", "b"), auc = c(0.7, 0.8))) }
+  first <- atlas_memo_json(cache, "k", compute, ttl = 60, now = 1000)
+  again <- atlas_memo_json(cache, "k", compute, ttl = 60, now = 1059)
+  expect_equal(built, 1L)
+  expect_identical(again, first)
+  later <- atlas_memo_json(cache, "k", compute, ttl = 60, now = 1061)
+  expect_equal(built, 2L)
+  # The JSON plumber's unboxed serializer would have written.
+  expect_equal(rawToChar(first), as.character(jsonlite::toJSON(compute(), auto_unbox = TRUE)))
+  parsed <- jsonlite::fromJSON(rawToChar(later))
+  expect_equal(parsed$grid, "draft")
+  expect_equal(parsed$models$taxon, c("a", "b"))
+})
+
+test_that("the model list still answers JSON with every model through the API", {
+  with_data_dir({
+    dir.create(atlas_model_dir("draft", "maxnet"), recursive = TRUE)
+    atlas_write_json(list(taxon = "Amanita muscaria", algorithm = "maxnet", presences = 30,
+                          auc_mean = 0.7, skill = "passed", built_at = "2026-10-06T00:00:00Z"),
+                     atlas_model_path("Amanita muscaria", "draft", ".json"))
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      out <- call_api(api, "/api/models")
+      expect_equal(out$status, 200L)
+      expect_match(header_values(out, "Content-Type"), "application/json")
+      body <- jsonlite::fromJSON(out$body)
+      expect_equal(body$grid, "draft")
+      expect_equal(body$models$taxon, "Amanita muscaria")
+      expect_equal(body$models$skill, "passed")
+    })
+  })
+})
+
+test_that("a versioned ensemble image is kept for good, like a versioned map", {
+  expect_equal(atlas_cache_control("/api/taxa/A/ensemble.png", "layer=map&v=2026"),
+               "public, max-age=31536000, immutable")
+  expect_equal(atlas_cache_control("/api/taxa/A/ensemble.png", "layer=map"), "public, max-age=300")
+})
+
+test_that("an error answer is never left cacheable, whatever its path", {
+  expect_equal(atlas_settle_cache_control(404L, "public, max-age=300"), "no-store")
+  expect_equal(atlas_settle_cache_control(503L, "public, max-age=300"), "no-store")
+  expect_equal(atlas_settle_cache_control(200L, "public, max-age=300"), "public, max-age=300")
+  expect_null(atlas_settle_cache_control(200L, NULL))
+  # Through the API: a missing map is a 404 that says no-store; a found
+  # list keeps its public header.
+  with_data_dir({
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      missing <- call_api(api, "/api/taxa/Nothing%20here/map.png")
+      expect_equal(missing$status, 404L)
+      expect_equal(header_values(missing, "Cache-Control"), "no-store")
+      broken <- call_api(api, "/api/taxa", query = "limit=abc")
+      if (broken$status >= 400L) expect_equal(header_values(broken, "Cache-Control"), "no-store")
+      fine <- call_api(api, "/api/algorithms")
+      expect_equal(fine$status, 200L)
+      expect_equal(header_values(fine, "Cache-Control"), "public, max-age=300")
+    })
+  })
+})
