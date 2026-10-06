@@ -581,6 +581,32 @@ and nothing about records; it ships with every release. The API projects a
 click onto the grid in plain R (Snyder's Albers formulas, tested against
 terra to within a metre), so the web server needs no GDAL.
 
+## Where a species is likely, by state
+
+A taxon page lists the states and provinces where it has DNA-validated
+records and where its maps say it is likely though nobody has sequenced it
+there yet; `/api/checklist.csv` gives the same per state, for spreadsheets
+(`R/predictions.R`, `R/regions.R`).
+
+Each map is counted by state when it is drawn, on the 5 km grid: the cells it
+reaches (500 km from a record) and the cells it rates at least as highly as
+the poorer tenth of the places the species was found, the 10th-percentile
+training presence threshold. Over a species' maps that beat their null
+models, a state is likely when that covers a tenth of it, beyond reach when
+less than a tenth of it is reached, and unlikely otherwise. A fixed cut such
+as "top quarter" was tried first and dropped: it called Trametes versicolor
+unlikely in half the states it has been collected in. State outlines come from
+Natural Earth, simplified into `inst/boundaries` by `tools/build-boundaries.R`.
+
+Maps fitted before this count nothing until they are counted:
+
+```bash
+./atlas count-regions --workers=8   # from a pull of a release with rasters
+```
+
+`/api/taxa/<name>/image.png` draws a taxon's map as one picture, over
+Natural Earth land and borders, for Excel's `=IMAGE()`, documents and slides.
+
 ## Archives on Zenodo
 
 Big downloads live on Zenodo, versioned, each version with its own DOI.

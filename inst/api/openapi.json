@@ -640,14 +640,100 @@
         }
       }
     },
+    "/api/taxa/{name}/image.png": {
+      "get": {
+        "tags": [
+          "Taxa"
+        ],
+        "operationId": "getTaxonImage",
+        "summary": "A taxon's map as one picture",
+        "description": "The map drawn over land, lakes and state and country lines (Natural Earth), with the collections in 0.1 degree cells, the name, a legend and the source, as a PNG for a spreadsheet, document or slide. In Excel: =IMAGE(\"https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/image.png\"). A map that did no better than its null models is drawn faint and says so; a taxon with no map shows its collections alone.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "name": "algorithm",
+            "in": "query",
+            "required": false,
+            "description": "maxnet, xgboost, rf or esm. Left out, the small-model ensemble for a sparse taxon, else the first full model fitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "maxnet",
+                "xgboost",
+                "rf",
+                "esm"
+              ]
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": false,
+            "description": "Width in pixels, rounded to 600, 900, 1200 or 1600; the height is three quarters of it.",
+            "schema": {
+              "type": "integer",
+              "default": 1200
+            }
+          },
+          {
+            "name": "points",
+            "in": "query",
+            "required": false,
+            "description": "0 to leave out the collections.",
+            "schema": {
+              "type": "string",
+              "default": "1"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "400": {
+            "description": "An algorithm Atlas does not fit."
+          },
+          "404": {
+            "description": "No such taxon in the current pull."
+          }
+        }
+      }
+    },
     "/api/regions": {
       "get": {
         "tags": [
           "Data"
         ],
         "operationId": "getRegions",
-        "summary": "States, provinces and territories with records",
-        "description": "Every US state and territory, Canadian province or territory and Mexican state that holds validated records, with how many taxa and records each has. Records whose state field names no known region keep their own text, with an empty code.",
+        "summary": "States, provinces and territories, with their taxa",
+        "description": "Every US state and territory, Canadian province or territory and Mexican state that holds validated records: how many taxa have records there, how many records, and how many more taxa its maps call likely without a record yet. Records whose state field names no known region keep their own text, with an empty code.",
         "parameters": [],
         "responses": {
           "200": {
@@ -696,8 +782,8 @@
           "Taxa"
         ],
         "operationId": "getTaxonRegions",
-        "summary": "Where a taxon has been recorded, by state or province",
-        "description": "Each state, province or territory the taxon has validated records in, with its records and independent (~1 km) localities there. An unknown name returns an empty list.",
+        "summary": "Where a taxon has been recorded, and where its maps say it is likely",
+        "description": "Each state, province or territory where the taxon has validated records, or where its maps say it is likely. A map counts a 5 km cell as suitable when it rates it at least as highly as the poorer tenth of the places the taxon was found (the 10th-percentile training presence threshold). Over the taxon's maps that beat their null models, a state is likely when suitable ground covers at least min_share of it, beyond reach when less than that lies within 500 km of a record, and unlikely otherwise. A taxon with no such map has model \"no map\". An unknown name returns an empty list.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -751,7 +837,7 @@
         ],
         "operationId": "getChecklistCsv",
         "summary": "Taxa by state or province, as a spreadsheet",
-        "description": "A CSV of every taxon in every state, province or territory it has been recorded in: country, state_province, region_code (ISO 3166-2), scientific_name, validated_records, independent_localities and atlas_page. UTF-8 with a byte-order mark, so Excel opens it with accents intact; Excel's Data > From Web and Google Sheets' IMPORTDATA can also read the URL directly and refresh it. With no parameters it holds everything.",
+        "description": "A CSV of every taxon in every state, province or territory where it has validated records or where its maps say it is likely: country, state_province, region_code (ISO 3166-2), scientific_name, status (recorded, or likely, not yet recorded), validated_records, independent_localities, model (likely, unlikely, beyond reach or no map), suitable_area_pct, within_reach_pct and atlas_page. UTF-8 with a byte-order mark, so Excel opens it with accents intact; Excel's Data > From Web and Google Sheets' IMPORTDATA can also read the URL directly and refresh it. With no parameters it holds everything.",
         "parameters": [
           {
             "name": "region",
@@ -1528,7 +1614,8 @@
           "region",
           "code",
           "taxa",
-          "records"
+          "records",
+          "likely"
         ],
         "properties": {
           "country": {
@@ -1544,10 +1631,15 @@
             "description": "ISO 3166-2 code, such as US-IN; empty when the record's state field names no known region."
           },
           "taxa": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Taxa with validated records here."
           },
           "records": {
             "type": "integer"
+          },
+          "likely": {
+            "type": "integer",
+            "description": "More taxa its maps call likely here, without a record yet."
           }
         }
       },
@@ -1572,7 +1664,10 @@
           "region",
           "code",
           "records",
-          "localities"
+          "localities",
+          "model",
+          "suitable_share",
+          "reach_share"
         ],
         "properties": {
           "country": {
@@ -1593,6 +1688,30 @@
           "localities": {
             "type": "integer",
             "description": "Independent localities: distinct ~1 km cells."
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "likely",
+              "unlikely",
+              "beyond reach",
+              "no map"
+            ],
+            "description": "What the taxon's maps that beat their null models say about this state."
+          },
+          "suitable_share": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Share of the state the maps rate at least as highly as the poorer tenth of the places the taxon was found, averaged over the maps. Null with no map."
+          },
+          "reach_share": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Share of the state within the maps' reach, 500 km of a record. Null with no map."
           }
         }
       },
@@ -1600,11 +1719,21 @@
         "type": "object",
         "required": [
           "name",
+          "mapped",
+          "min_share",
           "regions"
         ],
         "properties": {
           "name": {
             "type": "string"
+          },
+          "mapped": {
+            "type": "boolean",
+            "description": "Whether the taxon has a map that beat its null models and has been counted by state."
+          },
+          "min_share": {
+            "type": "number",
+            "description": "The suitable share at which a state is called likely."
           },
           "regions": {
             "type": "array",

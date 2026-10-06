@@ -239,18 +239,24 @@ atlas_read_public_regions <- function() {
                     encoding = "UTF-8")
 }
 
-#' One row per region: how many taxa and records it holds.
+#' One row per region: how many taxa have records there, how many records,
+#' and how many more its maps call likely without a record yet. table is
+#' atlas_region_table's, or atlas_region_status' with predictions.
 atlas_regions_summary <- function(table) {
   if (is.null(table) || !nrow(table)) {
     return(data.frame(country = character(), region = character(), code = character(),
-                      taxa = integer(), records = integer(), stringsAsFactors = FALSE))
+                      taxa = integer(), records = integer(), likely = integer(),
+                      stringsAsFactors = FALSE))
   }
   group <- paste(table$country_code, table$region, sep = "\t")
   first <- !duplicated(group)
+  at <- factor(group, levels = group[first])
+  recorded <- table$records > 0
+  predicted <- if (is.null(table$model)) rep(FALSE, nrow(table)) else !recorded & table$model == "likely"
   out <- table[first, c("country", "region", "code"), drop = FALSE]
-  out$taxa <- as.integer(tabulate(match(group, group[first])))
-  out$records <- as.integer(vapply(split(table$records, factor(group, levels = group[first])),
-                                   sum, numeric(1)))
+  out$taxa <- as.integer(tapply(recorded, at, sum))
+  out$records <- as.integer(tapply(table$records, at, sum))
+  out$likely <- as.integer(tapply(predicted, at, sum))
   rownames(out) <- NULL
   out
 }
@@ -278,15 +284,21 @@ atlas_checklist <- function(table, region = "", taxon = "") {
 }
 
 #' A checklist as CSV text that Excel opens with its accents intact: UTF-8
-#' with a byte-order mark, every field quoted, a link to each taxon's page.
+#' with a byte-order mark, every text field quoted, a link to each taxon's
+#' page. With predictions (atlas_region_status), says what the maps say too.
 atlas_checklist_csv <- function(rows, origin = atlas_site_origin()) {
+  pct <- function(x) if (is.null(x)) rep("", nrow(rows)) else ifelse(is.na(x), "", as.character(round(100 * x)))
   out <- data.frame(
     country = rows$country,
     state_province = rows$region,
     region_code = rows$code,
     scientific_name = rows$taxon,
+    status = ifelse(rows$records > 0, "recorded", "likely, not yet recorded"),
     validated_records = rows$records,
     independent_localities = rows$localities,
+    model = if (is.null(rows$model)) rep("", nrow(rows)) else rows$model,
+    suitable_area_pct = pct(rows$suitable_share),
+    within_reach_pct = pct(rows$reach_share),
     atlas_page = paste0(origin, "/taxa/", vapply(rows$taxon, utils::URLencode, "", reserved = TRUE),
                         recycle0 = TRUE),
     stringsAsFactors = FALSE

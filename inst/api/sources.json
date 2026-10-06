@@ -73,6 +73,14 @@
       "role": "Where the lower 48 are, so BIGMAP's empty cells can be told from the rest of the continent. Not a predictor."
     },
     {
+      "id": "natural-earth",
+      "name": "Natural Earth 5.1.1: admin-1 states and provinces (1:10m), countries and lakes (1:50m)",
+      "provider": "Natural Earth",
+      "url": "https://www.naturalearthdata.com/downloads/",
+      "license": "Public domain",
+      "role": "Which state, province or territory each map cell lies in, for the lists of where a species is likely; and land, lakes and borders under the map pictures. Cut to North America and simplified to about 2 km by tools/build-boundaries.R, kept in inst/boundaries. Not a predictor."
+    },
+    {
       "id": "nalcms",
       "name": "NALCMS Land Cover 2020, 30 m",
       "provider": "Commission for Environmental Cooperation (CCRS, USGS, CONABIO, CONAFOR, INEGI)",
@@ -572,6 +580,20 @@
       "detail": "Every published file with its SHA-256, plus the code commit, package versions, layer builds and pull fingerprint.",
       "availability": "planned",
       "why": "Written with every release, and included as release.json in each Zenodo models version."
+    },
+    {
+      "stage": "6. Release",
+      "name": "Where each species is likely, by state and province",
+      "detail": "Each map counted by state when it is drawn: the cells within reach, and the cells it rates at least as highly as the poorer tenth of the places the species was found. A state is likely when that covers a tenth of it, over the maps that beat their null models.",
+      "availability": "published",
+      "where": "/api/taxa/{name}/regions, /api/checklist.csv, and the regions field of every model's metrics"
+    },
+    {
+      "stage": "6. Release",
+      "name": "Map pictures",
+      "detail": "A taxon's map drawn over Natural Earth land and borders with its collections, a legend and the source, for spreadsheets, documents and slides.",
+      "availability": "published",
+      "where": "/api/taxa/{name}/image.png"
     }
   ]
 }
