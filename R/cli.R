@@ -65,6 +65,12 @@ atlas_usage <- function() {
   message("      --nulls=N                 run production Maxent's null test with N nulls")
   message("      --workers=N               species at once (default 1)")
   message("      --seed=N                  which species (default 1)")
+  message("  study-blocks       which block size makes cross-validation test at the distances")
+  message("                     a map predicts at (kNNDM's question)")
+  message("      --per-band=N              taxa per band of detection sites (default 25)")
+  message("      --sizes=50,100,...        block sizes in km (default 50,100,150,200,300,400)")
+  message("      --workers=N               taxa at once (default 1)")
+  message("      --seed=N                  which sample (default 1)")
   message("  benchmark-models   boosted trees against Maxent on the richest taxa")
   message("      --per-band=N              taxa per band of presence cells (default 40)")
   message("      --min-presences=N         smallest taxon included (default 50)")
@@ -359,6 +365,21 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         kinds = split_flag(flags$kinds, "habitat"),
         arms = split_flag(flags$arms, ATLAS_VIRTUAL_ARMS),
         nulls = as.integer(atlas_flag_number(flags, "nulls", 0)),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "study-blocks" = {
+      sizes <- if (is.null(flags$sizes)) {
+        ATLAS_BLOCKCHECK_SIZES
+      } else {
+        as.numeric(strsplit(as.character(flags$sizes), ",", fixed = TRUE)[[1]])
+      }
+      atlas_block_study(
+        grid = atlas_flag_grid(flags),
+        per_band = atlas_flag_number(flags, "per_band", 25),
+        sizes = sizes,
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))
       )

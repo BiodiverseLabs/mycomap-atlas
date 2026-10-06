@@ -25,11 +25,13 @@ atlas_study_worker_task <- function(name, fingerprints, taxon_fn, args) {
 #' baseline  the arm every other arm is compared with, taxon by taxon
 #' summarise function(rows, baseline) giving the results file's summary
 #' extra     function(rows) giving more named entries for the results file
+#' detail    function(arm) giving the short text an arm is logged as
 atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
                             args, settings, baseline, grid = "draft",
                             workers = 1L, points, stack = NULL, quiet = FALSE,
                             opening = NULL, summarise = atlas_sweep_summary,
-                            extra = NULL) {
+                            extra = NULL,
+                            detail = function(arm) sprintf("%s:%s", atlas_arm_name(arm), arm$auc)) {
   started <- Sys.time()
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
   path <- atlas_path(kind, grid, paste0(file_prefix, "-", stamp, ".json"))
@@ -59,14 +61,14 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
     save()
-    detail <- if (identical(row$status, "scored")) {
-      paste(vapply(row$arms, function(a) sprintf("%s:%s", atlas_arm_name(a), a$auc),
-                   character(1)), collapse = " ")
+    described <- if (identical(row$status, "scored")) {
+      paste(vapply(row$arms, function(a) paste(detail(a), collapse = ""), character(1)),
+            collapse = " ")
     } else {
       row$error %||% paste(row$presences, "cells")
     }
     say(sprintf("[%d/%d] %s %s (%s cells, %ss) %s", length(rows), nrow(sample),
-                row$status, row$taxon, row$presences %||% "?", row$seconds %||% NA, detail))
+                row$status, row$taxon, row$presences %||% "?", row$seconds %||% NA, described))
   }
 
   names <- sample$scientific_name
