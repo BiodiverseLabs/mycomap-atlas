@@ -92,7 +92,7 @@ export default function Privacy() {
         <section className="max-w-3xl space-y-3 text-[#3d3027] leading-relaxed">
           <SectionTitle>Questions</SectionTitle>
           <p>
-            Write to <A href="mailto:steve@biodiverselabs.io">steve@biodiverselabs.io</A>. A map
+            Write to <A href="mailto:info@mycomap.org">info@mycomap.org</A>. A map
             that shows a collection site too precisely is a different matter: report it privately,
             as <A href={`${GITHUB_URL}/security/policy`}>the
             security policy</A> asks.
