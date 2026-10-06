@@ -77,3 +77,55 @@ test_that("a benchmark writes its results and never touches the fitted models", 
     expect_equal(length(saved$taxa), 1L)
   })
 })
+
+test_that("a variant arm is boosted trees set up its own way, and an unknown arm is refused", {
+  expect_equal(atlas_benchmark_algorithm("xgboost-small")$id, "xgboost")
+  expect_equal(atlas_benchmark_algorithm("xgboost-stumps")$id, "xgboost")
+  expect_equal(atlas_benchmark_algorithm("xgboost-pruned")$id, "xgboost")
+  expect_equal(atlas_benchmark_algorithm("maxnet")$id, "maxnet")
+  expect_error(atlas_benchmark_algorithm("magic"), "unknown algorithm")
+})
+
+test_that("a variant's leaves must carry the weight of several presences, not one", {
+  presence <- c(rep(1L, 20), rep(0L, 8000))
+  # Each presence weighs 8000 / 20 = 400; three of them, at p(1 - p) = 1/4.
+  expect_equal(atlas_leaf_weight(presence, 3), 3 * 400 * 0.25)
+  # Production's leaf (min_child_weight 5) is lighter than one presence.
+  expect_lt(ATLAS_XGBOOST_PARAMS$min_child_weight, atlas_leaf_weight(presence, 1))
+})
+
+test_that("on few sites, the sparse variants still find a fungus that favours the east", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("xgboost")
+  world <- synthetic_landscape()
+  set.seed(11)
+  # 25 of the 60 eastern finds: a sparse taxon, the band in question.
+  focal <- which(world$points$scientific_name == "Eastern fungus")
+  points <- world$points[-sample(focal, 35), ]
+  training <- atlas_build_training("Eastern fungus", "draft", n_background = 500, buffer_km = 300,
+                                   write = FALSE, quiet = TRUE, points = points,
+                                   stack = world$stack, fingerprint = "f00dfeed")
+  expect_equal(sum(training$presence == 1L), 25L)
+  for (name in names(ATLAS_BENCHMARK_VARIANTS)) {
+    model <- atlas_fit_benchmark_variant(ATLAS_BENCHMARK_VARIANTS[[name]], training, seed = 1L)
+    # Slow learning stops after few trees, so the values stay near 0.5; what
+    # matters is the order, and the order follows the eastward rise.
+    suitability <- atlas_xgboost_suitability(model, training)
+    expect_gt(stats::cor(suitability, training$x, method = "spearman"), 0.5, label = name)
+  }
+})
+
+test_that("a benchmark with variant arms scores each on the same folds", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  skip_if_not_installed("xgboost")
+  world <- synthetic_landscape()
+  arms <- c("maxnet", "xgboost", "xgboost-stumps")
+  row <- atlas_benchmark_taxon("Eastern fungus", fingerprint = "f00dfeed", points = world$points,
+                               stack = world$stack, n_background = 500, buffer_km = 300,
+                               min_presences = 20, arms = arms)
+  expect_equal(vapply(row$arms, `[[`, "", "arm"), arms)
+  stumps <- row$arms[[3]]
+  expect_gt(stumps$folds_scored, 0)
+  expect_gt(stumps$auc, 0.6)
+})
