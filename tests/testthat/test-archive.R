@@ -205,7 +205,7 @@ test_that("a waiting draft blocks the next archive until it is published or disc
   })
 })
 
-test_that("the bundle holds maps per model, scores, counts and cells, and nothing private", {
+test_that("the bundle holds maps per model, scores, counts, cells and regions, and nothing private", {
   with_data_dir({
     computed_data()
     store <- new_store()
@@ -213,7 +213,7 @@ test_that("the bundle holds maps per model, scores, counts and cells, and nothin
     bundle <- atlas_archive_models_bundle(store, "draft")
     expect_setequal(names(bundle$sources), c(
       "maps-maxnet.tar", "maps-rf.tar", "scores.tar.gz", "taxa.json",
-      "collection-cells-0.1deg.tsv.gz", "pull.json", "release.json"
+      "collection-cells-0.1deg.tsv.gz", "taxa-by-state-province.tsv.gz", "pull.json", "release.json"
     ))
     inside <- utils::untar(bundle$sources[["maps-rf.tar"]], list = TRUE)
     expect_setequal(inside, c("models/draft/rf/amanita-muscaria.tif", "models/draft/rf/amanita-muscaria.png"))

@@ -409,3 +409,76 @@ function(name) {
   cells <- atlas_taxon_cells(decoded, source$occurrences, source$public)
   list(name = decoded, degrees = ATLAS_PUBLIC_DEGREES, cells = cells)
 }
+
+# ---- states and provinces ----------------------------------------------------
+
+# Links written into a downloaded checklist point at this site.
+site_origin <- atlas_site_origin()
+
+# Every taxon by state, province and territory: built from the pull where this
+# machine has it, read from the release everywhere else.
+cached_regions <- function() {
+  if (is.null(cache$regions)) {
+    source <- cached_cells_source()
+    cache$regions <- if (!is.null(source$occurrences)) {
+      atlas_region_table(source$occurrences)
+    } else {
+      atlas_read_public_regions()
+    }
+  }
+  cache$regions
+}
+
+# Built at boot: from the pull it takes several seconds, and plumber answers
+# one request at a time.
+invisible(tryCatch(cached_regions(), error = function(e) NULL))
+
+#* Every state, province and territory with validated records, with how many
+#* taxa each holds.
+#* @get /api/regions
+#* @serializer unboxedJSON
+function(res) {
+  table <- cached_regions()
+  if (is.null(table)) {
+    res$status <- 503L
+    return(list(error = "no region table on this server yet"))
+  }
+  list(regions = atlas_regions_summary(table))
+}
+
+#* Where one taxon has been recorded, by state, province or territory.
+#* @get /api/taxa/<name>/regions
+#* @serializer unboxedJSON
+function(name, res) {
+  decoded <- atlas_decode_name(name)
+  table <- cached_regions()
+  if (is.null(table)) {
+    res$status <- 503L
+    return(list(error = "no region table on this server yet"))
+  }
+  rows <- atlas_checklist(table, taxon = decoded)
+  list(name = decoded, regions = rows[, c("country", "region", "code", "records", "localities"), drop = FALSE])
+}
+
+#* Taxa by state or province as a CSV that opens in Excel: everything, one
+#* region, one country, or one taxon.
+#* @param region A region code such as US-IN or CA-BC, its name, or a country code (US, CA, MX)
+#* @param taxon An exact scientific name
+#* @get /api/checklist.csv
+function(region = "", taxon = "", res) {
+  table <- cached_regions()
+  if (is.null(table)) {
+    return(atlas_send(res, list(status = 503L, body = list(error = "no region table on this server yet"))))
+  }
+  taxon <- atlas_decode_name(taxon)
+  rows <- atlas_checklist(table, region, taxon)
+  if (is.null(rows)) {
+    return(atlas_send(res, list(status = 404L, body = list(error = "no such state, province or country in the records"))))
+  }
+  res$status <- 200L
+  res$setHeader("Content-Type", "text/csv; charset=utf-8")
+  res$setHeader("Content-Disposition",
+                paste0("attachment; filename=\"", atlas_checklist_filename(region, taxon), "\""))
+  res$body <- atlas_checklist_csv(rows, site_origin)
+  res
+}
