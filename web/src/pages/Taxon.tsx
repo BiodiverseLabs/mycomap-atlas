@@ -785,7 +785,7 @@ export default function Taxon() {
                   name={name}
                   ensemble={ensemble.data}
                   points={points}
-                  view={boundsOf(anyModel)}
+                  view={opening}
                   group={group}
                 />
               </section>
