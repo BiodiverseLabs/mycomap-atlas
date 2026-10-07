@@ -36,6 +36,12 @@ changed and what it means for you.
   visitor's point and is `private, no-store`.
 - `/api/models` is rebuilt at most once a minute, so a model fitted moments
   ago can take up to a minute to appear.
+- **`GET /api/names/{name}`** is new: the name Atlas uses now for a name
+  you have. It answers with the name itself when it is current, the one
+  current name it is another spelling of (punctuation and case only), or
+  the name its records were renamed to on mycomap.org (`how`: `current`,
+  `spelling` or `renamed`, with `via` listing earlier names). 404 when none
+  applies. Releases carry `occurrences/renames.json`.
 
 ### Maps
 
@@ -62,6 +68,10 @@ changed and what it means for you.
   as they derive from WorldClim 2.1. The footer credits every source.
 - Public pages say what is missing ("too few sites", "waits for the next
   rebuild") instead of naming a command to run.
+- **Old links keep working.** A taxon page opened under a name Atlas no
+  longer uses goes to the current name's page and says "Formerly …" or
+  "… is another spelling of this name". Renames are found by comparing each
+  full pull with the one before, by record id, from the next full pull on.
 
 ### Methods and studies (no change to production fits)
 

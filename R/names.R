@@ -177,3 +177,125 @@ atlas_refresh_names <- function(quiet = FALSE) {
   }
   invisible(merges)
 }
+
+# ---- renames across pulls -------------------------------------------------------
+#
+# A provisional name is renamed on .org when its lineage gets a formal name or
+# a new code. A taxon page, a citation or a link made under the old name would
+# then find nothing. So each full pull compares its records with the previous
+# pull's, by record id: a name that is gone, and more than half of whose
+# records now sit under one other name, was renamed to it. The renames
+# accumulate in occurrences/renames.json, which releases carry, and an old
+# name is followed through them to the name its records have now.
+
+#' Where the renames found so far are kept; releases carry it.
+atlas_renames_path <- function() {
+  atlas_path("occurrences", "renames.json")
+}
+
+#' Names in `previous` that are gone from `current` and whose records mostly
+#' moved to one other name: one row each, from, to, records (the old name's
+#' records) and moved (how many of them the new name has now). A name whose
+#' records were dropped, or split with no majority, is not a rename.
+atlas_detect_renames <- function(previous, current) {
+  empty <- data.frame(from = character(), to = character(), records = integer(),
+                      moved = integer(), stringsAsFactors = FALSE)
+  if (is.null(previous) || !nrow(previous) || is.null(current) || !nrow(current)) return(empty)
+  gone <- setdiff(unique(previous$scientific_name), unique(current$scientific_name))
+  if (!length(gone)) return(empty)
+  now <- stats::setNames(current$scientific_name, as.character(current$id))
+  rows <- lapply(sort(gone), function(name) {
+    ids <- as.character(previous$id[previous$scientific_name == name])
+    where <- unname(now[ids])
+    where <- where[!is.na(where)]
+    if (!length(where)) return(NULL)
+    counts <- sort(table(where), decreasing = TRUE)
+    if (counts[[1]] * 2 <= length(ids)) return(NULL)
+    data.frame(from = name, to = names(counts)[[1]], records = length(ids),
+               moved = as.integer(counts[[1]]), stringsAsFactors = FALSE)
+  })
+  rows <- Filter(Negate(is.null), rows)
+  if (!length(rows)) empty else do.call(rbind, rows)
+}
+
+#' The renames known after a pull: the ones known before, the ones just found
+#' (a name renamed again keeps only its latest), and none for a name that is
+#' current again.
+atlas_update_renames <- function(existing, found, current_names, seen = format(Sys.Date())) {
+  columns <- c("from", "to", "records", "moved", "seen")
+  keep <- function(x) {
+    if (is.null(x) || !NROW(x)) return(NULL)
+    x <- as.data.frame(x, stringsAsFactors = FALSE)
+    if (is.null(x$seen)) x$seen <- seen
+    x[, columns, drop = FALSE]
+  }
+  existing <- keep(existing)
+  found <- keep(found)
+  if (!is.null(existing) && !is.null(found)) existing <- existing[!existing$from %in% found$from, , drop = FALSE]
+  out <- rbind(existing, found)
+  if (is.null(out)) {
+    return(data.frame(from = character(), to = character(), records = integer(),
+                      moved = integer(), seen = character(), stringsAsFactors = FALSE))
+  }
+  out <- out[!out$from %in% current_names, , drop = FALSE]
+  out <- out[order(out$from), , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+#' The renames this machine knows, or none.
+atlas_read_renames <- function(path = atlas_renames_path()) {
+  if (!file.exists(path)) return(NULL)
+  tryCatch(jsonlite::fromJSON(path, simplifyVector = TRUE), error = function(e) NULL)
+}
+
+#' Compare a full pull with the one before it and keep what was renamed.
+#' Never fails a pull: renames are a convenience for old links.
+atlas_record_renames <- function(current, previous = NULL, path = atlas_renames_path(),
+                                 quiet = FALSE) {
+  tryCatch({
+    if (is.null(previous)) previous <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
+    found <- atlas_detect_renames(previous, current)
+    updated <- atlas_update_renames(atlas_read_renames(path), found,
+                                    unique(current$scientific_name))
+    atlas_write_json(updated, path)
+    if (!isTRUE(quiet) && nrow(found)) {
+      message(nrow(found), " name(s) renamed since the last pull; ", nrow(updated), " known")
+    }
+    invisible(updated)
+  }, error = function(e) {
+    if (!isTRUE(quiet)) message("renames not recorded: ", conditionMessage(e))
+    invisible(NULL)
+  })
+}
+
+#' The current name for a name someone asked for: itself when current; the
+#' one current name it is a spelling of (punctuation and case only, as
+#' merges are made); or where its renames lead. NULL when none applies.
+#' Returns name, how ("current", "spelling" or "renamed") and via, the names
+#' passed through.
+atlas_resolve_name <- function(name, names, renames = NULL, hops = 10L) {
+  if (!is.character(name) || length(name) != 1L || !nzchar(name)) return(NULL)
+  if (name %in% names) return(list(name = name, how = "current", via = list()))
+  spelling <- function(x) {
+    key <- tolower(atlas_regular_name(x))
+    hit <- names[tolower(atlas_regular_name(names)) == key]
+    if (length(hit) == 1L) hit else NULL
+  }
+  direct <- spelling(name)
+  if (!is.null(direct)) return(list(name = direct, how = "spelling", via = list()))
+  if (is.null(renames) || !NROW(renames)) return(NULL)
+  at <- name
+  via <- character()
+  for (i in seq_len(hops)) {
+    row <- which(renames$from == at)
+    if (!length(row)) row <- which(tolower(atlas_regular_name(renames$from)) == tolower(atlas_regular_name(at)))
+    if (length(row) != 1L) return(NULL)
+    via <- c(via, at)
+    at <- renames$to[[row]]
+    if (at %in% names) return(list(name = at, how = "renamed", via = as.list(via)))
+    current <- spelling(at)
+    if (!is.null(current)) return(list(name = current, how = "renamed", via = as.list(c(via, at))))
+  }
+  NULL
+}

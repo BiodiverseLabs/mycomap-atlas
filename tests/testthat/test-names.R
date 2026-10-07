@@ -155,3 +155,109 @@ test_that("a lineage code without quotes is not mistaken for an author", {
   expect_false(same_taxon("Cystolepiota 'seminuda PNW04'", "Cystolepiota seminuda"))
   expect_equal(atlas_strip_authors("Entoloma subg. Pouzarella"), "Entoloma subg. Pouzarella")
 })
+
+# ---- renames across pulls (release review s9) ---------------------------------------
+
+pulled <- function(...) {
+  pairs <- list(...)
+  data.frame(id = as.character(unlist(lapply(pairs, `[[`, 2))),
+             scientific_name = rep(vapply(pairs, `[[`, "", 1), vapply(pairs, function(p) length(p[[2]]), 1L)),
+             stringsAsFactors = FALSE)
+}
+
+test_that("a name gone from a pull whose records mostly moved to one name was renamed to it", {
+  before <- pulled(list("Mycena sp. 'IN10'", 1:4), list("Amanita muscaria", 5:6), list("Russula sp. 'X1'", 7:10),
+                   list("Lactarius sp. 'Y'", 11:14))
+  after <- pulled(list("Mycena indianensis", 1:3), list("Amanita muscaria", 5:6),
+                  # Russula X1 split two and two: no majority, no rename.
+                  list("Russula a", 7:8), list("Russula b", 9:10),
+                  # Lactarius Y lost three of four records and one moved: not a rename.
+                  list("Lactarius z", 11))
+  found <- atlas_detect_renames(before, after)
+  expect_equal(found$from, "Mycena sp. 'IN10'")
+  expect_equal(found$to, "Mycena indianensis")
+  expect_equal(found$records, 4L)
+  expect_equal(found$moved, 3L)
+  expect_equal(nrow(atlas_detect_renames(before, before)), 0L)
+  expect_equal(nrow(atlas_detect_renames(NULL, after)), 0L)
+})
+
+test_that("renames accumulate, a name renamed again keeps its latest, and a name that comes back is dropped", {
+  first <- data.frame(from = c("A", "B"), to = c("B", "Q"), records = 3L, moved = 3L, seen = "2026-10-01")
+  found <- data.frame(from = "B", to = "C", records = 2L, moved = 2L)
+  kept <- atlas_update_renames(first, found, current_names = c("C", "Q"), seen = "2026-10-07")
+  expect_equal(kept$from, c("A", "B"))
+  expect_equal(kept$to, c("B", "C"))
+  expect_equal(kept$seen, c("2026-10-01", "2026-10-07"))
+  back <- atlas_update_renames(kept, NULL, current_names = c("A", "C"))
+  expect_equal(back$from, "B")
+  expect_equal(nrow(atlas_update_renames(NULL, NULL, "A")), 0L)
+})
+
+test_that("an old name or another spelling leads to the current name, and nothing else is guessed", {
+  names <- c("Mycena indianensis", "Mycena sp. 'IN11'", "Amanita muscaria")
+  renames <- data.frame(from = c("Mycena sp. 'IN10'", "Mycena sp. 'OLD'"),
+                        to = c("Mycena indianensis", "Mycena sp. 'IN10'"))
+  expect_equal(atlas_resolve_name("Amanita muscaria", names, renames)$how, "current")
+  spelt <- atlas_resolve_name('Mycena "sp-IN11"', names, renames)
+  expect_equal(spelt[c("name", "how")], list(name = "Mycena sp. 'IN11'", how = "spelling"))
+  renamed <- atlas_resolve_name("Mycena sp. 'IN10'", names, renames)
+  expect_equal(renamed$name, "Mycena indianensis")
+  expect_equal(renamed$how, "renamed")
+  # A chain is followed, and an old name in another spelling still finds it.
+  chained <- atlas_resolve_name('Mycena "sp-OLD"', names, renames)
+  expect_equal(chained$name, "Mycena indianensis")
+  expect_equal(unlist(chained$via), c('Mycena "sp-OLD"', "Mycena sp. 'IN10'"))
+  # Letters and digits are never bent: IN1 is not IN11.
+  expect_null(atlas_resolve_name("Mycena sp. 'IN1'", names, renames))
+  expect_null(atlas_resolve_name("", names, renames))
+  # A loop ends.
+  looped <- data.frame(from = c("X", "Y"), to = c("Y", "X"))
+  expect_null(atlas_resolve_name("X", names, looped))
+})
+
+test_that("a full pull records what was renamed since the last one, and a broken previous pull fails nothing", {
+  with_data_dir({
+    before <- pulled(list("Mycena sp. 'IN10'", 1:4), list("Amanita muscaria", 5:6))
+    after <- pulled(list("Mycena indianensis", 1:4), list("Amanita muscaria", 5:6))
+    atlas_record_renames(after, previous = before, quiet = TRUE)
+    kept <- atlas_read_renames()
+    expect_equal(kept$from, "Mycena sp. 'IN10'")
+    expect_equal(kept$to, "Mycena indianensis")
+    # The next pull finds nothing new and keeps what was known.
+    atlas_record_renames(after, previous = after, quiet = TRUE)
+    expect_equal(atlas_read_renames()$to, "Mycena indianensis")
+    # With no previous pull to read, the pull goes on.
+    expect_silent(atlas_record_renames(after, quiet = TRUE))
+  })
+})
+
+test_that("through the API: an old name answers with the current one, and an unknown name is a 404", {
+  with_data_dir({
+    dir.create(atlas_path("occurrences"), recursive = TRUE, showWarnings = FALSE)
+    taxa <- data.frame(scientific_name = c("Mycena indianensis", "Amanita muscaria"),
+                       records = 3L, localities = 3L, fingerprint = "f")
+    jsonlite::write_json(taxa, atlas_path("occurrences", "taxa-latest.json"))
+    jsonlite::write_json(data.frame(from = "Mycena sp. 'IN10'", to = "Mycena indianensis", records = 4L,
+                                    moved = 4L, seen = "2026-10-07"), atlas_renames_path())
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      out <- call_api(api, "/api/names/Mycena%20sp.%20'IN10'")
+      expect_equal(out$status, 200L)
+      body <- jsonlite::fromJSON(out$body)
+      expect_equal(body$name, "Mycena indianensis")
+      expect_equal(body$how, "renamed")
+      expect_equal(body$requested, "Mycena sp. 'IN10'")
+      expect_equal(jsonlite::fromJSON(call_api(api, "/api/names/Amanita%20muscaria")$body)$how, "current")
+      expect_equal(call_api(api, "/api/names/Nothing%20here")$status, 404L)
+    })
+  })
+})
+
+test_that("a release carries the renames, so the box can follow old names too", {
+  with_data_dir({
+    dir.create(atlas_path("occurrences"), recursive = TRUE, showWarnings = FALSE)
+    writeLines("[]", atlas_renames_path())
+    expect_true("occurrences/renames.json" %in% atlas_release_files("draft"))
+  })
+})
