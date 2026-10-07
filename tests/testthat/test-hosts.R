@@ -776,3 +776,178 @@ test_that("a leftover .part is never read as the cache, and the next write repla
   expect_false(file.exists(file.path(dir, "bigmap-1km.tif.part")))
   unlink(dir, recursive = TRUE)
 })
+
+# ---- tree species -------------------------------------------------------------
+
+test_that("the species layer carries every BIGMAP species FIA names past the genus, each its own band", {
+  table <- atlas_tree_species()
+  expect_equal(nrow(table), 327L)
+  named <- table$spcd[!grepl(" spp[.]$", table$scientific_name)]
+  expect_setequal(ATLAS_HOST_SPECIES, named)
+  bands <- atlas_host_species_bands()
+  expect_equal(anyDuplicated(bands), 0L)
+  expect_true(all(atlas_is_host_share(bands)))
+  # No species band is a genus band under another name.
+  expect_length(intersect(bands, c(ATLAS_HOST_BANDS, ATLAS_HOST_DECAY_BANDS)), 0L)
+  # A subspecies with a code of its own is a band of its own: black
+  # cottonwood is not balsam poplar.
+  expect_true(all(c("host_populus_balsamifera", "host_populus_balsamifera_trichocarpa") %in% bands))
+  # Oaks are species, not one genus: 48 of them.
+  expect_equal(sum(startsWith(bands, "host_quercus_")), 48L)
+})
+
+test_that("a species band is named and labelled from FIA's scientific and common names", {
+  expect_equal(atlas_species_band("Quercus rubra"), "host_quercus_rubra")
+  expect_equal(atlas_species_band("Populus balsamifera ssp. trichocarpa"),
+               "host_populus_balsamifera_trichocarpa")
+  expect_equal(atlas_species_band("Abies lasiocarpa var. arizonica"), "host_abies_lasiocarpa_arizonica")
+  expect_equal(atlas_species_band("Carya carolinae-septentrionalis"),
+               "host_carya_carolinae_septentrionalis")
+  expect_equal(atlas_label("host_quercus_rubra"), "Northern red oak (Quercus rubra)")
+  expect_equal(atlas_label("host_quercus_virginiana"), "Live oak (Quercus virginiana)")
+  # A label for every band, and the genus labels are untouched.
+  bands <- atlas_host_species_bands()
+  expect_false(any(atlas_label(bands) == bands))
+  expect_equal(atlas_label("host_quercus"), "Oak")
+})
+
+test_that("Canada's species files map to the FIA species they are", {
+  table <- atlas_tree_species()
+  expect_true(all(ATLAS_NFI_SPECIES %in% table$spcd))
+  expect_equal(anyDuplicated(unname(ATLAS_NFI_SPECIES)), 0L)
+  rows <- table[match(ATLAS_NFI_SPECIES, table$spcd), ]
+  # Each file's four letters are its species' genus, Chamaecyparis included.
+  expect_equal(substr(names(ATLAS_NFI_SPECIES), 1, 4), substr(rows$genus, 1, 4))
+  name_of <- function(code) table$common_name[table$spcd == ATLAS_NFI_SPECIES[[code]]]
+  expect_equal(name_of("Acer_Sac"), "sugar maple")
+  expect_equal(name_of("Acer_Sah"), "silver maple")
+  expect_equal(name_of("Pinu_Str"), "eastern white pine")
+  expect_equal(name_of("Pinu_Mon"), "western white pine")
+  expect_equal(name_of("Popu_Tri"), "black cottonwood")
+  expect_equal(name_of("Popu_Bal"), "balsam poplar")
+})
+
+test_that("the species layer sums each species on its own, keeps its species files, and leaves production's caches alone", {
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("species-", as.integer(stats::runif(1, 1, 1e9))))
+  dir.create(dir, recursive = TRUE)
+  sentinels <- file.path(dir, c("bigmap-1km.tif", "nfi-1km.tif"))
+  for (f in sentinels) writeBin(as.raw(1:64), f)
+  before <- tools::md5sum(sentinels)
+  set <- atlas_host_set("hostspecies")
+  set$species <- c(833L, 838L, 741L, 747L)
+  offsets <- c(SPCD_0833_Quercus_rubra = 10, SPCD_0838_Quercus_virginiana = 20,
+               SPCD_0741_Populus_balsamifera = 30, SPCD_0747_Populus_balsamifera = 40,
+               SPCD_0800_Quercus_spp. = 50, SPCD_0802_Quercus_alba = 60)
+  server <- fake_bigmap(offsets)
+  window <- c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000)
+  sums <- atlas_bigmap_sums(dir, window, http = server$http, quiet = TRUE,
+                            functions = names(offsets), set = set)
+  # Only the set's species are read; the oaks FIA could not name are not a species.
+  expect_setequal(server$requested(), names(offsets)[1:4])
+  expect_equal(names(sums), c("quercus_rubra", "quercus_virginiana", "populus_balsamifera",
+                              "populus_balsamifera_trichocarpa"))
+  v <- terra::values(sums)[1, ]
+  # One cell: column 2.5 plus each species' own offset, never two summed.
+  expect_equal(unname(v), c(12.5, 22.5, 32.5, 42.5))
+  # Its species files stay for the next choice of species; production's are untouched.
+  expect_equal(length(list.files(file.path(dir, "bigmap-species-all"))), 4L)
+  expect_equal(tools::md5sum(sentinels), before)
+  # A species BIGMAP stops offering is an error, not a silent zero.
+  set$species <- c(833L, 999L)
+  unlink(file.path(dir, set$bigmap))
+  expect_error(atlas_bigmap_sums(dir, window, http = server$http, quiet = TRUE,
+                                 functions = names(offsets), set = set), "SPCD 999")
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("in Canada a species band is its own NFI file, and trees named only to genus stay out of it", {
+  files <- paste0("NFI_MODIS250m_2011_kNN_", c(
+    "Species_Quer_Rub", "Species_Quer_Mac", "Species_Quer_Spp", "Species_Popu_Tri",
+    "SpeciesGroups_Needleleaf_Spp", "SpeciesGroups_Broadleaf_Spp"
+  ), "_v1.tif")
+  set <- atlas_host_set("hostspecies")
+  set$species <- c(833L, 838L, 747L)
+  catalog <- atlas_nfi_needed(atlas_nfi_catalog(files, set$nfi_codes, species_codes = set$nfi_species),
+                              groups = set$totals)
+  # Bur oak is mapped, but not a species of this set: it is still read only
+  # if the set carries it, which the groups decide.
+  expect_true(all(c(files[1], files[4]) %in% catalog$file))
+  expect_false(files[3] %in% catalog$file)
+  groups <- atlas_nfi_groups(catalog, set$genera, totals = set$totals, spcd = set$species)
+  expect_equal(names(groups), c("quercus_rubra", "quercus_virginiana", "populus_balsamifera_trichocarpa"))
+  expect_equal(groups$quercus_rubra, files[1])
+  expect_length(groups$quercus_virginiana, 0L)
+  expect_equal(groups$populus_balsamifera_trichocarpa, files[4])
+  # The genus sets read as they did: no species code, no species column used.
+  production <- atlas_nfi_needed(atlas_nfi_catalog(files))
+  expect_true(all(is.na(production$spcd)))
+})
+
+test_that("the further host genera include walnut, hackberry, bald cypress, redwoods and incense-cedar", {
+  expect_true(all(c("Juglans", "Celtis", "Taxodium", "Sequoia", "Sequoiadendron", "Calocedrus") %in%
+                    ATLAS_DECAY_HOST_GENERA))
+  expect_equal(ATLAS_NFI_DECAY_GENERA[["Jugl"]], "Juglans")
+  # Every one is a genus BIGMAP maps.
+  expect_true(all(ATLAS_DECAY_HOST_GENERA %in% atlas_tree_species()$genus))
+  for (band in ATLAS_HOST_DECAY_BANDS) {
+    expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
+  }
+})
+
+test_that("in Canada, the bands NFI does not map are projected once between them, and read 0", {
+  skip_if_not_installed("terra")
+  files <- paste0("NFI_MODIS250m_2011_kNN_Species_", c("Quer_Rub", "Popu_Tri"), "_v1.tif")
+  dir <- file.path(tempdir(), paste0("nfi-species-", as.integer(stats::runif(1, 1, 1e9))))
+  set <- atlas_host_set("hostspecies")
+  # Two species NFI maps, three it does not.
+  set$species <- c(833L, 747L, 838L, 802L, 110L)
+  dir.create(file.path(dir, set$nfi_dir), recursive = TRUE)
+  lcc <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
+  for (i in seq_along(files)) {
+    r <- terra::rast(xmin = 0, xmax = 20000, ymin = 5700000, ymax = 5720000, resolution = 250, crs = lcc)
+    terra::values(r) <- 10 * i
+    terra::writeRaster(r, file.path(dir, set$nfi_dir, files[[i]]), overwrite = TRUE)
+  }
+  projected <- 0L
+  real <- atlas_nfi_project
+  testthat::local_mocked_bindings(atlas_nfi_project = function(x, target, filename) {
+    projected <<- projected + 1L
+    real(x, target, filename)
+  })
+  sums <- atlas_nfi_sums(dir, http = function(url, dest) stop("no network"), quiet = TRUE,
+                         files = files, set = set)
+  # One projection per mapped species, and one for all the rest.
+  expect_equal(projected, 3L)
+  # The bands were files on the way, gone once summed.
+  expect_false(dir.exists(file.path(dir, paste0(set$nfi_dir, "-bands"))))
+  expect_equal(names(sums), atlas_host_set_parts(set))
+  inside <- terra::values(sums)[stats::complete.cases(terra::values(sums)), , drop = FALSE]
+  expect_gt(nrow(inside), 0L)
+  expect_equal(unique(round(inside[, "quercus_rubra"], 4)), 10)
+  expect_equal(unique(round(inside[, "populus_balsamifera_trichocarpa"], 4)), 20)
+  for (absent in c("quercus_virginiana", "quercus_alba", "pinus_echinata")) {
+    expect_equal(unique(round(inside[, absent], 4)), 0, info = absent)
+  }
+  unlink(dir, recursive = TRUE)
+})
+
+test_that("an NFI band already on disk is read back, not projected again, so a build resumes", {
+  skip_if_not_installed("terra")
+  dir <- file.path(tempdir(), paste0("nfi-resume-", as.integer(stats::runif(1, 1, 1e9))))
+  dir.create(dir)
+  lcc <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
+  x <- terra::rast(xmin = 0, xmax = 20000, ymin = 5700000, ymax = 5720000, resolution = 250, crs = lcc)
+  terra::values(x) <- 7
+  target <- atlas_window_template(atlas_extent_in_grid(x), ATLAS_HOST_BASE_M)
+  path <- file.path(dir, "band.tif")
+  first <- atlas_nfi_project(x, target, path)
+  expect_true(file.exists(path))
+  expect_false(file.exists(paste0(path, ".part.tif")))
+  # Read back: the second source is ignored because the band is already done.
+  terra::values(x) <- 99
+  again <- atlas_nfi_project(x, target, path)
+  expect_equal(max(terra::values(again), na.rm = TRUE), 7)
+  expect_false(terra::inMemory(again))
+  unlink(dir, recursive = TRUE)
+})

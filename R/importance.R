@@ -151,12 +151,18 @@ atlas_importance_summary <- function(rows) {
   out
 }
 
+# Layers measured and shown as one: the host genera, the further genera and
+# the species are all host trees, shuffled together and listed under one name
+# (Steve, 2026-10-06), so a model's trees are not split across headings.
+ATLAS_LAYER_GROUPS <- c(hostsdecay = "hosts", hostspecies = "hosts")
+
 #' The layer each predictor belongs to, from the grid's layer bands. A
-#' predictor no layer lists belongs to "other".
-atlas_layer_of <- function(predictors, bands = list()) {
+#' predictor no layer lists belongs to "other". Layers in ATLAS_LAYER_GROUPS
+#' answer as the layer they are grouped under.
+atlas_layer_of <- function(predictors, bands = list(), groups = ATLAS_LAYER_GROUPS) {
   owner <- stats::setNames(rep("other", length(predictors)), predictors)
   for (id in names(bands)) {
-    owner[intersect(predictors, bands[[id]])] <- id
+    owner[intersect(predictors, bands[[id]])] <- if (id %in% names(groups)) groups[[id]] else id
   }
   owner
 }

@@ -8,6 +8,19 @@ export interface Status {
   taxa?: number;
   fingerprint?: string;
   since?: string | null;
+  /** The release the maps come from: what to cite. */
+  release?: StatusRelease;
+}
+
+export interface StatusRelease {
+  id: string;
+  grid?: string;
+  createdAt?: string;
+  commit?: string;
+  dataPulledAt?: string;
+  records?: number;
+  taxa?: number;
+  fingerprint?: string;
 }
 
 export interface Taxon {
@@ -155,6 +168,13 @@ export interface Model {
   /** Whether the map beat its null models. Fits from before there were
    * null models have none, and read as "untested". */
   skill?: Skill;
+  /** How strongly the map is drawn, 0 (failed its null test) to 1 (far above
+   * its nulls). Absent on fits from before it was measured. */
+  map_strength?: number;
+  /** Where the map has training data behind it (Meyer & Pebesma 2021). */
+  applicability?: ModelApplicability;
+  /** The years the taxon's records were collected over. */
+  record_years?: RecordYears;
   null?: ModelNull;
   /** Settings chosen by tuning in nested spatial folds. */
   params?: Record<string, string | number>;
@@ -236,6 +256,52 @@ export function getTaxon(name: string): Promise<Taxon> {
 
 export function getCells(name: string): Promise<Cells> {
   return get<Cells>(`/api/taxa/${encodeURIComponent(name)}/cells`);
+}
+
+/** The years a taxon's records were collected over. */
+export interface RecordYears {
+  records: number;
+  dated: number;
+  first?: number;
+  median?: number;
+  last?: number;
+  /** Share of dated records collected before the climate period on the map. */
+  before_climate_period?: number;
+  climate_period_start?: number;
+}
+
+/** A map's area of applicability: ground like the sites it learned from. */
+export interface ModelApplicability {
+  threshold: number;
+  /** Share of the accessible area inside the area of applicability. */
+  inside_share?: number;
+  weights?: "importance" | "equal" | "given";
+}
+
+/** A taxon's ensemble: its passing models averaged, with where they disagree. */
+export interface Ensemble {
+  taxon: string;
+  members: { algorithm: Algorithm; weight: number; auc_mean: number; map_strength: number }[];
+  map_strength: number;
+  known_share?: number;
+  disagreement_mean?: number;
+  disagreement_high_share?: number;
+  bounds?: ModelBounds;
+  built_at: string;
+}
+
+/** A taxon's ensemble, or null when fewer than two of its models passed. */
+export async function getEnsemble(name: string): Promise<Ensemble | null> {
+  const response = await fetch(`/api/taxa/${encodeURIComponent(name)}/ensemble`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return (await response.json()) as Ensemble;
+}
+
+/** The ensemble's map, or where its members disagree. */
+export function ensembleMapUrl(name: string, layer: "map" | "disagreement", version?: string): string {
+  const v = version ? `&v=${encodeURIComponent(version)}` : "";
+  return `/api/taxa/${encodeURIComponent(name)}/ensemble.png?layer=${layer}${v}`;
 }
 
 /** The fitted model for a taxon, or null when it has not been fitted. */

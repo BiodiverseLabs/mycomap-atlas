@@ -241,3 +241,37 @@ test_that("an arm that cannot be fitted is recorded, and the taxon keeps its oth
   summary <- atlas_sweep_summary(list(row), baseline = "base")
   expect_true(is.na(summary$auc[summary$arm == "rf:base" & summary$band == "all"]))
 })
+
+test_that("a swap replaces production layers with candidates, for Maxent and the forest", {
+  swaps <- list(newclimate = list(drop = "oldclimate", add = c("c1", "c2")))
+  arms <- atlas_layer_sweep_arms(list(), base = c("oldclimate", "soil"), swaps = swaps,
+                                 built = c("oldclimate", "soil", "c1", "c2"))
+  names <- vapply(arms, function(a) a$arm, character(1))
+  expect_true(all(c("swap:newclimate", "rf:swap:newclimate") %in% names))
+  swap <- arms[[which(names == "swap:newclimate")]]
+  expect_setequal(swap$layers, c("soil", "c1", "c2"))
+  expect_equal(swap$algorithm, "maxnet")
+  expect_equal(arms[[which(names == "rf:swap:newclimate")]]$algorithm, "rf")
+  # Not offered until every layer it brings in is built.
+  partial <- atlas_layer_sweep_arms(list(), base = c("oldclimate", "soil"), swaps = swaps,
+                                    built = c("oldclimate", "soil", "c1"))
+  expect_false(any(grepl("swap", vapply(partial, function(a) a$arm, character(1)))))
+  # The production sweep offers the 1991-2020 climate in place of WorldClim's.
+  expect_equal(ATLAS_SWAP_LAYER_GROUPS$climate1991$drop, "bioclim")
+  expect_setequal(ATLAS_SWAP_LAYER_GROUPS$climate1991$add, c("climatena", "waterbalance"))
+})
+
+test_that("a swap can leave single predictors out, so species can stand in for their genera", {
+  swaps <- list(species = list(drop = character(), add = "hostspecies",
+                               exclude = c("host_quercus", "host_pinus")))
+  arms <- atlas_layer_sweep_arms(list(), base = c("hosts", "soil"), swaps = swaps,
+                                 built = c("hosts", "soil", "hostspecies"))
+  names <- vapply(arms, function(a) a$arm, character(1))
+  for (arm in c("swap:species", "rf:swap:species")) {
+    a <- arms[[which(names == arm)]]
+    expect_setequal(a$layers, c("hosts", "soil", "hostspecies"))
+    expect_equal(a$exclude, c("host_quercus", "host_pinus"))
+  }
+  # Arms without it leave nothing out.
+  expect_null(arms[[which(names == "base")]]$exclude)
+})

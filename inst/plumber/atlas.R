@@ -123,6 +123,20 @@ invisible(tryCatch({
   cached_all_cells()
 }, error = function(e) NULL))
 
+#* After every answer: an error is never left with a cacheable header.
+#* @plumber
+function(pr) {
+  # After serialisation the answer is value, a list with status and headers:
+  # changing res then would change nothing that is sent.
+  pr$registerHooks(list(postserialize = function(req, res, value) {
+    if (startsWith(req$PATH_INFO %||% "", "/api/") && is.list(value) && !is.null(value$status)) {
+      settled <- atlas_settle_cache_control(value$status, value$headers[["Cache-Control"]])
+      if (!is.null(settled)) value$headers[["Cache-Control"]] <- settled
+    }
+    value
+  }))
+}
+
 #* @filter access
 function(req, res) {
   if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
@@ -145,6 +159,20 @@ function(req, res) {
   }
   cache_control <- atlas_cache_control(req$PATH_INFO, req$QUERY_STRING)
   if (!is.null(cache_control)) res$setHeader("Cache-Control", cache_control)
+  plumber::forward()
+}
+
+#* Before any route: an unknown grid or a number that is not one is refused
+#* with 400 and a reason, never read into a file path or a 500.
+#* @filter inputs
+function(req, res) {
+  if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
+    return(plumber::forward())
+  }
+  problem <- atlas_query_problem(req$QUERY_STRING)
+  if (!is.null(problem)) {
+    return(atlas_json_error(res, 400L, problem))
+  }
   plumber::forward()
 }
 
@@ -220,6 +248,11 @@ function() {
   if (length(since) && !is.na(since)) {
     out$since <- as.character(since)
   }
+  # The release the maps come from, and the records it was built from. The
+  # box pulls every night before fitting, so the newest pull above can be
+  # ahead of the maps; the release is what to cite.
+  release <- atlas_status_release()
+  if (!is.null(release)) out$release <- release
   out
 }
 
@@ -299,14 +332,16 @@ function(lat, lng, limit = 50, min_score = 0, nearby_km = 25, res) {
 #* @serializer unboxedJSON
 function(search = "", min_localities = 0, limit = 100, offset = 0) {
   rows <- cached_taxa()
-  rows <- rows[rows$localities >= as.numeric(min_localities), , drop = FALSE]
+  # The inputs filter has refused anything that is not a number.
+  min_localities <- atlas_request_number(min_localities) %||% 0
+  rows <- rows[rows$localities >= min_localities, , drop = FALSE]
   if (nzchar(search)) {
     keep <- grepl(tolower(search), tolower(rows$scientific_name), fixed = TRUE)
     rows <- rows[keep, , drop = FALSE]
   }
   total <- nrow(rows)
-  offset <- max(0, as.integer(offset))
-  limit <- max(1, as.integer(limit))
+  offset <- max(0L, as.integer(floor(atlas_request_number(offset) %||% 0)))
+  limit <- as.integer(min(ATLAS_TAXA_LIMIT_MAX, max(1, floor(atlas_request_number(limit) %||% 100))))
   page <- if (offset >= total) rows[0, , drop = FALSE] else {
     rows[seq(offset + 1, min(total, offset + limit)), , drop = FALSE]
   }
@@ -329,13 +364,17 @@ function(name, res) {
 #* one model is at /api/taxa/<name>/model.
 #* @param grid draft or production
 #* @get /api/models
-#* @serializer unboxedJSON
+#* @serializer contentType list(type = "application/json")
 function(grid = "draft") {
   key <- paste0("models_", grid)
   if (is.null(cache[[key]])) {
     cache[[key]] <- new.env(parent = emptyenv())
   }
-  list(grid = grid, models = atlas_model_index(grid, cache[[key]]))
+  # Checking thousands of model files took seconds; the list changes only
+  # when a release is pulled, so it is rebuilt at most once a minute.
+  atlas_memo_json(cache, paste0("models_json_", grid), function() {
+    list(grid = grid, models = atlas_model_index(grid, cache[[key]]))
+  })
 }
 
 #* The models Atlas fits, with the labels people see.
@@ -382,14 +421,42 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 function(name, grid = "draft", algorithm = "maxnet", res) {
   algorithm <- atlas_request_algorithm(algorithm)
   if (is.null(algorithm)) {
-    res$status <- 400L
-    return(raw())
+    return(atlas_json_error(res, 400L, "unknown algorithm"))
   }
   path <- atlas_model_path(atlas_decode_name(name), grid, ".png", algorithm)
   if (!file.exists(path)) {
-    res$status <- 404L
-    return(raw())
+    return(atlas_json_error(res, 404L, "no map for this taxon yet"))
   }
+  res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
+  readBin(path, "raw", file.info(path)$size)
+}
+
+#* A taxon's ensemble: its passing models averaged, with where they disagree.
+#* @get /api/taxa/<name>/ensemble
+#* @serializer unboxedJSON
+function(name, grid = "draft", res) {
+  path <- atlas_ensemble_path(atlas_decode_name(name), grid, ".json")
+  if (!file.exists(path)) {
+    res$status <- 404L
+    return(list(error = "no ensemble for this taxon: fewer than two of its models passed"))
+  }
+  jsonlite::fromJSON(path, simplifyVector = FALSE)
+}
+
+#* A taxon's ensemble map, or where its members disagree, as an image.
+#* @param layer map (default) or disagreement
+#* @get /api/taxa/<name>/ensemble.png
+#* @serializer contentType list(type = "image/png")
+function(name, grid = "draft", layer = "map", res) {
+  extension <- switch(layer, map = ".png", disagreement = ".disagreement.png", NULL)
+  if (is.null(extension)) {
+    return(atlas_json_error(res, 400L, "layer must be map or disagreement"))
+  }
+  path <- atlas_ensemble_path(atlas_decode_name(name), grid, extension)
+  if (!file.exists(path)) {
+    return(atlas_json_error(res, 404L, "no ensemble for this taxon: fewer than two of its models passed"))
+  }
+  res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)
 }
 
@@ -414,12 +481,14 @@ function(name, algorithm = "", width = "1200", points = "1", res) {
   decoded <- atlas_decode_name(name)
   row <- atlas_taxon_row(cached_taxa(), decoded)
   chosen <- atlas_image_algorithm(decoded, algorithm)
-  if (is.null(row) || is.null(chosen)) {
-    res$status <- if (is.null(row)) 404L else 400L
-    return(res)
+  if (is.null(row)) {
+    return(atlas_json_error(res, 404L, "no such taxon in the current pull"))
   }
-  width <- as.integer(width)
-  width <- if (is.na(width)) 1200L else ATLAS_IMAGE_WIDTHS[[which.min(abs(ATLAS_IMAGE_WIDTHS - width))]]
+  if (is.null(chosen)) {
+    return(atlas_json_error(res, 400L, "no map from that algorithm for this taxon"))
+  }
+  width <- atlas_request_number(width) %||% 1200
+  width <- ATLAS_IMAGE_WIDTHS[[which.min(abs(ATLAS_IMAGE_WIDTHS - width))]]
   show_points <- !identical(points, "0")
   metrics_path <- atlas_model_path(decoded, "draft", ".json", chosen)
   metrics <- if (file.exists(metrics_path)) jsonlite::fromJSON(metrics_path, simplifyVector = FALSE) else NULL

@@ -55,6 +55,27 @@ atlas_usage <- function() {
   message("      --sizes=5,8,12,16         sites to thin to")
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
+  message("  study-virtual      virtual species with known habitats, collected at the real sites")
+  message("                     with their real effort: which model finds the habitat")
+  message("      --species=N               species of each kind (default 40)")
+  message("      --kinds=habitat,geography habitat follows the environment; geography only")
+  message("                                distance from a centre (default habitat)")
+  message("      --arms=maxnet:none,...    arms to fit (default: Maxent's four effort modes,")
+  message("                                the detection model and the forest)")
+  message("      --nulls=N                 run production Maxent's null test with up to N nulls")
+  message("      --null-designs=scatter,shift,shift-effort  null designs to compare (default scatter)")
+  message("      --stop-after=N            stop a null test once N nulls do as well (default: never)")
+  message("      --workers=N               species at once (default 1)")
+  message("      --seed=N                  which species (default 1)")
+  message("  build-ensembles    average each taxon's passing models into one map, with where")
+  message("                     they disagree (after fit-all, before a release)")
+  message("      --force                   rebuild even ensembles whose members have not changed")
+  message("  study-blocks       which block size makes cross-validation test at the distances")
+  message("                     a map predicts at (kNNDM's question)")
+  message("      --per-band=N              taxa per band of detection sites (default 25)")
+  message("      --sizes=50,100,...        block sizes in km (default 50,100,150,200,300,400)")
+  message("      --workers=N               taxa at once (default 1)")
+  message("      --seed=N                  which sample (default 1)")
   message("  benchmark-models   boosted trees against Maxent on the richest taxa")
   message("      --per-band=N              taxa per band of presence cells (default 40)")
   message("      --min-presences=N         smallest taxon included (default 50)")
@@ -338,6 +359,42 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         grid = atlas_flag_grid(flags),
         per_band = atlas_flag_number(flags, "per_band", 40),
         min_presences = atlas_flag_number(flags, "min_presences", 40),
+        sizes = sizes,
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "study-virtual" = {
+      split_flag <- function(value, default) {
+        if (is.null(value)) default else trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
+      }
+      atlas_virtual_study(
+        grid = atlas_flag_grid(flags),
+        species = as.integer(atlas_flag_number(flags, "species", 40)),
+        kinds = split_flag(flags$kinds, "habitat"),
+        arms = split_flag(flags$arms, ATLAS_VIRTUAL_ARMS),
+        nulls = as.integer(atlas_flag_number(flags, "nulls", 0)),
+        null_designs = split_flag(flags$null_designs, "scatter"),
+        stop_after = if (is.null(flags$stop_after)) NULL else as.integer(atlas_flag_number(flags, "stop_after", 5)),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1))
+      )
+      invisible(0L)
+    },
+    "build-ensembles" = {
+      atlas_build_ensembles(grid = atlas_flag_grid(flags), force = isTRUE(flags$force))
+      invisible(0L)
+    },
+    "study-blocks" = {
+      sizes <- if (is.null(flags$sizes)) {
+        ATLAS_BLOCKCHECK_SIZES
+      } else {
+        as.numeric(strsplit(as.character(flags$sizes), ",", fixed = TRUE)[[1]])
+      }
+      atlas_block_study(
+        grid = atlas_flag_grid(flags),
+        per_band = atlas_flag_number(flags, "per_band", 25),
         sizes = sizes,
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         seed = as.integer(atlas_flag_number(flags, "seed", 1))

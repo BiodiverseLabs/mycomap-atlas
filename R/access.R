@@ -326,6 +326,8 @@ atlas_access_decision <- function(req, state, config, now = as.numeric(Sys.time(
 #' its version (?v=) never changes at that address. Rate-limit headers go out
 #' with a cached copy too, which only ever over-reports what is left.
 atlas_cache_control <- function(path, query = "") {
+  # (An error answer is never kept, whatever its path: see
+  # atlas_settle_cache_control, which runs after the route has answered.)
   if (!startsWith(path, "/api/")) {
     return(NULL)
   }
@@ -334,11 +336,103 @@ atlas_cache_control <- function(path, query = "") {
   if (identical(path, "/api/me") || endsWith(path, "/raster.tif")) {
     return("private, no-store")
   }
-  if (endsWith(path, "/map.png") && grepl("(^|&)v=", sub("^[?]", "", query))) {
+  # A Here answer is about the point a visitor chose, which sits in the query
+  # to about 10 m. Kept, it would sit in nginx's cache (the cache key) for up
+  # to an hour; and points differ from visitor to visitor, so a cache would
+  # store them without ever serving one twice.
+  if (identical(path, "/api/here")) {
+    return("private, no-store")
+  }
+  if ((endsWith(path, "/map.png") || endsWith(path, "/ensemble.png")) &&
+      grepl("(^|&)v=", sub("^[?]", "", query))) {
     return("public, max-age=31536000, immutable")
   }
   if (identical(path, "/api/status")) {
     return("public, max-age=60")
   }
   "public, max-age=300"
+}
+
+#' The Cache-Control an answer leaves with, once its status is known.
+#'
+#' atlas_cache_control sets it from the path before the route runs, and a
+#' route can still answer 404 or 503, or fail with a 500. A kept error is worse
+#' than a slow answer: nginx or Cloudflare would hand a passing outage to every
+#' visitor for five minutes. So any answer from 400 up leaves with no-store.
+atlas_settle_cache_control <- function(status, current = NULL) {
+  if (is.numeric(status) && length(status) == 1L && status >= 400) return("no-store")
+  current
+}
+
+# ---- what a request may ask for ------------------------------------------------
+
+# Query parameters that must be numbers wherever a route takes them. Each
+# route still sets its own range; this only refuses what is not a number at
+# all, which used to reach as.numeric() and come back as a 500 or a garbage
+# page.
+ATLAS_NUMBER_PARAMS <- c("limit", "offset", "min_localities", "lat", "lng", "min_score",
+                         "nearby_km", "width")
+
+# The most rows /api/taxa returns in one page.
+ATLAS_TAXA_LIMIT_MAX <- 1000L
+
+#' The grid a request names, or NULL when it is not one Atlas has. The grid
+#' becomes part of a file path, so anything else ("../x") is refused before
+#' a route sees it.
+atlas_request_grid <- function(grid) {
+  if (is.character(grid) && length(grid) == 1L && grid %in% names(ATLAS_GRID_RESOLUTIONS)) {
+    grid
+  } else {
+    NULL
+  }
+}
+
+#' A query parameter as one finite number, or NULL when it is not one.
+atlas_request_number <- function(x) {
+  if (is.null(x) || length(x) != 1L) return(NULL)
+  value <- suppressWarnings(as.numeric(trimws(as.character(x))))
+  if (is.finite(value)) value else NULL
+}
+
+#' The query string as a named list of values, as a browser sent it.
+atlas_query_args <- function(query = "") {
+  query <- sub("^[?]", "", query %||% "")
+  if (!nzchar(query)) return(list())
+  pairs <- strsplit(strsplit(query, "&", fixed = TRUE)[[1]], "=", fixed = TRUE)
+  pairs <- pairs[vapply(pairs, function(p) length(p) >= 1L && nzchar(p[[1]]), logical(1))]
+  decode <- function(x) utils::URLdecode(gsub("+", " ", x, fixed = TRUE))
+  keys <- vapply(pairs, function(p) decode(p[[1]]), character(1))
+  values <- lapply(pairs, function(p) if (length(p) > 1L) decode(paste(p[-1], collapse = "=")) else "")
+  out <- list()
+  for (i in seq_along(keys)) out[[keys[[i]]]] <- c(out[[keys[[i]]]], values[[i]])
+  out
+}
+
+#' What is wrong with a request's query, in words for the caller, or NULL
+#' when nothing is. Every /api/ route goes through it (the inputs filter in
+#' inst/plumber/atlas.R), so a route added later cannot forget it.
+atlas_query_problem <- function(query = "") {
+  args <- atlas_query_args(query)
+  if (!is.null(args$grid) && is.null(atlas_request_grid(args$grid))) {
+    return(paste0("grid must be one of: ", paste(names(ATLAS_GRID_RESOLUTIONS), collapse = ", ")))
+  }
+  for (name in intersect(ATLAS_NUMBER_PARAMS, names(args))) {
+    if (is.null(atlas_request_number(args[[name]]))) {
+      return(paste0(name, " must be a number"))
+    }
+  }
+  NULL
+}
+
+#' An error answered as JSON, whatever the route would have sent on success.
+#' Image routes used to answer their errors with an empty body. Returned as
+#' res it skips the serializer, and with it the hook that marks errors
+#' no-store, so it says no-store itself: replacing the access filter's
+#' header, not adding a second one beside it.
+atlas_json_error <- function(res, status, message) {
+  res$status <- as.integer(status)
+  res$headers[["Cache-Control"]] <- "no-store"
+  res$setHeader("Content-Type", "application/json")
+  res$body <- as.character(jsonlite::toJSON(list(error = message), auto_unbox = TRUE))
+  res
 }

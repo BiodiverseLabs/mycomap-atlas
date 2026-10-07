@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { CircleHelp } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { DevHint } from "@/components/DevHint";
 
 /** A figure with its label, as on Vision's and .org's stat panels. */
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
@@ -19,16 +20,16 @@ export function Stat({ label, value, hint }: { label: string; value: ReactNode; 
   );
 }
 
-/** What to do when the development API is not running. */
+/** What a visitor sees when the API is not answering. */
 export function ApiDown() {
   return (
     <Card>
       <CardContent className="p-6">
-        <h2 className="text-lg font-semibold text-[#4a3728]">The API is not answering</h2>
+        <h2 className="text-lg font-semibold text-[#4a3728]">The map service is not answering</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Start it from the repository root, then reload:
+          This is usually brief. Try again in a few minutes.
+          <DevHint command="./atlas api" />
         </p>
-        <pre className="mt-3 rounded-md bg-muted p-3 text-sm">./atlas api</pre>
       </CardContent>
     </Card>
   );

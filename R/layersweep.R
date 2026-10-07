@@ -43,7 +43,8 @@ ATLAS_BASE_LAYERS <- ATLAS_PRODUCTION_LAYERS
 # "all" means every new group that is built, so a sweep run before the last
 # download lands still compares the full set it has.
 atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
-                                   base = ATLAS_BASE_LAYERS, method = FALSE) {
+                                   base = ATLAS_BASE_LAYERS, method = FALSE,
+                                   swaps = list()) {
   if (!is.null(built)) {
     new <- new[vapply(new, function(ids) all(ids %in% built), logical(1))]
   }
@@ -66,9 +67,26 @@ atlas_layer_sweep_arms <- function(new = ATLAS_NEW_LAYER_GROUPS, built = NULL,
       })
     }), recursive = FALSE)
   }
+  # A swap replaces production layers with candidates rather than adding to
+  # them: the question is not "does this add anything" but "is this better
+  # than what it would replace". Maxent and the forest both answer it.
+  if (!is.null(built)) {
+    swaps <- swaps[vapply(swaps, function(s) all(s$add %in% built), logical(1))]
+  }
+  swapped <- unlist(lapply(names(swaps), function(name) {
+    layers <- c(setdiff(base, swaps[[name]]$drop), swaps[[name]]$add)
+    # exclude: single predictors left out of the layers kept, for a swap that
+    # replaces part of a layer (the genus bands a species band refines).
+    exclude <- swaps[[name]]$exclude
+    list(
+      list(arm = paste0("swap:", name), algorithm = "maxnet", layers = layers, exclude = exclude),
+      list(arm = paste0("rf:swap:", name), algorithm = "rf", layers = layers, exclude = exclude)
+    )
+  }), recursive = FALSE)
   c(
     list(list(arm = "base", algorithm = "maxnet", layers = base)),
     groups,
+    swapped,
     flat,
     list(
       list(arm = "all", algorithm = "maxnet", layers = everything),
@@ -119,6 +137,13 @@ atlas_design_rows <- function(train, design = "sites", n_background = 10000, see
 # The candidate layers, by the question each one asks.
 ATLAS_NEW_LAYER_GROUPS <- list(
   climate = "waterbalance"
+)
+
+# Candidates that would replace a production layer: what goes, what comes in.
+# climate1991: WorldClim's 1970-2000 bioclim out; ClimateNA's 1991-2020
+# normals (the climatena layer and the water-balance layer together) in.
+ATLAS_SWAP_LAYER_GROUPS <- list(
+  climate1991 = list(drop = "bioclim", add = c("climatena", "waterbalance"))
 )
 
 #' Keep the arms whose layers are all built, and say which were dropped.
@@ -172,6 +197,7 @@ atlas_layer_sweep_taxon <- function(name, fingerprint, points, stack, arms,
   run_arm <- function(arm) {
     arm_started <- Sys.time()
     columns <- intersect(unlist(bands[arm$layers], use.names = FALSE), names(training))
+    columns <- setdiff(columns, arm$exclude)
     design <- arm$design %||% "sites"
     ordered_as <- if (isFALSE(arm$guild_order)) ATLAS_GUILD_UNKNOWN else guild
     available <- training[, c(bookkeeping, columns, effort_column), drop = FALSE]
@@ -272,13 +298,16 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
                               correlation = 0.7, quiet = FALSE, method = TRUE,
                               base = ATLAS_BASE_LAYERS,
                               groups = ATLAS_NEW_LAYER_GROUPS,
+                              swaps = ATLAS_SWAP_LAYER_GROUPS,
                               occurrences = NULL, points = NULL,
-                              stack = NULL, bands = NULL, taxa = NULL) {
+                              stack = NULL, bands = NULL, taxa = NULL,
+                              importance = ATLAS_IMPORTANCE_ARMS) {
   bands <- bands %||% atlas_layer_bands(grid)
   built <- names(bands)
   unbuilt <- names(groups)[!vapply(groups, function(ids) all(ids %in% built), logical(1))]
   arms <- atlas_runnable_arms(
-    atlas_layer_sweep_arms(groups, built = built, base = base, method = method), built
+    atlas_layer_sweep_arms(groups, built = built, base = base, method = method,
+                           swaps = swaps), built
   )
   skipped <- c(attr(arms, "skipped"), paste0("+", unbuilt))
   if (!length(arms)) {
@@ -295,13 +324,17 @@ atlas_layer_sweep <- function(grid = "draft", per_band = 40, workers = 1L,
   args <- list(
     arms = arms, bands = bands, grid = grid, n_background = n_background,
     buffer_km = buffer_km, folds = folds, block_km = block_km,
-    regmult = regmult, correlation = correlation, min_presences = min_presences
+    regmult = regmult, correlation = correlation, min_presences = min_presences,
+    # Which arms are shuffled for importance: a forest given 300 tree species
+    # would be shuffled 300 times a fold, so a sweep can ask for fewer.
+    importance = importance
   )
   settings <- c(args[setdiff(names(args), c("arms", "bands"))],
                 list(arms = lapply(arms, function(a) {
                        c(a[c("arm", "algorithm", "layers")],
                          list(design = a$design %||% "sites",
-                              guild_order = !isFALSE(a$guild_order)))
+                              guild_order = !isFALSE(a$guild_order)),
+                         if (length(a$exclude)) list(exclude = as.list(a$exclude)))
                      }),
                      design = atlas_design(),
                      skipped = as.list(skipped),

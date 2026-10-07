@@ -20,6 +20,78 @@ test_that("obscured and coarse coordinates are excluded", {
   expect_match(sql, "c.positional_accuracy > 1000", fixed = TRUE)
 })
 
+test_that("a Mushroom Observer record needs a visible GPS point or a small named location", {
+  sql <- atlas_occurrence_sql()
+  clause <- atlas_mo_location_clause()
+  expect_match(sql, clause, fixed = TRUE)
+  # Only MO records are judged by it; every other source passes untouched.
+  expect_match(clause, "AND (o.source <> 'MO Observations' OR ", fixed = TRUE)
+  expect_match(clause, "m.source = 'mo' AND m.source_observation_id = o.observation_id", fixed = TRUE)
+  # A hidden GPS point is treated as obscured.
+  expect_match(clause, "coalesce((CAST(m.api_response_json AS jsonb) ->> 'gps_hidden')::boolean, false) = false",
+               fixed = TRUE)
+  expect_match(clause, "(CAST(m.api_response_json AS jsonb) ->> 'latitude') IS NOT NULL", fixed = TRUE)
+  # Without one, half the location box's diagonal must be within the limit, in km.
+  for (side in c("latitude_north", "latitude_south", "longitude_east", "longitude_west")) {
+    expect_match(clause, sprintf("'location' ->> '%s'", side), fixed = TRUE)
+  }
+  expect_match(atlas_mo_location_clause(max_m = 5000), "/ 2 <= 5)", fixed = TRUE)
+  expect_match(atlas_mo_location_clause(max_m = 1000), "/ 2 <= 1)", fixed = TRUE)
+})
+
+test_that("an MO record .org has no MO answer for is kept or dropped as configured", {
+  kept <- atlas_mo_location_clause(unknown = "keep")
+  dropped <- atlas_mo_location_clause(unknown = "drop")
+  expect_match(kept, "OR NOT EXISTS (SELECT 1 FROM observation_cache m", fixed = TRUE)
+  expect_false(grepl("NOT EXISTS", dropped, fixed = TRUE))
+  expect_error(atlas_mo_location_clause(unknown = "maybe"))
+})
+
+test_that("the MO condition survives the SQL route: one line, no double quote, no percent", {
+  sql <- atlas_occurrence_sql()
+  expect_false(grepl("\n", sql))
+  expect_false(grepl("\"", sql, fixed = TRUE))
+  expect_false(grepl("%", sql, fixed = TRUE))
+})
+
+test_that("a MyCoPortal record needs MyCoPortal's own coordinates or a label no other label shares a point with", {
+  sql <- atlas_occurrence_sql()
+  clause <- atlas_mycoportal_location_clause()
+  expect_match(sql, clause, fixed = TRUE)
+  expect_match(clause, "AND (o.source NOT IN ('MycoPortal', 'MyCoPortal') OR ", fixed = TRUE)
+  expect_match(clause, "p.sync_status = 'success'", fixed = TRUE)
+  # Placed by MyCoPortal: within the limit, or no uncertainty recorded.
+  expect_match(clause, "coalesce(p.coordinate_uncertainty_in_meters, 0) <= 5000", fixed = TRUE)
+  expect_match(atlas_mycoportal_location_clause(max_m = 1000), "<= 1000)", fixed = TRUE)
+  # Geocoded: no record with another locality on the very same point.
+  expect_match(clause, "o2.latitude = o.latitude AND o2.longitude = o.longitude", fixed = TRUE)
+  expect_match(clause, "coalesce(p2.locality, '') <> coalesce(p.locality, '')", fixed = TRUE)
+  expect_match(clause, "o2.observation_id <> o.observation_id", fixed = TRUE)
+})
+
+test_that("every location condition opens as many brackets as it closes", {
+  # The other tests match fragments, which a stray bracket passes; Postgres
+  # would refuse the whole pull.
+  balanced <- function(x) {
+    depth <- cumsum(ifelse(strsplit(x, "")[[1]] == "(", 1, ifelse(strsplit(x, "")[[1]] == ")", -1, 0)))
+    all(depth >= 0) && depth[[length(depth)]] == 0
+  }
+  for (unknown in c("keep", "drop")) {
+    expect_true(balanced(atlas_mo_location_clause(unknown = unknown)), label = paste("MO", unknown))
+    expect_true(balanced(atlas_mycoportal_location_clause(unknown = unknown)),
+                label = paste("MyCoPortal", unknown))
+  }
+  expect_true(balanced(atlas_occurrence_sql()))
+})
+
+test_that("a MyCoPortal record with no answer yet is kept or dropped as configured", {
+  kept <- atlas_mycoportal_location_clause(unknown = "keep")
+  dropped <- atlas_mycoportal_location_clause(unknown = "drop")
+  expect_match(kept, "OR NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE", fixed = TRUE)
+  expect_false(grepl("OR NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE", dropped, fixed = TRUE))
+  expect_error(atlas_mycoportal_location_clause(unknown = "maybe"))
+})
+
 test_that("records without coordinates are excluded", {
   sql <- atlas_occurrence_sql()
   expect_match(sql, "o.latitude IS NOT NULL", fixed = TRUE)

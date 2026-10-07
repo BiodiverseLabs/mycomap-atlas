@@ -349,3 +349,151 @@ test_that("an allowlist of * opens the API to every site", {
   expect_equal(atlas_allowed_origin("https://someone.example", allowed = "*"), "*")
   expect_null(atlas_allowed_origin("", allowed = "*"))
 })
+
+test_that("a slow answer is built once a minute however many ask, then built again", {
+  cache <- new.env(parent = emptyenv())
+  built <- 0L
+  compute <- function() { built <<- built + 1L; list(grid = "draft", models = data.frame(taxon = c("a", "b"), auc = c(0.7, 0.8))) }
+  first <- atlas_memo_json(cache, "k", compute, ttl = 60, now = 1000)
+  again <- atlas_memo_json(cache, "k", compute, ttl = 60, now = 1059)
+  expect_equal(built, 1L)
+  expect_identical(again, first)
+  later <- atlas_memo_json(cache, "k", compute, ttl = 60, now = 1061)
+  expect_equal(built, 2L)
+  # The JSON plumber's unboxed serializer would have written.
+  expect_equal(rawToChar(first), as.character(jsonlite::toJSON(compute(), auto_unbox = TRUE)))
+  parsed <- jsonlite::fromJSON(rawToChar(later))
+  expect_equal(parsed$grid, "draft")
+  expect_equal(parsed$models$taxon, c("a", "b"))
+})
+
+test_that("the model list still answers JSON with every model through the API", {
+  with_data_dir({
+    dir.create(atlas_model_dir("draft", "maxnet"), recursive = TRUE)
+    atlas_write_json(list(taxon = "Amanita muscaria", algorithm = "maxnet", presences = 30,
+                          auc_mean = 0.7, skill = "passed", built_at = "2026-10-06T00:00:00Z"),
+                     atlas_model_path("Amanita muscaria", "draft", ".json"))
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      out <- call_api(api, "/api/models")
+      expect_equal(out$status, 200L)
+      expect_match(header_values(out, "Content-Type"), "application/json")
+      body <- jsonlite::fromJSON(out$body)
+      expect_equal(body$grid, "draft")
+      expect_equal(body$models$taxon, "Amanita muscaria")
+      expect_equal(body$models$skill, "passed")
+    })
+  })
+})
+
+test_that("a versioned ensemble image is kept for good, like a versioned map", {
+  expect_equal(atlas_cache_control("/api/taxa/A/ensemble.png", "layer=map&v=2026"),
+               "public, max-age=31536000, immutable")
+  expect_equal(atlas_cache_control("/api/taxa/A/ensemble.png", "layer=map"), "public, max-age=300")
+})
+
+test_that("an error answer is never left cacheable, whatever its path", {
+  expect_equal(atlas_settle_cache_control(404L, "public, max-age=300"), "no-store")
+  expect_equal(atlas_settle_cache_control(503L, "public, max-age=300"), "no-store")
+  expect_equal(atlas_settle_cache_control(200L, "public, max-age=300"), "public, max-age=300")
+  expect_null(atlas_settle_cache_control(200L, NULL))
+  # Through the API: a missing map is a 404 that says no-store; a found
+  # list keeps its public header.
+  with_data_dir({
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      missing <- call_api(api, "/api/taxa/Nothing%20here/map.png")
+      expect_equal(missing$status, 404L)
+      expect_equal(header_values(missing, "Cache-Control"), "no-store")
+      broken <- call_api(api, "/api/taxa", query = "limit=abc")
+      if (broken$status >= 400L) expect_equal(header_values(broken, "Cache-Control"), "no-store")
+      fine <- call_api(api, "/api/algorithms")
+      expect_equal(fine$status, 200L)
+      expect_equal(header_values(fine, "Cache-Control"), "public, max-age=300")
+    })
+  })
+})
+
+test_that("a Here answer is never kept by a shared cache: it carries the visitor's point", {
+  expect_equal(atlas_cache_control("/api/here", "lat=44.0123&lng=-123.0456"), "private, no-store")
+  # Other public answers are still kept for five minutes.
+  expect_equal(atlas_cache_control("/api/taxa", "q=Amanita"), "public, max-age=300")
+})
+
+# ---- what a request may ask for (release review s1, s2) -------------------------
+
+test_that("only a grid Atlas has gets through, so a grid can never walk out of the data folder", {
+  expect_equal(atlas_request_grid("draft"), "draft")
+  expect_equal(atlas_request_grid("production"), "production")
+  for (bad in list("../occurrences", "", "Draft", c("draft", "draft"), NULL, 1)) {
+    expect_null(atlas_request_grid(bad))
+  }
+  expect_match(atlas_query_problem("grid=..%2Foccurrences"), "grid must be one of: draft, production")
+  expect_null(atlas_query_problem("grid=production&limit=10"))
+})
+
+test_that("a number parameter that is not a number is named back, and other parameters pass", {
+  expect_equal(atlas_query_problem("limit=abc"), "limit must be a number")
+  expect_equal(atlas_query_problem("search=x&offset=ten"), "offset must be a number")
+  expect_equal(atlas_query_problem("lat=1e999&lng=2"), "lat must be a number")
+  expect_equal(atlas_query_problem("width="), "width must be a number")
+  expect_equal(atlas_query_problem("limit=5&limit=x"), "limit must be a number")
+  expect_null(atlas_query_problem("q=amanita+muscaria&limit=%2010"))
+  expect_null(atlas_query_problem(""))
+  expect_equal(atlas_query_args("q=a+b&x=1%3D2&flag")$q, "a b")
+  expect_equal(atlas_query_args("q=a+b&x=1%3D2&flag")$x, "1=2")
+})
+
+test_that("through the API: a grid outside the data folder is refused before any file is read", {
+  with_data_dir({
+    # A file the grid could reach if it were trusted: data/occurrences/secret.json.
+    dir.create(atlas_path("occurrences"), recursive = TRUE, showWarnings = FALSE)
+    writeLines('{"secret": "do not serve"}', atlas_path("occurrences", "secret.json"))
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      out <- call_api(api, "/api/taxa/secret/model", query = "grid=..%2Foccurrences")
+      expect_equal(out$status, 400L)
+      expect_false(grepl("do not serve", out$body))
+      expect_match(jsonlite::fromJSON(out$body)$error, "grid must be one of")
+      expect_equal(header_values(out, "Cache-Control"), "no-store")
+      for (path in c("/api/models", "/api/layers", "/api/taxa/secret/map.png",
+                     "/api/taxa/secret/ensemble", "/api/benchmarks/latest")) {
+        expect_equal(call_api(api, path, query = "grid=..%2Foccurrences")$status, 400L, info = path)
+      }
+    })
+  })
+})
+
+test_that("through the API: bad numbers are a 400 with a reason, a huge page is capped, and image errors are JSON", {
+  with_data_dir({
+    dir.create(atlas_path("occurrences"), recursive = TRUE, showWarnings = FALSE)
+    taxa <- data.frame(scientific_name = sprintf("Taxon %04d", 1:1500), records = 5L,
+                       localities = rep(c(1L, 9L), 750), fingerprint = "f")
+    jsonlite::write_json(taxa, atlas_path("occurrences", "taxa-latest.json"))
+    with_env(c(ATLAS_DATA_DIR = atlas_data_dir()), {
+      api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir()))
+      bad <- call_api(api, "/api/taxa", query = "limit=abc")
+      expect_equal(bad$status, 400L)
+      expect_match(header_values(bad, "Content-Type"), "application/json")
+      expect_equal(jsonlite::fromJSON(bad$body)$error, "limit must be a number")
+      expect_equal(call_api(api, "/api/taxa", query = "min_localities=lots")$status, 400L)
+      expect_equal(call_api(api, "/api/here", query = "lat=north&lng=1")$status, 400L)
+      # A page is never more than 1000 rows, however many are asked for.
+      big <- jsonlite::fromJSON(call_api(api, "/api/taxa", query = "limit=5000")$body)
+      expect_equal(big$total, 1500L)
+      expect_equal(nrow(big$items), 1000L)
+      # Fractions and filters still work.
+      some <- jsonlite::fromJSON(call_api(api, "/api/taxa", query = "limit=2.7&offset=1&min_localities=5")$body)
+      expect_equal(some$total, 750L)
+      expect_equal(some$items$scientific_name, c("Taxon 0004", "Taxon 0006"))
+      # An image route's error says why, as JSON, not an empty PNG.
+      missing <- call_api(api, "/api/taxa/Taxon%200001/map.png")
+      expect_equal(missing$status, 404L)
+      expect_match(header_values(missing, "Content-Type"), "application/json")
+      expect_equal(jsonlite::fromJSON(missing$body)$error, "no map for this taxon yet")
+      wrong <- call_api(api, "/api/taxa/Taxon%200001/ensemble.png", query = "layer=sideways")
+      expect_equal(wrong$status, 400L)
+      expect_equal(jsonlite::fromJSON(wrong$body)$error, "layer must be map or disagreement")
+    })
+  })
+})

@@ -199,6 +199,53 @@ atlas_copernicus_source <- function(raw_dir, windows = ATLAS_COPERNICUS_WINDOWS)
   atlas_write_cached(out, cached)
 }
 
+# ---- Climate 1991-2020: AdaptWest (ClimateNA) --------------------------------
+
+# The rest of ClimateNA's 1991-2020 normals: everything the water-balance layer
+# below does not already carry. Together the two replace WorldClim's
+# 1970-2000 bioclim with the climate of the years the records were collected.
+ATLAS_CLIMATENA_CORE_VARS <- c(
+  MAT = "cna_mat",       # mean annual temperature, C
+  MWMT = "cna_mwmt",     # mean warmest-month temperature, C
+  MCMT = "cna_mcmt",     # mean coldest-month temperature, C
+  TD = "cna_td",         # continentality: MWMT - MCMT, C
+  MAP = "cna_map",       # mean annual precipitation, mm
+  MSP = "cna_msp",       # May-September precipitation, mm
+  AHM = "cna_ahm",       # annual heat-moisture index
+  SHM = "cna_shm",       # summer heat-moisture index
+  CMI = "cna_cmi",       # Hogg's climate moisture index, cm
+  DD5 = "cna_dd5",       # degree-days above 5 C (growing warmth)
+  DD_0 = "cna_dd0",      # degree-days below 0 C (winter cold)
+  NFFD = "cna_nffd",     # number of frost-free days
+  EMT = "cna_emt",       # extreme minimum temperature over 30 years, C
+  EXT = "cna_ext",       # extreme maximum temperature over 30 years, C
+  Eref = "cna_eref",     # Hargreaves reference evaporation, mm
+  PPT_wt = "cna_ppt_winter", PPT_sp = "cna_ppt_spring", PPT_sm = "cna_ppt_summer",
+  Tave_wt = "cna_tave_winter", Tave_sp = "cna_tave_spring", Tave_sm = "cna_tave_summer"
+)
+
+#' ClimateNA's 1991-2020 temperature, precipitation and heat-moisture
+#' normals, on ClimateNA's 1 km grid. ClimateNA covers the continent, Mexico
+#' included, but not Hawaii or the Caribbean islands.
+atlas_climatena_source <- function(raw_dir) {
+  cached <- file.path(raw_dir, "climatena", "climatena-1km.tif")
+  if (file.exists(cached)) {
+    return(terra::rast(cached))
+  }
+  aw_dir <- file.path(raw_dir, "adaptwest")
+  folder <- file.path(aw_dir, "Normal_1991_2020_bioclim")
+  if (!dir.exists(folder)) {
+    zip <- atlas_fetch_once(ATLAS_SOURCE_FILES$adaptwest$url,
+                            file.path(aw_dir, basename(ATLAS_SOURCE_FILES$adaptwest$url)))
+    utils::unzip(zip, exdir = aw_dir)
+  }
+  out <- terra::rast(file.path(
+    folder, paste0("Normal_1991_2020_", names(ATLAS_CLIMATENA_CORE_VARS), ".tif")
+  ))
+  names(out) <- unname(ATLAS_CLIMATENA_CORE_VARS)
+  atlas_write_cached(out, cached)
+}
+
 # ---- Water balance: AdaptWest (ClimateNA) and TerraClimate ------------------
 
 # ClimateNA 1991-2020 normals, and the name each takes as a predictor.

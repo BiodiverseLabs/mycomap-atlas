@@ -7,8 +7,14 @@
 # hundred kilobytes instead of half a million JSON cells.
 #
 # The palette is mycomap.org's: pale where the model is unconvinced, the site's
-# green through the middle, dark green where it is confident. Low suitability
-# is drawn faint, so a map does not imply precision it does not have.
+# green through the middle, dark green where it is confident. Low-ranked
+# ground is drawn faint, so a map does not imply precision it does not have.
+#
+# Ground outside the map's area of applicability (R/aoa.R), conditions no
+# training site resembles, is not coloured at all: it is hatched grey and left
+# out of the ranking, so the darkest green is the best tenth of the ground the
+# model knows something about. Ranks are taken on the equal-area grid, before
+# the map is warped to Mercator, so every cell counts for the same area.
 
 ATLAS_MAP_RAMP <- c("#f7f7e8", "#94c440", "#2e5a17")
 
@@ -112,30 +118,91 @@ atlas_rank_scale <- function(values) {
 
 #' How a PNG's colours are scaled. Recorded with the metrics so a map drawn
 #' under an older rule can be found and redrawn.
-ATLAS_MAP_SCALE <- "rank"
+ATLAS_MAP_SCALE <- "rank, equal-area, within the area of applicability"
 
-#' Write a suitability raster as a PNG a browser can lay over a map.
-atlas_write_map_png <- function(suitability, path, max_pixels = 1600) {
+# Hatching for ground outside the area of applicability: grey stripes, one
+# pixel diagonal in three, on a faint wash.
+ATLAS_MAP_HATCH <- c(red = 140, green = 140, blue = 125)
+ATLAS_MAP_HATCH_ALPHA <- 140
+ATLAS_MAP_WASH_ALPHA <- 30
+
+#' A map ready to draw, on the equal-area grid: each cell's rank among the
+#' cells inside the area of applicability (NA outside it), and whether the
+#' cell is outside (1) or inside (0). Without a dissimilarity layer, every
+#' cell with a value is inside.
+atlas_map_layers <- function(suitability, dissimilarity = NULL, threshold = NULL) {
+  values <- terra::values(suitability, mat = FALSE)
+  has_value <- is.finite(values)
+  outside <- rep(FALSE, length(values))
+  if (!is.null(dissimilarity) && length(threshold) == 1L && is.finite(threshold)) {
+    index <- terra::values(dissimilarity, mat = FALSE)
+    outside <- has_value & is.finite(index) & index > threshold
+  }
+  inside <- has_value & !outside
+  rank <- rep(NA_real_, length(values))
+  rank[inside] <- atlas_rank_scale(values[inside])
+  flag <- ifelse(has_value, as.numeric(outside), NA_real_)
+  layers <- terra::rast(suitability, nlyrs = 2)
+  terra::values(layers) <- cbind(rank, flag)
+  names(layers) <- c("rank", "outside")
+  layers
+}
+
+#' RGBA bytes for a drawn map: ramp colours by rank, hatching where outside.
+#' rank and outside are per pixel, in the row order of an image ncol wide.
+atlas_map_colours <- function(rank, outside, ncol) {
+  colours <- atlas_suitability_colours(rank)
+  hatched <- which(is.finite(outside) & outside >= 0.5 & !is.finite(rank))
+  if (length(hatched)) {
+    pixel <- hatched - 1L
+    stripe <- ((pixel %/% ncol) + (pixel %% ncol)) %% 3L == 0L
+    colours[hatched, ] <- matrix(c(ATLAS_MAP_HATCH, ATLAS_MAP_WASH_ALPHA),
+                                 nrow = length(hatched), ncol = 4, byrow = TRUE)
+    colours[hatched[stripe], 4] <- ATLAS_MAP_HATCH_ALPHA
+  }
+  colours
+}
+
+#' Write a suitability raster as a PNG a browser can lay over a map. With a
+#' dissimilarity layer and its threshold, ground outside the area of
+#' applicability is hatched and left out of the ranking.
+atlas_write_map_png <- function(suitability, path, max_pixels = 1600,
+                                dissimilarity = NULL, threshold = NULL) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed to draw maps: install.packages('terra')", call. = FALSE)
   }
   if (is.character(suitability)) {
     suitability <- terra::rast(suitability)
   }
+  if (is.character(dissimilarity)) {
+    dissimilarity <- terra::rast(dissimilarity)
+  }
+  layers <- atlas_map_layers(suitability, dissimilarity, threshold)
+  mercator <- atlas_map_warp(layers, max_pixels)
+  values <- terra::values(mercator)
+  colours <- atlas_map_colours(pmin(1, pmax(0, values[, 1])), values[, 2], terra::ncol(mercator))
+  atlas_write_rgba_png(mercator, colours, path)
+}
+
+#' Warp equal-area layers to the spherical Mercator a browser draws in,
+#' centred on the layers' own longitude, no wider than max_pixels.
+atlas_map_warp <- function(layers, max_pixels = 1600) {
   mercator <- terra::project(
-    suitability, atlas_map_mercator(atlas_map_centre_longitude(suitability)),
+    layers, atlas_map_mercator(atlas_map_centre_longitude(layers)),
     method = "bilinear"
   )
-
   widest <- max(dim(mercator)[1:2])
   if (widest > max_pixels) {
     mercator <- terra::aggregate(
       mercator, fact = ceiling(widest / max_pixels), fun = "mean", na.rm = TRUE
     )
   }
+  mercator
+}
 
-  colours <- atlas_suitability_colours(atlas_rank_scale(terra::values(mercator)[, 1]))
-  image <- terra::rast(mercator, nlyrs = 4)
+#' Write RGBA bytes as a PNG on a warped raster's grid, and say where it sits.
+atlas_write_rgba_png <- function(mercator, colours, path) {
+  image <- terra::rast(mercator[[1]], nlyrs = 4)
   terra::values(image) <- colours
 
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
@@ -151,6 +218,29 @@ atlas_write_map_png <- function(suitability, path, max_pixels = 1600) {
     width = terra::ncol(mercator),
     height = terra::nrow(mercator)
   )
+}
+
+#' How strongly a map is drawn, from 0 to 1: how far its blocked AUC sits
+#' above its null models', in their standard deviations. A map that failed its
+#' null test is 0; one that passed starts at ATLAS_MAP_STRENGTH_FLOOR and
+#' reaches 1 at ATLAS_MAP_STRENGTH_FULL_Z. An untested map sits at 0.5. The
+#' site turns this into the overlay's opacity.
+ATLAS_MAP_STRENGTH_FLOOR <- 0.4
+ATLAS_MAP_STRENGTH_FULL_Z <- 5
+atlas_map_strength <- function(null, skill) {
+  if (!is.character(skill) || length(skill) != 1L) return(0.5)
+  if (identical(skill, "failed")) return(0)
+  if (!identical(skill, "passed")) return(0.5)
+  observed <- as.numeric(null$observed_auc %||% NA)
+  mean_auc <- as.numeric(null$auc_mean %||% NA)
+  spread <- as.numeric(null$auc_sd %||% NA)
+  if (!all(is.finite(c(observed, mean_auc, spread))) || spread <= 0) {
+    return(ATLAS_MAP_STRENGTH_FLOOR)
+  }
+  z <- (observed - mean_auc) / spread
+  pass_z <- stats::qnorm(1 - ATLAS_SKILL_ALPHA)
+  share <- (z - pass_z) / (ATLAS_MAP_STRENGTH_FULL_Z - pass_z)
+  round(ATLAS_MAP_STRENGTH_FLOOR + (1 - ATLAS_MAP_STRENGTH_FLOOR) * min(1, max(0, share)), 3)
 }
 
 #' The few fields a list of models needs.
@@ -175,6 +265,7 @@ atlas_model_summary <- function(metrics) {
     boyce_mean = number(metrics$boyce_mean),
     # Fits from before null models were run have no verdict.
     skill = if (is.character(metrics$skill) && length(metrics$skill) == 1L) metrics$skill else "untested",
+    map_strength = number(metrics$map_strength %||% atlas_map_strength(metrics$null, metrics$skill)),
     map = is.character(metrics$map) && length(metrics$map) == 1L,
     built_at = as.character(metrics$built_at %||% ""),
     stringsAsFactors = FALSE
@@ -260,9 +351,17 @@ atlas_model_region_rows <- function(cache) {
 atlas_redraw_map <- function(raster_path) {
   metrics_path <- sub("[.]tif$", ".json", raster_path)
   png_path <- sub("[.]tif$", ".png", raster_path)
-  drawn <- atlas_write_map_png(raster_path, png_path)
-  if (file.exists(metrics_path)) {
-    metrics <- jsonlite::fromJSON(metrics_path, simplifyVector = FALSE)
+  dissimilarity_path <- sub("[.]tif$", ".di.tif", raster_path)
+  metrics <- if (file.exists(metrics_path)) {
+    jsonlite::fromJSON(metrics_path, simplifyVector = FALSE)
+  }
+  drawn <- atlas_write_map_png(
+    raster_path, png_path,
+    dissimilarity = if (file.exists(dissimilarity_path)) dissimilarity_path,
+    threshold = as.numeric(metrics$applicability$threshold %||% NA)
+  )
+  if (!is.null(metrics)) {
+    metrics$map_strength <- atlas_map_strength(metrics$null, metrics$skill)
     metrics$map <- basename(png_path)
     metrics$bounds <- drawn$bounds
     metrics$map_scale <- drawn$scale
@@ -278,6 +377,9 @@ atlas_rebuild_maps <- function(grid = "draft", quiet = FALSE, workers = 1L) {
   rasters <- unlist(lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
     list.files(atlas_model_dir(grid, algorithm), pattern = "[.]tif$", full.names = TRUE)
   }), use.names = FALSE)
+  # A map's dissimilarity layer sits beside it and is drawn with it, not as a
+  # map of its own.
+  rasters <- rasters[!grepl("[.]di[.]tif$", rasters)]
   if (!length(rasters)) {
     message("no fitted models on the ", grid, " grid")
     return(invisible(0L))

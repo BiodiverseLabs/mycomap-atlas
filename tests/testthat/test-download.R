@@ -191,6 +191,32 @@ test_that("a local file is served with a 200 through the API", {
   out <- call_api(api, RASTER, headers = list(Cookie = session_cookie()))
   expect_equal(out$status, 200L)
   expect_equal(header_values(out, "Content-Type"), "image/tiff")
+  # The map's licence travels with the file.
+  expect_equal(header_values(out, "Link"), ATLAS_MAP_LICENSE_LINK)
+})
+
+test_that("a raster sent as a link to the store says its licence too", {
+  keys <- test_bridge_keys()
+  fake <- fake_download()
+  api <- download_api(keys, fake_introspection(), fake)
+  out <- call_api(api, RASTER, headers = list(Cookie = session_cookie()))
+  expect_equal(out$status, 302L)
+  expect_equal(header_values(out, "Link"), ATLAS_MAP_LICENSE_LINK)
+  expect_match(ATLAS_MAP_LICENSE_LINK, "creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\"", fixed = TRUE)
+})
+
+test_that("a map image says its licence, anonymous or not", {
+  dir <- tempfile("atlas-data-")
+  dir.create(file.path(dir, "models", "draft"), recursive = TRUE)
+  writeBin(as.raw(c(0x89, 0x50, 0x4e, 0x47)), file.path(dir, "models", "draft", "amanita-muscaria.png"))
+  with_env(c(ATLAS_DATA_DIR = dir), {
+    api <- test_api(c(ATLAS_DATA_DIR = dir))
+    out <- call_api(api, "/api/taxa/Amanita%20muscaria/map.png")
+    expect_equal(out$status, 200L)
+    expect_equal(header_values(out, "Link"), ATLAS_MAP_LICENSE_LINK)
+    missing <- call_api(api, "/api/taxa/Nothing%20here/map.png")
+    expect_equal(missing$status, 404L)
+  })
 })
 
 test_that("when mycomap.org cannot be asked a token downloads nothing, and the outage is not cached", {

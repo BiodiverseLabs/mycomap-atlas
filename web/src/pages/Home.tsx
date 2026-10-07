@@ -32,6 +32,7 @@ import {
 import { GITHUB_URL } from "@/lib/contract";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
+import { DevHint } from "@/components/DevHint";
 
 type Icon = ComponentType<{ className?: string }>;
 
@@ -373,8 +374,8 @@ export default function Home() {
 
         {status.isError && (
           <p className="text-sm text-muted-foreground">
-            Live figures are unavailable because the API is not answering. Start it with{" "}
-            <code>./atlas api</code>.
+            Live figures are unavailable right now: the map service is not answering.
+            <DevHint command="./atlas api" />
           </p>
         )}
       </Page>

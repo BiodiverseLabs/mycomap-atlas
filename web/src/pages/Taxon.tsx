@@ -21,17 +21,22 @@ import {
   SPARSE_BELOW,
   SPARSE_MODELS,
   shownModels as pickShown,
+  ensembleMapUrl,
   getCells,
+  getEnsemble,
   getModel,
+  getStatus,
   getTaxon,
   mapUrl,
   rasterUrl,
   type Algorithm,
   type Cell,
+  type Ensemble,
   type Model,
 } from "@/lib/api";
 import { signInHere, useMe } from "@/lib/session";
 import { formatNumber, formatWhen } from "@/lib/utils";
+import { DevHint } from "@/components/DevHint";
 
 // The fewest sites any map is fitted from (the small-model ensemble's).
 const PUBLISH_AT = 3;
@@ -68,14 +73,199 @@ function SyncWith({ group, id }: { group: MutableRefObject<MapGroup>; id: string
 
 function Legend() {
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>Lowest-rated ground</span>
-      <div
-        className="h-2 w-24 rounded"
-        style={{ background: "linear-gradient(to right, #f7f7e8, #94c440, #2e5a17)" }}
-      />
-      <span>Highest-rated</span>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <span className="flex items-center gap-2">
+        <span>Lowest-rated ground</span>
+        <span
+          className="h-2 w-24 rounded"
+          style={{ background: "linear-gradient(to right, #f7f7e8, #94c440, #2e5a17)" }}
+        />
+        <span>Highest-rated</span>
+      </span>
+      <span
+        className="flex items-center gap-2"
+        title="Conditions unlike any surveyed site the model learned from: it cannot say anything there"
+      >
+        <span
+          className="h-2 w-6 rounded"
+          style={{
+            background:
+              "repeating-linear-gradient(135deg, rgba(140,140,125,0.55) 0 2px, rgba(140,140,125,0.12) 2px 6px)",
+          }}
+        />
+        <span>No data like it</span>
+      </span>
     </div>
+  );
+}
+
+/**
+ * A provisional name: a DNA lineage with a code rather than a published
+ * species, such as Mycena sp. 'IN10' or Amanita "gemmata-CA01".
+ */
+export function isProvisionalName(name: string): boolean {
+  return /["'‘’“”]|\bsp\.|-[A-Z]{2,}\d|\b[A-Z]{2,}\d{2}\b/.test(name);
+}
+
+/** The citation for a taxon's maps in the release this site serves. */
+export function mapCitation(name: string, release: string, accessed: Date, origin: string): string {
+  const year = release.slice(0, 4);
+  const day = accessed.toISOString().slice(0, 10);
+  return (
+    `MycoMap Atlas (${year}). Habitat maps of ${name}, release ${release}. ` +
+    `${origin}/taxa/${encodeURIComponent(name)} (accessed ${day}). CC BY-SA 4.0.`
+  );
+}
+
+function CiteThisMap({ name }: { name: string }) {
+  const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
+  const [copied, setCopied] = useState(false);
+  const release = status.data?.release?.id;
+  if (!release) return null;
+  const text = mapCitation(name, release, new Date(), window.location.origin);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <p className="text-xs text-muted-foreground">
+      Cite: <span className="select-all">{text}</span>{" "}
+      <button type="button" onClick={copy} className="underline hover:text-myco-green">
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </p>
+  );
+}
+
+/** What these maps are, and are not, said once above them. */
+function AboutTheseMaps({ name }: { name: string }) {
+  return (
+    <div className="mb-6 rounded-lg border border-[#A87146]/20 bg-[#f8f5f0] px-4 py-3 text-sm text-[#5c4a3a] space-y-1.5">
+      <p>
+        <strong className="text-[#4a3728]">What these maps show.</strong> How closely each place's
+        climate, soil and trees match the places where this fungus has been confirmed by DNA,
+        ranked within its own range. They show suitable habitat, not where it grows or how common
+        it is, and they know nothing about places unlike any surveyed site (hatched).
+      </p>
+      <p>
+        <strong className="text-[#4a3728]">Not for decisions about safety or land.</strong> Never use
+        them to decide what is safe to eat or where to forage, or for permits, land management or
+        other regulatory decisions.
+      </p>
+      {isProvisionalName(name) && (
+        <p>
+          <strong className="text-[#4a3728]">A provisional name.</strong> This is a DNA lineage
+          without a published species name yet. It may be renamed, split or merged, and its map
+          will change with it.
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Maps:{" "}
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/" className="underline hover:text-myco-green">
+          CC BY-SA 4.0
+        </a>
+        , built on WorldClim 2.1 and the other datasets listed under{" "}
+        <a href="/sources" className="underline hover:text-myco-green">Sources</a>.
+      </p>
+      <CiteThisMap name={name} />
+    </div>
+  );
+}
+
+/**
+ * The taxon's passing models as one map, or where they disagree. Each model
+ * is ranked over the ground it knows, and the ranks are averaged, weighted by
+ * how far each model's blocked AUC is above chance.
+ */
+function EnsembleMap({
+  name,
+  ensemble,
+  points,
+  view,
+  group,
+}: {
+  name: string;
+  ensemble: Ensemble;
+  points: Cell[];
+  view: Bounds | null;
+  group: MutableRefObject<MapGroup>;
+}) {
+  const [layer, setLayer] = useState<"map" | "disagreement">("map");
+  const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
+  const b = ensemble.bounds;
+  const overlay: Bounds | null = b ? [[b.south, b.west], [b.north, b.east]] : null;
+  const members = ensemble.members
+    .map((m) => `${ALGORITHM_LABELS[m.algorithm]} (weight ${m.weight.toFixed(2)})`)
+    .join(", ");
+  const high = ensemble.disagreement_high_share;
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <CardTitle className="text-base text-[#4a3728]">All passing models together</CardTitle>
+          <div
+            className="inline-flex rounded-md border border-[#A87146]/20 p-0.5 text-xs"
+            role="group"
+            aria-label="Which ensemble layer to show"
+          >
+            {(["map", "disagreement"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLayer(l)}
+                aria-pressed={layer === l}
+                className={`rounded px-2 py-1 ${
+                  layer === l ? "bg-myco-green text-white" : "text-[#5c4a3a] hover:bg-[#A87146]/10"
+                }`}
+              >
+                {l === "map" ? "Combined map" : "Where they disagree"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <div className="relative h-[420px]">
+        <MapContainer center={[44, -100]} zoom={3} className="h-full w-full" scrollWheelZoom={false}>
+          <SyncWith group={group} id="ensemble" />
+          <FitBounds bounds={view} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {overlay && (
+            <ImageOverlay
+              url={ensembleMapUrl(name, layer, ensemble.built_at)}
+              bounds={overlay}
+              opacity={layer === "map" ? defaultStrength(false, ensemble.map_strength) / 100 : 0.85}
+            />
+          )}
+          {points.map((cell) => (
+            <CircleMarker
+              key={`${cell.lat}:${cell.lng}`}
+              center={[cell.lat, cell.lng]}
+              radius={2 + (cell.records / busiest) * 5}
+              pathOptions={{ color: "#4a3728", fillColor: "#ffffff", fillOpacity: 0.85, weight: 1 }}
+              tooltip={`${formatNumber(cell.records)} record${cell.records === 1 ? "" : "s"}`}
+            />
+          ))}
+        </MapContainer>
+      </div>
+      <CardContent className="px-4 py-3 text-xs text-muted-foreground">
+        {layer === "map" ? (
+          <>Averaged from {members}. Where a model has no data like a place, it has no say there.</>
+        ) : (
+          <>
+            Clear where the models rank a place alike; brown where they put it at opposite ends.
+            {high != null && ` They disagree strongly on ${Math.round(high * 100)}% of the ground.`}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -88,7 +278,7 @@ function RasterDownload({ name, algorithm }: { name: string; algorithm: Algorith
   const cls = "inline-flex items-center gap-1 text-xs font-medium text-myco-green hover:underline";
   if (me.signedIn) {
     return (
-      <a href={rasterUrl(name, algorithm)} className={cls} title="The raw suitability values as a GeoTIFF">
+      <a href={rasterUrl(name, algorithm)} className={cls} title="The raw suitability values as a GeoTIFF, CC BY-SA 4.0">
         <Download className="h-3.5 w-3.5" /> GeoTIFF
       </a>
     );
@@ -140,8 +330,11 @@ function ModelMap({
   const failed = model?.skill === "failed";
   // Starts where the model's null test puts it, and again whenever the model
   // (or its verdict) changes; after that it is the viewer's.
-  const [strength, setStrength] = useState(defaultStrength(failed));
-  useEffect(() => setStrength(defaultStrength(failed)), [failed, model?.built_at]);
+  const [strength, setStrength] = useState(defaultStrength(failed, model?.map_strength));
+  useEffect(
+    () => setStrength(defaultStrength(failed, model?.map_strength)),
+    [failed, model?.map_strength, model?.built_at],
+  );
   const screen = useFullscreen<HTMLDivElement>();
   useLayoutEffect(() => {
     const map = group.current.maps.get(algorithm);
@@ -222,13 +415,13 @@ function ModelMap({
           <FitBounds bounds={view} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           {overlay && (
             <ImageOverlay
               url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at)}
               bounds={overlay}
-              // A map that could not beat its null models starts faint.
+              // A map starts as strong as it beat its null models by.
               opacity={strength / 100}
             />
           )}
@@ -488,6 +681,7 @@ export default function Taxon() {
     shownModels[a] = models[a];
   });
   const loading = fits.some((f) => f.isLoading);
+  const ensemble = useQuery({ queryKey: ["ensemble", name], queryFn: () => getEnsemble(name) });
   const points = cells.data?.cells ?? [];
   const group = useRef<MapGroup>({ maps: new Map(), syncing: false });
   // Opens on the collections and the ground around them, once they are in.
@@ -538,6 +732,19 @@ export default function Taxon() {
               {formatNumber(taxon.data.localities)} independent localities
             </span>
           )}
+          {anyModel?.record_years?.first != null && (
+            <span
+              className="tabular-nums"
+              title={
+                anyModel.record_years.before_climate_period != null
+                  ? `${Math.round(anyModel.record_years.before_climate_period * 100)}% of dated records were collected before ${anyModel.record_years.climate_period_start}, when the climate on the maps begins. ${formatNumber(anyModel.record_years.records - anyModel.record_years.dated)} records have no date.`
+                  : undefined
+              }
+            >
+              Collected {anyModel.record_years.first}–{anyModel.record_years.last} (median{" "}
+              {anyModel.record_years.median})
+            </span>
+          )}
           <a
             href={`https://mycomap.org/species/${encodeURIComponent(name)}`}
             className="inline-flex items-center gap-1 hover:text-myco-green"
@@ -567,14 +774,33 @@ export default function Taxon() {
                 </p>
               ) : (
                 <p className="mt-1">
-                  Enough records to model, but it has not been fitted yet. Run{" "}
-                  <code className="rounded bg-muted px-1">./atlas fit --taxon="{name}"</code>.
+                  Not mapped yet. Its collections come from enough places for a first map, but a
+                  map counts collections within about 5 km of each other as one site, and it may
+                  have too few separate sites once they are; or it is waiting for the next rebuild
+                  of the maps, which follows new records.
+                  <DevHint command={`./atlas fit --taxon="${name}"`} />
                 </p>
               )}
             </CardContent>
           </Card>
         ) : (
           <>
+            <AboutTheseMaps name={name} />
+            {ensemble.data && (
+              <section className="mb-8">
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+                  <SectionTitle>The models together</SectionTitle>
+                  <Legend />
+                </div>
+                <EnsembleMap
+                  name={name}
+                  ensemble={ensemble.data}
+                  points={points}
+                  view={opening}
+                  group={group}
+                />
+              </section>
+            )}
             <section>
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
                 <SectionTitle>{sparse ? "One map from many small models" : "Three models, same records"}</SectionTitle>

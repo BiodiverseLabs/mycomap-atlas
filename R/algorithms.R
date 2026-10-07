@@ -232,7 +232,8 @@ atlas_algorithm_design <- function(algo, folds = 5, block_km = "auto",
 
 #' Delete a taxon's model for one algorithm: its scores and its map.
 atlas_remove_model <- function(name, grid = "draft", algorithm = "maxnet") {
-  paths <- atlas_model_path(name, grid, c(".json", ".tif", ".png", ".png.aux.xml"), algorithm)
+  paths <- atlas_model_path(name, grid, c(".json", ".tif", ".png", ".png.aux.xml", ".di.tif"),
+                            algorithm)
   existed <- file.exists(paths)
   unlink(paths[existed])
   invisible(any(existed))

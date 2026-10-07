@@ -239,7 +239,8 @@ test_that("a drawn map records how its colours were scaled", {
                              ymin = 0, ymax = 1e5, crs = ATLAS_CRS)
   terra::values(suitability) <- seq(0.3, 0.6, length.out = 400)
   drawn <- atlas_write_map_png(suitability, file.path(tempdir(), "ranked.png"))
-  expect_equal(drawn$scale, "rank")
+  expect_equal(drawn$scale, ATLAS_MAP_SCALE)
+  expect_match(drawn$scale, "area of applicability")
   expect_match(drawn$drawn_at, "^[0-9]{4}-[0-9]{2}-[0-9]{2}T")
 })
 

@@ -192,12 +192,12 @@ atlas_layer_registry <- function() {
       # genus before anything is averaged.
       build = function(raw_dir, grid) atlas_build_hosts(raw_dir, grid)
     ),
-    # The trees wood-decay and parasitic fungi live on, beside the host layer's
-    # mostly mycorrhizal partners (R/hosts.R, ATLAS_DECAY_HOST_GENERA): shares
-    # of the same tree totals, from the same inventories.
+    # More host genera beside the host layer's (R/hosts.R,
+    # ATLAS_DECAY_HOST_GENERA): shares of the same tree totals, from the same
+    # inventories, and shown under the same name.
     hostsdecay = list(
       id = "hostsdecay",
-      title = "Decay and parasite hosts: share of trees by genus",
+      title = "Host trees: share of trees by genus, more genera",
       source = "USFS FIA BIGMAP 2018 (lower 48) and Canada NFI kNN 2011",
       url = ATLAS_BIGMAP_URL,
       urls = c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL),
@@ -213,7 +213,8 @@ atlas_layer_registry <- function() {
       note = paste(
         "Lower 48 and Canada only. Alaska, Hawaii, Puerto Rico and Mexico have no tree",
         "inventory here: their shares are 0, and the host layer's host_known is 0 there.",
-        "NFI does not map tulip tree, sweetgum, sycamore or black locust: 0 in Canada."
+        "NFI does not map tulip tree, sweetgum, sycamore, black locust, hackberry, bald",
+        "cypress, redwood, giant sequoia or incense-cedar: 0 in Canada."
       ),
       bands = ATLAS_HOST_DECAY_BANDS,
       # Filled as the host layer is, without a flag of its own. The two layers
@@ -226,6 +227,33 @@ atlas_layer_registry <- function() {
       fill_outside = "host_known",
       fill_flag = FALSE,
       build = function(raw_dir, grid) atlas_build_decay_hosts(raw_dir, grid)
+    ),
+    # One band per tree species (R/hosts.R, ATLAS_HOST_SPECIES), as shares of
+    # the same trees: which oak, not only whether oak. A candidate until the
+    # layer sweep has compared it with the genera alone.
+    hostspecies = list(
+      id = "hostspecies",
+      title = "Host trees: share of trees by species",
+      source = "USFS FIA BIGMAP 2018 (lower 48) and Canada NFI kNN 2011",
+      url = ATLAS_BIGMAP_URL,
+      urls = c(ATLAS_BIGMAP_URL, ATLAS_NFI_URL, ATLAS_CONUS_URL),
+      license = "BIGMAP: US public domain; NFI: Open Government Licence - Canada",
+      citation = paste(
+        "Wilson BT, Knight JF, McRoberts RE (2018) Harmonic regression of Landsat time series",
+        "for modeling attributes from national forest inventory data. ISPRS J Photogramm",
+        "Remote Sens 137:29-46; Beaudoin A et al. (2014) Mapping attributes of Canada's",
+        "forests at moderate resolution through kNN and MODIS imagery. Can J For Res",
+        "44:521-532, doi:10.1139/cjfr-2013-0401"
+      ),
+      method = "share of species in the host layer's total trees; BIGMAP sampled at 250 m and block-averaged, NFI area-averaged",
+      note = paste(
+        "Lower 48 and Canada only, as the host layer. NFI maps 60 species; any other reads 0",
+        "in Canada, and NFI's trees named only to genus count toward the genus bands, not here."
+      ),
+      bands = atlas_host_species_bands(),
+      fill_outside = "host_known",
+      fill_flag = FALSE,
+      build = function(raw_dir, grid) atlas_build_species_hosts(raw_dir, grid)
     ),
     foresttype = list(
       id = "foresttype",
@@ -247,6 +275,25 @@ atlas_layer_registry <- function() {
       # Wherever the main source is empty and the supplement is not.
       supplement = function(path, res) atlas_copernicus_source(path),
       supplement_known = "forest_known"
+    ),
+    climatena = list(
+      id = "climatena",
+      title = "Climate 1991-2020: temperature, precipitation, heat-moisture",
+      source = "AdaptWest ClimateNA v7.3 normals 1991-2020, 1 km",
+      url = "https://adaptwest.databasin.org/pages/adaptwest-climatena/",
+      license = "CC BY 4.0",
+      citation = paste(
+        "AdaptWest Project (2022) Gridded current and projected climate data for North",
+        "America at 1km resolution, ClimateNA v7.30; Wang T, Hamann A, Spittlehouse D,",
+        "Carroll C (2016) PLoS One 11:e0156720"
+      ),
+      note = paste(
+        "With the water-balance layer, the candidate replacement for WorldClim's",
+        "1970-2000 bioclim. ClimateNA does not cover Hawaii or the Caribbean islands."
+      ),
+      method = "average",
+      fill_near = TRUE,
+      fetch = function(path, res) atlas_climatena_source(path)
     ),
     waterbalance = list(
       id = "waterbalance",

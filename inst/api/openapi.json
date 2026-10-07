@@ -4,9 +4,9 @@
     "title": "MycoMap Atlas API",
     "version": "0.1.0-dev",
     "summary": "Habitat models for North American fungi, built only from DNA-validated MycoMap records.",
-    "description": "Every route is a read. Nothing here returns an exact collection coordinate: collection points are aggregated to 0.1 degree cells, and published rasters are 1 km or coarser.\n\nThis file is the contract. The web app's developer page is drawn from it, and a test in tests/testthat/test-openapi.R fails when a route in inst/plumber/atlas.R and this file disagree, so the documentation cannot drift from the code.\n\nReads are open: no account and no token are needed for anything the site's own pages use — taxa, scores, map images, collection cells. Two things need you to be known: downloading a model's GeoTIFF raster, and a higher rate limit. Either sign in on the site with your mycomap.org account, or send a token as \"Authorization: Bearer <token>\". Tokens are issued through a mycomap.org account at https://mycomap.org/atlas-tokens. A token mycomap.org does not recognise, or has revoked, is refused with 401 rather than served at the anonymous rate.\n\nEvery caller is rate limited: anonymous callers per address, signed-in people per person, tokens per token. Over the limit the answer is 429 with Retry-After in seconds. x-rate-limits at the end of this file gives the limits.",
+    "description": "Every route is a read. Nothing here returns an exact collection coordinate: collection points are aggregated to 0.1 degree cells, and published rasters are 1 km or coarser.\n\nThis file is the contract. The web app's developer page is drawn from it, and a test in tests/testthat/test-openapi.R fails when a route in inst/plumber/atlas.R and this file disagree, so the documentation cannot drift from the code.\n\nReads are open: no account and no token are needed for anything the site's own pages use — taxa, scores, map images, collection cells. Two things need you to be known: downloading a model's GeoTIFF raster, and a higher rate limit. Either sign in on the site with your mycomap.org account, or send a token as \"Authorization: Bearer <token>\". Tokens are issued through a mycomap.org account at https://mycomap.org/atlas-tokens. A token mycomap.org does not recognise, or has revoked, is refused with 401 rather than served at the anonymous rate.\n\nEvery caller is rate limited: anonymous callers per address, signed-in people per person, tokens per token. Over the limit the answer is 429 with Retry-After in seconds. x-rate-limits at the end of this file gives the limits.\n\nA grid other than draft or production, or a parameter such as limit, offset, lat or width that is not a number, is refused with 400 and a JSON error saying which. Errors are always JSON, image routes included.",
     "license": {
-      "name": "GPL-3.0-or-later (code). Terms for published maps follow their source layers.",
+      "name": "Code GPL-3.0-or-later. Maps, rasters and model outputs CC BY-SA 4.0: they derive from WorldClim 2.1 (CC BY-SA 4.0); every map and raster response carries Link: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\". Each source layer's terms are at /api/sources.",
       "identifier": "GPL-3.0-or-later"
     },
     "contact": {
@@ -500,11 +500,12 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Page size.",
+            "description": "Page size, at most 1000.",
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "default": 100
+              "default": 100,
+              "maximum": 1000
             },
             "example": 10
           },
@@ -974,7 +975,7 @@
         ],
         "operationId": "getTaxonMap",
         "summary": "A taxon's habitat map as an image",
-        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks within the model's own accessible area, darkest green highest; outside that area the image is transparent. Add any v= query value to bust a cache.",
+        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks among the cells inside the model's area of applicability, darkest green highest; ground in the accessible area that no training site resembles is hatched grey, and beyond the accessible area the image is transparent. Add any v= query value to bust a cache.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -1006,6 +1007,12 @@
               },
               "X-Atlas-Tier": {
                 "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "Link": {
+                "description": "The map's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -1017,6 +1024,130 @@
           },
           "404": {
             "description": "No map for this taxon and model. The body is empty."
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/taxa/{name}/ensemble": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "getTaxonEnsemble",
+        "summary": "A taxon's ensemble of its passing models",
+        "description": "Each model that passed its null test is ranked over the ground inside its own area of applicability, and the ranks are averaged, weighted by blocked AUC above 0.5. Lists the members and their weights, how much of the ground some member knows, and how much the members disagree. Absent when fewer than two models passed.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The ensemble.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ensemble"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/taxa/{name}/ensemble.png": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "getTaxonEnsembleMap",
+        "summary": "A taxon's ensemble map, or where its members disagree, as an image",
+        "description": "A PNG in web-map coordinates at the bounds the ensemble route gives. layer=map is the ensemble, coloured by rank, darkest green highest; ground no member knows is hatched grey. layer=disagreement runs from clear, where the members agree, to brown, where they rank a place at opposite ends.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          },
+          {
+            "name": "layer",
+            "in": "query",
+            "required": false,
+            "description": "map (default) or disagreement.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "map",
+                "disagreement"
+              ],
+              "default": "map"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image.",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "Link": {
+                "description": "The map's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown layer. The body is empty."
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "description": "No ensemble for this taxon. The body is empty."
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -1071,6 +1202,12 @@
               },
               "X-Atlas-Tier": {
                 "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "Link": {
+                "description": "The raster's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
+                "schema": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -1079,6 +1216,12 @@
             "headers": {
               "Location": {
                 "description": "The download link.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Link": {
+                "description": "The raster's licence: <https://creativecommons.org/licenses/by-sa/4.0/>; rel=\"license\".",
                 "schema": {
                   "type": "string"
                 }
@@ -1421,7 +1564,7 @@
           "pulledAt": {
             "type": "string",
             "format": "date-time",
-            "description": "When the records were read from mycomap.org."
+            "description": "When this machine last read records from mycomap.org. Nightly pulls run before fitting, so this can be newer than the maps; release.dataPulledAt is the pull the maps were built from."
           },
           "records": {
             "type": "integer",
@@ -1438,6 +1581,42 @@
           "since": {
             "type": "string",
             "description": "For an incremental pull, the date it started from. Absent for a full pull."
+          },
+          "release": {
+            "type": "object",
+            "description": "The release the maps come from: cite its id. Absent until a release has been pulled.",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Release id, e.g. 20261004T041800Z-3b7439f8. Cite this."
+              },
+              "grid": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "commit": {
+                "type": "string",
+                "description": "The Atlas code commit the release was built from."
+              },
+              "dataPulledAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the records the release was fitted on were read."
+              },
+              "records": {
+                "type": "integer"
+              },
+              "taxa": {
+                "type": "integer"
+              },
+              "fingerprint": {
+                "type": "string",
+                "description": "Hash of the record set the release was fitted on."
+              }
+            }
           }
         }
       },
@@ -1822,7 +2001,7 @@
               "maxnet",
               "xgboost",
               "rf",
-            "esm"
+              "esm"
             ],
             "description": "Absent on the oldest Maxent models, which are Maxent."
           },
@@ -1902,7 +2081,7 @@
           },
           "map_scale": {
             "type": "string",
-            "description": "rank: colours are percentiles within the map."
+            "description": "How the PNG's colours are scaled: ranks among the cells inside the area of applicability, on the equal-area grid. Older maps say \"rank\": percentiles over every cell of the image."
           },
           "map_drawn_at": {
             "type": "string",
@@ -2023,19 +2202,35 @@
             "items": {
               "type": "object",
               "properties": {
-                "name": {"type": "string"},
-                "label": {"type": "string"},
-                "fall": {"type": "number"},
-                "sd": {"type": "number"},
+                "name": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "fall": {
+                  "type": "number"
+                },
+                "sd": {
+                  "type": "number"
+                },
                 "predictors": {
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
-                      "name": {"type": "string"},
-                      "label": {"type": "string"},
-                      "fall": {"type": "number"},
-                      "sd": {"type": "number"}
+                      "name": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "fall": {
+                        "type": "number"
+                      },
+                      "sd": {
+                        "type": "number"
+                      }
                     }
                   }
                 }
@@ -2044,7 +2239,9 @@
           },
           "layers_unused": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "Datasets the taxon's predictors came from that this model kept none of (Maxent prunes correlated predictors and caps their number)."
           },
           "uses_effort": {
@@ -2054,6 +2251,78 @@
           "effort_at": {
             "type": "number",
             "description": "The effort, log(records at the site, the taxon's own counted once), the map and scores are drawn at."
+          },
+          "map_strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "How strongly the map is drawn: 0 when it failed its null test; from 0.4 to 1 as its blocked AUC rises from just passing to five null standard deviations above its nulls. 0.5 when untested."
+          },
+          "applicability": {
+            "type": "object",
+            "description": "The map's area of applicability (Meyer & Pebesma 2021): threshold on the dissimilarity index, and the share of the accessible area inside it.",
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "inside_share": {
+                "type": "number"
+              },
+              "weights": {
+                "type": "string",
+                "enum": [
+                  "importance",
+                  "equal",
+                  "given"
+                ]
+              },
+              "predictors": {
+                "type": "integer"
+              },
+              "sites": {
+                "type": "integer"
+              },
+              "training_index_median": {
+                "type": "number"
+              },
+              "training_index_95": {
+                "type": "number"
+              }
+            }
+          },
+          "dissimilarity": {
+            "type": "string",
+            "description": "File name of the dissimilarity layer, published beside the raster."
+          },
+          "record_years": {
+            "type": "object",
+            "description": "The years the taxon's records were collected over: first, median and last year, how many records have a date, and the share collected before the climate period the layers describe (1991).",
+            "properties": {
+              "records": {
+                "type": "integer"
+              },
+              "dated": {
+                "type": "integer"
+              },
+              "first": {
+                "type": "integer"
+              },
+              "median": {
+                "type": "integer"
+              },
+              "last": {
+                "type": "integer"
+              },
+              "before_climate_period": {
+                "type": "number"
+              },
+              "climate_period_start": {
+                "type": "integer"
+              }
+            }
           }
         }
       },
@@ -2069,7 +2338,7 @@
               "maxnet",
               "xgboost",
               "rf",
-            "esm"
+              "esm"
             ]
           },
           "presences": {
@@ -2493,7 +2762,7 @@
                 "maxnet",
                 "xgboost",
                 "rf",
-            "esm"
+                "esm"
               ]
             },
             "description": "Models with a map for this taxon; empty when it has none yet."
@@ -2587,7 +2856,7 @@
                 "maxnet",
                 "xgboost",
                 "rf",
-            "esm"
+                "esm"
               ]
             },
             "description": "Every model with a map for this taxon."
@@ -2662,6 +2931,77 @@
                 }
               }
             }
+          }
+        }
+      },
+      "Ensemble": {
+        "type": "object",
+        "properties": {
+          "taxon": {
+            "type": "string"
+          },
+          "grid": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "algorithm": {
+                  "type": "string"
+                },
+                "weight": {
+                  "type": "number"
+                },
+                "auc_mean": {
+                  "type": "number"
+                },
+                "map_strength": {
+                  "type": "number"
+                },
+                "md5": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "map_strength": {
+            "type": "number"
+          },
+          "known_share": {
+            "type": "number",
+            "description": "Share of the ground with a value that at least one member's area of applicability holds."
+          },
+          "disagreement_mean": {
+            "type": "number",
+            "description": "Mean weighted standard deviation of the members' ranks, 0 to 0.5."
+          },
+          "disagreement_high_share": {
+            "type": "number",
+            "description": "Share of cells where that spread is above 0.25."
+          },
+          "map": {
+            "type": "string"
+          },
+          "disagreement_map": {
+            "type": "string"
+          },
+          "raster": {
+            "type": "string"
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/ModelBounds"
+          },
+          "map_scale": {
+            "type": "string"
+          },
+          "built_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

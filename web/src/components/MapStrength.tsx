@@ -17,8 +17,17 @@ const MARKS = [
 // Within this many points of a mark, the slider settles on the mark.
 const SNAP = 3;
 
-/** Where a map starts: faint when it could not beat its null models. */
-export function defaultStrength(failed: boolean): number {
+/**
+ * Where a map starts. With a measured strength (0 for a map that failed its
+ * null test, up to 1 for one far above its nulls) it starts between FAINT and
+ * STANDARD in proportion; without one, faint when it failed and standard
+ * otherwise.
+ */
+export function defaultStrength(failed: boolean, strength?: number): number {
+  if (strength != null && Number.isFinite(strength)) {
+    const share = Math.min(1, Math.max(0, strength));
+    return Math.round(FAINT + (STANDARD - FAINT) * share);
+  }
   return failed ? FAINT : STANDARD;
 }
 

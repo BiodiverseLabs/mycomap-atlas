@@ -46,7 +46,43 @@ atlas_occurrence_points <- function(occurrences, grid = "draft", thin_km = ATLAS
     y = centres[, 2],
     stringsAsFactors = FALSE
   )
+  # The year each record was collected, so a model can say what years its
+  # records span (atlas_record_years). NA where the date is missing.
+  if (!is.null(occurrences$observed_on)) {
+    points$year <- atlas_record_year(occurrences$observed_on[keep])
+  }
   atlas_attach_sites(points, thin_km)
+}
+
+#' The year in a date such as "2021-09-14", or NA when there is none or it is
+#' not a plausible collection year.
+atlas_record_year <- function(dates) {
+  year <- suppressWarnings(as.integer(substr(as.character(dates), 1, 4)))
+  this_year <- as.integer(format(Sys.Date(), "%Y"))
+  year[!is.na(year) & (year < 1700 | year > this_year)] <- NA_integer_
+  year
+}
+
+# The first year of the climate normals a model's records are compared with
+# (ClimateNA 1991-2020): records before it predate the climate on the map.
+ATLAS_CLIMATE_PERIOD_START <- 1991L
+
+#' What years a taxon's records span: the first, median and last collection
+#' year, how many records have a date, and the share collected before the
+#' climate period began. NULL when the points carry no years.
+atlas_record_years <- function(points, name) {
+  if (is.null(points$year)) return(NULL)
+  years <- points$year[points$scientific_name == name]
+  dated <- years[!is.na(years)]
+  out <- list(records = length(years), dated = length(dated))
+  if (length(dated)) {
+    out <- c(out, list(
+      first = min(dated), median = as.integer(round(stats::median(dated))), last = max(dated),
+      before_climate_period = round(mean(dated < ATLAS_CLIMATE_PERIOD_START), 3),
+      climate_period_start = ATLAS_CLIMATE_PERIOD_START
+    ))
+  }
+  out
 }
 
 #' The ground a taxon could plausibly have reached: its sites, buffered.

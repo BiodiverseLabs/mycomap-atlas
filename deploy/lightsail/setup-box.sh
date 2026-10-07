@@ -89,6 +89,9 @@ echo "== nginx"
 install -m 644 "$here/nginx/cloudflare-real-ip.conf" /etc/nginx/snippets/cloudflare-real-ip.conf
 install -m 644 "$here/nginx/atlas-proxy.conf" /etc/nginx/snippets/atlas-proxy.conf
 install -m 644 "$here/nginx/atlas.conf" /etc/nginx/sites-available/atlas
+# The API cache (atlas.conf's proxy_cache_path); nginx makes only the last
+# directory of the path itself.
+install -d -o www-data -g www-data -m 700 /var/cache/nginx/atlas
 ln -sf /etc/nginx/sites-available/atlas /etc/nginx/sites-enabled/atlas
 rm -f /etc/nginx/sites-enabled/default
 install -d -o root -g root -m 700 /etc/ssl/atlas

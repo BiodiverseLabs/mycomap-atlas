@@ -5,6 +5,14 @@
 #   - green in at least one validation project (decided 2026-09-30: a red in
 #     another project does not rule it out; the green project settled the name);
 #   - coordinates present, not obscured, accuracy within 1 km where recorded;
+#   - for a Mushroom Observer record, a GPS point the observer has not hidden,
+#     or else a named location small enough that its centre is within
+#     ATLAS_MO_MAX_LOCATION_M of every point in it (R/occurrences.R
+#     atlas_mo_location_clause);
+#   - for a MyCoPortal record, MyCoPortal's own coordinates within
+#     ATLAS_MO_MAX_LOCATION_M, or a place geocoded from its label that no
+#     record with a different label shares, which would make it a county's or
+#     state's centre (atlas_mycoportal_location_clause);
 #   - in North America (or a Puerto Rico record with a blank country);
 #   - a species-level name, provisional temp codes included.
 #
@@ -53,14 +61,106 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
        AND right(lower(o.scientific_name), 4) <> ' sp.'
        AND right(lower(o.scientific_name), 3) <> ' sp'
        %s
+       %s
+       %s
        AND o.id > %d
      ORDER BY o.id
      LIMIT %d",
     paste0("o.", ATLAS_OCCURRENCE_FIELDS, collapse = ", "),
     statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
+    atlas_mo_location_clause(), atlas_mycoportal_location_clause(),
     as.integer(after_id), as.integer(limit)
   )
   atlas_one_line(sql)
+}
+
+# How .org labels MyCoPortal records (both spellings occur).
+ATLAS_MYCOPORTAL_SOURCES <- c("MycoPortal", "MyCoPortal")
+# What to do with a MyCoPortal record .org has not yet fetched MyCoPortal's
+# answer for: keep it ("keep") or leave it out ("drop").
+ATLAS_MYCOPORTAL_UNKNOWN <- "keep"
+
+#' The SQL condition that keeps only MyCoPortal records placed well enough
+#' to model.
+#'
+#' Legacy .com places a MyCoPortal record by geocoding its label: MyCoPortal's
+#' coordinates when it has them, else a place search on the locality, and
+#' when that fails the county or state alone. .org's mycoportal_data holds
+#' MyCoPortal's own answer for each record (filled by .org's
+#' backfillMycoportalData script). A record passes when MyCoPortal placed it
+#' with an uncertainty within max_m, or recorded none; or, when MyCoPortal
+#' gave no coordinates, when no record with a different locality sits on
+#' exactly the same point: many labels on one point means the geocoder fell
+#' back to the county or state. A record with no answer yet is kept or
+#' dropped as unknown says. Other sources are untouched.
+atlas_mycoportal_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
+                                             unknown = ATLAS_MYCOPORTAL_UNKNOWN) {
+  unknown <- match.arg(unknown, c("keep", "drop"))
+  sources <- paste(sprintf("'%s'", ATLAS_MYCOPORTAL_SOURCES), collapse = ", ")
+  answered <- "p.observation_id = o.observation_id AND p.sync_status = 'success'"
+  placed <- sprintf(paste(
+    "EXISTS (SELECT 1 FROM mycoportal_data p WHERE %s AND (",
+    "(p.decimal_latitude IS NOT NULL AND coalesce(p.coordinate_uncertainty_in_meters, 0) <= %d)",
+    "OR (p.decimal_latitude IS NULL AND NOT EXISTS (SELECT 1 FROM observations o2",
+    "JOIN mycoportal_data p2 ON p2.observation_id = o2.observation_id",
+    "WHERE o2.latitude = o.latitude AND o2.longitude = o.longitude",
+    "AND o2.observation_id <> o.observation_id",
+    "AND coalesce(p2.locality, '') <> coalesce(p.locality, '')))))"
+  ), answered, as.integer(max_m))
+  unanswered <- sprintf("NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE %s)", answered)
+  keep <- if (identical(unknown, "keep")) paste(placed, "OR", unanswered) else placed
+  sprintf("AND (o.source NOT IN (%s) OR %s)", sources, keep)
+}
+
+# How .org labels Mushroom Observer records, and how its cache labels their
+# MO answers.
+ATLAS_MO_SOURCE <- "MO Observations"
+ATLAS_MO_CACHE_SOURCE <- "mo"
+# A Mushroom Observer record without a GPS point carries the centre of a named
+# location (a park, a county). It is kept when every point of that location
+# lies within this many metres of the centre: half the box's diagonal.
+ATLAS_MO_MAX_LOCATION_M <- 5000
+# What to do with an MO record whose MO answer .org has not cached: keep it
+# ("keep") or leave it out ("drop").
+ATLAS_MO_UNKNOWN <- "keep"
+
+#' The SQL condition that keeps only Mushroom Observer records placed well
+#' enough to model.
+#'
+#' .org caches each MO observation's API answer (observation_cache,
+#' api_response_json): latitude and longitude are the observer's GPS point,
+#' null when there is none; gps_hidden says the observer hid it; location is
+#' the named place with its north, south, east and west edges. A record
+#' passes when its GPS point is there and not hidden, or when half the
+#' location box's diagonal is within max_m. Records of other sources are
+#' untouched. One line, with no double quote or percent sign, like every
+#' statement sent to the SQL route.
+atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
+                                     unknown = ATLAS_MO_UNKNOWN) {
+  unknown <- match.arg(unknown, c("keep", "drop"))
+  json <- "CAST(m.api_response_json AS jsonb)"
+  edge <- function(side) sprintf("(%s -> 'location' ->> '%s')::numeric", json, side)
+  half_diagonal_km <- sprintf(
+    "sqrt(power((%s - %s) * 111.2, 2) + power((%s - %s) * 111.2 * cos(radians((%s + %s) / 2)), 2)) / 2",
+    edge("latitude_north"), edge("latitude_south"),
+    edge("longitude_east"), edge("longitude_west"),
+    edge("latitude_north"), edge("latitude_south")
+  )
+  placed <- sprintf(
+    paste(
+      "EXISTS (SELECT 1 FROM observation_cache m WHERE m.source = '%s'",
+      "AND m.source_observation_id = o.observation_id",
+      "AND coalesce((%s ->> 'gps_hidden')::boolean, false) = false",
+      "AND ((%s ->> 'latitude') IS NOT NULL OR %s <= %s))"
+    ),
+    ATLAS_MO_CACHE_SOURCE, json, json, half_diagonal_km, format(max_m / 1000)
+  )
+  uncached <- sprintf(
+    "NOT EXISTS (SELECT 1 FROM observation_cache m WHERE m.source = '%s' AND m.source_observation_id = o.observation_id)",
+    ATLAS_MO_CACHE_SOURCE
+  )
+  keep <- if (identical(unknown, "keep")) paste(placed, "OR", uncached) else placed
+  sprintf("AND (o.source <> '%s' OR %s)", ATLAS_MO_SOURCE, keep)
 }
 
 #' Pull the eligible universe in pages, keeping every page as fetched.
