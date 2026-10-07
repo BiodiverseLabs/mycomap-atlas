@@ -162,6 +162,20 @@ function(req, res) {
   plumber::forward()
 }
 
+#* Before any route: an unknown grid or a number that is not one is refused
+#* with 400 and a reason, never read into a file path or a 500.
+#* @filter inputs
+function(req, res) {
+  if (identical(req$REQUEST_METHOD, "OPTIONS") || !startsWith(req$PATH_INFO, "/api/")) {
+    return(plumber::forward())
+  }
+  problem <- atlas_query_problem(req$QUERY_STRING)
+  if (!is.null(problem)) {
+    return(atlas_json_error(res, 400L, problem))
+  }
+  plumber::forward()
+}
+
 # ---- signing in ------------------------------------------------------------
 # Browser routes, outside /api: they redirect and set cookies (R/auth.R).
 
@@ -318,14 +332,16 @@ function(lat, lng, limit = 50, min_score = 0, nearby_km = 25, res) {
 #* @serializer unboxedJSON
 function(search = "", min_localities = 0, limit = 100, offset = 0) {
   rows <- cached_taxa()
-  rows <- rows[rows$localities >= as.numeric(min_localities), , drop = FALSE]
+  # The inputs filter has refused anything that is not a number.
+  min_localities <- atlas_request_number(min_localities) %||% 0
+  rows <- rows[rows$localities >= min_localities, , drop = FALSE]
   if (nzchar(search)) {
     keep <- grepl(tolower(search), tolower(rows$scientific_name), fixed = TRUE)
     rows <- rows[keep, , drop = FALSE]
   }
   total <- nrow(rows)
-  offset <- max(0, as.integer(offset))
-  limit <- max(1, as.integer(limit))
+  offset <- max(0L, as.integer(floor(atlas_request_number(offset) %||% 0)))
+  limit <- as.integer(min(ATLAS_TAXA_LIMIT_MAX, max(1, floor(atlas_request_number(limit) %||% 100))))
   page <- if (offset >= total) rows[0, , drop = FALSE] else {
     rows[seq(offset + 1, min(total, offset + limit)), , drop = FALSE]
   }
@@ -405,13 +421,11 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 function(name, grid = "draft", algorithm = "maxnet", res) {
   algorithm <- atlas_request_algorithm(algorithm)
   if (is.null(algorithm)) {
-    res$status <- 400L
-    return(raw())
+    return(atlas_json_error(res, 400L, "unknown algorithm"))
   }
   path <- atlas_model_path(atlas_decode_name(name), grid, ".png", algorithm)
   if (!file.exists(path)) {
-    res$status <- 404L
-    return(raw())
+    return(atlas_json_error(res, 404L, "no map for this taxon yet"))
   }
   res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)
@@ -436,13 +450,11 @@ function(name, grid = "draft", res) {
 function(name, grid = "draft", layer = "map", res) {
   extension <- switch(layer, map = ".png", disagreement = ".disagreement.png", NULL)
   if (is.null(extension)) {
-    res$status <- 400L
-    return(raw())
+    return(atlas_json_error(res, 400L, "layer must be map or disagreement"))
   }
   path <- atlas_ensemble_path(atlas_decode_name(name), grid, extension)
   if (!file.exists(path)) {
-    res$status <- 404L
-    return(raw())
+    return(atlas_json_error(res, 404L, "no ensemble for this taxon: fewer than two of its models passed"))
   }
   res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)
@@ -469,12 +481,14 @@ function(name, algorithm = "", width = "1200", points = "1", res) {
   decoded <- atlas_decode_name(name)
   row <- atlas_taxon_row(cached_taxa(), decoded)
   chosen <- atlas_image_algorithm(decoded, algorithm)
-  if (is.null(row) || is.null(chosen)) {
-    res$status <- if (is.null(row)) 404L else 400L
-    return(res)
+  if (is.null(row)) {
+    return(atlas_json_error(res, 404L, "no such taxon in the current pull"))
   }
-  width <- as.integer(width)
-  width <- if (is.na(width)) 1200L else ATLAS_IMAGE_WIDTHS[[which.min(abs(ATLAS_IMAGE_WIDTHS - width))]]
+  if (is.null(chosen)) {
+    return(atlas_json_error(res, 400L, "no map from that algorithm for this taxon"))
+  }
+  width <- atlas_request_number(width) %||% 1200
+  width <- ATLAS_IMAGE_WIDTHS[[which.min(abs(ATLAS_IMAGE_WIDTHS - width))]]
   show_points <- !identical(points, "0")
   metrics_path <- atlas_model_path(decoded, "draft", ".json", chosen)
   metrics <- if (file.exists(metrics_path)) jsonlite::fromJSON(metrics_path, simplifyVector = FALSE) else NULL

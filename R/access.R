@@ -363,3 +363,76 @@ atlas_settle_cache_control <- function(status, current = NULL) {
   if (is.numeric(status) && length(status) == 1L && status >= 400) return("no-store")
   current
 }
+
+# ---- what a request may ask for ------------------------------------------------
+
+# Query parameters that must be numbers wherever a route takes them. Each
+# route still sets its own range; this only refuses what is not a number at
+# all, which used to reach as.numeric() and come back as a 500 or a garbage
+# page.
+ATLAS_NUMBER_PARAMS <- c("limit", "offset", "min_localities", "lat", "lng", "min_score",
+                         "nearby_km", "width")
+
+# The most rows /api/taxa returns in one page.
+ATLAS_TAXA_LIMIT_MAX <- 1000L
+
+#' The grid a request names, or NULL when it is not one Atlas has. The grid
+#' becomes part of a file path, so anything else ("../x") is refused before
+#' a route sees it.
+atlas_request_grid <- function(grid) {
+  if (is.character(grid) && length(grid) == 1L && grid %in% names(ATLAS_GRID_RESOLUTIONS)) {
+    grid
+  } else {
+    NULL
+  }
+}
+
+#' A query parameter as one finite number, or NULL when it is not one.
+atlas_request_number <- function(x) {
+  if (is.null(x) || length(x) != 1L) return(NULL)
+  value <- suppressWarnings(as.numeric(trimws(as.character(x))))
+  if (is.finite(value)) value else NULL
+}
+
+#' The query string as a named list of values, as a browser sent it.
+atlas_query_args <- function(query = "") {
+  query <- sub("^[?]", "", query %||% "")
+  if (!nzchar(query)) return(list())
+  pairs <- strsplit(strsplit(query, "&", fixed = TRUE)[[1]], "=", fixed = TRUE)
+  pairs <- pairs[vapply(pairs, function(p) length(p) >= 1L && nzchar(p[[1]]), logical(1))]
+  decode <- function(x) utils::URLdecode(gsub("+", " ", x, fixed = TRUE))
+  keys <- vapply(pairs, function(p) decode(p[[1]]), character(1))
+  values <- lapply(pairs, function(p) if (length(p) > 1L) decode(paste(p[-1], collapse = "=")) else "")
+  out <- list()
+  for (i in seq_along(keys)) out[[keys[[i]]]] <- c(out[[keys[[i]]]], values[[i]])
+  out
+}
+
+#' What is wrong with a request's query, in words for the caller, or NULL
+#' when nothing is. Every /api/ route goes through it (the inputs filter in
+#' inst/plumber/atlas.R), so a route added later cannot forget it.
+atlas_query_problem <- function(query = "") {
+  args <- atlas_query_args(query)
+  if (!is.null(args$grid) && is.null(atlas_request_grid(args$grid))) {
+    return(paste0("grid must be one of: ", paste(names(ATLAS_GRID_RESOLUTIONS), collapse = ", ")))
+  }
+  for (name in intersect(ATLAS_NUMBER_PARAMS, names(args))) {
+    if (is.null(atlas_request_number(args[[name]]))) {
+      return(paste0(name, " must be a number"))
+    }
+  }
+  NULL
+}
+
+#' An error answered as JSON, whatever the route would have sent on success.
+#' Image routes used to answer their errors with an empty body. Returned as
+#' res it skips the serializer, and with it the hook that marks errors
+#' no-store, so it says no-store itself: replacing the access filter's
+#' header, not adding a second one beside it.
+atlas_json_error <- function(res, status, message) {
+  res$status <- as.integer(status)
+  res$headers[["Cache-Control"]] <- "no-store"
+  res$setHeader("Content-Type", "application/json")
+  res$body <- as.character(jsonlite::toJSON(list(error = message), auto_unbox = TRUE))
+  res
+}
