@@ -231,6 +231,7 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   }
 
   public_paths <- c("occurrences/taxa-latest.json", "occurrences/name-merges.json",
+                    "occurrences/renames.json",
                     "public/pull.json", "public/cells.tsv.gz", "public/regions.tsv.gz")
   public <- atlas_file_entries(public_paths[file.exists(file.path(atlas_data_dir(), public_paths))])
   base_files <- stats::setNames(

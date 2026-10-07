@@ -254,6 +254,21 @@ export function getTaxon(name: string): Promise<Taxon> {
   return get<Taxon>(`/api/taxa/${encodeURIComponent(name)}`);
 }
 
+/** The current name for a name, or null when no taxon has had it. */
+export interface NameResolution {
+  requested: string;
+  name: string;
+  how: "current" | "spelling" | "renamed";
+  via: string[];
+}
+
+export async function resolveName(name: string): Promise<NameResolution | null> {
+  const response = await fetch(`/api/names/${encodeURIComponent(name)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return (await response.json()) as NameResolution;
+}
+
 export function getCells(name: string): Promise<Cells> {
   return get<Cells>(`/api/taxa/${encodeURIComponent(name)}/cells`);
 }
