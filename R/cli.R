@@ -61,6 +61,8 @@ atlas_usage <- function() {
   message("      --workers=N               taxa at once (default 1)")
   message("      --seed=N                  which sample (default 1)")
   message("  redraw-maps        redraw every map's PNG from its stored raster")
+  message("  count-regions      count every stored map by state, for the likely-in lists")
+  message("  finish-release     on a worker: count, index and report one release (R/finish.R)")
   message("      --workers=N               maps at once (default 1)")
   message("  build-here-index   index every map by 20 km cell, for \"what could grow here\"")
   message("      --cell-km=N               cell size (default 20)")
@@ -352,6 +354,23 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       atlas_build_here_index(
         grid = atlas_flag_grid(flags),
         cell_km = atlas_flag_number(flags, "cell_km", ATLAS_HERE_CELL_KM)
+      )
+      invisible(0L)
+    },
+    "count-regions" = {
+      atlas_count_regions(
+        grid = atlas_flag_grid(flags),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        only_missing = isTRUE(flags$only_missing)
+      )
+      invisible(0L)
+    },
+    "finish-release" = {
+      if (is.null(flags$release)) stop("finish-release needs --release=ID", call. = FALSE)
+      atlas_finish_release_work(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1))
       )
       invisible(0L)
     },

@@ -297,9 +297,15 @@ export interface Region {
   region: string;
   /** ISO 3166-2, such as US-IN; empty when the records name no known region. */
   code: string;
+  /** Taxa with validated records here. */
   taxa: number;
   records: number;
+  /** More taxa its maps call likely here, without a record yet. */
+  likely: number;
 }
+
+/** What a taxon's maps say about a state (R/predictions.R). */
+export type RegionVerdict = "likely" | "unlikely" | "beyond reach" | "no map";
 
 /** One taxon in one state, province or territory. */
 export interface TaxonRegion {
@@ -308,14 +314,41 @@ export interface TaxonRegion {
   code: string;
   records: number;
   localities: number;
+  model: RegionVerdict;
+  /** Share of the state its maps rate as suitable; null with no map. */
+  suitable_share: number | null;
+  /** Share of the state within 500 km of a record; null with no map. */
+  reach_share: number | null;
+}
+
+export interface TaxonRegions {
+  name: string;
+  /** Whether it has a map that beat its null models, counted by state. */
+  mapped: boolean;
+  /** The suitable share at which a state is called likely. */
+  min_share: number;
+  regions: TaxonRegion[];
 }
 
 export function getRegions(): Promise<{ regions: Region[] }> {
   return get<{ regions: Region[] }>("/api/regions");
 }
 
-export function getTaxonRegions(name: string): Promise<{ name: string; regions: TaxonRegion[] }> {
-  return get(`/api/taxa/${encodeURIComponent(name)}/regions`);
+export function getTaxonRegions(name: string): Promise<TaxonRegions> {
+  return get<TaxonRegions>(`/api/taxa/${encodeURIComponent(name)}/regions`);
+}
+
+/**
+ * A taxon's map as one picture, for Excel's =IMAGE(), documents and slides.
+ * Without an algorithm, the API picks the taxon's main map.
+ */
+export function imageUrl(name: string, opts: { algorithm?: Algorithm; width?: number; points?: boolean } = {}): string {
+  const query = new URLSearchParams();
+  if (opts.algorithm) query.set("algorithm", opts.algorithm);
+  if (opts.width) query.set("width", String(opts.width));
+  if (opts.points === false) query.set("points", "0");
+  const text = query.toString();
+  return `/api/taxa/${encodeURIComponent(name)}/image.png${text ? `?${text}` : ""}`;
 }
 
 /**

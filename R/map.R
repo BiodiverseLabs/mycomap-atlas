@@ -212,7 +212,14 @@ atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv(
       cache$reads <- (cache$reads %||% 0L) + 1L
       summary <- if (is.list(metrics)) atlas_model_summary(metrics) else NULL
       if (!is.null(summary)) summary$algorithm <- owner[[i]]
-      entry <- list(stamp = stamps[[i]], summary = summary)
+      # Its counts by state too (R/predictions.R), kept beside the summary
+      # rather than in it: one row per state, not one per model.
+      regions <- if (is.list(metrics) && is.list(metrics$regions)) {
+        atlas_region_rows(metrics$regions)
+      } else {
+        NULL
+      }
+      entry <- list(stamp = stamps[[i]], summary = summary, regions = regions)
     }
     entries[[i]] <- entry
   }
@@ -226,6 +233,27 @@ atlas_model_index <- function(grid = "draft", cache = new.env(parent = emptyenv(
   out <- out[order(out$built_at, decreasing = TRUE), , drop = FALSE]
   rownames(out) <- NULL
   out
+}
+
+#' Every model's counts by state, from the entries atlas_model_index read
+#' into cache: taxon, algorithm, skill, code, cells, reach, suitable.
+atlas_model_region_rows <- function(cache) {
+  keep <- Filter(function(e) !is.null(e$summary) && !is.null(e$regions) && nrow(e$regions),
+                 cache$entries %||% list())
+  if (!length(keep)) return(NULL)
+  # Column by column: binding thousands of small data frames takes seconds.
+  n <- vapply(keep, function(e) nrow(e$regions), 1L)
+  pick <- function(f) unlist(lapply(keep, f), use.names = FALSE)
+  data.frame(
+    taxon = rep(pick(function(e) e$summary$taxon), n),
+    algorithm = rep(pick(function(e) e$summary$algorithm), n),
+    skill = rep(pick(function(e) e$summary$skill), n),
+    code = pick(function(e) e$regions$code),
+    cells = pick(function(e) e$regions$cells),
+    reach = pick(function(e) e$regions$reach),
+    suitable = pick(function(e) e$regions$suitable),
+    stringsAsFactors = FALSE
+  )
 }
 
 #' Redraw one taxon's PNG from its stored raster and record how it was drawn.
@@ -256,6 +284,9 @@ atlas_rebuild_maps <- function(grid = "draft", quiet = FALSE, workers = 1L) {
   }
   done <- 0L
   report <- function(drawn) {
+    # Forced: R evaluates an argument only when it is used, and on one worker
+    # the redraw itself is this argument. Unforced, nothing was redrawn.
+    force(drawn)
     done <<- done + 1L
     if (!quiet && (done %% 100L == 0L || done == length(rasters))) {
       message("  redrawn ", done, " of ", length(rasters))
