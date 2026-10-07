@@ -99,6 +99,9 @@ test_that("a species' maps that beat their null models are averaged; failed maps
   # failed boosted trees, which liked all of Ohio, are ignored.
   expect_equal(ohio$suitable_share, (20 / 400) / 2)
   expect_equal(ohio$reach_share, 100 / 400)
+  # The best single map is kept too, for "possible".
+  expect_equal(indiana$best_share, 100 / 200)
+  expect_equal(ohio$best_share, 20 / 400)
 })
 
 test_that("a state is likely at a tenth suitable, beyond reach under a tenth reached, else unlikely", {
@@ -108,6 +111,15 @@ test_that("a state is likely at a tenth suitable, beyond reach under a tenth rea
   )
 })
 
+test_that("a state only one map rates a tenth suitable is possible, not likely", {
+  # Trametes versicolor in Montana: Maxent 4%, boosted trees 16%, forest 0%.
+  expect_equal(atlas_region_verdict(0.47, (0.04 + 0.16 + 0) / 3, 0.16), "possible")
+  # When the maps agree it stays likely, and when none reaches a tenth it is not listed.
+  expect_equal(atlas_region_verdict(1, 0.30, 0.40), "likely")
+  expect_equal(atlas_region_verdict(1, 0.03, 0.08), "unlikely")
+  expect_equal(atlas_region_verdict(NA, NA, NA), "no map")
+})
+
 test_that("records and predictions combine: likely states join the recorded ones, with verdicts on both", {
   recorded <- data.frame(
     taxon = c("A", "A", "C"), country = c("United States", "Canada", "United States"),
@@ -115,12 +127,16 @@ test_that("records and predictions combine: likely states join the recorded ones
     code = c("US-IN", "CA-QC", "US-IN"), records = c(5L, 1L, 2L), localities = c(4L, 1L, 2L),
     stringsAsFactors = FALSE
   )
-  predictions <- data.frame(taxon = c("A", "A"), code = c("US-IN", "US-OH"), maps = 2L,
-                            reach_share = c(1, 1), suitable_share = c(0.3, 0.2),
+  predictions <- data.frame(taxon = c("A", "A", "A", "A"), code = c("US-IN", "US-OH", "US-MT", "US-WY"),
+                            maps = 3L, reach_share = c(1, 1, 0.47, 0.51),
+                            suitable_share = c(0.3, 0.2, 0.07, 0.03), best_share = c(0.4, 0.3, 0.16, 0.05),
                             stringsAsFactors = FALSE)
   out <- atlas_region_status(recorded, predictions)
   a <- out[out$taxon == "A", ]
-  expect_setequal(a$code, c("US-IN", "CA-QC", "US-OH"))
+  # Montana is listed as possible (one map); Wyoming, with no map at a tenth, is not.
+  expect_setequal(a$code, c("US-IN", "CA-QC", "US-OH", "US-MT"))
+  expect_equal(a$model[a$code == "US-MT"], "possible")
+  expect_equal(a$best_share[a$code == "US-MT"], 0.16)
   expect_equal(a$model[a$code == "US-IN"], "likely")
   expect_equal(a$model[a$code == "CA-QC"], "beyond reach")
   ohio <- a[a$code == "US-OH", ]
@@ -212,7 +228,8 @@ with_predicted_pull <- function(code) {
                             regions = list(threshold = 0.4, presences = 3, cells = cells)),
                        atlas_model_path("Trametes versicolor", "draft", ".json", algorithm))
     }
-    model("maxnet", list(`US-IN` = c(236, 236, 200), `US-OH` = c(300, 300, 150), `US-NE` = c(500, 100, 0)))
+    model("maxnet", list(`US-IN` = c(236, 236, 200), `US-OH` = c(300, 300, 150), `US-NE` = c(500, 100, 0),
+                         `US-IA` = c(400, 400, 60)))
     model("rf", list(`US-IN` = c(236, 236, 100), `US-OH` = c(300, 300, 30)))
     force(code)
   })
@@ -226,7 +243,10 @@ test_that("a taxon's regions route gives each state a verdict, with likely state
     expect_true(body$mapped)
     expect_equal(body$min_share, ATLAS_REGION_MIN_SHARE)
     regions <- body$regions
-    expect_setequal(regions$code, c("US-IN", "US-OH", "CA-QC", "US-PR"))
+    expect_setequal(regions$code, c("US-IN", "US-OH", "CA-QC", "US-PR", "US-IA"))
+    # Iowa: Maxent rates 15% suitable, the forest nothing, so 7.5% on average.
+    expect_equal(regions$model[regions$code == "US-IA"], "possible")
+    expect_equal(regions$best_share[regions$code == "US-IA"], 60 / 400)
     expect_equal(regions$model[regions$code == "US-IN"], "likely")
     expect_equal(regions$model[regions$code == "US-OH"], "likely")
     expect_equal(regions$records[regions$code == "US-OH"], 0L)
@@ -250,6 +270,13 @@ test_that("a state's checklist lists the taxa its maps call likely, marked as no
 
     summary <- jsonlite::fromJSON(call_api(prediction_api(), "/api/regions")$body)$regions
     ohio <- summary[summary$code == "US-OH", ]
-    expect_equal(c(ohio$taxa, ohio$likely), c(0L, 1L))
+    expect_equal(c(ohio$taxa, ohio$likely, ohio$possible), c(0L, 1L, 0L))
+    iowa <- summary[summary$code == "US-IA", ]
+    expect_equal(c(iowa$taxa, iowa$likely, iowa$possible), c(0L, 0L, 1L))
+
+    out <- call_api(prediction_api(), "/api/checklist.csv", query = "region=US-IA")
+    parsed <- utils::read.csv(text = sub("^\ufeff", "", out$body), stringsAsFactors = FALSE)
+    expect_equal(parsed$status, "possible, not yet recorded")
+    expect_equal(parsed$best_map_suitable_pct, 15L)
   })
 })

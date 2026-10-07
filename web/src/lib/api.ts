@@ -300,10 +300,12 @@ export interface Region {
   records: number;
   /** More taxa its maps call likely here, without a record yet. */
   likely: number;
+  /** More taxa only some of its maps rate suitable here, without a record yet. */
+  possible: number;
 }
 
 /** What a taxon's maps say about a state (R/predictions.R). */
-export type RegionVerdict = "likely" | "unlikely" | "beyond reach" | "no map";
+export type RegionVerdict = "likely" | "possible" | "unlikely" | "beyond reach" | "no map";
 
 /** One taxon in one state, province or territory. */
 export interface TaxonRegion {
@@ -313,8 +315,10 @@ export interface TaxonRegion {
   records: number;
   localities: number;
   model: RegionVerdict;
-  /** Share of the state its maps rate as suitable; null with no map. */
+  /** Share of the state its maps rate as suitable, on average; null with no map. */
   suitable_share: number | null;
+  /** The most any one of its maps rates suitable; null with no map. */
+  best_share: number | null;
   /** Share of the state within 500 km of a record; null with no map. */
   reach_share: number | null;
 }

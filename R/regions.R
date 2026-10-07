@@ -240,23 +240,26 @@ atlas_read_public_regions <- function() {
 }
 
 #' One row per region: how many taxa have records there, how many records,
-#' and how many more its maps call likely without a record yet. table is
-#' atlas_region_table's, or atlas_region_status' with predictions.
+#' and how many more its maps call likely, or possible, without a record yet.
+#' table is atlas_region_table's, or atlas_region_status' with predictions.
 atlas_regions_summary <- function(table) {
   if (is.null(table) || !nrow(table)) {
     return(data.frame(country = character(), region = character(), code = character(),
                       taxa = integer(), records = integer(), likely = integer(),
-                      stringsAsFactors = FALSE))
+                      possible = integer(), stringsAsFactors = FALSE))
   }
   group <- paste(table$country_code, table$region, sep = "\t")
   first <- !duplicated(group)
   at <- factor(group, levels = group[first])
   recorded <- table$records > 0
-  predicted <- if (is.null(table$model)) rep(FALSE, nrow(table)) else !recorded & table$model == "likely"
+  verdict <- if (is.null(table$model)) rep("", nrow(table)) else table$model
+  predicted <- !recorded & verdict == "likely"
+  possible <- !recorded & verdict == "possible"
   out <- table[first, c("country", "region", "code"), drop = FALSE]
   out$taxa <- as.integer(tapply(recorded, at, sum))
   out$records <- as.integer(tapply(table$records, at, sum))
   out$likely <- as.integer(tapply(predicted, at, sum))
+  out$possible <- as.integer(tapply(possible, at, sum))
   rownames(out) <- NULL
   out
 }
@@ -293,11 +296,13 @@ atlas_checklist_csv <- function(rows, origin = atlas_site_origin()) {
     state_province = rows$region,
     region_code = rows$code,
     scientific_name = rows$taxon,
-    status = ifelse(rows$records > 0, "recorded", "likely, not yet recorded"),
+    status = ifelse(rows$records > 0, "recorded",
+                    paste0(if (is.null(rows$model)) "likely" else rows$model, ", not yet recorded")),
     validated_records = rows$records,
     independent_localities = rows$localities,
     model = if (is.null(rows$model)) rep("", nrow(rows)) else rows$model,
     suitable_area_pct = pct(rows$suitable_share),
+    best_map_suitable_pct = pct(rows$best_share),
     within_reach_pct = pct(rows$reach_share),
     atlas_page = paste0(origin, "/taxa/", vapply(rows$taxon, utils::URLencode, "", reserved = TRUE),
                         recycle0 = TRUE),

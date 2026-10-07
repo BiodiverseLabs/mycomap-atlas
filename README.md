@@ -593,8 +593,11 @@ Each map is counted by state when it is drawn, on the 5 km grid: the cells it
 reaches (500 km from a record) and the cells it rates at least as highly as
 the poorer tenth of the places the species was found, the 10th-percentile
 training presence threshold. Over a species' maps that beat their null
-models, a state is likely when that covers a tenth of it, beyond reach when
-less than a tenth of it is reached, and unlikely otherwise. A fixed cut such
+models, a state is likely when that covers a tenth of it on average (the maps
+agree), possible when it does on one map only (they disagree), beyond reach
+when less than a tenth of it is reached, and unlikely otherwise. Counting one
+map's tenth as likely was weighed and kept apart instead: on 40 species it
+added 12% more likely states, nearly all resting on a single map. A fixed cut such
 as "top quarter" was tried first and dropped: it called Trametes versicolor
 unlikely in half the states it has been collected in. State outlines come from
 Natural Earth, simplified into `inst/boundaries` by `tools/build-boundaries.R`.

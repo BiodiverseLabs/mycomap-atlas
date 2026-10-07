@@ -733,7 +733,7 @@
         ],
         "operationId": "getRegions",
         "summary": "States, provinces and territories, with their taxa",
-        "description": "Every US state and territory, Canadian province or territory and Mexican state that holds validated records: how many taxa have records there, how many records, and how many more taxa its maps call likely without a record yet. Records whose state field names no known region keep their own text, with an empty code.",
+        "description": "Every US state and territory, Canadian province or territory and Mexican state that holds validated records: how many taxa have records there, how many records, and how many more taxa its maps call likely, or possible, without a record yet. Records whose state field names no known region keep their own text, with an empty code.",
         "parameters": [],
         "responses": {
           "200": {
@@ -782,8 +782,8 @@
           "Taxa"
         ],
         "operationId": "getTaxonRegions",
-        "summary": "Where a taxon has been recorded, and where its maps say it is likely",
-        "description": "Each state, province or territory where the taxon has validated records, or where its maps say it is likely. A map counts a 5 km cell as suitable when it rates it at least as highly as the poorer tenth of the places the taxon was found (the 10th-percentile training presence threshold). Over the taxon's maps that beat their null models, a state is likely when suitable ground covers at least min_share of it, beyond reach when less than that lies within 500 km of a record, and unlikely otherwise. A taxon with no such map has model \"no map\". An unknown name returns an empty list.",
+        "summary": "Where a taxon has been recorded, and where its maps say it is likely or possible",
+        "description": "Each state, province or territory where the taxon has validated records, or where its maps say it is likely or possible. A map counts a 5 km cell as suitable when it rates it at least as highly as the poorer tenth of the places the taxon was found (the 10th-percentile training presence threshold). Over the taxon's maps that beat their null models, a state is likely when the mean suitable share reaches min_share (the maps agree), possible when only some map's share does (they disagree), beyond reach when less than min_share lies within 500 km of a record, and unlikely otherwise. A taxon with no such map has model \"no map\". An unknown name returns an empty list.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -837,7 +837,7 @@
         ],
         "operationId": "getChecklistCsv",
         "summary": "Taxa by state or province, as a spreadsheet",
-        "description": "A CSV of every taxon in every state, province or territory where it has validated records or where its maps say it is likely: country, state_province, region_code (ISO 3166-2), scientific_name, status (recorded, or likely, not yet recorded), validated_records, independent_localities, model (likely, unlikely, beyond reach or no map), suitable_area_pct, within_reach_pct and atlas_page. UTF-8 with a byte-order mark, so Excel opens it with accents intact; Excel's Data > From Web and Google Sheets' IMPORTDATA can also read the URL directly and refresh it. With no parameters it holds everything.",
+        "description": "A CSV of every taxon in every state, province or territory where it has validated records or where its maps say it is likely or possible: country, state_province, region_code (ISO 3166-2), scientific_name, status (recorded; likely, not yet recorded; or possible, not yet recorded), validated_records, independent_localities, model (likely, possible, unlikely, beyond reach or no map), suitable_area_pct (the maps' mean), best_map_suitable_pct (the best single map), within_reach_pct and atlas_page. UTF-8 with a byte-order mark, so Excel opens it with accents intact; Excel's Data > From Web and Google Sheets' IMPORTDATA can also read the URL directly and refresh it. With no parameters it holds everything.",
         "parameters": [
           {
             "name": "region",
@@ -1615,7 +1615,8 @@
           "code",
           "taxa",
           "records",
-          "likely"
+          "likely",
+          "possible"
         ],
         "properties": {
           "country": {
@@ -1640,6 +1641,10 @@
           "likely": {
             "type": "integer",
             "description": "More taxa its maps call likely here, without a record yet."
+          },
+          "possible": {
+            "type": "integer",
+            "description": "More taxa only some of its maps rate suitable here, without a record yet."
           }
         }
       },
@@ -1667,7 +1672,8 @@
           "localities",
           "model",
           "suitable_share",
-          "reach_share"
+          "reach_share",
+          "best_share"
         ],
         "properties": {
           "country": {
@@ -1693,11 +1699,12 @@
             "type": "string",
             "enum": [
               "likely",
+              "possible",
               "unlikely",
               "beyond reach",
               "no map"
             ],
-            "description": "What the taxon's maps that beat their null models say about this state."
+            "description": "What the taxon's maps that beat their null models say about this state: likely when they agree, possible when only some of them rate it suitable."
           },
           "suitable_share": {
             "type": [
@@ -1712,6 +1719,13 @@
               "null"
             ],
             "description": "Share of the state within the maps' reach, 500 km of a record. Null with no map."
+          },
+          "best_share": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The most any one of those maps rates suitable. Null with no map."
           }
         }
       },
