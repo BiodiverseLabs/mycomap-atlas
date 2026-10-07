@@ -1,0 +1,14 @@
+# Is the API answering on 127.0.0.1:5100? uptime.sh retries for about two
+# minutes, so a restart is not an outage; a failure is recorded by
+# atlas-alert@, and a pass clears it.
+[Unit]
+Description=Check the MycoMap Atlas API answers
+OnFailure=atlas-alert@%N.service
+# Nothing to check until a commit is deployed (deploy.sh writes this file).
+ConditionPathExists=/etc/atlas/image.env
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/atlas/uptime.sh
+ExecStartPost=/usr/local/lib/atlas/alert.sh --ok %N
+TimeoutStartSec=5min

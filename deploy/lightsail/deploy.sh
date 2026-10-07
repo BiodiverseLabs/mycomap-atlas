@@ -35,6 +35,8 @@ trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
 rm -rf "$web.next"
 docker cp "$container:/opt/atlas-web" "$web.next"
 if [ ! -f "$web.next/index.html" ]; then echo "the image has no web app; nothing changed" >&2; exit 1; fi
+# The nightly job writes the sitemap, not the image: keep the last one.
+if [ -f /srv/atlas/data/sitemap.xml ]; then cp /srv/atlas/data/sitemap.xml "$web.next/sitemap.xml"; fi
 chmod -R go=rX "$web.next"
 rm -rf "$web.previous"
 [ -d "$web" ] && mv "$web" "$web.previous"

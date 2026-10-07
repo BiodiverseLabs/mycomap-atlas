@@ -1,0 +1,10 @@
+# Records that a unit failed (alert.sh): an error in the journal tagged
+# atlas-alert, the unit's state file in /srv/atlas/data/health, and a line in
+# the login banner. Started by OnFailure=atlas-alert@%N.service, so %i is the
+# failed unit's name without ".service".
+[Unit]
+Description=Record that %i failed
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/atlas/alert.sh %i "%i.service failed: journalctl -u %i"

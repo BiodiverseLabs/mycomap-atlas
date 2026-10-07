@@ -14,6 +14,7 @@ import {
   type BenchmarkRow,
   type ModelSummary,
 } from "@/lib/api";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
 /** An arm is a model, or a model given Maxent's predictors. */
@@ -194,6 +195,11 @@ function ProductionSection({ models }: { models: ModelSummary[] }) {
 }
 
 export default function Models() {
+  usePageMeta({
+    title: "Models",
+    description:
+      "Maxent, boosted trees and a random forest, fitted to the same records: how the three compare, taxon by taxon.",
+  });
   const benchmark = useQuery({ queryKey: ["benchmark"], queryFn: getBenchmark });
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
 

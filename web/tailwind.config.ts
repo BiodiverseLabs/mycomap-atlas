@@ -11,8 +11,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        species: ['"Source Sans 3"', "system-ui", "sans-serif"],
-        display: ['"Fraunces"', "Georgia", "serif"],
+        // Self-hosted through @fontsource-variable (src/main.tsx).
+        species: ['"Source Sans 3 Variable"', "system-ui", "sans-serif"],
+        display: ['"Fraunces Variable"', "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

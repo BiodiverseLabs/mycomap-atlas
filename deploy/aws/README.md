@@ -160,3 +160,41 @@ aws ec2 describe-instances --filters Name=tag:atlas,Values=worker Name=instance-
 
 A worker's log is uploaded to `jobs/<grid>/<job>/logs/<shard>.log` when it
 finishes. There is no SSH into a worker.
+
+## A monthly budget alarm
+
+The limits above stop one job from running away; they say nothing about the
+month. An AWS Budgets alarm emails when the account's spend for the calendar
+month passes 80% of a limit, and again when AWS forecasts it will pass 100%.
+It is AWS's own service, so nothing new is set up outside AWS. The budget
+covers the whole account, so it counts the account's other projects too:
+set `$LIMIT` to what the account as a whole should cost in a month.
+
+Run from the administrator's machine. Budgets has one endpoint, in
+us-east-1, whatever region the account works in; `$ACCOUNT` is the account
+number, `$EMAIL` who is told, and `$LIMIT` US dollars (for example `150`).
+
+```bash
+aws budgets create-budget --account-id $ACCOUNT --region us-east-1 --profile <admin> \
+  --budget "{\"BudgetName\":\"monthly-total\",\"BudgetType\":\"COST\",\"TimeUnit\":\"MONTHLY\",\"BudgetLimit\":{\"Amount\":\"$LIMIT\",\"Unit\":\"USD\"}}" \
+  --notifications-with-subscribers "[
+    {\"Notification\":{\"NotificationType\":\"ACTUAL\",\"ComparisonOperator\":\"GREATER_THAN\",\"Threshold\":80,\"ThresholdType\":\"PERCENTAGE\"},
+     \"Subscribers\":[{\"SubscriptionType\":\"EMAIL\",\"Address\":\"$EMAIL\"}]},
+    {\"Notification\":{\"NotificationType\":\"FORECASTED\",\"ComparisonOperator\":\"GREATER_THAN\",\"Threshold\":100,\"ThresholdType\":\"PERCENTAGE\"},
+     \"Subscribers\":[{\"SubscriptionType\":\"EMAIL\",\"Address\":\"$EMAIL\"}]}]"
+```
+
+Read it back, and change the limit later, with:
+
+```bash
+aws budgets describe-budget --account-id $ACCOUNT --budget-name monthly-total --region us-east-1 --profile <admin>
+aws budgets update-budget --account-id $ACCOUNT --region us-east-1 --profile <admin> \
+  --new-budget "{\"BudgetName\":\"monthly-total\",\"BudgetType\":\"COST\",\"TimeUnit\":\"MONTHLY\",\"BudgetLimit\":{\"Amount\":\"$LIMIT\",\"Unit\":\"USD\"}}"
+```
+
+Budgets reads the billing data, which lags by up to a day, so it is a
+monthly check rather than a brake; the brakes are the policy limits and the
+deadlines above. To watch Atlas alone, activate `atlas` as a cost allocation
+tag (Billing → Cost allocation tags; workers carry `atlas=worker`) and add a
+second budget filtered on the tag value `user:atlas$worker` (quote it in single
+quotes in a shell, or `$worker` is expanded).

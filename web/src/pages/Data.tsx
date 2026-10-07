@@ -8,6 +8,7 @@ import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { checklistUrl, getLayers, getRegions, getStatus, getTaxaCount, type Region } from "@/lib/api";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
 // About 20 independent localities is where a map becomes worth drawing.
@@ -108,6 +109,11 @@ function Checklists() {
 }
 
 export default function Data() {
+  usePageMeta({
+    title: "Data",
+    description:
+      "What Atlas's maps are built from: DNA-validated MycoMap collections and environmental layers, and species checklists by state and province.",
+  });
   const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
   const layers = useQuery({ queryKey: ["layers"], queryFn: () => getLayers("draft") });
   const readiness = useQuery({

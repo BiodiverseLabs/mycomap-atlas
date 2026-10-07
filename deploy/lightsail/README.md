@@ -11,6 +11,9 @@ Cloudflare ──443──► nginx ──► /srv/atlas/web          the app, c
                         └───► 127.0.0.1:5100          the API container (atlas-api.service)
 07:00 UTC  atlas-nightly.timer ──► nightly.sh ──► `atlas nightly` in the image
                                                └► `pull-release --no-rasters`, restart the API
+                                               └► `sitemap`, copied to /srv/atlas/web/sitemap.xml
+every 5 min  atlas-uptime.timer ──► uptime.sh ──► GET 127.0.0.1:5100/api/status
+on failure   atlas-alert@<unit> ──► alert.sh ──► journal, /srv/atlas/data/health, login banner
 ```
 
 | Path | What | Owner |
@@ -18,6 +21,7 @@ Cloudflare ──443──► nginx ──► /srv/atlas/web          the app, c
 | `/etc/atlas/atlas.env` | every setting and secret ([atlas.env.example](atlas.env.example)) | root:atlas 640 |
 | `/etc/atlas/image.env` | which image is deployed (written by deploy.sh) | root |
 | `/srv/atlas/data` | the data directory: the pull, and the release without rasters | atlas |
+| `/srv/atlas/data/health` | one `<check>.json` per check: ok or failed, since when, why | atlas |
 | `/srv/atlas/web` | the web app of the deployed commit (`web.previous` is the one before) | root |
 | `/home/atlas/.ssh` | the key and host entry for mycomap.org's read-only SQL route | atlas |
 | `/etc/ssl/atlas` | the Cloudflare origin certificate | root 700 |
@@ -61,6 +65,37 @@ and nginx replaces that header with the visitor's address from Cloudflare.
 - **Logs**: `journalctl -u atlas-api`, `journalctl -u atlas-nightly`, and
   nginx's in `/var/log/nginx/`.
 - **Is it up**: `curl -s http://127.0.0.1:5100/api/status` on the box.
+
+## When something fails
+
+Two things are watched: the nightly job (`atlas-nightly`), and the API
+answering `GET /api/status` on 127.0.0.1:5100 (`atlas-uptime`, every 5
+minutes, from the first deploy on; it retries for about two minutes, so a
+restart is not an outage). When either fails, its `OnFailure=` starts
+`atlas-alert@<unit>`, which runs [alert.sh](alert.sh). It records the failure
+in three places:
+
+- **The login banner**: whoever signs in to the box next sees
+  `ATLAS: atlas-nightly failing since ... (n failures): ...`.
+- **The journal**, as an error tagged `atlas-alert`:
+  `journalctl -t atlas-alert` lists every failure and recovery. The detail is
+  in the failed unit's own journal, which the message names.
+- **`/srv/atlas/data/health/<unit>.json`**: `state` (`ok` or `failed`),
+  `since`, `checked`, `failures` and `message`. It is inside the data
+  directory the API mounts at `/data`, so the API can show it.
+
+The next good run of the same unit sets the file back to `ok` and logs the
+recovery. Nothing is sent anywhere: the box has no mailer. Getting an alert
+to someone who is not signing in needs an outside service (a mail relay such
+as SES, or a webhook), and the place to add it is alert.sh.
+
+To check the alerting itself:
+
+```bash
+sudo systemctl start atlas-alert@atlas-nightly   # a pretend failure
+sudo /usr/local/lib/atlas/alert.sh --summary      # the banner's line
+sudo /usr/local/lib/atlas/alert.sh --ok atlas-nightly
+```
 
 ## A trial run
 
@@ -112,4 +147,5 @@ The first runs in CI. It puts Ubuntu 24.04's own nginx in front of a stand-in
 API and checks that the API and sign-in reach it, that a client's
 `X-Forwarded-For` never does, that an API error is the API's own answer, that
 app routes fall back to the app and missing assets do not, and that plain
-HTTP is redirected.
+HTTP is redirected. It also installs the monitoring units, has systemd check
+them, and runs alert.sh and uptime.sh on the box image.

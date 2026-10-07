@@ -7,6 +7,7 @@ import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { getDownloads, type ArchiveSeries } from "@/lib/api";
 import { GITHUB_URL, SOURCES, type Availability, type Software } from "@/lib/contract";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatWhen } from "@/lib/utils";
 
 function Ext({ href, children }: { href: string; children: ReactNode }) {
@@ -176,6 +177,11 @@ function Downloads() {
 }
 
 export default function Sources() {
+  usePageMeta({
+    title: "Data and sources",
+    description:
+      "Every dataset, software package and paper Atlas is built on, with links and licences, and every file the pipeline makes.",
+  });
   const stages = [...new Set(SOURCES.products.map((p) => p.stage))];
 
   return (

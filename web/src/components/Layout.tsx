@@ -176,6 +176,8 @@ function Footer() {
               ["/sources", "Data and sources"],
               ["/developers", "API for developers"],
               [GITHUB_URL, "Source code (GPL-3.0)"],
+              [`${GITHUB_URL}/issues/new?template=bug.yml&title=${encodeURIComponent("Map problem: ")}`, "Report a map problem"],
+              ["/privacy", "Privacy"],
             ].map(([href, label]) => (
               <li key={href}>
                 <a href={href} className="text-white/70 hover:text-myco-green transition-colors">
@@ -191,6 +193,14 @@ function Footer() {
             (CC BY 4.0). Collection locations are shown only as 0.1° cells.
           </p>
           <p>&copy; {new Date().getFullYear()} MycoMap.org.</p>
+          <p>
+            Found a map, file or API answer that shows a collection site more precisely than 1 km?
+            Please do not open a public issue:{" "}
+            <a href={`${GITHUB_URL}/blob/main/SECURITY.md#reporting-an-exposed-locality`} className="underline hover:text-myco-green">
+              report it privately
+            </a>
+            .
+          </p>
         </div>
       </div>
     </footer>

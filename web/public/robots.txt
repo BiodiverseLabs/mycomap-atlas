@@ -1,0 +1,7 @@
+# MycoMap Atlas. Every page may be indexed. /api/ stays open: a search
+# engine that renders a page fetches the page's data from it. The sign-in
+# routes are not pages.
+User-agent: *
+Disallow: /auth/
+
+Sitemap: https://atlas.mycomap.org/sitemap.xml
