@@ -16,6 +16,7 @@ import {
   type HereTaxon,
 } from "@/lib/api";
 import { formatNumber } from "@/lib/utils";
+import { DevHint } from "@/components/DevHint";
 
 // What could grow here: pick a place, see every mapped fungus its maps rate
 // highly there, and which have actually been collected nearby. The server
@@ -303,7 +304,8 @@ export default function Here() {
               )}
               {unavailable && (
                 <p className="p-4 text-sm text-muted-foreground">
-                  This server has not built its place index yet. Run <code>./atlas build-here-index</code>.
+                  Looking up a place is not available here yet.
+                  <DevHint command="./atlas build-here-index" />
                 </p>
               )}
               {answer.data && !answer.data.in_grid && (

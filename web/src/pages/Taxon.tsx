@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { signInHere, useMe } from "@/lib/session";
 import { formatNumber, formatWhen } from "@/lib/utils";
+import { DevHint } from "@/components/DevHint";
 
 // The fewest sites any map is fitted from (the small-model ensemble's).
 const PUBLISH_AT = 3;
@@ -766,8 +767,11 @@ export default function Taxon() {
                 </p>
               ) : (
                 <p className="mt-1">
-                  Enough records to model, but it has not been fitted yet. Run{" "}
-                  <code className="rounded bg-muted px-1">./atlas fit --taxon="{name}"</code>.
+                  Not mapped yet. Its collections come from enough places for a first map, but a
+                  map counts collections within about 5 km of each other as one site, and it may
+                  have too few separate sites once they are; or it is waiting for the next rebuild
+                  of the maps, which follows new records.
+                  <DevHint command={`./atlas fit --taxon="${name}"`} />
                 </p>
               )}
             </CardContent>

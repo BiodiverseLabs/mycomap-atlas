@@ -15,6 +15,7 @@ import {
   type ModelSummary,
 } from "@/lib/api";
 import { formatNumber, formatWhen } from "@/lib/utils";
+import { DevHint } from "@/components/DevHint";
 
 /** An arm is a model, or a model given Maxent's predictors. */
 function armLabel(arm: string): string {
@@ -221,7 +222,8 @@ export default function Models() {
         {benchmark.data && <BenchmarkSection benchmark={benchmark.data} />}
         {benchmark.data === null && (
           <p className="text-sm text-muted-foreground">
-            No benchmark yet. Run <code className="rounded bg-muted px-1">./atlas benchmark-models</code>.
+            The models have not been compared on shared ground for this release yet.
+            <DevHint command="./atlas benchmark-models" />
           </p>
         )}
         {models.data && <ProductionSection models={models.data} />}
