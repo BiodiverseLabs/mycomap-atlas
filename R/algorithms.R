@@ -133,11 +133,17 @@ ATLAS_ALGORITHMS <- list(
   ),
   esm = list(
     label = "Small-model ensemble",
-    # Only for taxa with too few sites for the other three (R/esm.R). Thinned
-    # to 8 sites, rich taxa kept Boyce within 0.04 of what all their sites
-    # gave; at 5, half still showed clear skill (2026-09-30, 118 taxa).
+    # For taxa with too few sites for the other three (R/esm.R). Thinned to 8
+    # sites, rich taxa kept Boyce within 0.04 of what all their sites gave; at
+    # 5, half still showed clear skill (2026-09-30, 118 taxa).
+    # Up to 49 sites it also takes the boosted trees' place (Steve,
+    # 2026-10-06): on 120 taxa with 20-99 cells, scored on the same blocked
+    # folds, boosted trees trailed Maxent below 50 sites whatever their
+    # settings (Boyce at 20-29: -0.03 as fitted, 0.14 at best, Maxent 0.26),
+    # while the ensemble matched Maxent's AUC and beat its Boyce in every band
+    # (0.50, 0.58, 0.63 against 0.26, 0.25, 0.26).
     min_presences = 3,
-    max_presences = 19,
+    max_presences = 49,
     # Every ensemble is drawn, faint when it fails its null test (Steve,
     # 2026-10-04). Until then a map from 3 or 4 sites was drawn only when it
     # passed, but with so few sites the null models' AUC spreads so widely

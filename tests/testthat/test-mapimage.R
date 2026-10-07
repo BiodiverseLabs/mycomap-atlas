@@ -123,3 +123,21 @@ test_that("a picture of an unknown taxon is 404 and of an unknown model 400", {
     expect_equal(call_image(api, "/api/taxa/Trametes%20versicolor/image.png", "algorithm=magic")$status, 400L)
   })
 })
+
+test_that("a picture shows Maxent when none is asked for, else the ensemble, and refuses an unknown model", {
+  with_data_dir({
+    fit <- function(algorithm) {
+      dir.create(atlas_model_dir("draft", algorithm), recursive = TRUE, showWarnings = FALSE)
+      atlas_write_json(list(taxon = "T"), atlas_model_path("T", "draft", ".json", algorithm))
+    }
+    fit("esm")
+    expect_equal(atlas_image_algorithm("T"), "esm")
+    # 20 to 49 sites: Maxent, the ensemble and the forest; Maxent comes first,
+    # as on the taxon page.
+    fit("maxnet")
+    fit("rf")
+    expect_equal(atlas_image_algorithm("T"), "maxnet")
+    expect_equal(atlas_image_algorithm("T", "rf"), "rf")
+    expect_null(atlas_image_algorithm("T", "magic"))
+  })
+})

@@ -18,6 +18,54 @@
 
 ATLAS_BENCHMARK_ARMS <- c("maxnet", "xgboost", "xgboost-pruned", "rf")
 
+# Boosted trees set up for few records, tried beside the production setting
+# on the sparse bands, where that setting ranked ground backwards (Boyce
+# below zero at 20-29 cells, 2026-09-29). For samples this small Elith,
+# Leathwick & Hastie (2008, J Anim Ecol 77:802) advise simple trees (depth 1
+# or 2), a slow learning rate and half the data per tree. And presences are
+# weighted up to balance ten thousand background records, so a leaf of
+# min_child_weight 5 can hold a single presence and a tree can wall off one
+# collection site; here a leaf has to carry the weight of several.
+ATLAS_BENCHMARK_VARIANTS <- list(
+  "xgboost-small" = list(algorithm = "xgboost", max_depth = 2L, learning_rate = 0.01,
+                         subsample = 0.5, leaf_presences = 3),
+  "xgboost-stumps" = list(algorithm = "xgboost", max_depth = 1L, learning_rate = 0.01,
+                          subsample = 0.5, leaf_presences = 3)
+)
+# Slow learning needs more trees before early stopping can tell.
+ATLAS_BENCHMARK_VARIANT_ROUNDS <- 3000L
+ATLAS_BENCHMARK_VARIANT_PATIENCE <- 100L
+
+#' The algorithm behind a benchmark arm: its own, Maxent's predictors for a
+#' "-pruned" arm, or the algorithm a variant sets up differently.
+atlas_benchmark_algorithm <- function(arm) {
+  variant <- ATLAS_BENCHMARK_VARIANTS[[arm]]
+  atlas_algorithm(variant$algorithm %||% sub("-pruned$", "", arm))
+}
+
+#' The min_child_weight that makes a leaf hold the weight of `presences`
+#' presences, given the balancing weights (atlas_balanced_weights). A row's
+#' hessian is its weight times p(1 - p), a quarter where trees start.
+atlas_leaf_weight <- function(presence, presences) {
+  presence <- as.integer(presence)
+  n1 <- sum(presence == 1L)
+  n0 <- sum(presence == 0L)
+  per_presence <- if (n1 && n0) n0 / n1 else 1
+  presences * per_presence * 0.25
+}
+
+#' Fit a variant arm: production's boosted trees with the variant's settings.
+atlas_fit_benchmark_variant <- function(variant, train, seed = 1L) {
+  params <- utils::modifyList(ATLAS_XGBOOST_PARAMS, list(
+    max_depth = variant$max_depth,
+    learning_rate = variant$learning_rate,
+    subsample = variant$subsample,
+    min_child_weight = atlas_leaf_weight(train$presence, variant$leaf_presences)
+  ))
+  atlas_fit_xgboost(train, params = params, max_rounds = ATLAS_BENCHMARK_VARIANT_ROUNDS,
+                    patience = ATLAS_BENCHMARK_VARIANT_PATIENCE, seed = seed)
+}
+
 # Bands of presence cells. The first benchmark started at 50, where boosted
 # trees tied Maxent; in production their median Boyce over every taxon was
 # about zero, so the sparse bands are here to see where they fall apart.
@@ -49,13 +97,18 @@ atlas_benchmark_taxon <- function(name, fingerprint, points, stack,
 
   run_arm <- function(arm) {
     arm_started <- Sys.time()
-    algo <- atlas_algorithm(sub("-pruned$", "", arm))
+    algo <- atlas_benchmark_algorithm(arm)
+    variant <- ATLAS_BENCHMARK_VARIANTS[[arm]]
     keep <- if (grepl("-pruned$", arm) || isTRUE(algo$prune)) pruned else everything
     table <- training[, c(bookkeeping, keep), drop = FALSE]
     scores <- atlas_cross_validate(
       table, fold_ids,
       # Studies compare learners at their default settings; production tunes.
-      fit = function(train) algo$fit(train, algo$default(train), seed),
+      fit = if (is.null(variant)) {
+        function(train) algo$fit(train, algo$default(train), seed)
+      } else {
+        function(train) atlas_fit_benchmark_variant(variant, train, seed)
+      },
       score = algo$score
     )
     list(
@@ -88,7 +141,7 @@ atlas_model_benchmark <- function(grid = "draft", per_band = 40, min_presences =
                                   occurrences = NULL, points = NULL, stack = NULL,
                                   taxa = NULL) {
   for (arm in arms) {
-    package <- atlas_algorithm(sub("-pruned$", "", arm))$package
+    package <- atlas_benchmark_algorithm(arm)$package
     if (!requireNamespace(package, quietly = TRUE)) {
       stop(package, " is needed for the ", arm, " arm: install.packages('", package, "')",
            call. = FALSE)
@@ -109,10 +162,11 @@ atlas_model_benchmark <- function(grid = "draft", per_band = 40, min_presences =
   settings <- c(args, list(
     per_band = per_band, seed = seed,
     xgboost = ATLAS_XGBOOST_PARAMS,
+    variants = ATLAS_BENCHMARK_VARIANTS[intersect(arms, names(ATLAS_BENCHMARK_VARIANTS))],
     rf_trees = ATLAS_RF_TREES,
     versions = lapply(
       stats::setNames(nm = unique(vapply(arms, function(a) {
-        atlas_algorithm(sub("-pruned$", "", a))$package
+        atlas_benchmark_algorithm(a)$package
       }, character(1)))),
       function(p) as.character(utils::packageVersion(p))
     )

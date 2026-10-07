@@ -51,12 +51,13 @@ atlas_mercator_xy <- function(lng, lat, lon_0) {
   )
 }
 
-#' Which map a picture shows when none is asked for: the small-model
-#' ensemble for a sparse taxon, else the first full model fitted.
+#' Which map a picture shows when none is asked for: Maxent, the taxon page's
+#' first map, else the small-model ensemble of a sparse taxon, else whichever
+#' was fitted.
 atlas_image_algorithm <- function(name, requested = "", grid = "draft") {
   has <- function(a) file.exists(atlas_model_path(name, grid, ".json", a))
   if (nzchar(requested %||% "")) return(if (requested %in% names(ATLAS_ALGORITHMS)) requested else NULL)
-  for (a in c("esm", "maxnet", "xgboost", "rf")) if (has(a)) return(a)
+  for (a in c("maxnet", "esm", "rf", "xgboost")) if (has(a)) return(a)
   "maxnet"
 }
 

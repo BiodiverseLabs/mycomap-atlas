@@ -236,10 +236,12 @@ fit_sparse <- function(world, algorithm = "esm", nulls = 0, predict = TRUE) {
                   algorithm = algorithm, guilds = stats::setNames(character(), character()))
 }
 
-test_that("the ensemble maps taxa with 3 to 19 sites, and the others keep theirs", {
+test_that("the ensemble maps taxa with 3 to 49 sites, standing in for boosted trees from 20", {
   esm <- atlas_algorithm("esm")
   expect_equal(atlas_algorithm_min(esm, 20), 3)
-  expect_equal(atlas_algorithm_max(esm), 19)
+  # Up to where boosted trees begin, so no taxon from 20 sites is left with
+  # an empty panel (Steve, 2026-10-06).
+  expect_equal(atlas_algorithm_max(esm), atlas_algorithm_min(atlas_algorithm("xgboost"), 20) - 1)
   expect_equal(atlas_algorithm_min(atlas_algorithm("maxnet"), 20), 20)
   expect_equal(atlas_algorithm_max(atlas_algorithm("maxnet")), Inf)
   expect_equal(atlas_algorithm_min(atlas_algorithm("xgboost"), 20), 50)
@@ -262,14 +264,16 @@ test_that("a batch offers the ensemble its range, with a margin for sites that d
     fake_points(x = seq(0, by = 6000, length.out = 25), y = 0, names = "Rich"),
     fake_points(x = seq(0, by = 6000, length.out = 21), y = 50000, names = "Edge"),
     fake_points(x = seq(0, by = 6000, length.out = 10), y = 100000, names = "Sparse"),
-    fake_points(x = c(0, 6000), y = 150000, names = "Too few")
+    fake_points(x = c(0, 6000), y = 150000, names = "Too few"),
+    fake_points(x = seq(0, by = 6000, length.out = 60), y = 200000, names = "Well recorded")
   )
   points$cell <- seq_len(nrow(points))
   esm <- atlas_algorithm("esm")
   names <- atlas_batch_candidates(points, atlas_algorithm_min(esm),
                                   max_presences = atlas_algorithm_max(esm) + ATLAS_RANGE_MARGIN)$scientific_name
-  expect_setequal(names, c("Edge", "Sparse"))
-  expect_equal(atlas_batch_candidates(points, 20)$scientific_name, c("Rich", "Edge"))
+  # 25 and 21 sites: the ensemble beside Maxent and the forest. 60: trees.
+  expect_setequal(names, c("Rich", "Edge", "Sparse"))
+  expect_equal(atlas_batch_candidates(points, 20)$scientific_name, c("Well recorded", "Rich", "Edge"))
 })
 
 test_that("an ensemble fitted on a dozen sites has a map, scores on three folds, and a breakdown", {

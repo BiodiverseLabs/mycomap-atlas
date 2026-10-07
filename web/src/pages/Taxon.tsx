@@ -18,8 +18,9 @@ import {
   ALGORITHMS,
   ALGORITHM_LABELS,
   ALGORITHM_MIN_PRESENCES,
-  FULL_MODELS,
+  SPARSE_BELOW,
   SPARSE_MODELS,
+  shownModels as pickShown,
   getCells,
   getModel,
   getTaxon,
@@ -243,7 +244,7 @@ function ModelMap({
         </MapContainer>
         {failed && !model?.map_withheld && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
-            {algorithm === "esm"
+            {algorithm === "esm" && (model?.presences ?? presences ?? 0) < SPARSE_BELOW
               ? sparseFailedNote(model?.presences ?? presences ?? 0)
               : "No better than its null models: this map says little about habitat."}
           </div>
@@ -361,7 +362,11 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
       cell: (m) =>
         m.skill === "passed" || m.skill === "failed" ? (
           <span className={m.skill === "passed" ? "text-myco-green" : "text-muted-foreground"}>
-            {m.skill === "passed" ? "Yes" : m.algorithm === "esm" ? "Too few sites to tell" : "No"}
+            {m.skill === "passed"
+              ? "Yes"
+              : m.algorithm === "esm" && (m.presences ?? 0) < SPARSE_BELOW
+                ? "Too few sites to tell"
+                : "No"}
             {m.null?.auc_mean != null && (
               <span className="text-muted-foreground">
                 {" "}
@@ -473,9 +478,11 @@ export default function Taxon() {
     models[a] = fits[i].data;
   });
   const anyModel = ALGORITHMS.map((a) => models[a]).find(Boolean) ?? null;
-  // A taxon with 3 to 19 sites has the ensemble alone; richer ones the three.
-  const sparse = Boolean(models.esm);
-  const shown = sparse ? SPARSE_MODELS : FULL_MODELS;
+  // 3 to 19 sites: the ensemble alone. 20 to 49: the ensemble in the boosted
+  // trees' place. 50 or more: the three full models.
+  const shown = pickShown(models);
+  const sparse = shown === SPARSE_MODELS;
+  const middle = shown.includes("esm") && !sparse;
   const shownModels: Partial<Record<Algorithm, Model | null>> = {};
   shown.forEach((a) => {
     shownModels[a] = models[a];
@@ -630,6 +637,14 @@ export default function Taxon() {
                   three full models, which need about 20. Its map averages dozens of small models of
                   two variables each, weighted by how well each did on ground it never saw. Tested on
                   well-recorded fungi cut down to 8 sites, such maps kept most of their skill.
+                </p>
+              )}
+              {middle && (
+                <p className="mt-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+                  With fewer than 50 sites, boosted trees rank ground worse than Maxent however they
+                  are set up, so the middle map here is the small-model ensemble: dozens of models of
+                  two variables each, weighted by how well each did on ground it never saw. On taxa
+                  with 20 to 49 sites it matched Maxent's AUC and beat its Boyce index.
                 </p>
               )}
               <p className="mt-3 text-xs text-muted-foreground">
