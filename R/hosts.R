@@ -897,7 +897,8 @@ atlas_with_host_total <- function(sums, total_path) {
 #' atlas_inventory_fill, atlas_mosaic_hosts on vectors), and a block is sized
 #' so that it never holds more than about ATLAS_HOST_COMBINE_CELLS values.
 atlas_combine_hosts <- function(us_sums, ca_sums, states, res, bands = ATLAS_HOST_BANDS,
-                                dir = tempfile("atlas-hosts-")) {
+                                dir = tempfile("atlas-hosts-"),
+                                block_cells = ATLAS_HOST_COMBINE_CELLS) {
   fact <- res / ATLAS_HOST_BASE_M
   coarse <- function(x) if (fact > 1) terra::aggregate(x, fact, fun = "mean", na.rm = TRUE) else x
   if (!"total" %in% names(us_sums) || !"total" %in% names(ca_sums)) {
@@ -934,7 +935,7 @@ atlas_combine_hosts <- function(us_sums, ca_sums, states, res, bands = ATLAS_HOS
     out
   }
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  per_block <- max(1L, as.integer(ATLAS_HOST_COMBINE_CELLS %/% terra::ncell(template)))
+  per_block <- max(1L, as.integer(block_cells %/% terra::ncell(template)))
   blocks <- split(seq_along(parts), ceiling(seq_along(parts) / per_block))
   pick <- NULL
   files <- character()

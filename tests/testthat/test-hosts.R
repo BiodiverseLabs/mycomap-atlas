@@ -501,6 +501,22 @@ test_that("a cell the lower 48 only touch is still American when Canada has noth
   expect_true(is.na(terra::extract(out, cbind(1500, 2500))$host_pinus))
 })
 
+test_that("however the bands are split into blocks, the combined layer is the same", {
+  skip_if_not_installed("terra")
+  us_sums <- fake_sums(0, 3000, 0, 3000, list(total = 10, pinus = c(10, 0, 5, 2, 0, 1, 0, 0, 10), quercus = 3))
+  ca_sums <- fake_sums(0, 3000, 0, 3000, list(total = 20, picea = 8, conifer = 12))
+  # The border crosses the middle row, so which country owns a cell matters,
+  # and it is decided from the first band, in the first block.
+  states <- terra::vect("POLYGON ((0 0, 3000 0, 3000 1400, 0 1400, 0 0))", crs = ATLAS_CRS)
+  whole <- atlas_combine_hosts(us_sums, ca_sums, states, res = 1000)
+  one_by_one <- atlas_combine_hosts(us_sums, ca_sums, states, res = 1000, block_cells = 1)
+  expect_equal(terra::nlyr(one_by_one), length(ATLAS_HOST_BANDS))
+  expect_equal(names(one_by_one), names(whole))
+  expect_equal(terra::values(one_by_one), terra::values(whole))
+  expect_equal(terra::extract(one_by_one, cbind(1500, 500))$host_quercus, 0.3)
+  expect_equal(terra::extract(one_by_one, cbind(1500, 2500))$host_picea, 0.4)
+})
+
 test_that("on rasters too, no trees is a share of 0 and no inventory stays missing", {
   skip_if_not_installed("terra")
   part <- terra::rast(nrows = 1, ncols = 4, xmin = 0, xmax = 4, ymin = 0, ymax = 1)
