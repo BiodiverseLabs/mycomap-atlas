@@ -161,36 +161,39 @@ aws ec2 describe-instances --filters Name=tag:atlas,Values=worker Name=instance-
 A worker's log is uploaded to `jobs/<grid>/<job>/logs/<shard>.log` when it
 finishes. There is no SSH into a worker.
 
-## A monthly budget alarm
+## The monthly budget alarm
 
 The limits above stop one job from running away; they say nothing about the
-month. An AWS Budgets alarm emails when the account's spend for the calendar
-month passes 80% of a limit, and again when AWS forecasts it will pass 100%.
-It is AWS's own service, so nothing new is set up outside AWS. The budget
-covers the whole account, so it counts the account's other projects too:
-set `$LIMIT` to what the account as a whole should cost in a month.
+month. The account has one AWS Budgets budget, `My Monthly Cost Budget`: a
+monthly cost limit (200 US dollars since 7 October 2026) over the whole
+account, so it counts the account's other projects as well as Atlas. It
+emails the account's alert address when the month's actual spend passes 85%
+and 100% of the limit, and when AWS forecasts the month will pass 100%. It is
+AWS's own service, so nothing is set up outside AWS.
 
-Run from the administrator's machine. Budgets has one endpoint, in
-us-east-1, whatever region the account works in; `$ACCOUNT` is the account
-number, `$EMAIL` who is told, and `$LIMIT` US dollars (for example `150`).
-
-```bash
-aws budgets create-budget --account-id $ACCOUNT --region us-east-1 --profile <admin> \
-  --budget "{\"BudgetName\":\"monthly-total\",\"BudgetType\":\"COST\",\"TimeUnit\":\"MONTHLY\",\"BudgetLimit\":{\"Amount\":\"$LIMIT\",\"Unit\":\"USD\"}}" \
-  --notifications-with-subscribers "[
-    {\"Notification\":{\"NotificationType\":\"ACTUAL\",\"ComparisonOperator\":\"GREATER_THAN\",\"Threshold\":80,\"ThresholdType\":\"PERCENTAGE\"},
-     \"Subscribers\":[{\"SubscriptionType\":\"EMAIL\",\"Address\":\"$EMAIL\"}]},
-    {\"Notification\":{\"NotificationType\":\"FORECASTED\",\"ComparisonOperator\":\"GREATER_THAN\",\"Threshold\":100,\"ThresholdType\":\"PERCENTAGE\"},
-     \"Subscribers\":[{\"SubscriptionType\":\"EMAIL\",\"Address\":\"$EMAIL\"}]}]"
-```
-
-Read it back, and change the limit later, with:
+Budgets has one endpoint, in us-east-1, whatever region the account works in.
+Run these from the administrator's machine; `$ACCOUNT` is the account number.
 
 ```bash
-aws budgets describe-budget --account-id $ACCOUNT --budget-name monthly-total --region us-east-1 --profile <admin>
-aws budgets update-budget --account-id $ACCOUNT --region us-east-1 --profile <admin> \
-  --new-budget "{\"BudgetName\":\"monthly-total\",\"BudgetType\":\"COST\",\"TimeUnit\":\"MONTHLY\",\"BudgetLimit\":{\"Amount\":\"$LIMIT\",\"Unit\":\"USD\"}}"
+aws budgets describe-budget --account-id $ACCOUNT --budget-name "My Monthly Cost Budget" --region us-east-1 --profile <admin>
+aws budgets describe-notifications-for-budget --account-id $ACCOUNT --budget-name "My Monthly Cost Budget" --region us-east-1 --profile <admin>
 ```
+
+**To change the limit**, edit the budget as it stands rather than writing a
+new one: `update-budget` replaces the whole budget, so a short one would reset
+its cost types and time period. Save it, change `BudgetLimit.Amount`, delete
+the read-only `CalculatedSpend`, `LastUpdatedTime` and `HealthStatus` fields,
+and send it back:
+
+```bash
+aws budgets describe-budget --account-id $ACCOUNT --budget-name "My Monthly Cost Budget" --region us-east-1 --profile <admin> --query Budget > budget.json
+aws budgets update-budget --account-id $ACCOUNT --region us-east-1 --profile <admin> --new-budget file://budget.json
+```
+
+The alerts and their address are kept when the limit changes. Add another
+alert with `create-notification`, or another address with `create-subscriber`.
+A new email address must confirm the subscription from AWS's first email
+before it is sent anything.
 
 Budgets reads the billing data, which lags by up to a day, so it is a
 monthly check rather than a brake; the brakes are the policy limits and the
