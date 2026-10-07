@@ -35,6 +35,7 @@ import {
   type Model,
 } from "@/lib/api";
 import { signInHere, useMe } from "@/lib/session";
+import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber, formatWhen } from "@/lib/utils";
 import { DevHint } from "@/components/DevHint";
 
@@ -657,6 +658,7 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
 export default function Taxon() {
   const params = useParams<{ name: string }>();
   const name = decodeURIComponent(params.name ?? "");
+  usePageMeta({ title: name, description: `Habitat maps of ${name} from DNA-validated MycoMap records.` });
 
   const taxon = useQuery({ queryKey: ["taxon", name], queryFn: () => getTaxon(name) });
   const cells = useQuery({ queryKey: ["cells", name], queryFn: () => getCells(name) });

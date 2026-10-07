@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 
 import {
   DESCRIPTION_MAX,
@@ -55,6 +55,14 @@ test("link previews carry the page's own title and address, without its query", 
   assert.equal(tag(tags, "twitter:title")?.content, "Maps · MycoMap Atlas");
   assert.equal(tag(tags, "og:description")?.content, "Every map.");
   assert.equal(tag(tags, "og:url")?.content, "https://atlas.mycomap.org/maps");
+});
+
+test("every page sets its own title, so none wears the last page's or the bare site name", () => {
+  const pages = new URL("../pages/", import.meta.url);
+  const files = readdirSync(pages).filter((f) => f.endsWith(".tsx"));
+  assert.ok(files.length >= 10, `${files.length} pages`);
+  const missing = files.filter((f) => !/\busePageMeta\(\{/.test(readFileSync(new URL(f, pages), "utf8")));
+  assert.deepEqual(missing, []);
 });
 
 test("an embedded map is kept out of search results, where crawlers can see that it is", () => {
