@@ -686,9 +686,22 @@ atlas_nfi_list <- function(http = atlas_host_http, base = ATLAS_NFI_URL) {
   unique(sub("^href=\"", "", sub("\"$", "", links)))
 }
 
-#' One NFI band averaged from its own 250 m cells onto the grid's 1 km cells.
-atlas_nfi_project <- function(x, target) {
-  terra::project(x, target, method = "average")
+#' One NFI band averaged from its own 250 m cells onto the grid's 1 km cells,
+#' written to `filename`. Each band is a file, not memory: the species layer
+#' has 316, about 200 MB each in memory, and holding them all ran out of it.
+#' A band already written is read back, so an interrupted build resumes.
+atlas_nfi_project <- function(x, target, filename) {
+  if (file.exists(filename)) {
+    return(terra::rast(filename))
+  }
+  part <- paste0(filename, ".part.tif")
+  unlink(part)
+  terra::project(x, target, method = "average", filename = part, overwrite = TRUE,
+                 gdal = c("COMPRESS=DEFLATE"))
+  if (!file.rename(part, filename)) {
+    stop("could not move ", basename(part), " into place", call. = FALSE)
+  }
+  terra::rast(filename)
 }
 
 #' NFI summed into bands on 1 km cells: identified trees (needleleaf plus
@@ -704,6 +717,9 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
   }
   nfi_dir <- file.path(dir, set$nfi_dir)
   dir.create(nfi_dir, recursive = TRUE, showWarnings = FALSE)
+  # The bands on 1 km cells, one file each until they are summed into `out`.
+  band_dir <- paste0(nfi_dir, "-bands")
+  dir.create(band_dir, recursive = TRUE, showWarnings = FALSE)
   catalog <- atlas_nfi_needed(atlas_nfi_catalog(files %||% atlas_nfi_list(http), set$nfi_codes,
                                                 species_codes = set$nfi_species),
                               groups = set$totals)
@@ -725,12 +741,15 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
     members <- groups[[band]]
     if (!quiet) message("  ", set$id, ": NFI ", band, " (", length(members), " file(s))")
     if (!length(members)) {
-      if (is.null(absent)) absent <<- atlas_nfi_project(terra::ifel(is.na(first), NA, 0), target)
+      if (is.null(absent)) {
+        absent <<- atlas_nfi_project(terra::ifel(is.na(first), NA, 0), target,
+                                     file.path(band_dir, "_absent.tif"))
+      }
       return(absent)
     }
     native <- terra::rast(file.path(nfi_dir, members))
     summed <- if (length(members) == 1L) native else terra::app(native, sum)
-    atlas_nfi_project(summed, target)
+    atlas_nfi_project(summed, target, file.path(band_dir, paste0(band, ".tif")))
   })
   names(bands) <- names(groups)
   parts <- atlas_host_set_parts(set)
@@ -744,6 +763,7 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
   }
   names(sums) <- c(if (isTRUE(set$totals)) c("total", "conifer"), parts)
   atlas_write_raster_whole(sums, out)
+  unlink(band_dir, recursive = TRUE)
   terra::rast(out)
 }
 
