@@ -1,6 +1,7 @@
 # Written by hand; this package does not use roxygen.
 export(ATLAS_BENCHMARK_VARIANTS)
 export(ATLAS_FINISH_VERSION)
+export(ATLAS_HOST_COMBINE_CELLS)
 export(ATLAS_IMAGE_WIDTHS)
 export(ATLAS_HOST_PINNED)
 export(ATLAS_HOST_PIN_MIN_SHARE)
