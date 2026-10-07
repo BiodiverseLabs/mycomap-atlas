@@ -28,6 +28,8 @@ export interface Taxon {
   records: number;
   localities: number;
   fingerprint: string;
+  /** Sequenced records still waiting for a verdict; absent until counted. */
+  not_yet_validated?: number;
 }
 
 export interface TaxaPage {

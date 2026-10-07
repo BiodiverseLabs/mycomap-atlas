@@ -1720,6 +1720,10 @@
           "fingerprint": {
             "type": "string",
             "description": "Hash of this taxon's record set. A model is refitted when it changes."
+          },
+          "not_yet_validated": {
+            "type": "integer",
+            "description": "On GET /api/taxa/{name} only: sequenced records under this name that no validation project has given a verdict yet. The maps do not use them. Absent while no counts have been taken; 0 when there are none. Not part of the fingerprint."
           }
         }
       },

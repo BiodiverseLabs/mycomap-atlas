@@ -37,13 +37,6 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
   since_clause <- if (is.null(since)) "" else {
     sprintf("AND o.updated_at >= date '%s'", since)
   }
-  countries <- paste(sprintf("'%s'", ATLAS_NA_COUNTRIES), collapse = ", ")
-  statuses <- paste(
-    "coalesce(o.validation_status_1, '')",
-    "coalesce(o.validation_status_2, '')",
-    "coalesce(o.validation_status_3, '')",
-    sep = ", "
-  )
   sql <- sprintf(
     "SELECT %s FROM observations o
      WHERE 'yes' IN (%s)
@@ -54,12 +47,7 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
          WHERE c.source = 'inat'
            AND c.source_observation_id = o.observation_id
            AND (c.coordinates_obscured = true OR c.positional_accuracy > %d))
-       AND (o.country IN (%s) OR o.state = 'Puerto Rico')
-       AND o.scientific_name IS NOT NULL
-       AND o.scientific_name NOT IN ('', 'Fungi', 'Unknown')
-       AND strpos(o.scientific_name, ' ') > 0
-       AND right(lower(o.scientific_name), 4) <> ' sp.'
-       AND right(lower(o.scientific_name), 3) <> ' sp'
+       %s
        %s
        %s
        %s
@@ -67,9 +55,55 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
      ORDER BY o.id
      LIMIT %d",
     paste0("o.", ATLAS_OCCURRENCE_FIELDS, collapse = ", "),
-    statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
-    atlas_mo_location_clause(), atlas_mycoportal_location_clause(),
+    atlas_status_columns(), ATLAS_MAX_ACCURACY_M, atlas_place_and_name_clause(),
+    since_clause, atlas_mo_location_clause(), atlas_mycoportal_location_clause(),
     as.integer(after_id), as.integer(limit)
+  )
+  atlas_one_line(sql)
+}
+
+#' .org's three validation slots, each blank where it has no verdict.
+atlas_status_columns <- function() {
+  paste(
+    "coalesce(o.validation_status_1, '')",
+    "coalesce(o.validation_status_2, '')",
+    "coalesce(o.validation_status_3, '')",
+    sep = ", "
+  )
+}
+
+#' The conditions a record's place and name must meet, shared by the pull and
+#' the not-yet-validated counts so the two can never cover different ground:
+#' North America (or a Puerto Rico record with a blank country), and a
+#' species-level name.
+atlas_place_and_name_clause <- function() {
+  countries <- paste(sprintf("'%s'", ATLAS_NA_COUNTRIES), collapse = ", ")
+  sprintf(
+    "AND (o.country IN (%s) OR o.state = 'Puerto Rico')
+       AND o.scientific_name IS NOT NULL
+       AND o.scientific_name NOT IN ('', 'Fungi', 'Unknown')
+       AND strpos(o.scientific_name, ' ') > 0
+       AND right(lower(o.scientific_name), 4) <> ' sp.'
+       AND right(lower(o.scientific_name), 3) <> ' sp'",
+    countries
+  )
+}
+
+#' Per spelling, how many sequenced records no project has given a verdict:
+#' no "yes" and no "no" in any of the three slots. Every source, and no
+#' location-quality filter: these are counted, never modelled. One row per raw
+#' spelling; atlas_unvalidated_table folds them into taxa.
+atlas_unvalidated_sql <- function() {
+  sql <- sprintf(
+    "SELECT o.scientific_name AS taxon, count(*) AS not_yet_validated,
+       count(*) FILTER (WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL) AS with_coordinates
+     FROM observations o
+     WHERE coalesce(o.validation_status_1, '') NOT IN ('yes', 'no')
+       AND coalesce(o.validation_status_2, '') NOT IN ('yes', 'no')
+       AND coalesce(o.validation_status_3, '') NOT IN ('yes', 'no')
+       %s
+     GROUP BY o.scientific_name",
+    atlas_place_and_name_clause()
   )
   atlas_one_line(sql)
 }
@@ -169,6 +203,7 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
                                    dry_run = FALSE, quiet = FALSE) {
   if (isTRUE(dry_run)) {
     cat(atlas_occurrence_sql(0, chunk_size, since), "\n", sep = "")
+    cat(atlas_unvalidated_sql(), "\n", sep = "")
     return(invisible(NULL))
   }
 
@@ -224,6 +259,12 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
   )
   atlas_write_json(manifest, atlas_path("occurrences", "latest.json", create = TRUE))
   atlas_write_json(taxa, atlas_path("occurrences", "taxa-latest.json", create = TRUE))
+  # After the pull's own files, and outside its fingerprint: a count that moves
+  # every night must never make a model stale, and a failed count must never
+  # fail the pull. The last good counts stay until the next one succeeds.
+  tryCatch(atlas_pull_unvalidated(host = host, quiet = quiet), error = function(e) {
+    warning("not-yet-validated counts not refreshed: ", conditionMessage(e), call. = FALSE)
+  })
 
   if (!quiet) {
     message(sprintf("pulled %d records across %d taxa -> %s",
