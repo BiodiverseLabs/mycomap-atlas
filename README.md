@@ -22,11 +22,11 @@ more carry provisional temp codes, which exist in no other dataset.
 | Stage | State |
 |---|---|
 | 1. Pull the eligible universe from .org | built |
-| 2. Environmental layers on the grid | built on the draft grid: climate, elevation, terrain, soil, land cover |
+| 2. Environmental layers on the grid | built: climate, elevation, terrain, soil, land cover, host trees (and wood-decay hosts), forest type in production; more held as sweep candidates |
 | 3. Target-group background from the same validated universe | built |
-| 4. Fits: Maxent, boosted trees and a down-sampled random forest, side by side | built, with batch runs and a benchmark |
-| 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built |
-| 6. Release: rasters and metrics published together, with rollback | built: S3 releases, jobs split into shards, EC2 spot workers; first real run next |
+| 4. Fits: Maxent, boosted trees and a down-sampled random forest, side by side | built, with batch runs and a benchmark; a small-model ensemble for taxa with too few sites for the full models |
+| 5. Evaluation: spatially blocked folds, Boyce index, ecological review | built, with null models that keep a taxon's clustering, q-values, an area of applicability, and a virtual-species test bed |
+| 6. Release: rasters and metrics published together, with rollback | running: nightly releases from EC2 spot workers since 2026-09-30. The nightly timer is paused while the method changes merged 2026-10-07 (every model is now stale) wait for one full rebuild |
 
 ## Setup
 
