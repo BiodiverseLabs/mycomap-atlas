@@ -62,6 +62,7 @@ function CodeLine({ value }: { value: string }) {
 
 const VERDICT_STYLE: Record<RegionVerdict, string> = {
   likely: "bg-myco-green/15 text-myco-green font-medium",
+  possible: "bg-amber-100 text-amber-800",
   unlikely: "bg-[#A87146]/10 text-[#7a5a3f]",
   "beyond reach": "text-muted-foreground italic",
   "no map": "text-muted-foreground",
@@ -69,6 +70,7 @@ const VERDICT_STYLE: Record<RegionVerdict, string> = {
 
 const VERDICT_LABEL: Record<RegionVerdict, string> = {
   likely: "Likely",
+  possible: "Possible",
   unlikely: "Unlikely",
   "beyond reach": "Beyond reach",
   "no map": "—",
@@ -76,11 +78,14 @@ const VERDICT_LABEL: Record<RegionVerdict, string> = {
 
 const percent = (share: number | null) => (share == null ? "—" : `${Math.round(share * 100)}%`);
 
-/** Recorded states first, most records first; then likely ones, most suitable first. */
+/** Recorded states first, most records first; then likely, then possible, most suitable first. */
 function byEvidence(a: TaxonRegion, b: TaxonRegion) {
+  const tier = (r: TaxonRegion) => (r.model === "likely" ? 0 : r.model === "possible" ? 1 : 2);
   return (
     b.records - a.records ||
+    tier(a) - tier(b) ||
     (b.suitable_share ?? 0) - (a.suitable_share ?? 0) ||
+    (b.best_share ?? 0) - (a.best_share ?? 0) ||
     a.region.localeCompare(b.region)
   );
 }
@@ -95,6 +100,7 @@ function WhereItOccurs({ name }: { name: string }) {
   const rows = [...(regions.data?.regions ?? [])].sort(byEvidence);
   const recorded = rows.filter((r) => r.records > 0).length;
   const likelyOnly = rows.filter((r) => r.records === 0 && r.model === "likely").length;
+  const possibleOnly = rows.filter((r) => r.records === 0 && r.model === "possible").length;
   const minShare = percent(regions.data?.min_share ?? 0.1);
   const csv = absoluteUrl(checklistUrl({ taxon: name }));
 
@@ -102,11 +108,13 @@ function WhereItOccurs({ name }: { name: string }) {
     <section id="where">
       <SectionTitle>Where it occurs</SectionTitle>
       <p className="mb-3 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
-        States and provinces where it has DNA-validated records, and those where its maps say it is
-        likely though nobody has sequenced it there yet. A state is <em>likely</em> when at least{" "}
-        {minShare} of it is as suitable as the poorer tenth of the places it has been found, averaged
-        over its maps that beat their null models. <em>Beyond reach</em> means most of the state lies
-        over 500 km from any record, where the maps make no claim.
+        States and provinces where it has DNA-validated records, and those where its maps say it may
+        grow though nobody has sequenced it there yet. A state is <em>likely</em> when, averaged over
+        its maps that beat their null models, at least {minShare} of it is as suitable as the poorer
+        tenth of the places it has been found: the maps agree. It is <em>possible</em> when only one
+        map rates that much of it suitable: the maps disagree, and one sees habitat the others do
+        not. <em>Beyond reach</em> means most of the state lies over 500 km from any record, where
+        the maps make no claim.
       </p>
       <Card className="max-w-4xl">
         <CardHeader className="bg-[#f8f5f0] border-b border-[#A87146]/10 px-4 py-2">
@@ -115,7 +123,7 @@ function WhereItOccurs({ name }: { name: string }) {
               {regions.data
                 ? `Recorded in ${formatNumber(recorded)}${
                     likelyOnly ? ` · likely in ${formatNumber(likelyOnly)} more` : ""
-                  }`
+                  }${possibleOnly ? ` · possible in ${formatNumber(possibleOnly)}` : ""}`
                 : "States and provinces"}
             </CardTitle>
             {rows.length > 0 && (
@@ -170,10 +178,15 @@ function WhereItOccurs({ name }: { name: string }) {
                       <td
                         className="px-4 py-1.5 text-right tabular-nums text-muted-foreground"
                         title={
-                          row.reach_share == null ? undefined : `${percent(row.reach_share)} of it within the maps' reach`
+                          row.reach_share == null
+                            ? undefined
+                            : `On average ${percent(row.suitable_share)}; best single map ${percent(row.best_share)}; ` +
+                              `${percent(row.reach_share)} of it within the maps' reach`
                         }
                       >
-                        {percent(row.suitable_share)}
+                        {row.model === "possible"
+                          ? `${percent(row.best_share)} on one map`
+                          : percent(row.suitable_share)}
                       </td>
                     </tr>
                   ))}

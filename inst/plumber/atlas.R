@@ -510,8 +510,8 @@ function(res) {
   list(regions = atlas_regions_summary(table))
 }
 
-#* Where one taxon has been recorded, and where its maps say it is likely,
-#* by state, province or territory.
+#* Where one taxon has been recorded, and where its maps say it is likely or
+#* possible, by state, province or territory.
 #* @get /api/taxa/<name>/regions
 #* @serializer unboxedJSON
 function(name, res) {
@@ -527,7 +527,7 @@ function(name, res) {
     mapped = decoded %in% cache$region_mapped,
     min_share = ATLAS_REGION_MIN_SHARE,
     regions = rows[, c("country", "region", "code", "records", "localities",
-                       "model", "suitable_share", "reach_share"), drop = FALSE]
+                       "model", "suitable_share", "best_share", "reach_share"), drop = FALSE]
   )
 }
 

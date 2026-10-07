@@ -41,8 +41,9 @@ function Checklists() {
       <SectionTitle>Species checklists by state and province</SectionTitle>
       <p className="mb-4 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
         Every taxon with a DNA-validated record in a US state or territory, Canadian province or
-        territory, or Mexican state, and every taxon its maps call likely there though nobody has
-        sequenced it there yet, marked as such: survey targets. Each row has the records,
+        territory, or Mexican state, and every taxon its maps call likely (they agree) or possible
+        (only one of them sees habitat) there though nobody has sequenced it there yet, marked as
+        such: survey targets. Each row has the records,
         independent localities, what the maps say and a link to the map. The CSV opens in Excel
         and Google Sheets. A species missing from a list may still grow there: only species with
         records or a map that beat its null models can be listed.
@@ -69,7 +70,8 @@ function Checklists() {
                           .map((r) => (
                             <option key={regionKey(r)} value={regionKey(r)}>
                               {r.region} ({formatNumber(r.taxa)} recorded
-                              {r.likely ? `, ${formatNumber(r.likely)} more likely` : ""})
+                              {r.likely ? `, ${formatNumber(r.likely)} more likely` : ""}
+                              {r.possible ? `, ${formatNumber(r.possible)} possible` : ""})
                             </option>
                           ))}
                       </optgroup>

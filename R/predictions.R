@@ -17,10 +17,18 @@
 # tell it from a random handful of collections has no say), a state is:
 #
 #   likely        suitable ground covers at least a tenth of it (Steve,
-#                 2026-10-06), as the mean over the maps;
+#                 2026-10-06), as the mean over the maps: they agree;
+#   possible      not that, but at least one map rates a tenth of it
+#                 suitable (Steve, 2026-10-07): the maps disagree, and one
+#                 sees habitat the others do not;
 #   beyond reach  under a tenth of it lies within the maps' reach, so the
 #                 maps cannot say;
 #   unlikely      otherwise: the maps cover it and rate little of it highly.
+#
+# "Possible" is kept apart from "likely" rather than folded into it: on 40
+# species with two or more maps, counting any one map's tenth as likely added
+# 12% more likely states, and 94 of those 95 rested on a single map while the
+# others rated the state near nothing.
 #
 # The shares are published with the verdict, so a narrow call can be seen.
 # Counts are made on the 5 km draft grid whatever grid a map is fitted on.
@@ -198,13 +206,14 @@ atlas_count_regions <- function(grid = "draft", quiet = FALSE, workers = 1L, onl
 #'
 #' rows has one row per map and state: taxon, algorithm, skill, code, cells,
 #' reach, suitable. Only maps that beat their null models count. Returns
-#' taxon, code, maps, reach_share (the most any map reaches) and
-#' suitable_share (the mean over the species' counted maps, a map that does
-#' not reach the state counting as none).
+#' taxon, code, maps, reach_share (the most any map reaches), suitable_share
+#' (the mean over the species' counted maps, a map that does not reach the
+#' state counting as none) and best_share (the most any one map rates
+#' suitable).
 atlas_region_predictions <- function(rows) {
   empty <- data.frame(taxon = character(), code = character(), maps = integer(),
                       reach_share = numeric(), suitable_share = numeric(),
-                      stringsAsFactors = FALSE)
+                      best_share = numeric(), stringsAsFactors = FALSE)
   if (is.null(rows) || !nrow(rows)) return(empty)
   rows <- rows[rows$skill == "passed", , drop = FALSE]
   if (!nrow(rows)) return(empty)
@@ -216,28 +225,35 @@ atlas_region_predictions <- function(rows) {
   out$reach_share <- as.numeric(tapply(rows$reach / rows$cells, key, max)[key[first]])
   suitable <- tapply(rows$suitable / rows$cells, key, sum)[key[first]]
   out$suitable_share <- as.numeric(suitable) / out$maps
+  out$best_share <- as.numeric(tapply(rows$suitable / rows$cells, key, max)[key[first]])
   rownames(out) <- NULL
   out
 }
 
-#' The verdict on a species in a state: likely, unlikely, beyond reach, or no
-#' map when the species has no counted map that beat its null models.
-atlas_region_verdict <- function(reach_share, suitable_share, min_share = ATLAS_REGION_MIN_SHARE) {
+#' The verdict on a species in a state: likely, possible, beyond reach,
+#' unlikely, or no map when the species has no counted map that beat its null
+#' models. best_share defaults to the mean, which makes nothing "possible".
+atlas_region_verdict <- function(reach_share, suitable_share, best_share = suitable_share,
+                                 min_share = ATLAS_REGION_MIN_SHARE) {
+  at_least <- function(x) !is.na(x) & x >= min_share - 1e-9
   ifelse(is.na(suitable_share), "no map",
-         ifelse(suitable_share >= min_share - 1e-9, "likely",
-                ifelse(reach_share < min_share - 1e-9, "beyond reach", "unlikely")))
+         ifelse(at_least(suitable_share), "likely",
+                ifelse(at_least(best_share), "possible",
+                       ifelse(reach_share < min_share - 1e-9, "beyond reach", "unlikely"))))
 }
 
 #' Recorded and predicted together: one row per species per region where it
-#' has records or its maps say it is likely.
+#' has records or its maps say it is likely or possible.
 #'
 #' recorded is atlas_region_table's; predictions atlas_region_predictions'.
 #' A species with predictions somewhere has a verdict in every state; one
-#' with none has "no map". Adds reach_share, suitable_share and model.
+#' with none has "no map". Adds reach_share, suitable_share, best_share and
+#' model.
 atlas_region_status <- function(recorded, predictions = NULL, min_share = ATLAS_REGION_MIN_SHARE) {
   recorded <- if (is.null(recorded)) atlas_region_table(NULL) else recorded
   predictions <- if (is.null(predictions)) atlas_region_predictions(NULL) else predictions
-  likely <- predictions[predictions$suitable_share >= min_share - 1e-9, , drop = FALSE]
+  if (is.null(predictions$best_share)) predictions$best_share <- predictions$suitable_share
+  likely <- predictions[predictions$best_share >= min_share - 1e-9, , drop = FALSE]
 
   key_recorded <- paste(recorded$taxon, recorded$code, sep = "\t")
   extra <- likely[!paste(likely$taxon, likely$code, sep = "\t") %in% key_recorded, , drop = FALSE]
@@ -262,7 +278,8 @@ atlas_region_status <- function(recorded, predictions = NULL, min_share = ATLAS_
   mapped <- out$taxon %in% predictions$taxon & nzchar(out$code)
   out$reach_share <- ifelse(mapped, ifelse(is.na(at), 0, predictions$reach_share[at]), NA_real_)
   out$suitable_share <- ifelse(mapped, ifelse(is.na(at), 0, predictions$suitable_share[at]), NA_real_)
-  out$model <- atlas_region_verdict(out$reach_share, out$suitable_share, min_share)
+  out$best_share <- ifelse(mapped, ifelse(is.na(at), 0, predictions$best_share[at]), NA_real_)
+  out$model <- atlas_region_verdict(out$reach_share, out$suitable_share, out$best_share, min_share)
   out <- out[order(out$country, out$region, out$taxon), , drop = FALSE]
   rownames(out) <- NULL
   out
