@@ -17,6 +17,7 @@ import {
 
 import { GithubMark } from "@/components/Common";
 import { ImageOverlay, MapContainer, TileLayer } from "@/components/Leaflet";
+import { BASEMAP_ATTRIBUTION, BASEMAP_URL } from "@/lib/basemap";
 import { Page } from "@/components/Layout";
 import { SearchBox } from "@/components/Search";
 import { Card, CardContent } from "@/components/ui/card";
@@ -76,8 +77,8 @@ function FeaturedMap({ models }: { models?: ModelSummary[] }) {
             doubleClickZoom={false}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={BASEMAP_ATTRIBUTION}
+              url={BASEMAP_URL}
             />
             <ImageOverlay
               url={mapUrl(featured.taxon, "rf", model.data?.map_drawn_at ?? model.data?.built_at)}

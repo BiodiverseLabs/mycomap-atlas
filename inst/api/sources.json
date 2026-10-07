@@ -130,7 +130,16 @@
       "url": "https://www.openstreetmap.org/copyright",
       "license": "ODbL 1.0",
       "license_url": "https://opendatacommons.org/licenses/odbl/",
-      "role": "The street map under the habitat maps on this site. Not used in modelling."
+      "role": "The data behind the street map under the habitat maps on this site. Not used in modelling."
+    },
+    {
+      "id": "stadia",
+      "name": "Stadia Maps basemap tiles (OSM Bright)",
+      "provider": "Stadia Maps, with OpenMapTiles",
+      "url": "https://stadiamaps.com/",
+      "license": "Stadia Maps terms of service; OpenMapTiles schema CC BY 4.0",
+      "license_url": "https://stadiamaps.com/terms-of-service/",
+      "role": "Serves the street map tiles under the habitat maps on this site, drawn from OpenStreetMap data. Not used in modelling."
     }
   ],
   "software": [
