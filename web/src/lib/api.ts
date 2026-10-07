@@ -73,10 +73,8 @@ export interface ModelBounds {
 export const ALGORITHMS = ["maxnet", "xgboost", "rf", "esm"] as const;
 export type Algorithm = (typeof ALGORITHMS)[number];
 
-/** The three fitted side by side for taxa with 20 or more sites. */
-export const FULL_MODELS: Algorithm[] = ["maxnet", "xgboost", "rf"];
-/** The one fitted for taxa with 3 to 19 sites. */
-export const SPARSE_MODELS: Algorithm[] = ["esm"];
+// Which maps a taxon's page shows, by how many sites it has (lib/panels.ts).
+export { FULL_MODELS, MIDDLE_MODELS, SPARSE_BELOW, SPARSE_MODELS, shownModels } from "./panels";
 
 export const ALGORITHM_LABELS: Record<Algorithm, string> = {
   maxnet: "Maxent",
@@ -103,7 +101,7 @@ export const ALGORITHM_NOTES: Record<Algorithm, string> = {
   rf:
     "250 trees grown independently, each on as many background records as presences, then left to vote.",
   esm:
-    "Dozens of small models of two variables each, every one checked on ground it did not see and weighted by how well it did there, then averaged. For taxa with 3 to 19 sites, too few for the other three.",
+    "Dozens of small models of two variables each, every one checked on ground it did not see and weighted by how well it did there, then averaged. For taxa with 3 to 19 sites, too few for the other three, and in place of boosted trees up to 49.",
 };
 
 /** How much a map relied on one dataset (or one variable): the fall in

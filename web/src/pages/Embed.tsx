@@ -7,7 +7,7 @@ import { defaultStrength } from "@/components/MapStrength";
 import {
   ALGORITHMS,
   ALGORITHM_LABELS,
-  FULL_MODELS,
+  shownModels,
   getCells,
   getModel,
   getTaxon,
@@ -20,15 +20,14 @@ import { sparseFailedNote } from "@/lib/sparseSkill";
 import { formatNumber } from "@/lib/utils";
 
 /**
- * The map to show: the one asked for if it was fitted, else the small-model
- * ensemble for a sparse taxon, else the first of the full models that exists.
+ * The map to show: the one asked for if it was fitted, else the first map on
+ * the taxon's own page.
  */
 function pickAlgorithm(requested: string | null, models: Partial<Record<Algorithm, Model | null>>) {
   if (requested && (ALGORITHMS as readonly string[]).includes(requested) && models[requested as Algorithm]) {
     return requested as Algorithm;
   }
-  if (models.esm) return "esm";
-  return FULL_MODELS.find((a) => models[a]) ?? null;
+  return shownModels(models).find((a) => models[a]) ?? null;
 }
 
 /**

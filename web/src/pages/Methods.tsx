@@ -489,11 +489,16 @@ export default function Methods() {
               <p>
                 The three full models need <B>at least 20 detection sites</B>, in{" "}
                 <B>at least 5 blocks</B> so that every fold has something to score; boosted trees
-                need 50. Record counts mislead: <Sci>Lysurus mokusin</Sci> has 105 records from 4
-                distinct places — one urban population, collected over and over.
+                need 50, and below that the ensemble described next takes their place. On 120 taxa
+                with 20 to 99 sites, boosted trees ranked ground worse than Maxent below 50 sites
+                however they were set up, simple trees and slow learning included, while the
+                ensemble matched Maxent's AUC and beat its Boyce index in every band. Record counts
+                mislead: <Sci>Lysurus mokusin</Sci> has 105 records from 4 distinct places — one
+                urban population, collected over and over.
               </p>
               <p>
-                A taxon with <B>3 to 19 sites</B> gets one map instead, an{" "}
+                A taxon with <B>3 to 19 sites</B> gets one map instead (one with 20 to 49 gets it as
+                its middle map), an{" "}
                 <B>ensemble of small models</B> (Breiner et al. 2015). Every pair of its first ten
                 predictors, in the same ecological order Maxent uses, gets a small regression of its
                 own: the two variables and their squares, and effort, penalised so that a handful of
