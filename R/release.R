@@ -196,6 +196,7 @@ atlas_release_files <- function(grid = "draft") {
     model_files,
     atlas_path("occurrences", "taxa-latest.json"),
     atlas_name_merges_path(),
+    atlas_renames_path(),
     atlas_public_pull_path(),
     atlas_public_cells_path(),
     atlas_public_regions_path(),

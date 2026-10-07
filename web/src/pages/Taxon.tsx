@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "wouter";
+import { Link, useLocation, useParams, useSearch } from "wouter";
 import type { LatLng, Map as LeafletMap } from "leaflet";
 import { ArrowDown, ArrowUpRight, Download, LogIn, Maximize, Maximize2, Minimize, Minimize2 } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { WhatDrives } from "@/components/WhatDrives";
 import { MapStrength, defaultStrength } from "@/components/MapStrength";
 import { ShareMap } from "@/components/ShareMap";
 import { sparseFailedNote } from "@/lib/sparseSkill";
+import { reachedFromNote, renamedTaxonPath } from "@/lib/renamed";
 import { openingView } from "@/lib/mapView";
 import { useFullscreen } from "@/components/Fullscreen";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
@@ -26,6 +27,7 @@ import {
   getModel,
   getStatus,
   getTaxon,
+  resolveName,
   mapUrl,
   rasterUrl,
   type Algorithm,
@@ -654,6 +656,20 @@ export default function Taxon() {
   const name = decodeURIComponent(params.name ?? "");
 
   const taxon = useQuery({ queryKey: ["taxon", name], queryFn: () => getTaxon(name) });
+  // A name Atlas no longer uses (renamed, or another spelling): go to the name
+  // its records have now, and say so there.
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const resolution = useQuery({
+    queryKey: ["name", name],
+    queryFn: () => resolveName(name),
+    enabled: taxon.isError,
+  });
+  useEffect(() => {
+    const to = renamedTaxonPath(name, resolution.data);
+    if (to) navigate(to, { replace: true });
+  }, [name, resolution.data, navigate]);
+  const reachedFrom = reachedFromNote(name, search);
   const cells = useQuery({ queryKey: ["cells", name], queryFn: () => getCells(name) });
   const fits = useQueries({
     queries: ALGORITHMS.map((algorithm) => ({
@@ -719,6 +735,7 @@ export default function Taxon() {
           <Link href="/taxa" className="hover:text-myco-green">
             ← All taxa
           </Link>
+          {reachedFrom && <span className="text-[#5c4a3a]">{reachedFrom}</span>}
           {taxon.data && (
             <span className="tabular-nums">
               {formatNumber(taxon.data.records)} validated records ·{" "}

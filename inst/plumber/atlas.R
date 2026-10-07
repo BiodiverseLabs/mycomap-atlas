@@ -348,6 +348,24 @@ function(search = "", min_localities = 0, limit = 100, offset = 0) {
   list(total = total, items = page)
 }
 
+#* The current name for an old one: itself, the name it is a spelling of, or
+#* the name its records were renamed to (R/names.R, atlas_resolve_name).
+#* @get /api/names/<name>
+#* @serializer unboxedJSON
+function(name, res) {
+  requested <- atlas_decode_name(name)
+  if (is.null(cache$renames_read)) {
+    cache$renames <- atlas_read_renames()
+    cache$renames_read <- TRUE
+  }
+  resolved <- atlas_resolve_name(requested, cached_taxa()$scientific_name, cache$renames)
+  if (is.null(resolved)) {
+    res$status <- 404L
+    return(list(error = "no taxon has this name now, and none had it in an earlier pull"))
+  }
+  c(list(requested = requested), resolved)
+}
+
 #* One taxon's counts.
 #* @get /api/taxa/<name>
 #* @serializer unboxedJSON

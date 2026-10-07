@@ -205,6 +205,9 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
   atlas_check_occurrences(occurrences)
   occurrences <- atlas_canonicalise_occurrences(occurrences)
   atlas_write_json(atlas_name_merges(occurrences), atlas_name_merges_path())
+  # Only a full pull can say a name is gone; read before this pull replaces
+  # the previous one.
+  if (is.null(since) && !is.finite(max_rows)) atlas_record_renames(occurrences, quiet = quiet)
 
   combined <- atlas_path("occurrences", sprintf("occurrences-%s.tsv.gz", stamp),
                          create = TRUE)

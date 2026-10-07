@@ -551,6 +551,53 @@
         }
       }
     },
+    "/api/names/{name}": {
+      "get": {
+        "tags": [
+          "Taxa"
+        ],
+        "operationId": "resolveName",
+        "summary": "The current name for an old one",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The current name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NameResolution"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        },
+        "description": "A taxon page or citation made under a name Atlas no longer uses still leads somewhere. The answer is the name itself when it is current; the current name it is another spelling of (punctuation and case only); or the name its records were renamed to, found by comparing each full pull with the one before by record id. 404 when none applies."
+      }
+    },
     "/api/taxa/{name}": {
       "get": {
         "tags": [
@@ -2988,6 +3035,40 @@
           "built_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "NameResolution": {
+        "type": "object",
+        "required": [
+          "requested",
+          "name",
+          "how",
+          "via"
+        ],
+        "properties": {
+          "requested": {
+            "type": "string",
+            "description": "The name asked for."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name Atlas uses for these records now."
+          },
+          "how": {
+            "type": "string",
+            "enum": [
+              "current",
+              "spelling",
+              "renamed"
+            ]
+          },
+          "via": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Earlier names passed through, oldest first."
           }
         }
       }
