@@ -894,3 +894,38 @@ test_that("the further host genera include walnut, hackberry, bald cypress, redw
     expect_true(band %in% names(ATLAS_PREDICTOR_LABELS), label = paste(band, "has a label"))
   }
 })
+
+test_that("in Canada, the bands NFI does not map are projected once between them, and read 0", {
+  skip_if_not_installed("terra")
+  files <- paste0("NFI_MODIS250m_2011_kNN_Species_", c("Quer_Rub", "Popu_Tri"), "_v1.tif")
+  dir <- file.path(tempdir(), paste0("nfi-species-", as.integer(stats::runif(1, 1, 1e9))))
+  set <- atlas_host_set("hostspecies")
+  # Two species NFI maps, three it does not.
+  set$species <- c(833L, 747L, 838L, 802L, 110L)
+  dir.create(file.path(dir, set$nfi_dir), recursive = TRUE)
+  lcc <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
+  for (i in seq_along(files)) {
+    r <- terra::rast(xmin = 0, xmax = 20000, ymin = 5700000, ymax = 5720000, resolution = 250, crs = lcc)
+    terra::values(r) <- 10 * i
+    terra::writeRaster(r, file.path(dir, set$nfi_dir, files[[i]]), overwrite = TRUE)
+  }
+  projected <- 0L
+  real <- atlas_nfi_project
+  testthat::local_mocked_bindings(atlas_nfi_project = function(x, target) {
+    projected <<- projected + 1L
+    real(x, target)
+  })
+  sums <- atlas_nfi_sums(dir, http = function(url, dest) stop("no network"), quiet = TRUE,
+                         files = files, set = set)
+  # One projection per mapped species, and one for all the rest.
+  expect_equal(projected, 3L)
+  expect_equal(names(sums), atlas_host_set_parts(set))
+  inside <- terra::values(sums)[stats::complete.cases(terra::values(sums)), , drop = FALSE]
+  expect_gt(nrow(inside), 0L)
+  expect_equal(unique(round(inside[, "quercus_rubra"], 4)), 10)
+  expect_equal(unique(round(inside[, "populus_balsamifera_trichocarpa"], 4)), 20)
+  for (absent in c("quercus_virginiana", "quercus_alba", "pinus_echinata")) {
+    expect_equal(unique(round(inside[, absent], 4)), 0, info = absent)
+  }
+  unlink(dir, recursive = TRUE)
+})

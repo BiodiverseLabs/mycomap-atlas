@@ -686,6 +686,11 @@ atlas_nfi_list <- function(http = atlas_host_http, base = ATLAS_NFI_URL) {
   unique(sub("^href=\"", "", sub("\"$", "", links)))
 }
 
+#' One NFI band averaged from its own 250 m cells onto the grid's 1 km cells.
+atlas_nfi_project <- function(x, target) {
+  terra::project(x, target, method = "average")
+}
+
 #' NFI summed into bands on 1 km cells: identified trees (needleleaf plus
 #' broadleaf), conifer, and each host genus, all as mean percent of a cell.
 #'
@@ -712,16 +717,20 @@ atlas_nfi_sums <- function(dir, http = atlas_host_http, quiet = FALSE, files = N
   first <- terra::rast(file.path(nfi_dir, catalog$file[[1]]))
   target <- atlas_window_template(atlas_extent_in_grid(first), ATLAS_HOST_BASE_M)
   groups <- atlas_nfi_groups(catalog, set$genera, totals = set$totals, spcd = set[["species"]])
+  # A genus or species NFI does not map is none of Canada's identified trees:
+  # the same 0 band for every one of them, so it is projected once. Most of
+  # the species layer's 316 bands are such, and projecting each took minutes.
+  absent <- NULL
   bands <- lapply(names(groups), function(band) {
     members <- groups[[band]]
     if (!quiet) message("  ", set$id, ": NFI ", band, " (", length(members), " file(s))")
     if (!length(members)) {
-      # A genus NFI does not map: none of Canada's identified trees.
-      return(terra::project(terra::ifel(is.na(first), NA, 0), target, method = "average"))
+      if (is.null(absent)) absent <<- atlas_nfi_project(terra::ifel(is.na(first), NA, 0), target)
+      return(absent)
     }
     native <- terra::rast(file.path(nfi_dir, members))
     summed <- if (length(members) == 1L) native else terra::app(native, sum)
-    terra::project(summed, target, method = "average")
+    atlas_nfi_project(summed, target)
   })
   names(bands) <- names(groups)
   parts <- atlas_host_set_parts(set)
