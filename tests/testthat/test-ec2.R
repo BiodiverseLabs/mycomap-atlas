@@ -40,7 +40,18 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
     for (id in names(state$instances)) {
       worker <- state$instances[[id]]
       if (!worker$state %in% c("pending", "running")) next
-      if (worker$behaviour == "work") {
+      if (startsWith(worker$job, "finish-")) {
+        # A finishing worker (R/finish.R, tested in test-finish.R), with its
+        # counting and index stubbed.
+        on_machine(machine(), atlas_finish_release_work(
+          store, sub("^finish-", "", worker$job), quiet = TRUE, count = function(...) 0L,
+          build_index = function(grid, quiet) {
+            dir.create(dirname(atlas_here_index_path(grid)), recursive = TRUE, showWarnings = FALSE)
+            saveRDS(list(stub = TRUE), atlas_here_index_path(grid))
+          }
+        ))
+        worker$state <- "terminated"
+      } else if (worker$behaviour == "work") {
         on_machine(machine(), atlas_run_shard(store, worker$job, worker$shard, quiet = TRUE, fit = fake_fit))
         worker$state <- "terminated"
       } else if (worker$behaviour == "partial") {
@@ -366,6 +377,12 @@ test_that("a nightly run with nothing changed launches nothing", {
   skip_if_not_installed("terra")
   setup <- planned()
   run_on(setup, fake_ec2(setup$store))
+  # And finished, as the night that fitted it would have done.
+  time <- fake_clock()
+  on_machine(setup$boss, atlas_finish_on_ec2(
+    setup$store, ec2 = fake_ec2(setup$store)$client, config = test_config(setup$store$uri),
+    quiet = TRUE, wait = time$wait, clock = time$clock, image_exists = function(image) TRUE
+  ))
   ec2 <- fake_ec2(setup$store)
   pulled <- FALSE
   result <- on_machine(setup$boss, atlas_nightly(
@@ -392,7 +409,9 @@ test_that("a nightly run fits new records on EC2 and publishes the release", {
   ))
   expect_false(identical(release$id, first$id))
   expect_equal(atlas_current_release(setup$store)$id, release$id)
-  expect_length(ec2$state$requests, 1L)
+  # One worker for the shard, then one to finish the release it made.
+  expect_length(ec2$state$requests, 2L)
+  expect_true(atlas_release_finished(release))
   expect_true("Taxon D" %in% vapply(release$index, function(e) e$taxon, ""))
 })
 
@@ -548,6 +567,8 @@ test_that("a worker may write its results, shard record and log, and nothing tha
   expect_true(may_write("jobs/draft/job1/shards/1.json"))
   expect_true(may_write("jobs/draft/job1/shards/1.progress.json"))
   expect_true(may_write("jobs/draft/job1/logs/1.log"))
+  # A finishing worker reports the same way, under its own job.
+  expect_true(may_write(atlas_shard_key(atlas_finish_id("20261006T082050Z-d5bb064c"), 1L, "draft")))
   for (key in c("current/draft.json", "releases/draft/r1.json", "layers/draft/current.json",
                 "jobs/draft/job1/job.json", "jobs/draft/job1/finished.json")) {
     expect_false(may_write(key), info = key)
