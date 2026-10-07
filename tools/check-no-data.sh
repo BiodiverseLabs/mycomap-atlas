@@ -16,12 +16,34 @@ FORBIDDEN_PATH='^data/|(^|/)_targets/'
 FORBIDDEN_EXT='\.(tif|tiff|gpkg|shp|rds|duckdb|sqlite|parquet|tsv|csv)(\.gz)?$'
 MAX_BYTES=2000000
 
+# Published reference tables that hold no records and no places, named one by
+# one. A table here is still refused if its header names a coordinate column.
+REFERENCE_TABLES=(
+  "inst/extdata/fia-tree-species.csv" # FIA REF_SPECIES codes and names (public domain)
+)
+COORDINATE_COLUMN='(^|,)"?(lat|lon|lng|latitude|longitude|x|y|decimallatitude|decimallongitude)"?(,|$)'
+
+is_reference_table() {
+  local table
+  for table in "${REFERENCE_TABLES[@]}"; do
+    [ "$1" = "$table" ] && return 0
+  done
+  return 1
+}
+
 # Prints why a path is refused and returns 0; returns 1 when the path is fine.
 why_forbidden() {
   local path="$1"
   if printf '%s' "$path" | grep -Eq "$FORBIDDEN_PATH"; then
     echo "lives under data/ or _targets/"
     return 0
+  fi
+  if is_reference_table "$path"; then
+    if [ -f "$path" ] && head -n 1 "$path" | tr -d '\r' | grep -Eiq "$COORDINATE_COLUMN"; then
+      echo "is a listed reference table, but its header names a coordinate column"
+      return 0
+    fi
+    return 1
   fi
   if printf '%s' "$path" | grep -Eiq "$FORBIDDEN_EXT"; then
     echo "has a data-file extension"
@@ -79,6 +101,24 @@ self_test() {
   expect_allowed "tests/testthat/helper-occurrences.R"
   expect_allowed "web/pnpm-lock.yaml"
   expect_allowed "README.md"
+  # A listed reference table is allowed by its exact path, nothing near it.
+  expect_allowed "inst/extdata/fia-tree-species.csv"
+  expect_refused "inst/extdata/other.csv"
+  expect_refused "inst/extdata/fia-tree-species.csv.gz"
+  expect_refused "data/inst/extdata/fia-tree-species.csv"
+
+  # Even a listed table is refused once its header names a coordinate column.
+  local scratch
+  scratch=$(mktemp -d)
+  mkdir -p "$scratch/inst/extdata"
+  printf 'spcd,genus,latitude,longitude\n1,Abies,40.1,-96.2\n' >"$scratch/inst/extdata/fia-tree-species.csv"
+  if (cd "$scratch" && why_forbidden "inst/extdata/fia-tree-species.csv" >/dev/null); then
+    echo "  ok      refuses a listed table with coordinate columns"
+  else
+    echo "  FAILED  allowed a listed table with coordinate columns" >&2
+    failures=1
+  fi
+  rm -rf "$scratch"
 
   if [ "$failures" -ne 0 ]; then
     echo "self-test failed" >&2
