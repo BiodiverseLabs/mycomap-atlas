@@ -17,7 +17,7 @@ const SECTIONS: { id: string; title: string }[] = [
   { id: "predictors", title: "Environmental predictors" },
   { id: "background", title: "Sites and effort" },
   { id: "selection", title: "Choosing predictors" },
-  { id: "models", title: "Three models" },
+  { id: "models", title: "The models" },
   { id: "evaluation", title: "Evaluation" },
   { id: "thresholds", title: "How much data a map needs" },
   { id: "maps", title: "Drawing the maps" },
@@ -113,17 +113,19 @@ export default function Methods() {
               <p>
                 A habitat map answers one question: given the climate, soil and cover of a place,
                 how much does it resemble the places this fungus has been found? Atlas answers it
-                for every North American fungus with enough DNA-confirmed collections, three ways,
-                and publishes the maps, the scores, the code and the intermediate data so that the
-                answer can be checked and reused.
+                for every North American fungus with enough DNA-confirmed collections, with up to
+                three models or, where sites are few, an ensemble of small ones, and publishes the
+                maps, the scores, the code and the intermediate data so that the answer can be
+                checked and reused.
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 69 environmental predictors, including which trees grow there and what kind of forest it is.</li>
+                <li>Describe every cell of North America (5 km now, 1 km for releases) with 75 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor for the trees, held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
-                <li>Test each map against null models, random handfuls of collections fitted the same way; a map that cannot beat them is marked and kept out of Explore.</li>
+                <li>Test each map against null models, random handfuls of collections fitted the same way; a map that cannot beat them is drawn faint and kept out of Explore.</li>
+                <li>Draw each map only where conditions resemble the sites it learned from, as strongly as it beat its nulls, and average the passing models into one map beside a layer of where they disagree.</li>
                 <li>Publish maps and scores as a versioned, reproducible release.</li>
               </ol>
             </Section>
@@ -140,24 +142,36 @@ export default function Methods() {
               <ul className="list-disc space-y-1 pl-5">
                 <li>have coordinates that are present and not obscured;</li>
                 <li>be accurate to within 1 km, where an accuracy was recorded;</li>
+                <li>
+                  from Mushroom Observer, carry a GPS point, or a named location small enough that
+                  its centre is within 5 km of all of it;
+                </li>
+                <li>
+                  from MyCoPortal, carry MyCoPortal's own coordinates accurate to 5 km, or a place
+                  that is not a county's or state's centre shared by records from other places;
+                </li>
                 <li>lie in North America (United States, Canada, Mexico, Puerto Rico, US Virgin Islands);</li>
                 <li>carry a species-level name. Provisional names count.</li>
               </ul>
               <p>
-                On production in September 2026 that left <B>127,823 records across 17,590 taxa</B>.
-                Records green in one project and red in another (2,840 of them) are excluded as
-                contested.
+                On production on 6 October 2026 that left <B>130,309 records across 17,415 taxa</B>.
+                A record that one project marks green and another red still counts (since 30
+                September 2026): the green project settled the name. Each taxon page says which
+                years its records come from, and how many were collected before the climate period
+                the maps use.
               </p>
               <p>
                 Provisional names such as <Sci>Mycena</Sci> sp. &lsquo;IN10&rsquo; are DNA clusters
-                with no formal name yet. They make up about a third of the taxa with enough records
-                to map. They are codes, not ranges, and can be renamed or re-clustered, so{" "}
+                with no formal name yet. They are about half of the taxa with at least 3 localities,
+                and a third of those with 20 or more. They are codes, not ranges, and can be renamed
+                or re-clustered, so{" "}
                 <B>a model belongs to its record set, not to its name</B>. Each taxon's records are
                 hashed into a fingerprint, and a model is refitted when the fingerprint changes.
               </p>
               <p>
                 Exact coordinates never leave the machines that fit the models. Anything drawn on
                 this site is aggregated to 0.1° cells, and anything published is 1 km or coarser.
+                That floor is the same for every taxon: none is hidden or drawn coarser.
               </p>
             </Section>
 
@@ -179,7 +193,8 @@ export default function Methods() {
 
             <Section id="predictors" title="Environmental predictors">
               <p>
-                Sixty-nine predictors. All but the host trees and forest type come from sources
+                Seventy-five predictors, two of which only say which source described a cell. All
+                but the host trees and forest type come from sources
                 that cover the whole continent: the obvious United States products (TreeMap, NLCD,
                 PAD-US) stop at the border, and British Columbia alone holds 8% of the records. No
                 continental map of tree species exists, so the host trees join the two national
@@ -293,7 +308,12 @@ export default function Methods() {
                   (Warton, Renner &amp; Ramp 2013; Fithian et al. 2015). Maxent is fitted without
                   it: measured twice on 150-odd species, Maxent scored better without effort (+0.02
                   blocked AUC, Boyce unchanged), while the random forest did markedly worse
-                  without it. Effort still decides where every null model draws its sites.
+                  without it. Because held-out sites carry the same collecting bias, that was
+                  checked where the truth is known: on 99 simulated species with a known habitat,
+                  collected with MycoMap's real pattern of effort, Maxent without effort ranked
+                  the true habitat best (Spearman ρ 0.727), and effort as a predictor, an offset
+                  or weights made it slightly worse (0.70–0.71). Effort still decides where every
+                  null model draws its sites.
                 </li>
                 <li>
                   Sites are drawn only from the <B>accessible area</B>, the species' own sites
@@ -312,7 +332,7 @@ export default function Methods() {
 
             <Section id="selection" title="Choosing predictors">
               <p>
-                Fifty-eight predictors is a lot of rope for a taxon with forty records, and the
+                Seventy-three predictors is a lot of rope for a taxon with forty records, and the
                 bioclim variables are near-copies of one another. For Maxent, correlated predictors
                 are pruned before fitting:
               </p>
@@ -361,18 +381,23 @@ export default function Methods() {
                 cap stops binding.
               </p>
               <p>
-                The two tree models get all 69 predictors, in any order; Maxent is never given the two that only say which source described a cell. Trees are not confused by correlated
+                The two tree models get all 75 predictors, in any order; Maxent is never given the
+                two that only say which source described a cell. Trees are not confused by correlated
                 inputs the way a regression is, and in the benchmark boosted trees did worse when
                 restricted to Maxent's list (−0.011 ± 0.003 AUC).
               </p>
             </Section>
 
-            <Section id="models" title="Three models">
+            <Section id="models" title="The models">
               <p>
-                Every taxon is fitted three ways, from the same sites, on the same folds. Only the
-                learner differs. None is right by default: where the three agree, the pattern is in
-                the records; where they part, the map is saying more about the model than the
-                fungus.
+                A taxon with 20 or more sites is fitted up to three ways, from the same sites, on
+                the same folds; only the learner differs. A taxon with 3 to 19 sites gets the
+                ensemble of small models described under{" "}
+                <a href="#thresholds" className="text-myco-green hover:underline">
+                  how much data a map needs
+                </a>
+                . None is right by default: where the models agree, the pattern is in the records;
+                where they part, the map is saying more about the model than the fungus.
               </p>
               <Table
                 head={["Model", "Package", "Settings (tuned ones in bold)"]}
@@ -414,8 +439,17 @@ export default function Methods() {
                 the same way on all the folds.
               </p>
               <p>
-                The random forest is one of the three final models. No model is used to prepare a
-                layer or pick records for another; each learns directly from the training table.
+                No model is used to prepare a layer or pick records for another; each learns
+                directly from the training table.
+              </p>
+              <p>
+                <B>The combined map.</B> When at least two of a taxon's models pass their null
+                test, they are averaged into one map: each is ranked over the ground where it
+                applies, and the ranks are averaged, each model weighted by how far its blocked
+                AUC is above chance (AUC − 0.5). Beside it is a <B>disagreement</B> layer, the
+                weighted spread of the models' ranks at each place: clear where they agree,
+                darkest where two put the same ground at opposite ends. Code:{" "}
+                <Ext href={`${GITHUB_URL}/blob/main/R/ensemble.R`}>R/ensemble.R</Ext>.
               </p>
               <p>
                 Benchmark on the draft grid, 268 taxa with 50+ presence cells, paired against
@@ -478,9 +512,21 @@ export default function Methods() {
                 handed to the nulls would tilt the test towards the species. A map{" "}
                 <B>passes</B> when the species' blocked AUC
                 beats every null (p ≤ 0.05) and its Boyce index is above zero. A map that fails is
-                drawn faint (25%, against 80% for a map that passes; the slider under each map changes
-                either), hidden from the Maps list unless asked for, and left out of Explore and
+                drawn faint, hidden from the Maps list unless asked for, and left out of Explore and
                 of anything mycomap.org reads from a release.
+              </p>
+              <p>
+                <B>How far the test can be trusted</B> was measured where the answer is known. On
+                simulated species, collected with MycoMap's real pattern of effort, it passed 77%
+                of species whose collections followed no habitat at all, against 79% of species
+                with a real habitat, and 95% of the habitat-free ones with 100 or more sites:
+                scattered nulls are too easy to beat for a species whose collections cluster, as
+                lineage codes found by one survey do. Nulls that keep the species' clustering
+                (its real pattern shifted and rotated onto real survey sites), up to 99 of them
+                with early stopping and a false-discovery correction across taxa, are being
+                calibrated on simulated species now, and the next release will use whichever
+                design separates signal from clustering best. Until then, read{" "}
+                <B>passed</B> as necessary, not sufficient.
               </p>
             </Section>
 
@@ -538,16 +584,32 @@ export default function Methods() {
                 makes no claim.
               </p>
               <p>
-                The three models put their scores on different scales (on{" "}
+                <B>Where a map applies.</B> Parts of a 500 km circle hold conditions no survey site
+                has (high Arctic, desert, mountain tops), and there a model has learned nothing:
+                Maxent clamps its features and trees hold their edge values, so the map would show a
+                confident colour resting on no data. Each map therefore has an{" "}
+                <B>area of applicability</B> (Meyer &amp; Pebesma 2021): a place's dissimilarity is
+                its distance to the nearest training site, with predictors standardised and weighted
+                by how much the model used each one on held-out ground, over the mean distance
+                between training sites. A place less like the training data than any held-out site
+                was in cross-validation is outside, and is hatched grey rather than coloured. The
+                dissimilarity is kept as a layer of its own. Code:{" "}
+                <Ext href={`${GITHUB_URL}/blob/main/R/aoa.R`}>R/aoa.R</Ext>.
+              </p>
+              <p>
+                The models put their scores on different scales (on{" "}
                 <Sci>Pluteus petasatus</Sci>, Maxent spans 0.03–1.00 and boosted trees 0.27–0.63), so
-                each map is <B>coloured by percentile within its own area</B>. The darkest green is
-                the ground that model rates highest. The stored rasters keep the raw values. Maps are
-                reprojected to Web Mercator for display; collections are drawn as 0.1° cells.
+                each map is <B>coloured by rank</B>, taken on the equal-area grid over the ground
+                inside its area of applicability. The darkest green is the tenth of that ground the
+                model rates highest. The stored rasters keep the raw values. Maps are reprojected to
+                Web Mercator for display; collections are drawn as 0.1° cells.
               </p>
               <p>
                 Because every map has a darkest tenth, colour alone cannot show a map that knows
-                nothing. That is what the null models are for: a map that did not beat them is drawn
-                faint, with a note saying so.
+                nothing. So <B>how strongly a map is drawn follows its null test</B>: a map that
+                failed starts faint (25% opacity), one that barely passed at 47%,
+                and one far above its nulls (its AUC five standard deviations above theirs) at
+                full strength (80%). The slider under each map moves it either way.
               </p>
             </Section>
 
@@ -580,9 +642,12 @@ export default function Methods() {
                 where comes from two national forest inventories, so it stops at their borders: in
                 Alaska, Hawaii, Puerto Rico and Mexico the models know the climate and the soil but
                 not the trees. The inventories are
-                themselves models, from 2011 (Canada) and 2018 (United States), at a genus level
-                that cannot tell one oak from another. Climate is a 1970–2000 average. And the maps
-                can only be as good as where people have collected and sequenced.
+                themselves models, from 2011 (Canada) and 2018 (United States), and the maps use
+                them at a genus level that cannot tell one oak from another; a layer of single tree
+                species is being tested. Climate is a 1970–2000 average: the 1991–2020 normals
+                ranked ground no better on 122 taxa and would have cost every island taxon its
+                sites. And the maps can only be as good as where people have collected and
+                sequenced.
               </p>
             </Section>
 
@@ -609,7 +674,8 @@ export default function Methods() {
                 .
               </p>
               <p>
-                The code is GPL-3.0-or-later. Issues, method critiques and pull requests are welcome;
+                The maps and rasters are CC BY-SA 4.0; the code is GPL-3.0-or-later. Issues, method
+                critiques and pull requests are welcome;
                 the fastest way to improve a map is to collect and sequence more of that species
                 through{" "}
                 <Ext href="https://mycomap.org/network">MycoMap's free sequencing network</Ext>.
