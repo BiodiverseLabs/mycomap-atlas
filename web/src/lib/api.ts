@@ -171,7 +171,7 @@ export interface Model {
   /** How much the null test vouches for the map (lib/grade.ts). Absent on
    * fits from before grades: work it out with mapGrade. */
   grade?: Grade;
-  /** How strongly the map is drawn, 0 (failed its null test) to 1 (far above
+  /** How strongly the map is drawn, 0 (weak or failed) to 1 (far above
    * its nulls). Absent on fits from before it was measured. */
   map_strength?: number;
   /** Where the map has training data behind it (Meyer & Pebesma 2021). */

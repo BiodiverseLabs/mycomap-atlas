@@ -170,7 +170,7 @@ export function WhatDrives({ models }: { models: Partial<Record<Algorithm, Model
               ? "With so few sites this map cannot be tested against chance on its own, and what it leans on rests on very little: the bars below are shown for completeness, not as findings."
               : mapGrade(model) === "weak"
                 ? "This map was not shown to beat clustered collecting, so what it leans on may be where this fungus was collected rather than its habitat: the bars below are shown for completeness, not as findings."
-                : "This map failed its null test, so what it leans on says little about this fungus: the bars below are shown for completeness, not as findings."}
+                : "This map did no better than chance on held-out ground, so what it leans on says little about this fungus: the bars below are shown for completeness, not as findings."}
           </p>
         )}
         <ul className={isFaint(mapGrade(model)) ? "opacity-60" : undefined}>

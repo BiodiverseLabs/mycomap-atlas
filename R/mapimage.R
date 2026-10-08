@@ -140,9 +140,9 @@ atlas_write_map_image <- function(path, name, metrics = NULL, overlay = NULL, ce
   note <- if (!has_map) {
     "No habitat map yet: these are the places it has been collected."
   } else if (identical(atlas_metrics_grade(metrics), "weak")) {
-    "Not shown to beat clustered collecting: read this map as a hint, not a finding."
+    "Skill on held-out ground, but not shown to beat clustered collecting: read this map as a hint, not a finding."
   } else if (identical(atlas_metrics_grade(metrics), "failed")) {
-    "This map failed its null test, so it says little about habitat."
+    "No better than chance on held-out ground: this map says little about habitat."
   } else {
     NULL
   }

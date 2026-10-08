@@ -60,8 +60,9 @@ changed and what it means for you.
   on simulated species about a quarter of real habitat signals did. Only
   strong maps are used for Explore, state verdicts ("likely" and
   "possible"), combined maps and the sitemap; weak and failed maps are drawn
-  faint on their taxon page, worded "not shown to beat clustered
-  collecting" or "failed its null test". Every model is refitted.
+  faint on their taxon page, worded "skill on held-out ground, but not shown
+  to beat clustered collecting" (weak) or "no better than chance on held-out
+  ground" (failed). Every model is refitted.
 
 - **Colour now follows skill and data.** Each map is ranked on the
   equal-area grid, only over its area of applicability (Meyer and Pebesma

@@ -29,8 +29,8 @@ test("weak and failed maps are faint, and never told they have no habitat signal
   assert.equal(isFaint("untested"), false);
   assert.equal(isFaint("weak"), true);
   assert.equal(isFaint("failed"), true);
-  assert.match(gradeNote("weak") ?? "", /^Not shown to beat clustered collecting/);
-  assert.match(gradeNote("failed") ?? "", /^Failed its null test/);
+  assert.match(gradeNote("weak") ?? "", /^Skill on held-out ground, but not shown to beat clustered collecting/);
+  assert.match(gradeNote("failed") ?? "", /^No better than chance on held-out ground/);
   assert.equal(gradeNote("strong"), null);
   for (const g of ["strong", "weak", "failed", "untested"] as const) {
     assert.doesNotMatch(`${gradeNote(g) ?? ""} ${gradeVerdict(g)}`, /no habitat signal/i);
