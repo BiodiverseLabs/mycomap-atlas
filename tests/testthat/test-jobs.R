@@ -378,3 +378,38 @@ test_that("a job whose shards all reported finishes as before, and is not marked
   expect_length(release$index, 5L)
   expect_null(release$partial)
 })
+
+# ---- a pilot: what a full job costs ----------------------------------------------
+
+test_that("a sampled job fits taxa spread from richest to sparsest, and knows how big a full job is", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(MORE_TAXA)))
+  pilot <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", sample = 3, quiet = TRUE))
+  # Richest first: B 30, E 28, D 26, A 25, C 22. Three spread evenly: the
+  # first, the middle and the last, not the three richest.
+  expect_setequal(vapply(pilot$tasks, function(t) t$taxon, ""), c("Taxon B", "Taxon D", "Taxon C"))
+  expect_equal(pilot$deferred, 2L)
+  expect_equal(pilot$sample, 3L)
+  expect_error(on_machine(boss, atlas_plan_job(store, sample = 0, quiet = TRUE)), "positive number")
+  expect_error(on_machine(boss, atlas_plan_job(store, sample = 2, limit = 2, quiet = TRUE)), "not both")
+})
+
+test_that("a shard records how long each fit took, and the timing of a sample stands for the full job", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(MORE_TAXA)))
+  pilot <- on_machine(boss, atlas_plan_job(store, algorithms = "maxnet", sample = 3, shards = 1L, quiet = TRUE))
+  on_machine(machine(), atlas_run_shard(store, pilot$id, 1L, quiet = TRUE, fit = fake_fit))
+  record <- atlas_store_text(store, atlas_shard_key(pilot$id, 1L))
+  seconds <- vapply(record$results, function(r) as.numeric(r$seconds %||% NA), 0)
+  expect_true(all(is.finite(seconds)))
+  timing <- atlas_job_timing(store, pilot$id, fits_at_once = 2)
+  expect_equal(timing$timed, 3L)
+  expect_equal(timing$full_models, 5L)
+  expect_equal(timing$full_cpu_hours, round(mean(seconds) * 5 / 3600, 1))
+  expect_equal(timing$full_wall_hours, round(mean(seconds) * 5 / 3600 / 2, 1))
+  expect_equal(timing$per_algorithm$algorithm, "maxnet")
+})

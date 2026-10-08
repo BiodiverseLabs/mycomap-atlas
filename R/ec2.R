@@ -274,10 +274,15 @@ atlas_image_exists <- function(image) {
 #' then finish it into a release.
 atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config = atlas_ec2_config(),
                                  poll_seconds = 60, wait = Sys.sleep, quiet = FALSE,
-                                 clock = Sys.time, image_exists = atlas_image_exists) {
+                                 clock = Sys.time, image_exists = atlas_image_exists,
+                                 finish = TRUE) {
   say <- function(...) if (!isTRUE(quiet)) message(format(clock(), "%H:%M:%S"), "  ", ...)
+  # finish = FALSE runs the shards and stops there: no release is built or
+  # promoted (a pilot, run to measure cost; atlas_job_timing reads it).
   # Nothing to fit: only retirements or refreshed public files.
-  if (!job$shards) return(atlas_finish_job(store, job$id, grid, quiet = quiet))
+  if (!job$shards) {
+    return(if (isTRUE(finish)) atlas_finish_job(store, job$id, grid, quiet = quiet))
+  }
 
   # A worker that cannot pull its image fails every attempt; find out first.
   found <- image_exists(config$image)
@@ -343,7 +348,7 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
       saved <- sum(vapply(missing, function(n) atlas_shard_saved_count(store, job$id, n, grid), 0L))
       reported <- length(missing) < job$shards
       # Nothing saved and nothing reported: there is nothing to publish.
-      partial <- if (saved || reported) {
+      partial <- if (isTRUE(finish) && (saved || reported)) {
         tryCatch(atlas_finish_job(store, job$id, grid, quiet = quiet, partial = TRUE),
                  error = function(e) e)
       }
@@ -389,6 +394,12 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     wait(poll_seconds)
   }
   say("all ", job$shards, " shards reported")
+  if (!isTRUE(finish)) {
+    finished <- TRUE
+    terminate_all()
+    say("not finished: no release built (--no-finish)")
+    return(invisible(NULL))
+  }
   release <- atlas_finish_job(store, job$id, grid, quiet = quiet)
   finished <- TRUE
   terminate_all()

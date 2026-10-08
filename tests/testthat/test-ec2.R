@@ -643,3 +643,22 @@ test_that("a job past its deadline still publishes every model its workers saved
   expect_length(release$index, 1L)
   expect_true(isTRUE(release$partial))
 })
+
+test_that("a pilot run with no finish fits every shard and builds no release", {
+  skip_if_not_installed("terra")
+  setup <- planned()
+  ec2 <- fake_ec2(setup$store)
+  time <- fake_clock()
+  before <- atlas_current_release(setup$store)
+  out <- on_machine(setup$boss, atlas_run_job_on_ec2(
+    setup$store, setup$job, ec2 = ec2$client, config = test_config(setup$store$uri), poll_seconds = 60,
+    wait = time$wait, clock = time$clock, quiet = TRUE, image_exists = function(image) TRUE,
+    finish = FALSE
+  ))
+  expect_null(out)
+  expect_identical(atlas_current_release(setup$store), before)
+  status <- atlas_job_status(setup$store, setup$job$id)
+  expect_length(status$done, 2L)
+  expect_false(isTRUE(status$finished))
+  expect_length(still_running(ec2), 0L)
+})

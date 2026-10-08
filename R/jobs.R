@@ -143,9 +143,15 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
                            shards = 4L, min_presences = 20, n_background = 10000,
                            buffer_km = 500, folds = 5, block_km = "auto", regmult = 1,
                            correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE,
-                           nulls = ATLAS_NULL_REPS, tune = TRUE) {
+                           nulls = ATLAS_NULL_REPS, tune = TRUE, sample = Inf) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
+  if (!is.numeric(sample) || length(sample) != 1L || is.na(sample) || sample < 1) {
+    stop("sample must be a positive number of taxa", call. = FALSE)
+  }
+  if (is.finite(sample) && is.finite(limit)) {
+    stop("a job takes --limit or --sample, not both", call. = FALSE)
+  }
   if (!is.numeric(limit) || length(limit) != 1L || is.na(limit) || limit < 1) {
     stop("limit must be a positive number of taxa", call. = FALSE)
   }
@@ -229,6 +235,16 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     deferred <- sum(!vapply(tasks, function(t) t$taxon %in% keep, logical(1)))
     tasks <- Filter(function(t) t$taxon %in% keep, tasks)
   }
+  # A sampled job (a pilot, to measure what a full one costs) fits taxa
+  # spread evenly from the richest to the sparsest, so its mean time per
+  # model stands for the whole job's: the richest few alone would overstate
+  # it. Its tasks plus deferred are what a full job would fit.
+  if (is.finite(sample) && length(tasks)) {
+    taxa <- unique(vapply(tasks, function(t) t$taxon, ""))
+    keep <- taxa[unique(round(seq(1, length(taxa), length.out = min(as.integer(sample), length(taxa)))))]
+    deferred <- sum(!vapply(tasks, function(t) t$taxon %in% keep, logical(1)))
+    tasks <- Filter(function(t) t$taxon %in% keep, tasks)
+  }
 
   public_paths <- c("occurrences/taxa-latest.json", "occurrences/name-merges.json",
                     "occurrences/renames.json",
@@ -277,14 +293,16 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     public = public,
     tasks = tasks,
     retire = retire,
-    deferred = deferred
+    deferred = deferred,
+    sample = if (is.finite(sample)) as.integer(sample) else NULL
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/job.json"), job)
   per_algorithm <- table(vapply(tasks, function(t) t$algorithm, ""))
   say("job ", id, ": ", length(tasks), " models to fit (",
       paste(names(per_algorithm), per_algorithm, sep = " ", collapse = ", "), ") in ",
       shards, " shard", if (shards == 1L) "" else "s", "; ", length(retire), " to retire",
-      if (deferred) paste0("; ", deferred, " left for a later job (--limit)") else "")
+      if (deferred) paste0("; ", deferred, " left for a later job (--",
+                           if (is.finite(sample)) "sample" else "limit", ")") else "")
   invisible(job)
 }
 
@@ -334,7 +352,9 @@ atlas_shard_result <- function(name, algorithm, row, fingerprint, settings_key) 
     # made for, so the next plan does not try it again.
     fingerprint = fingerprint,
     settings_key = settings_key,
-    presences = row$presences %||% NULL
+    presences = row$presences %||% NULL,
+    # How long the fit took, so a pilot can say what a full job costs.
+    seconds = row$seconds %||% NULL
   ))
 }
 
@@ -569,4 +589,41 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
                                          paste(status$missing, collapse = ", "),
                                          " did not report, so only what they saved is in it"))
   invisible(release)
+}
+
+#' What a job's fits cost, from its shard records: the seconds each model
+#' took, per algorithm, and what a full job would take. A sampled job (plan-job
+#' --sample) stands for a full one of tasks + deferred models, so its mean
+#' seconds per model times that many is the full job's CPU time. Wall time is
+#' that over fits_at_once: 4 workers of 32 vCPU and 64 GB run about 84 at
+#' once (one per 3 GB, R/ec2.R).
+atlas_job_timing <- function(store = atlas_store(), id, grid = "draft", fits_at_once = 84) {
+  job <- atlas_read_job(store, id, grid)
+  results <- unlist(lapply(seq_len(job$shards), function(n) {
+    record <- tryCatch(atlas_store_text(store, atlas_shard_key(id, n, grid)), error = function(e) NULL)
+    record$results %||% list()
+  }), recursive = FALSE)
+  rows <- do.call(rbind, lapply(results, function(r) data.frame(
+    taxon = r$taxon, algorithm = r$algorithm, status = r$status,
+    presences = as.numeric(r$presences %||% NA), seconds = as.numeric(r$seconds %||% NA),
+    stringsAsFactors = FALSE
+  )))
+  if (is.null(rows) || !nrow(rows)) stop("job ", id, " has no shard results yet", call. = FALSE)
+  timed <- rows[is.finite(rows$seconds), , drop = FALSE]
+  per_algorithm <- do.call(rbind, lapply(split(timed, timed$algorithm), function(x) data.frame(
+    algorithm = x$algorithm[[1]], models = nrow(x),
+    mean_seconds = round(mean(x$seconds)), max_seconds = round(max(x$seconds)),
+    cpu_hours = round(sum(x$seconds) / 3600, 2), stringsAsFactors = FALSE
+  )))
+  full_models <- length(job$tasks) + (job$deferred %||% 0L)
+  cpu_hours <- if (nrow(timed)) mean(timed$seconds) * full_models / 3600 else NA_real_
+  list(
+    job = id, models = nrow(rows), timed = nrow(timed),
+    pilot_cpu_hours = round(sum(timed$seconds) / 3600, 2),
+    per_algorithm = per_algorithm,
+    full_models = full_models,
+    full_cpu_hours = round(cpu_hours, 1),
+    full_wall_hours = round(cpu_hours / fits_at_once, 1),
+    fits_at_once = fits_at_once
+  )
 }
