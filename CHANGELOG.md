@@ -74,7 +74,10 @@ changed and what it means for you.
   records the area of applicability.
 - **Fewer, better-placed records.** A Mushroom Observer record needs a
   visible GPS point, or a named location whose centre is within 5 km of all
-  of it. A MyCoPortal record placed on a county's or state's centre is left
+  of it, and its coordinate now comes from Mushroom Observer's own answer:
+  the GPS point, or else that location's centre. mycomap.org's copy often
+  held the centre of a larger place, or a point outside the location. A
+  hidden GPS point counts as none, so the location decides. A MyCoPortal record placed on a county's or state's centre is left
   out. Records with no cached answer yet are kept. Some taxa may drop below
   the sites a model needs.
 - A sparse map that failed its null test no longer quotes a skill rate

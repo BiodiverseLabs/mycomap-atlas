@@ -303,6 +303,11 @@ ATLAS_BIGMAP_TILE_PX <- 8000
 # those sums.
 ATLAS_HOST_BASE_M <- 1000
 
+# The most values one block of host bands holds while they are combined
+# (atlas_combine_hosts): about 400 MB of doubles. 5 km cells take dozens of
+# bands a block, 1 km cells one.
+ATLAS_HOST_COMBINE_CELLS <- 5e7
+
 # The grid's projection (ATLAS_CRS) in the ESRI form the ImageServer accepts,
 # so BIGMAP is drawn straight onto the grid's own cells.
 ATLAS_ESRI_WKT <- paste0(
@@ -884,26 +889,77 @@ atlas_with_host_total <- function(sums, total_path) {
 #' average the sums up to it, divide, keep BIGMAP to the lower 48 (touching
 #' cells, with 0 where it found no trees), and mosaic with Canada. Returns the
 #' window the two cover, on the grid's origin.
-atlas_combine_hosts <- function(us_sums, ca_sums, states, res, bands = ATLAS_HOST_BANDS) {
+#'
+#' Done on plain numbers, a block of bands at a time, each block written to a
+#' file. Chained raster operations per band (share, fill, mask, mosaic) were
+#' fine for the 36 genus bands and took more than nine hours for the 316
+#' species bands; the arithmetic here is the same (atlas_host_share,
+#' atlas_inventory_fill, atlas_mosaic_hosts on vectors), and a block is sized
+#' so that it never holds more than about ATLAS_HOST_COMBINE_CELLS values.
+atlas_combine_hosts <- function(us_sums, ca_sums, states, res, bands = ATLAS_HOST_BANDS,
+                                dir = tempfile("atlas-hosts-"),
+                                block_cells = ATLAS_HOST_COMBINE_CELLS) {
   fact <- res / ATLAS_HOST_BASE_M
-  if (fact > 1) {
-    us_sums <- terra::aggregate(us_sums, fact, fun = "mean", na.rm = TRUE)
-    ca_sums <- terra::aggregate(ca_sums, fact, fun = "mean", na.rm = TRUE)
+  coarse <- function(x) if (fact > 1) terra::aggregate(x, fact, fun = "mean", na.rm = TRUE) else x
+  if (!"total" %in% names(us_sums) || !"total" %in% names(ca_sums)) {
+    stop("host sums need a total band", call. = FALSE)
   }
-  both <- terra::union(terra::ext(us_sums), terra::ext(ca_sums))
-  window <- atlas_snap_window(both$xmin, both$xmax, both$ymin, both$ymax, step = res)
-  template <- atlas_window_template(window, res)
-  us_sums <- terra::extend(us_sums, template)
-  ca_sums <- terra::extend(ca_sums, template)
-
-  masks <- atlas_host_masks(states, template)
-  us <- atlas_inventory_fill(atlas_host_shares(us_sums), masks$inside)
-  canada <- atlas_host_shares(ca_sums)
-  built <- atlas_mosaic_hosts(us, canada, masks$first)
-  if (!identical(names(built), bands)) {
-    stop("host shares came out as ", paste(names(built), collapse = ", "),
+  parts <- setdiff(names(us_sums), "total")
+  if (!identical(parts, setdiff(names(ca_sums), "total"))) {
+    stop("the two inventories' sums have different bands", call. = FALSE)
+  }
+  if (!identical(paste0("host_", parts), bands)) {
+    stop("host shares came out as ", paste(paste0("host_", parts), collapse = ", "),
          ", not ", paste(bands, collapse = ", "), call. = FALSE)
   }
+
+  us_total <- coarse(us_sums[["total"]])
+  ca_total <- coarse(ca_sums[["total"]])
+  both <- terra::union(terra::ext(us_total), terra::ext(ca_total))
+  window <- atlas_snap_window(both$xmin, both$xmax, both$ymin, both$ymax, step = res)
+  template <- atlas_window_template(window, res)
+  cells <- function(x) terra::values(terra::extend(x, template), mat = TRUE)
+  us_t <- cells(us_total)[, 1]
+  ca_t <- cells(ca_total)[, 1]
+  masks <- atlas_host_masks(states, template)
+  inside <- terra::values(masks$inside, mat = TRUE)[, 1]
+  first <- terra::values(masks$first, mat = TRUE)[, 1]
+
+  # The share of the total each part is, as atlas_host_share: 0 where there
+  # are no trees, missing where there is no inventory, kept to 0-1.
+  shares <- function(part, total) {
+    out <- part / total
+    out[which(total <= 0), ] <- 0
+    out[out < 0] <- 0
+    out[out > 1] <- 1
+    out
+  }
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  per_block <- max(1L, as.integer(block_cells %/% terra::ncell(template)))
+  blocks <- split(seq_along(parts), ceiling(seq_along(parts) / per_block))
+  pick <- NULL
+  files <- character()
+  for (b in seq_along(blocks)) {
+    idx <- blocks[[b]]
+    us <- shares(cells(coarse(us_sums[[parts[idx]]])), us_t)
+    # BIGMAP inside the lower 48: no trees is 0, and outside nothing.
+    us[is.na(us)] <- 0
+    us[!(inside %in% TRUE), ] <- NA
+    canada <- shares(cells(coarse(ca_sums[[parts[idx]]])), ca_t)
+    # Which country speaks for each cell, decided once from the first band
+    # (atlas_mosaic_hosts): BIGMAP where it reaches and the cell's centre is
+    # American, or where Canada has nothing.
+    if (is.null(pick)) pick <- !is.na(us[, 1]) & ((first %in% TRUE) | is.na(canada[, 1]))
+    canada[pick, ] <- us[pick, ]
+    out <- terra::rast(template, nlyrs = length(idx))
+    terra::values(out) <- canada
+    names(out) <- paste0("host_", parts[idx])
+    files[[b]] <- file.path(dir, sprintf("block-%03d.tif", b))
+    terra::writeRaster(out, files[[b]], overwrite = TRUE, datatype = "FLT8S",
+                      gdal = c("COMPRESS=DEFLATE"))
+  }
+  built <- terra::rast(files)
+  names(built) <- paste0("host_", parts)
   built
 }
 
