@@ -7,7 +7,7 @@ import { usePageMeta } from "@/lib/usePageMeta";
 // What a visit leaves behind, here and with the services the pages call. Keep
 // it true: when the site starts storing or sending something new, say so here
 // in the same change. The cookies are R/auth.R's; the web logs are nginx's
-// (deploy/lightsail); the tiles are OpenStreetMap's (the Leaflet maps).
+// (deploy/lightsail); the tiles are Stadia Maps' (lib/basemap.ts).
 
 function A({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -21,7 +21,7 @@ export default function Privacy() {
   usePageMeta({
     title: "Privacy",
     description:
-      "What a visit to MycoMap Atlas leaves behind: no analytics, a cookie only if you sign in, and what Cloudflare and OpenStreetMap see.",
+      "What a visit to MycoMap Atlas leaves behind: no analytics, a cookie only if you sign in, and what Cloudflare and Stadia Maps see.",
   });
   return (
     <>
@@ -71,11 +71,12 @@ export default function Privacy() {
             </li>
             <li>
               <strong>Map backgrounds</strong> come from{" "}
-              <A href="https://www.openstreetmap.org/copyright">OpenStreetMap</A>&rsquo;s tile
-              servers. Your browser fetches the tiles for the area on screen, so the OpenStreetMap
-              Foundation sees your address and roughly where you are looking. It is told the site
-              you came from, never the page or the fungus (
-              <A href="https://osmfoundation.org/wiki/Privacy_Policy">its privacy policy</A>).
+              <A href="https://stadiamaps.com/">Stadia Maps</A>, drawn from{" "}
+              <A href="https://www.openstreetmap.org/copyright">OpenStreetMap</A> data. Your
+              browser fetches the tiles for the area on screen, so Stadia Maps sees your address
+              and roughly where you are looking. It is told the site you came from, which is how
+              it knows the tiles are for Atlas, never the page or the fungus (
+              <A href="https://stadiamaps.com/privacy-policy/">its privacy policy</A>).
             </li>
             <li>
               <strong>Fonts</strong> are served from this site. Nothing is fetched from Google or

@@ -98,6 +98,10 @@ changed and what it means for you.
 
 ### The site
 
+- Map backgrounds now come from Stadia Maps (the OSM Bright style, drawn from
+  OpenStreetMap data) instead of OpenStreetMap's own tile servers, whose
+  policy is for light use. The credits under every map, the footer, the
+  Sources page and the privacy page say so.
 - A privacy page (`/privacy`): no analytics, a cookie only on sign-in, what
   the web logs keep, and what Cloudflare and OpenStreetMap see.
 - Fonts are served from the site instead of Google Fonts, and every map's

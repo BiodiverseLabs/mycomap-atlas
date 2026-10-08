@@ -4,6 +4,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { Crosshair, MapPin, X } from "lucide-react";
 
 import { Circle, CircleMarker, ImageOverlay, MapContainer, PanTo, TileLayer, useMapEvents } from "@/components/Leaflet";
+import { BASEMAP_ATTRIBUTION, BASEMAP_URL } from "@/lib/basemap";
 import { PageHeader } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import {
@@ -215,8 +216,8 @@ export default function Here() {
                 className="h-full w-full"
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution={BASEMAP_ATTRIBUTION}
+                  url={BASEMAP_URL}
                 />
                 <ClickToPick onPick={pick} />
                 <PanTo target={found} minZoom={7} />

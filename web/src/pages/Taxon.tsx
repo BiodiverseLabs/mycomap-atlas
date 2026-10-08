@@ -13,6 +13,7 @@ import { reachedFromNote, renamedTaxonPath } from "@/lib/renamed";
 import { openingView } from "@/lib/mapView";
 import { useFullscreen } from "@/components/Fullscreen";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
+import { BASEMAP_ATTRIBUTION, BASEMAP_URL } from "@/lib/basemap";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -237,8 +238,8 @@ function EnsembleMap({
           <SyncWith group={group} id="ensemble" />
           <FitBounds bounds={view} />
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={BASEMAP_ATTRIBUTION}
+            url={BASEMAP_URL}
           />
           {overlay && (
             <ImageOverlay
@@ -417,8 +418,8 @@ function ModelMap({
           <SyncWith group={group} id={algorithm} />
           <FitBounds bounds={view} />
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={BASEMAP_ATTRIBUTION}
+            url={BASEMAP_URL}
           />
           {overlay && (
             <ImageOverlay

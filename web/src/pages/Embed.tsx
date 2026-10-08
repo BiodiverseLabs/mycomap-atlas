@@ -3,6 +3,7 @@ import { useParams, useSearch } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer } from "@/components/Leaflet";
+import { BASEMAP_ATTRIBUTION, BASEMAP_URL } from "@/lib/basemap";
 import { defaultStrength } from "@/components/MapStrength";
 import {
   ALGORITHMS,
@@ -89,8 +90,8 @@ export default function Embed() {
         <MapContainer center={[44, -100]} zoom={3} className="h-full w-full" scrollWheelZoom={false}>
           <FitBounds bounds={view} />
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={BASEMAP_ATTRIBUTION}
+            url={BASEMAP_URL}
           />
           {bounds && algorithm && !model?.map_withheld && (
             <ImageOverlay

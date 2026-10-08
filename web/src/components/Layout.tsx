@@ -199,7 +199,8 @@ function Footer() {
             Data: WorldClim 2.1 (CC BY-SA 4.0); SoilGrids 2.0, ESA WorldCover, NALCMS Land Cover
             2020 and Copernicus Global Land Cover (CC BY 4.0); USFS FIA BIGMAP (public domain).
             Contains information licensed under the Open Government Licence – Canada (National
-            Forest Inventory). Basemap © OpenStreetMap contributors (ODbL).{" "}
+            Forest Inventory). Basemap © Stadia Maps, © OpenMapTiles, © OpenStreetMap
+            contributors (ODbL).{" "}
             <a href="/sources" className="underline hover:text-myco-green">Every source</a>.
           </p>
           <p>Collection locations are shown only as 0.1° cells. &copy; {new Date().getFullYear()} MycoMap.org.</p>
