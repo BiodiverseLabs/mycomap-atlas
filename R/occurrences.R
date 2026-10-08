@@ -66,12 +66,21 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
        AND o.id > %d
      ORDER BY o.id
      LIMIT %d",
-    paste0("o.", ATLAS_OCCURRENCE_FIELDS, collapse = ", "),
+    atlas_occurrence_columns_sql(),
     statuses, ATLAS_MAX_ACCURACY_M, countries, since_clause,
     atlas_mo_location_clause(), atlas_mycoportal_location_clause(),
     as.integer(after_id), as.integer(limit)
   )
   atlas_one_line(sql)
+}
+
+#' The columns a pull selects: .org's, with an MO record's coordinate taken
+#' from MO's own answer (atlas_mo_coordinate_sql).
+atlas_occurrence_columns_sql <- function() {
+  columns <- paste0("o.", ATLAS_OCCURRENCE_FIELDS)
+  columns[ATLAS_OCCURRENCE_FIELDS == "latitude"] <- atlas_mo_coordinate_sql("latitude")
+  columns[ATLAS_OCCURRENCE_FIELDS == "longitude"] <- atlas_mo_coordinate_sql("longitude")
+  paste(columns, collapse = ", ")
 }
 
 # How .org labels MyCoPortal records (both spellings occur).
@@ -124,20 +133,19 @@ ATLAS_MO_MAX_LOCATION_M <- 5000
 # ("keep") or leave it out ("drop").
 ATLAS_MO_UNKNOWN <- "keep"
 
-#' The SQL condition that keeps only Mushroom Observer records placed well
-#' enough to model.
-#'
-#' .org caches each MO observation's API answer (observation_cache,
-#' api_response_json): latitude and longitude are the observer's GPS point,
-#' null when there is none; gps_hidden says the observer hid it; location is
-#' the named place with its north, south, east and west edges. A record
-#' passes when its GPS point is there and not hidden, or when half the
-#' location box's diagonal is within max_m. Records of other sources are
-#' untouched. One line, with no double quote or percent sign, like every
-#' statement sent to the SQL route.
-atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
-                                     unknown = ATLAS_MO_UNKNOWN) {
-  unknown <- match.arg(unknown, c("keep", "drop"))
+# What .org holds for an MO record is not the observer's GPS point: its index
+# takes MO's GPS field and then overwrites it with the named location's
+# centre, or a geocoded point near it (data inputs lane, 2026-10-07: of 333
+# cached green MO rows, 47 sat outside their own location box, and only 4 of
+# the 12 with a visible GPS point held that point). So Atlas takes an MO
+# record's coordinate from .org's cache of MO's own answer, not from .org's
+# row: the GPS point when the observer shows one, else the centre of a named
+# location small enough to model. A hidden GPS point is no GPS point:
+# anonymous reads of MO return none, only the box.
+
+#' The pieces of an MO answer the rules below read, as SQL on the cached
+#' answer m.
+atlas_mo_answer_sql <- function(max_m = ATLAS_MO_MAX_LOCATION_M) {
   json <- "CAST(m.api_response_json AS jsonb)"
   edge <- function(side) sprintf("(%s -> 'location' ->> '%s')::numeric", json, side)
   half_diagonal_km <- sprintf(
@@ -146,14 +154,43 @@ atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
     edge("longitude_east"), edge("longitude_west"),
     edge("latitude_north"), edge("latitude_south")
   )
+  list(
+    # A GPS point the observer shows.
+    gps = sprintf(
+      "((%s ->> 'latitude') IS NOT NULL AND (%s ->> 'longitude') IS NOT NULL AND coalesce((%s ->> 'gps_hidden')::boolean, false) = false)",
+      json, json, json
+    ),
+    # A named location whose every point is within max_m of its centre.
+    small = sprintf("(%s <= %s)", half_diagonal_km, format(max_m / 1000)),
+    point = list(latitude = sprintf("(%s ->> 'latitude')::numeric", json),
+                 longitude = sprintf("(%s ->> 'longitude')::numeric", json)),
+    centre = list(latitude = sprintf("(%s + %s) / 2", edge("latitude_north"), edge("latitude_south")),
+                  longitude = sprintf("(%s + %s) / 2", edge("longitude_east"), edge("longitude_west")))
+  )
+}
+
+#' The SQL condition that keeps only Mushroom Observer records placed well
+#' enough to model.
+#'
+#' .org caches each MO observation's API answer (observation_cache,
+#' api_response_json): latitude and longitude are the observer's GPS point,
+#' null when there is none or it is hidden; gps_hidden says the observer hid
+#' it; location is the named place with its north, south, east and west
+#' edges. A record passes when it has a GPS point the observer shows, or when
+#' half its location box's diagonal is within max_m, hidden GPS or not.
+#' Records of other sources are untouched. One line, with no double quote or
+#' percent sign, like every statement sent to the SQL route.
+atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
+                                     unknown = ATLAS_MO_UNKNOWN) {
+  unknown <- match.arg(unknown, c("keep", "drop"))
+  answer <- atlas_mo_answer_sql(max_m)
   placed <- sprintf(
     paste(
       "EXISTS (SELECT 1 FROM observation_cache m WHERE m.source = '%s'",
       "AND m.source_observation_id = o.observation_id",
-      "AND coalesce((%s ->> 'gps_hidden')::boolean, false) = false",
-      "AND ((%s ->> 'latitude') IS NOT NULL OR %s <= %s))"
+      "AND (%s OR %s))"
     ),
-    ATLAS_MO_CACHE_SOURCE, json, json, half_diagonal_km, format(max_m / 1000)
+    ATLAS_MO_CACHE_SOURCE, answer$gps, answer$small
   )
   uncached <- sprintf(
     "NOT EXISTS (SELECT 1 FROM observation_cache m WHERE m.source = '%s' AND m.source_observation_id = o.observation_id)",
@@ -161,6 +198,26 @@ atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
   )
   keep <- if (identical(unknown, "keep")) paste(placed, "OR", uncached) else placed
   sprintf("AND (o.source <> '%s' OR %s)", ATLAS_MO_SOURCE, keep)
+}
+
+#' An MO record's coordinate, as a column of the pull: the shown GPS point,
+#' else the centre of its small named location, from .org's cache of MO's
+#' answer. Any other record, and an MO record with no cached answer, keeps
+#' .org's own coordinate. (The location clause has already dropped an MO
+#' record with neither.)
+atlas_mo_coordinate_sql <- function(axis = c("latitude", "longitude"),
+                                    max_m = ATLAS_MO_MAX_LOCATION_M) {
+  axis <- match.arg(axis)
+  answer <- atlas_mo_answer_sql(max_m)
+  sprintf(
+    paste(
+      "CASE WHEN o.source = '%s' THEN coalesce((SELECT CASE WHEN %s THEN %s WHEN %s THEN %s END",
+      "FROM observation_cache m WHERE m.source = '%s' AND m.source_observation_id = o.observation_id",
+      "LIMIT 1), o.%s) ELSE o.%s END AS %s"
+    ),
+    ATLAS_MO_SOURCE, answer$gps, answer$point[[axis]], answer$small, answer$centre[[axis]],
+    ATLAS_MO_CACHE_SOURCE, axis, axis, axis
+  )
 }
 
 #' Pull the eligible universe in pages, keeping every page as fetched.
