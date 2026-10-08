@@ -8,7 +8,7 @@
 
 # The app's own pages (web/src/App.tsx), in the order a reader meets them.
 ATLAS_SITEMAP_PAGES <- c(
-  "/", "/maps", "/here", "/models", "/taxa", "/methods", "/data", "/sources",
+  "/", "/maps", "/here", "/models", "/taxa", "/guide", "/methods", "/data", "/sources",
   "/developers", "/privacy"
 )
 

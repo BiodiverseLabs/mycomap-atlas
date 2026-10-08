@@ -119,6 +119,21 @@ changed and what it means for you.
 
 ### The site
 
+- **How to read a map** (`/guide`), linked from every taxon page and the home
+  page: what the colours, dots and hatching mean, strong and faint maps (with
+  the notes faint maps carry), the combined map and where its models
+  disagree, and what a map is not: suitable habitat, not a sighting, and not
+  for foraging.
+- The home page says in two sentences what Atlas is and how it differs, then
+  offers four ways in: explore a species, what could grow near me, embed or
+  download, and how it works. Its preview map is a strong map once the
+  release has any.
+- A featured-species slot on the home page, filled from `web/public/featured.json`
+  (up to three names, each with an optional note). It stays hidden while the
+  list is empty.
+- On a phone, each map's full-screen button is a thumb-sized target, and the
+  "expand across all three panels" button is hidden, since the panels stack
+  full width there anyway.
 - A privacy page (`/privacy`): no analytics, a cookie only on sign-in, what
   the web logs keep, and what Cloudflare and OpenStreetMap see.
 - Fonts are served from the site instead of Google Fonts, and every map's

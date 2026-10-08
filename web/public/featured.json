@@ -1,0 +1,4 @@
+{
+  "_about": "The home page's featured species (web/src/lib/featured.ts). Chosen by hand after the rebuild, from strong maps: for example a familiar species, an ectomycorrhizal one and a provisional one. Each entry is a name, or {\"name\": ..., \"note\": \"one line on why\"}. At most 3 are shown; while the list is empty the slot is hidden.",
+  "taxa": []
+}

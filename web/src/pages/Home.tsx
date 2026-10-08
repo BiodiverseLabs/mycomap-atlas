@@ -3,14 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
   ArrowRight,
+  BookOpen,
   Crosshair,
   Braces,
   Database,
   Dna,
+  Download,
   FlaskConical,
   Layers,
   Map as MapIcon,
   Mountain,
+  Search,
   SquareDashed,
   Users,
 } from "lucide-react";
@@ -25,10 +28,13 @@ import {
   getModel,
   getModels,
   getStatus,
+  imageUrl,
   mapUrl,
   type Model,
   type ModelSummary,
 } from "@/lib/api";
+import { FEATURED_PATH, readFeatured, showFeatured, type FeaturedTaxon } from "@/lib/featured";
+import { mapGrade } from "@/lib/grade";
 import { GITHUB_URL } from "@/lib/contract";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
@@ -44,8 +50,11 @@ function drawable(model: Model | null): boolean {
 
 /** One of the best-supported forest maps, as a live preview of what Atlas makes. */
 function FeaturedMap({ models }: { models?: ModelSummary[] }) {
-  const candidates = (models ?? [])
-    .filter((m) => m.map && m.algorithm === "rf")
+  // Only a strong map makes a claim (lib/grade.ts), so the preview is one when
+  // the release has any; before the rebuild it falls back to the richest.
+  const forests = (models ?? []).filter((m) => m.map && m.algorithm === "rf");
+  const strong = forests.filter((m) => mapGrade(m) === "strong");
+  const candidates = (strong.length ? strong : forests)
     .sort((a, b) => (b.presences ?? 0) - (a.presences ?? 0))
     .slice(0, 5)
     .map((m) => m.taxon);
@@ -108,6 +117,80 @@ function FeaturedMap({ models }: { models?: ModelSummary[] }) {
     </Card>
   );
 }
+
+/** The species chosen for the home page (lib/featured.ts); nothing while none are. */
+function FeaturedSpecies() {
+  const list = useQuery({
+    queryKey: ["featured-list"],
+    queryFn: async (): Promise<FeaturedTaxon[]> => {
+      try {
+        const response = await fetch(FEATURED_PATH, { cache: "no-cache" });
+        return response.ok ? readFeatured(await response.json()) : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+  const taxa = list.data ?? [];
+  if (!showFeatured(taxa)) return null;
+  return (
+    <section>
+      <h2 className="font-display text-3xl text-[#4a3728]">Featured species</h2>
+      <p className="mt-2 max-w-3xl text-[#5c4a3a] leading-relaxed">
+        A few maps worth a first look.{" "}
+        <Link href="/guide" className="text-myco-green underline-offset-2 hover:underline">
+          How to read a map
+        </Link>
+      </p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {taxa.map((t) => (
+          <Link key={t.name} href={`/taxa/${encodeURIComponent(t.name)}`} className="group">
+            <Card className="h-full overflow-hidden transition-colors group-hover:border-myco-green/50">
+              <img
+                src={imageUrl(t.name, { width: 600, points: true })}
+                alt={`Habitat map of ${t.name}`}
+                loading="lazy"
+                className="aspect-[3/2] w-full bg-[#f8f5f0] object-cover"
+              />
+              <CardContent className="p-4">
+                <h3 className="sci font-semibold text-[#4a3728]">{t.name}</h3>
+                {t.note && <p className="mt-1 text-sm text-[#5c4a3a] leading-relaxed">{t.note}</p>}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** The four ways in, for someone arriving for the first time. */
+const ROUTES: { icon: Icon; title: string; text: string; href: string }[] = [
+  {
+    icon: Search,
+    title: "Explore a species",
+    text: "Search any fungus, or browse every map.",
+    href: "/maps",
+  },
+  {
+    icon: Crosshair,
+    title: "What could grow near me?",
+    text: "Pick a place and see which fungi its habitat suits.",
+    href: "/here",
+  },
+  {
+    icon: Download,
+    title: "Embed or download",
+    text: "Put a map on your site, or take species lists and data.",
+    href: "/data",
+  },
+  {
+    icon: BookOpen,
+    title: "How it works",
+    text: "How the maps are made and tested, step by step.",
+    href: "/methods",
+  },
+];
 
 function BigStat({ value, label }: { value: ReactNode; label: string }) {
   return (
@@ -232,37 +315,33 @@ export default function Home() {
               An open habitat atlas for North America&rsquo;s fungi
             </h1>
             <p className="max-w-xl text-lg text-[#5c4a3a] leading-relaxed">
-              Atlas maps where every well-recorded fungus can grow, trained only on collections whose
-              names were confirmed by DNA. The maps, the method, the code and the data are open — a
-              shared foundation anyone can use, check and build on.
+              Atlas maps where North America&rsquo;s fungi can find habitat, with each species
+              defined by its DNA, including provisional lineages no other atlas can map. Every map is
+              built only from DNA-validated community collections, rebuilt every night, and open to
+              use, check and download.
             </p>
             <SearchBox variant="hero" />
-            <div className="flex flex-wrap gap-3 text-sm">
-              <Link
-                href="/maps"
-                className="inline-flex items-center gap-2 rounded-md bg-myco-green px-4 py-2 font-semibold text-white hover:bg-myco-green/90"
-              >
-                Explore the maps <ArrowRight className="h-4 w-4" />
+            <nav aria-label="Ways in" className="grid gap-3 sm:grid-cols-2">
+              {ROUTES.map(({ icon: Icon, title, text, href }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-start gap-3 rounded-lg border border-[#A87146]/25 bg-white p-3 hover:border-myco-green"
+                >
+                  <Icon className="mt-0.5 h-5 w-5 shrink-0 text-myco-green" />
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-[#4a3728]">{title}</span>
+                    <span className="block text-sm text-[#5c4a3a]">{text}</span>
+                  </span>
+                </Link>
+              ))}
+            </nav>
+            <p className="text-sm text-[#5c4a3a]">
+              New to habitat maps?{" "}
+              <Link href="/guide" className="font-semibold text-myco-green underline-offset-2 hover:underline">
+                How to read a map
               </Link>
-              <Link
-                href="/here"
-                className="inline-flex items-center gap-2 rounded-md border border-[#A87146]/30 bg-white px-4 py-2 font-semibold text-[#4a3728] hover:border-myco-green"
-              >
-                <Crosshair className="h-4 w-4 text-myco-green" /> What could grow here?
-              </Link>
-              <Link
-                href="/methods"
-                className="inline-flex items-center gap-2 rounded-md border border-[#A87146]/30 bg-white px-4 py-2 font-semibold text-[#4a3728] hover:border-myco-green"
-              >
-                How it works
-              </Link>
-              <a
-                href={GITHUB_URL}
-                className="inline-flex items-center gap-2 rounded-md border border-[#A87146]/30 bg-white px-4 py-2 font-semibold text-[#4a3728] hover:border-myco-green"
-              >
-                <GithubMark /> GitHub
-              </a>
-            </div>
+            </p>
           </div>
           <FeaturedMap models={models.data} />
         </div>
@@ -275,6 +354,8 @@ export default function Home() {
           <BigStat value={models.data ? formatNumber(mapped.size) : "—"} label="taxa with habitat maps" />
           <BigStat value={models.data ? formatNumber(mappedModels.length) : "—"} label="fitted models" />
         </section>
+
+        <FeaturedSpecies />
 
         <section>
           <h2 className="font-display text-3xl text-[#4a3728]">Built to be trusted</h2>

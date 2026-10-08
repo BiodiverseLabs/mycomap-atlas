@@ -154,7 +154,10 @@ function AboutTheseMaps({ name }: { name: string }) {
         <strong className="text-[#4a3728]">What these maps show.</strong> How closely each place's
         climate, soil and trees match the places where this fungus has been confirmed by DNA,
         ranked within its own range. They show suitable habitat, not where it grows or how common
-        it is, and they know nothing about places unlike any surveyed site (hatched).
+        it is, and they know nothing about places unlike any surveyed site (hatched).{" "}
+        <Link href="/guide" className="font-semibold text-myco-green underline-offset-2 hover:underline">
+          How to read a map
+        </Link>
       </p>
       <p>
         <strong className="text-[#4a3728]">Not for decisions about safety or land.</strong> Never use
@@ -376,10 +379,11 @@ function ModelMap({
                 {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
               </>
             )}
+            {/* Below lg the panels stack full width, so expanding one has nothing to widen. */}
             {!alone && <button
               type="button"
               onClick={onToggle}
-              className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
+              className={`${expanded ? "" : "hidden lg:inline-flex"} rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]`}
               title={expanded ? "Back to all three maps (Esc)" : "Expand this map across all three panels"}
               aria-label={
                 expanded
@@ -393,7 +397,8 @@ function ModelMap({
             <button
               type="button"
               onClick={screen.toggle}
-              className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
+              // A thumb-sized target on a phone; compact beside the scores on wider screens.
+              className="rounded p-3 sm:p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
               title={screen.full ? "Leave full screen (Esc)" : "Full screen"}
               aria-label={
                 screen.full
