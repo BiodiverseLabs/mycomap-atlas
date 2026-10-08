@@ -70,6 +70,19 @@ atlas_draw_lines <- function(v, col, lwd) {
   if (nrow(v)) terra::lines(v, col = col, lwd = lwd)
 }
 
+#' The line a faint map carries (the site's lib/grade.ts says the same), or
+#' NULL for a strong or untested one. Both weak and failed maps failed the
+#' shifted-null test: what tells them apart is skill on held-out ground.
+atlas_grade_note <- function(grade) {
+  switch(
+    grade %||% "untested",
+    weak = paste("Skill on held-out ground, but not shown to beat clustered collecting:",
+                 "read this map as a hint, not a finding."),
+    failed = "No better than chance on held-out ground: this map says little about habitat.",
+    NULL
+  )
+}
+
 #' Draw a taxon's map picture to a PNG file.
 #'
 #' name, the taxon; metrics, its model's metrics (NULL for a taxon with no
@@ -139,12 +152,8 @@ atlas_write_map_image <- function(path, name, metrics = NULL, overlay = NULL, ce
 
   note <- if (!has_map) {
     "No habitat map yet: these are the places it has been collected."
-  } else if (identical(atlas_metrics_grade(metrics), "weak")) {
-    "Skill on held-out ground, but not shown to beat clustered collecting: read this map as a hint, not a finding."
-  } else if (identical(atlas_metrics_grade(metrics), "failed")) {
-    "No better than chance on held-out ground: this map says little about habitat."
   } else {
-    NULL
+    atlas_grade_note(atlas_metrics_grade(metrics))
   }
   if (!is.null(note)) {
     graphics::legend("bottom", legend = note, bty = "o", box.col = NA, bg = "#ffffffe6",

@@ -19,7 +19,7 @@ import { openingView } from "@/lib/mapView";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { formatNumber } from "@/lib/utils";
-import { isFaint, mapGrade } from "@/lib/grade";
+import { gradeNote, isFaint, mapGrade } from "@/lib/grade";
 
 /**
  * The map to show: the one asked for if it was fitted, else the first map on
@@ -81,7 +81,7 @@ export default function Embed() {
     note =
       algorithm === "esm"
         ? sparseFailedNote(model?.presences ?? 0)
-        : "No better than its null models: this map says little about habitat.";
+        : gradeNote(mapGrade(model));
   }
 
   return (

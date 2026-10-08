@@ -31,7 +31,7 @@ changed and what it means for you.
   **`/ensemble.png?layer=map|disagreement`** are new: the average of a
   taxon's passing models, and where they disagree. A taxon with fewer than
   two passing models has none (404).
-- Model metrics gain `map_strength` (0 for a map that failed its null test,
+- Model metrics gain `map_strength` (0 for a weak or failed map,
   0.4 to 1 with its margin over the nulls), `applicability` (the area of
   applicability's threshold and the share of the accessible area inside it)
   and `record_years` (dated records, first, median and last year, share

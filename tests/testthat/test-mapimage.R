@@ -150,3 +150,14 @@ test_that("a picture shows Maxent when none is asked for, else the ensemble, and
     expect_null(atlas_image_algorithm("T", "magic"))
   })
 })
+
+test_that("a faint map says why by held-out skill, never that it failed its null test or has no habitat signal", {
+  expect_match(atlas_grade_note("weak"), "^Skill on held-out ground, but not shown to beat clustered collecting")
+  expect_match(atlas_grade_note("failed"), "^No better than chance on held-out ground")
+  expect_null(atlas_grade_note("strong"))
+  expect_null(atlas_grade_note("untested"))
+  old <- "failed its null test|no better than its null models|no habitat signal"
+  for (grade in c("weak", "failed")) expect_false(grepl(old, atlas_grade_note(grade), ignore.case = TRUE))
+  spec <- paste(readLines(atlas_openapi_path(), warn = FALSE), collapse = "\n")
+  expect_false(grepl(old, spec, ignore.case = TRUE))
+})

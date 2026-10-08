@@ -695,7 +695,7 @@
         ],
         "operationId": "getTaxonImage",
         "summary": "A taxon's map as one picture",
-        "description": "The map drawn over land, lakes and state and country lines (Natural Earth), with the collections in 0.1 degree cells, the name, a legend and the source, as a PNG for a spreadsheet, document or slide. In Excel: =IMAGE(\"https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/image.png\"). A map that did no better than its null models is drawn faint and says so; a taxon with no map shows its collections alone.",
+        "description": "The map drawn over land, lakes and state and country lines (Natural Earth), with the collections in 0.1 degree cells, the name, a legend and the source, as a PNG for a spreadsheet, document or slide. In Excel: =IMAGE(\"https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/image.png\"). A map that is not strong is drawn faint and says why: weak (skill on held-out ground, but not shown to beat clustered collecting) or failed (no better than chance on held-out ground); a taxon with no map shows its collections alone.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -2333,7 +2333,7 @@
             "type": "number",
             "minimum": 0,
             "maximum": 1,
-            "description": "How strongly the map is drawn: 0 when it failed its null test; from 0.4 to 1 as its blocked AUC rises from just passing to five null standard deviations above its nulls. 0.5 when untested."
+            "description": "How strongly the map is drawn: 0 for a weak or failed map (grade); for a strong one, from 0.4 to 1 as its blocked AUC rises from just passing to five null standard deviations above its nulls. 0.5 when untested."
           },
           "applicability": {
             "type": "object",
