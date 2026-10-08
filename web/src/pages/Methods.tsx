@@ -149,8 +149,10 @@ export default function Methods() {
                 <li>have coordinates that are present and not obscured;</li>
                 <li>be accurate to within 1 km, where an accuracy was recorded;</li>
                 <li>
-                  from Mushroom Observer, carry a GPS point, or a named location small enough that
-                  its centre is within 5 km of all of it;
+                  from Mushroom Observer, carry a GPS point the observer shows, or a named location
+                  small enough that its centre is within 5 km of all of it. The coordinate is taken
+                  from Mushroom Observer's own answer, that GPS point or else that centre, because
+                  mycomap.org's copy often holds the centre of a larger place;
                 </li>
                 <li>
                   from MyCoPortal, carry MyCoPortal's own coordinates accurate to 5 km, or a place

@@ -27,16 +27,39 @@ test_that("a Mushroom Observer record needs a visible GPS point or a small named
   # Only MO records are judged by it; every other source passes untouched.
   expect_match(clause, "AND (o.source <> 'MO Observations' OR ", fixed = TRUE)
   expect_match(clause, "m.source = 'mo' AND m.source_observation_id = o.observation_id", fixed = TRUE)
-  # A hidden GPS point is treated as obscured.
-  expect_match(clause, "coalesce((CAST(m.api_response_json AS jsonb) ->> 'gps_hidden')::boolean, false) = false",
+  # A GPS point counts only when the observer shows it; a hidden one is no
+  # GPS point, and the location box decides.
+  answer <- atlas_mo_answer_sql()
+  expect_match(clause, sprintf("AND (%s OR %s))", answer$gps, answer$small), fixed = TRUE)
+  expect_match(answer$gps, "coalesce((CAST(m.api_response_json AS jsonb) ->> 'gps_hidden')::boolean, false) = false",
                fixed = TRUE)
-  expect_match(clause, "(CAST(m.api_response_json AS jsonb) ->> 'latitude') IS NOT NULL", fixed = TRUE)
+  expect_match(answer$gps, "(CAST(m.api_response_json AS jsonb) ->> 'latitude') IS NOT NULL", fixed = TRUE)
+  expect_false(grepl("gps_hidden", answer$small, fixed = TRUE))
   # Without one, half the location box's diagonal must be within the limit, in km.
   for (side in c("latitude_north", "latitude_south", "longitude_east", "longitude_west")) {
     expect_match(clause, sprintf("'location' ->> '%s'", side), fixed = TRUE)
   }
   expect_match(atlas_mo_location_clause(max_m = 5000), "/ 2 <= 5)", fixed = TRUE)
   expect_match(atlas_mo_location_clause(max_m = 1000), "/ 2 <= 1)", fixed = TRUE)
+})
+
+test_that("an MO record's coordinate comes from MO's own answer, not from .org's row", {
+  sql <- atlas_occurrence_sql()
+  answer <- atlas_mo_answer_sql()
+  for (axis in c("latitude", "longitude")) {
+    column <- atlas_mo_coordinate_sql(axis)
+    expect_match(sql, column, fixed = TRUE)
+    # The shown GPS point first, then the small location's centre; any other
+    # source, or an MO record with no cached answer, keeps .org's coordinate.
+    expect_match(column, sprintf("CASE WHEN %s THEN %s WHEN %s THEN %s END", answer$gps,
+                                 answer$point[[axis]], answer$small, answer$centre[[axis]]), fixed = TRUE)
+    expect_match(column, sprintf("CASE WHEN o.source = 'MO Observations' THEN coalesce((SELECT"), fixed = TRUE)
+    expect_match(column, sprintf("LIMIT 1), o.%s) ELSE o.%s END AS %s", axis, axis, axis), fixed = TRUE)
+  }
+  # .org's own MO coordinate is never selected as is.
+  expect_false(grepl("o.latitude, o.longitude", sql, fixed = TRUE))
+  expect_match(atlas_occurrence_columns_sql(), "^o.id, o.observation_id, o.source")
+  expect_match(answer$centre$latitude, "'latitude_north')::numeric + (", fixed = TRUE)
 })
 
 test_that("an MO record .org has no MO answer for is kept or dropped as configured", {
@@ -82,6 +105,8 @@ test_that("every location condition opens as many brackets as it closes", {
                 label = paste("MyCoPortal", unknown))
   }
   expect_true(balanced(atlas_occurrence_sql()))
+  expect_true(balanced(atlas_mo_coordinate_sql("latitude")))
+  expect_true(balanced(atlas_mo_coordinate_sql("longitude")))
 })
 
 test_that("a MyCoPortal record with no answer yet is kept or dropped as configured", {
