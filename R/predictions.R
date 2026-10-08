@@ -205,7 +205,8 @@ atlas_count_regions <- function(grid = "draft", quiet = FALSE, workers = 1L, onl
 #' Per species and state, what its maps say together.
 #'
 #' rows has one row per map and state: taxon, algorithm, skill, code, cells,
-#' reach, suitable. Only maps that beat their null models count. Returns
+#' reach, suitable, grade. Only strong maps count (atlas_map_grade): a weak
+#' map gives a state neither "likely" nor "possible". Returns
 #' taxon, code, maps, reach_share (the most any map reaches), suitable_share
 #' (the mean over the species' counted maps, a map that does not reach the
 #' state counting as none) and best_share (the most any one map rates
@@ -215,7 +216,7 @@ atlas_region_predictions <- function(rows) {
                       reach_share = numeric(), suitable_share = numeric(),
                       best_share = numeric(), stringsAsFactors = FALSE)
   if (is.null(rows) || !nrow(rows)) return(empty)
-  rows <- rows[rows$skill == "passed", , drop = FALSE]
+  rows <- rows[rows$grade %in% "strong", , drop = FALSE]
   if (!nrow(rows)) return(empty)
   maps <- tapply(rows$algorithm, rows$taxon, function(a) length(unique(a)))
   key <- paste(rows$taxon, rows$code, sep = "\t")

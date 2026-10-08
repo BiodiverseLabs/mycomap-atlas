@@ -12,15 +12,18 @@ test_that("map strength is 0 for a failed map and grows with how far a passed ma
   expect_equal(atlas_map_strength(list(), "failed"), 0)
   expect_equal(atlas_map_strength(list(), "untested"), 0.5)
   expect_equal(atlas_map_strength(NULL, NULL), 0.5)
-  just <- list(observed_auc = 0.5 + stats::qnorm(0.95) * 0.05, auc_mean = 0.5, auc_sd = 0.05)
-  strong <- list(observed_auc = 0.80, auc_mean = 0.5, auc_sd = 0.05)
-  middle <- list(observed_auc = 0.5 + 3.3 * 0.05, auc_mean = 0.5, auc_sd = 0.05)
+  just <- list(observed_auc = 0.5 + stats::qnorm(0.95) * 0.05, auc_mean = 0.5, auc_sd = 0.05, design = "shift")
+  strong <- list(observed_auc = 0.80, auc_mean = 0.5, auc_sd = 0.05, design = "shift")
+  middle <- list(observed_auc = 0.5 + 3.3 * 0.05, auc_mean = 0.5, auc_sd = 0.05, design = "shift")
   expect_equal(atlas_map_strength(just, "passed"), ATLAS_MAP_STRENGTH_FLOOR)
   expect_equal(atlas_map_strength(strong, "passed"), 1)
   expect_gt(atlas_map_strength(middle, "passed"), atlas_map_strength(just, "passed"))
   expect_lt(atlas_map_strength(middle, "passed"), 1)
   # A passed map without null spread still shows, at the floor.
-  expect_equal(atlas_map_strength(list(observed_auc = 0.7), "passed"), ATLAS_MAP_STRENGTH_FLOOR)
+  expect_equal(atlas_map_strength(list(observed_auc = 0.7, design = "shift"), "passed"), ATLAS_MAP_STRENGTH_FLOOR)
+  # One that passed only scattered nulls (a fit from before the switch) is
+  # weak, and drawn faint however far it beat them.
+  expect_equal(atlas_map_strength(list(observed_auc = 0.80, auc_mean = 0.5, auc_sd = 0.05), "passed"), 0)
 })
 
 test_that("ground outside the area of applicability is left out of the ranking and flagged", {
@@ -100,7 +103,8 @@ fake_model <- function(name, algorithm, values, skill = "passed", auc = 0.75) {
   terra::writeRaster(tiny_raster(values), raster, overwrite = TRUE)
   atlas_write_json(list(taxon = name, algorithm = algorithm, skill = skill, auc_mean = auc,
                         raster = basename(raster), map = sub("[.]tif$", ".png", basename(raster)),
-                        null = list(observed_auc = auc, auc_mean = 0.5, auc_sd = 0.05)),
+                        null = list(observed_auc = auc, auc_mean = 0.5, auc_sd = 0.05,
+                                    design = ATLAS_NULL_DESIGN)),
                    atlas_model_path(name, "draft", ".json", algorithm))
 }
 
@@ -145,5 +149,21 @@ test_that("releases carry the ensembles beside the models", {
     files <- atlas_release_files("draft")
     expect_true("models/draft/ensemble/eastern-fungus.tif" %in% files)
     expect_true("models/draft/ensemble/eastern-fungus.disagreement.png" %in% files)
+  })
+})
+
+test_that("a weak member, which passed only scattered nulls, does not join an ensemble", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    fake_model("Two fungi", "maxnet", seq_len(100), auc = 0.70)
+    fake_model("Two fungi", "rf", rev(seq_len(100)), auc = 0.72)
+    path <- atlas_model_path("Two fungi", "draft", ".json", "rf")
+    metrics <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+    metrics$null$design <- NULL
+    atlas_write_json(metrics, path)
+    members <- atlas_ensemble_members("Two fungi", "draft")
+    expect_equal(vapply(members, `[[`, "", "algorithm"), "maxnet")
+    atlas_build_ensembles("draft", quiet = TRUE)
+    expect_false(file.exists(atlas_ensemble_path("Two fungi", "draft", ".json")))
   })
 })

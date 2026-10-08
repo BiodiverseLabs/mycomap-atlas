@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 
 import { Help } from "@/components/Common";
 import { LAYER_NOTES } from "@/lib/layerNotes";
+import { isFaint, mapGrade } from "@/lib/grade";
 import { Card, CardContent } from "@/components/ui/card";
 import { ALGORITHMS, ALGORITHM_LABELS, type Algorithm, type Model, type ModelImportance } from "@/lib/api";
 
@@ -163,14 +164,16 @@ export function WhatDrives({ models }: { models: Partial<Record<Algorithm, Model
             </Help>
           </span>
         </div>
-        {model.skill === "failed" && (
+        {isFaint(mapGrade(model)) && (
           <p className="mb-3 rounded-md bg-[#A87146]/10 px-3 py-2 text-xs text-[#5c4a3a]">
             {model.algorithm === "esm"
               ? "With so few sites this map cannot be tested against chance on its own, and what it leans on rests on very little: the bars below are shown for completeness, not as findings."
-              : "This map did no better than its null models, so what it leans on says little about this fungus: the bars below are shown for completeness, not as findings."}
+              : mapGrade(model) === "weak"
+                ? "This map was not shown to beat clustered collecting, so what it leans on may be where this fungus was collected rather than its habitat: the bars below are shown for completeness, not as findings."
+                : "This map failed its null test, so what it leans on says little about this fungus: the bars below are shown for completeness, not as findings."}
           </p>
         )}
-        <ul className={model.skill === "failed" ? "opacity-60" : undefined}>
+        <ul className={isFaint(mapGrade(model)) ? "opacity-60" : undefined}>
           {layers.map((layer) => (
             <Layer key={layer.name} layer={layer} max={max} />
           ))}

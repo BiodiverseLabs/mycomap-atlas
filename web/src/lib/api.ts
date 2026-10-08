@@ -168,6 +168,9 @@ export interface Model {
   /** Whether the map beat its null models. Fits from before there were
    * null models have none, and read as "untested". */
   skill?: Skill;
+  /** How much the null test vouches for the map (lib/grade.ts). Absent on
+   * fits from before grades: work it out with mapGrade. */
+  grade?: Grade;
   /** How strongly the map is drawn, 0 (failed its null test) to 1 (far above
    * its nulls). Absent on fits from before it was measured. */
   map_strength?: number;
@@ -183,6 +186,8 @@ export interface Model {
 }
 
 export type Skill = "passed" | "failed" | "untested";
+export type { Grade } from "./grade";
+import type { Grade } from "./grade";
 
 /** A model scored against null models: the same number of sites drawn at
  * random from the surveyed sites, fitted and scored the same way. */
@@ -197,6 +202,10 @@ export interface ModelNull {
   auc_p?: number;
   boyce_mean?: number;
   boyce_p?: number;
+  /** "shift" since 2026-10-08; absent on fits tested against scattered nulls. */
+  design?: string;
+  stopped_early?: boolean;
+  drawn?: number;
 }
 
 /** One row of /api/models: enough for a list. The full record is getModel. */
@@ -209,6 +218,7 @@ export interface ModelSummary {
   boyce?: number;
   boyce_mean?: number;
   skill?: Skill;
+  grade?: Grade;
   map: boolean;
   built_at: string;
 }

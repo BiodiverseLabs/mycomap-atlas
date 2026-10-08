@@ -16,7 +16,8 @@ write_model <- function(taxon, algorithm, raster, skill = "passed") {
   terra::writeRaster(raster, atlas_model_path(taxon, "draft", ".tif", algorithm), overwrite = TRUE)
   atlas_write_json(list(taxon = taxon, algorithm = algorithm, presences = 30, predictors = list("bio1"),
                         auc_mean = 0.7, boyce_mean = 0.5, built_at = "2026-09-29T00:00:00Z",
-                        map = "x.png", skill = skill),
+                        map = "x.png", skill = skill,
+                        null = list(design = ATLAS_NULL_DESIGN, observed_auc = 0.7, observed_boyce = 0.5)),
                    atlas_model_path(taxon, "draft", ".json", algorithm))
 }
 
@@ -170,5 +171,24 @@ test_that("the answer serialises without NA strings", {
     index <- build_here_fixture()
     json <- as.character(jsonlite::toJSON(atlas_here(index, EAST[["lat"]], EAST[["lng"]]), auto_unbox = TRUE))
     expect_false(grepl("\"NA\"", json, fixed = TRUE))
+  })
+})
+
+test_that("a weak map, which passed only scattered nulls, is left out of what could grow here", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    write_model("Eastern agreed", "maxnet", here_raster("east"))
+    write_model("Eastern weak", "maxnet", here_raster("east"))
+    # Passed, but against scattered nulls: weak.
+    path <- atlas_model_path("Eastern weak", "draft", ".json", "maxnet")
+    metrics <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+    metrics$null$design <- NULL
+    atlas_write_json(metrics, path)
+    models <- atlas_model_index("draft")
+    expect_equal(models$grade[models$taxon == "Eastern weak"], "weak")
+    index <- atlas_build_here_index("draft", quiet = TRUE)
+    names <- vapply(atlas_here(index, EAST[["lat"]], EAST[["lng"]])$taxa, `[[`, character(1),
+                    "scientific_name")
+    expect_equal(names, "Eastern agreed")
   })
 })

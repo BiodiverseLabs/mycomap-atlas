@@ -15,16 +15,16 @@ ATLAS_SITEMAP_PAGES <- c(
 # A sitemap may hold at most this many addresses (sitemaps.org).
 ATLAS_SITEMAP_MAX <- 50000L
 
-#' The taxa a sitemap lists: those with a drawn map from a model that passed
-#' its null test, under any algorithm, each once and in name order, with the
-#' day its newest such model was built.
+#' The taxa a sitemap lists: those with a drawn map from a strong model
+#' (atlas_map_grade), under any algorithm, each once and in name order, with
+#' the day its newest such model was built.
 #'
 #' A map that failed or was never tested still has a taxon page, but it is not
 #' one to send searchers to.
 atlas_sitemap_taxa <- function(models) {
   none <- data.frame(taxon = character(), lastmod = character(), stringsAsFactors = FALSE)
   if (is.null(models) || !nrow(models)) return(none)
-  keep <- models$map %in% TRUE & models$skill %in% "passed" &
+  keep <- models$map %in% TRUE & models$grade %in% "strong" &
     !is.na(models$taxon) & nzchar(models$taxon)
   models <- models[keep, , drop = FALSE]
   if (!nrow(models)) return(none)

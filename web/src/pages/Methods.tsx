@@ -509,30 +509,37 @@ export default function Methods() {
               </p>
               <p>
                 <B>Null models.</B> A score alone cannot say whether a map knows anything: where
-                collecting is patchy, even a made-up species can score above 0.5. So every model is
-                refitted 19 times on a <B>null species</B> — the same number of sites drawn at random
-                from all surveyed sites, busier sites more often, as a random handful of collections
-                would fall — on the same folds (Raes &amp; ter Steege 2007; the null models of
-                ENMeval 2.0, Kass et al. 2021). The species and its nulls go through exactly one
-                procedure, the model's untuned settings: settings tuned on the real finds and then
-                handed to the nulls would tilt the test towards the species. A map{" "}
-                <B>passes</B> when the species' blocked AUC
-                beats every null (p ≤ 0.05) and its Boyce index is above zero. A map that fails is
-                drawn faint, hidden from the Maps list unless asked for, and left out of Explore and
-                of anything mycomap.org reads from a release.
+                collecting is patchy and clustered, even a made-up species can score well above 0.5.
+                So every model is refitted on <B>null species that keep this species' clustering</B>:
+                its own detection sites, rotated by one random angle and moved together onto another
+                surveyed place (busier places more often), each point then snapped to a surveyed
+                site (Raes &amp; ter Steege 2007; Hijmans 2012 on spatial sorting bias). The species
+                and its nulls go through exactly one procedure, the model's untuned settings, on the
+                same folds: settings tuned on the real finds and then handed to the nulls would tilt
+                the test towards the species. Up to 99 nulls are drawn, and the test stops once 5 have
+                done as well as the map (Besag &amp; Clifford 1991), which gives the same verdict at a
+                fraction of the cost for maps that fail. A map <B>passes</B> when its blocked AUC
+                beats the nulls (p ≤ 0.05) and its Boyce index is above zero.
               </p>
               <p>
-                <B>How far the test can be trusted</B> was measured where the answer is known. On
-                simulated species, collected with MycoMap's real pattern of effort, it passed 77%
-                of species whose collections followed no habitat at all, against 79% of species
-                with a real habitat, and 95% of the habitat-free ones with 100 or more sites:
-                scattered nulls are too easy to beat for a species whose collections cluster, as
-                lineage codes found by one survey do. Nulls that keep the species' clustering
-                (its real pattern shifted and rotated onto real survey sites), up to 99 of them
-                with early stopping and a false-discovery correction across taxa, are being
-                calibrated on simulated species now, and the next release will use whichever
-                design separates signal from clustering best. Until then, read{" "}
-                <B>passed</B> as necessary, not sufficient.
+                The design was chosen on simulated species, collected with MycoMap's real pattern of
+                effort, where the answer is known. Nulls scattered site by site, as Atlas used until
+                October 2026, passed 74% of species whose collections followed no habitat at all,
+                against 80% of species with a real habitat: clustered collecting alone was enough to
+                pass. The clustered nulls passed 2% of the habitat-free species and 26% of the real
+                ones. The test is honest but strict, so a map that does not pass has not been shown
+                to be wrong; it has not been shown to beat its own collecting pattern. Benjamini and
+                Hochberg q-values across taxa are recorded but do not decide: with 99 nulls the
+                smallest p is about 0.01, too coarse for the correction to pass anything.
+              </p>
+              <p>
+                Each map gets a <B>grade</B>. <B>Strong</B>: it passed. <B>Weak</B>: not shown to beat
+                clustered collecting, though it ranks held-out ground better than chance (a map from
+                before the switch that passed only scattered nulls is weak too). <B>Failed</B>: no
+                better than chance on held-out ground. Only strong maps make a claim anywhere:
+                Explore, the states a species is likely or possibly in, the combined map, and the
+                sitemap. Weak and failed maps are drawn faint on their taxon page, hidden from the Maps
+                list unless asked for, and left out of anything mycomap.org reads from a release.
               </p>
             </Section>
 
@@ -571,7 +578,7 @@ export default function Methods() {
               <p>
                 A taxon's own null test cannot vouch for so few sites. Its made-up species score
                 so variously (their AUC spreads by 0.25 at 3 or 4 sites, 0.18 at 5 to 7, 0.10 at 16
-                to 19) that even a sound map rarely beats all nineteen: in the first full build 4%
+                to 19) that even a sound map rarely beats them: in the first full build 4%
                 of the ensembles from 3 or 4 sites passed, fewer than chance alone lets through,
                 and 40% of those from 16 to 19. So a small-model map that fails is labelled{" "}
                 <B>too few sites to tell</B>, and drawn faint: a hint about where to look, not a
@@ -617,10 +624,10 @@ export default function Methods() {
               </p>
               <p>
                 Because every map has a darkest tenth, colour alone cannot show a map that knows
-                nothing. So <B>how strongly a map is drawn follows its null test</B>: a map that
-                failed starts faint (25% opacity), one that barely passed at 47%,
-                and one far above its nulls (its AUC five standard deviations above theirs) at
-                full strength (80%). The slider under each map moves it either way.
+                nothing. So <B>how strongly a map is drawn follows its null test</B>: a weak or
+                failed map starts faint (25% opacity), a strong one that barely passed at 47%, and
+                one far above its nulls (its AUC five standard deviations above theirs) at full
+                strength (80%). The slider under each map moves it either way.
               </p>
             </Section>
 

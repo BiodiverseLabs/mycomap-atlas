@@ -227,10 +227,13 @@ atlas_write_rgba_png <- function(mercator, colours, path) {
 #' site turns this into the overlay's opacity.
 ATLAS_MAP_STRENGTH_FLOOR <- 0.4
 ATLAS_MAP_STRENGTH_FULL_Z <- 5
-atlas_map_strength <- function(null, skill) {
+atlas_map_strength <- function(null, skill, grade = atlas_map_grade(skill, null)) {
   if (!is.character(skill) || length(skill) != 1L) return(0.5)
   if (identical(skill, "failed")) return(0)
   if (!identical(skill, "passed")) return(0.5)
+  # Only a map that beat clustered nulls is drawn by its margin; one that beat
+  # scattered nulls only (a fit from before the switch) is drawn faint.
+  if (!identical(grade, "strong")) return(0)
   observed <- as.numeric(null$observed_auc %||% NA)
   mean_auc <- as.numeric(null$auc_mean %||% NA)
   spread <- as.numeric(null$auc_sd %||% NA)
@@ -241,6 +244,46 @@ atlas_map_strength <- function(null, skill) {
   pass_z <- stats::qnorm(1 - ATLAS_SKILL_ALPHA)
   share <- (z - pass_z) / (ATLAS_MAP_STRENGTH_FULL_Z - pass_z)
   round(ATLAS_MAP_STRENGTH_FLOOR + (1 - ATLAS_MAP_STRENGTH_FLOOR) * min(1, max(0, share)), 3)
+}
+
+#' How much a map's null test vouches for it (Steve, 2026-10-08):
+#'
+#'   strong   passed its null test against shifted nulls, which keep the
+#'            taxon's clustering (ATLAS_NULL_DESIGN). Only these maps make a
+#'            claim anywhere: here, state verdicts, ensembles, the sitemap.
+#'   weak     not shown to beat clustered collecting: it ranks held-out ground
+#'            better than chance (AUC above 0.5, Boyce above 0) but did not
+#'            pass, or it passed only scattered nulls (a fit from before the
+#'            switch, when scattered nulls passed 74% of species that knew
+#'            nothing). Drawn faint, like a failed map.
+#'   failed   no better than chance on held-out ground.
+#'   untested no null test was run.
+#'
+#' auc and boyce default to the null test's own observed scores.
+atlas_map_grade <- function(skill, null = NULL, auc = NULL, boyce = NULL) {
+  if (!is.character(skill) || length(skill) != 1L || !skill %in% c("passed", "failed")) {
+    return("untested")
+  }
+  design <- if (is.list(null)) null$design else NULL
+  if (identical(skill, "passed")) {
+    return(if (identical(design, ATLAS_NULL_DESIGN)) "strong" else "weak")
+  }
+  number <- function(x) if (is.numeric(x) && length(x) == 1L && is.finite(x)) x else NA_real_
+  auc <- number(auc %||% (if (is.list(null)) null$observed_auc))
+  boyce <- number(boyce %||% (if (is.list(null)) null$observed_boyce))
+  if (is.finite(auc) && auc > 0.5 && is.finite(boyce) && boyce > 0) "weak" else "failed"
+}
+
+#' A stored model's grade: as it was recorded, or worked out for a fit from
+#' before grades were.
+atlas_metrics_grade <- function(metrics) {
+  recorded <- metrics$grade
+  if (is.character(recorded) && length(recorded) == 1L &&
+      recorded %in% c("strong", "weak", "failed", "untested")) {
+    return(recorded)
+  }
+  atlas_map_grade(metrics$skill, metrics$null, metrics$auc_mean,
+                  metrics$boyce %||% metrics$boyce_mean)
 }
 
 #' The few fields a list of models needs.
@@ -265,7 +308,12 @@ atlas_model_summary <- function(metrics) {
     boyce_mean = number(metrics$boyce_mean),
     # Fits from before null models were run have no verdict.
     skill = if (is.character(metrics$skill) && length(metrics$skill) == 1L) metrics$skill else "untested",
-    map_strength = number(metrics$map_strength %||% atlas_map_strength(metrics$null, metrics$skill)),
+    grade = atlas_metrics_grade(metrics),
+    map_strength = number(if (identical(atlas_metrics_grade(metrics), "strong")) {
+      metrics$map_strength %||% atlas_map_strength(metrics$null, metrics$skill)
+    } else if (identical(metrics$skill, "passed") || identical(metrics$skill, "failed")) 0 else {
+      metrics$map_strength %||% atlas_map_strength(metrics$null, metrics$skill)
+    }),
     map = is.character(metrics$map) && length(metrics$map) == 1L,
     built_at = as.character(metrics$built_at %||% ""),
     stringsAsFactors = FALSE
@@ -339,6 +387,7 @@ atlas_model_region_rows <- function(cache) {
     taxon = rep(pick(function(e) e$summary$taxon), n),
     algorithm = rep(pick(function(e) e$summary$algorithm), n),
     skill = rep(pick(function(e) e$summary$skill), n),
+    grade = rep(pick(function(e) e$summary$grade %||% "untested"), n),
     code = pick(function(e) e$regions$code),
     cells = pick(function(e) e$regions$cells),
     reach = pick(function(e) e$regions$reach),

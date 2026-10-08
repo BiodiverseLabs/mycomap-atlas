@@ -19,6 +19,7 @@ import { openingView } from "@/lib/mapView";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { formatNumber } from "@/lib/utils";
+import { isFaint, mapGrade } from "@/lib/grade";
 
 /**
  * The map to show: the one asked for if it was fitted, else the first map on
@@ -61,7 +62,7 @@ export default function Embed() {
   const loading = fits.some((f) => f.isLoading);
   const algorithm = pickAlgorithm(search.get("model"), models);
   const model = algorithm ? models[algorithm] : null;
-  const failed = model?.skill === "failed";
+  const failed = isFaint(mapGrade(model));
   const bounds = model?.bounds
     ? ([[model.bounds.south, model.bounds.west], [model.bounds.north, model.bounds.east]] as [
         [number, number],

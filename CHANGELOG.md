@@ -10,6 +10,14 @@ changed and what it means for you.
 
 ### API
 
+- **Model `grade`** on `/api/models`, `/api/taxa/{name}/model` and the
+  release index: `strong` (passed its null test against shifted nulls),
+  `weak` (not shown to beat clustered collecting), `failed` or `untested`.
+  Decide whether to use a map on `grade == "strong"`, not on `skill`: a fit
+  from before 2026-10-08 can have `skill: passed` against scattered nulls,
+  which is `weak`. Added field. `null` gains `design`, `stopped_early` and
+  `drawn`.
+
 - **Stricter inputs.** Every `/api/` route refuses, with 400 and a JSON
   reason, a `grid` other than `draft` or `production`, and a `limit`,
   `offset`, `min_localities`, `lat`, `lng`, `min_score`, `nearby_km` or
@@ -44,6 +52,16 @@ changed and what it means for you.
   applies. Releases carry `occurrences/renames.json`.
 
 ### Maps
+
+- **A stricter null test.** Every map is tested against null species that
+  keep its own clustering (its detections rotated and moved onto other
+  survey sites), up to 99, stopping once 5 do as well. The old scattered
+  nulls let clustered collecting alone pass. Expect far fewer maps to pass:
+  on simulated species about a quarter of real habitat signals did. Only
+  strong maps are used for Explore, state verdicts ("likely" and
+  "possible"), combined maps and the sitemap; weak and failed maps are drawn
+  faint on their taxon page, worded "not shown to beat clustered
+  collecting" or "failed its null test". Every model is refitted.
 
 - **Colour now follows skill and data.** Each map is ranked on the
   equal-area grid, only over its area of applicability (Meyer and Pebesma
@@ -82,8 +100,10 @@ changed and what it means for you.
 - `study-blocks`: whether the cross-validation block size tests at the
   distances a map predicts at (kNNDM's question).
 - Null models that keep a taxon's clustering (`shift`, `shift-effort`), a
-  sequential early-stopping test and Benjamini-Hochberg q-values, being
-  calibrated before production uses them.
+  sequential early-stopping test and Benjamini-Hochberg q-values. Calibrated
+  on 99 virtual species: scattered nulls passed 74% of species with no
+  habitat signal, shifted ones 2%; production now uses shifted nulls (see
+  Maps).
 - Candidate layers, not yet in production: ClimateNA 1991-2020 normals (the
   test kept WorldClim), and host trees by species, one band for each of 316
   tree species beside the genera. Walnut, hackberry, bald cypress, redwoods

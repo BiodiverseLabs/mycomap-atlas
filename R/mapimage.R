@@ -118,7 +118,7 @@ atlas_write_map_image <- function(path, name, metrics = NULL, overlay = NULL, ce
   if (has_map) {
     image <- terra::rast(overlay)
     rgba <- terra::values(image, mat = TRUE)
-    faint <- identical(metrics$skill, "failed")
+    faint <- !identical(atlas_metrics_grade(metrics), "strong")
     alpha <- rgba[, 4] * ATLAS_IMAGE_OPACITY[[if (faint) "faint" else "standard"]]
     colours <- grDevices::rgb(rgba[, 1], rgba[, 2], rgba[, 3], alpha, maxColorValue = 255)
     raster <- grDevices::as.raster(matrix(colours, nrow = terra::nrow(image), byrow = TRUE))
@@ -139,8 +139,10 @@ atlas_write_map_image <- function(path, name, metrics = NULL, overlay = NULL, ce
 
   note <- if (!has_map) {
     "No habitat map yet: these are the places it has been collected."
-  } else if (identical(metrics$skill, "failed")) {
-    "This map did no better than its null models, so it says little about habitat."
+  } else if (identical(atlas_metrics_grade(metrics), "weak")) {
+    "Not shown to beat clustered collecting: read this map as a hint, not a finding."
+  } else if (identical(atlas_metrics_grade(metrics), "failed")) {
+    "This map failed its null test, so it says little about habitat."
   } else {
     NULL
   }

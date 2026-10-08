@@ -2196,7 +2196,17 @@
               "failed",
               "untested"
             ],
-            "description": "Whether the taxon beat null models (random draws of surveyed sites, busier sites more often; taxon and nulls both fitted at untuned settings) on blocked AUC at p <= 0.05 and the map has a positive blocked Boyce index (boyce). Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
+            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well. Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "weak",
+              "failed",
+              "untested"
+            ],
+            "description": "How much the null test vouches for the map. strong: passed against shifted nulls, which keep the taxon's clustering; the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
           },
           "null": {
             "type": "object",
@@ -2228,6 +2238,26 @@
               },
               "boyce_p": {
                 "type": "number"
+              },
+              "design": {
+                "type": "string",
+                "enum": [
+                  "shift",
+                  "scatter"
+                ],
+                "description": "The null design: shift (production since 2026-10-08) or, absent, scatter."
+              },
+              "stopped_early": {
+                "type": "boolean",
+                "description": "The sequential test stopped once 5 nulls did as well as the map."
+              },
+              "drawn": {
+                "type": "integer",
+                "description": "Nulls drawn, counting any that could not be fitted."
+              },
+              "best_effort": {
+                "type": "integer",
+                "description": "Shifted nulls that could not be placed cleanly on survey sites and took their best try."
               }
             }
           },
@@ -2419,7 +2449,17 @@
               "failed",
               "untested"
             ],
-            "description": "Whether the taxon beat null models (random draws of surveyed sites, busier sites more often; taxon and nulls both fitted at untuned settings) on blocked AUC at p <= 0.05 and the map has a positive blocked Boyce index (boyce). Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
+            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well. Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "weak",
+              "failed",
+              "untested"
+            ],
+            "description": "How much the null test vouches for the map. strong: passed against shifted nulls, which keep the taxon's clustering; the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
           }
         }
       },

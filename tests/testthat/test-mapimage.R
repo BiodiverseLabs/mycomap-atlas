@@ -18,7 +18,7 @@ indiana_map <- function(dir) {
   terra::values(r) <- terra::xFromCell(r, seq_len(terra::ncell(r)))
   drawn <- atlas_write_map_png(r, file.path(dir, "map.png"))
   list(raster = r, overlay = drawn$path,
-       metrics = list(taxon = "Trametes versicolor", algorithm = "maxnet", skill = "passed",
+       metrics = list(taxon = "Trametes versicolor", algorithm = "maxnet", skill = "passed", grade = "strong",
                       bounds = drawn$bounds, map_drawn_at = drawn$drawn_at))
 }
 
@@ -52,17 +52,26 @@ test_that("a picture is drawn at the width asked, three quarters as tall, with t
   expect_lt(green_pixels(without), 500)
 })
 
-test_that("a map that failed its null test is drawn faint in the picture", {
+test_that("a map that failed its null test, or is only weak, is drawn faint in the picture", {
   skip_if_not_installed("terra")
   dir <- tempfile("img-")
   dir.create(dir)
   m <- indiana_map(dir)
   strong <- file.path(dir, "strong.png")
   faint <- file.path(dir, "faint.png")
+  weak <- file.path(dir, "weak.png")
   atlas_write_map_image(strong, "T", m$metrics, m$overlay, indiana_cells, width = 600L)
-  m$metrics$skill <- "failed"
-  atlas_write_map_image(faint, "T", m$metrics, m$overlay, indiana_cells, width = 600L)
+  failed <- m$metrics
+  failed$skill <- "failed"
+  failed$grade <- "failed"
+  atlas_write_map_image(faint, "T", failed, m$overlay, indiana_cells, width = 600L)
   expect_lt(green_pixels(faint), green_pixels(strong) / 2)
+  # Passed, but only scattered nulls: as faint as a failed map.
+  scatter <- m$metrics
+  scatter$grade <- NULL
+  scatter$null <- list(observed_auc = 0.8)
+  atlas_write_map_image(weak, "T", scatter, m$overlay, indiana_cells, width = 600L)
+  expect_lt(green_pixels(weak), green_pixels(strong) / 2)
 })
 
 # ---- through the API --------------------------------------------------------
