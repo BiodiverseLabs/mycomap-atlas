@@ -625,6 +625,13 @@ export default function Methods() {
                 Web Mercator for display; collections are drawn as 0.1° cells.
               </p>
               <p>
+                Explore reads the same ranks, averaged over 20 km cells, so a place outside a map's
+                area of applicability is never listed for it. The same ranks, the low half included
+                and unranked where the maps cannot judge, are published as a{" "}
+                <B>location prior</B> (on the Data page) for programs that weigh a photo
+                identification by where it was taken.
+              </p>
+              <p>
                 Because every map has a darkest tenth, colour alone cannot show a map that knows
                 nothing. So <B>how strongly a map is drawn follows its null test</B>: a weak or
                 failed map starts faint (25% opacity), a strong one that barely passed at 47%, and
