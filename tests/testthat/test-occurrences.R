@@ -20,6 +20,13 @@ test_that("obscured and coarse coordinates are excluded", {
   expect_match(sql, "c.positional_accuracy > 1000", fixed = TRUE)
 })
 
+test_that("the obscured-coordinates check stays a per-record probe, inside the route's 60 s cap", {
+  # As an anti join it rescanned every cached iNat answer per record and a
+  # page timed out (2026-10-08); OFFSET 0 keeps the planner from flattening it.
+  sql <- atlas_occurrence_sql()
+  expect_match(sql, "OR c.positional_accuracy > 1000) OFFSET 0)", fixed = TRUE)
+})
+
 test_that("a Mushroom Observer record needs a visible GPS point or a small named location", {
   sql <- atlas_occurrence_sql()
   clause <- atlas_mo_location_clause()
@@ -129,12 +136,13 @@ test_that("the scope is North America, including blank-country Puerto Rico", {
   expect_match(sql, "o.state = 'Puerto Rico'", fixed = TRUE)
 })
 
-test_that("genus-only and placeholder names are excluded", {
+test_that("the record name does not decide eligibility: the sequences name the record", {
+  # A genus-only record name with species-level sequences is modelled under
+  # the species (R/labels.R), so the pull must not drop it on its record name.
   sql <- atlas_occurrence_sql()
-  expect_match(sql, "o.scientific_name NOT IN ('', 'Fungi', 'Unknown')", fixed = TRUE)
-  expect_match(sql, "strpos(o.scientific_name, ' ') > 0", fixed = TRUE)
-  expect_match(sql, "right(lower(o.scientific_name), 4) <> ' sp.'", fixed = TRUE)
-  expect_match(sql, "right(lower(o.scientific_name), 3) <> ' sp'", fixed = TRUE)
+  expect_false(grepl("strpos(o.scientific_name", sql, fixed = TRUE))
+  expect_false(grepl("right(lower(o.scientific_name)", sql, fixed = TRUE))
+  expect_false(grepl("o.scientific_name NOT IN", sql, fixed = TRUE))
 })
 
 test_that("paging keys off the record id", {

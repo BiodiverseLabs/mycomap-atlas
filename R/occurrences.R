@@ -14,7 +14,8 @@
 #     record with a different label shares, which would make it a county's or
 #     state's centre (atlas_mycoportal_location_clause);
 #   - in North America (or a Puerto Rico record with a blank country);
-#   - a species-level name, provisional temp codes included.
+#   - a species-level name, provisional temp codes included: the name of the
+#     record's approved sequences, not the record's own name (R/labels.R).
 #
 # Records green only in a fourth or later project are missed, because .org
 # flattens three validation slots. MycoMap Vision has the same limitation, and
@@ -44,6 +45,10 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
     "coalesce(o.validation_status_3, '')",
     sep = ", "
   )
+  # OFFSET 0 keeps the obscured-coordinates check a per-record index probe.
+  # Without it the planner turns it into an anti join that rescans ~32,000
+  # cached iNat answers for every record, and a page ran past the route's
+  # 60 s cap (2026-10-08). The records returned are the same.
   sql <- sprintf(
     "SELECT %s FROM observations o
      WHERE 'yes' IN (%s)
@@ -53,13 +58,9 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
          SELECT 1 FROM observation_cache c
          WHERE c.source = 'inat'
            AND c.source_observation_id = o.observation_id
-           AND (c.coordinates_obscured = true OR c.positional_accuracy > %d))
+           AND (c.coordinates_obscured = true OR c.positional_accuracy > %d)
+         OFFSET 0)
        AND (o.country IN (%s) OR o.state = 'Puerto Rico')
-       AND o.scientific_name IS NOT NULL
-       AND o.scientific_name NOT IN ('', 'Fungi', 'Unknown')
-       AND strpos(o.scientific_name, ' ') > 0
-       AND right(lower(o.scientific_name), 4) <> ' sp.'
-       AND right(lower(o.scientific_name), 3) <> ' sp'
        %s
        %s
        %s
@@ -221,7 +222,7 @@ atlas_mo_coordinate_sql <- function(axis = c("latitude", "longitude"),
 }
 
 #' Pull the eligible universe in pages, keeping every page as fetched.
-atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
+atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
                                    max_rows = Inf, host = atlas_sql_host(),
                                    dry_run = FALSE, quiet = FALSE) {
   if (isTRUE(dry_run)) {
@@ -246,19 +247,31 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
     )
     if (!nrow(page)) break
 
+    ids <- as.numeric(page$id)
+    names_page <- atlas_parse_tsv(
+      atlas_run_sql(atlas_sequence_names_sql(min(ids), max(ids)), host = host)
+    )
+    if (!nrow(names_page)) names_page <- data.frame(id = character(), species_name = character())
+
     n <- length(chunks) + 1L
     atlas_write_tsv_gz(page, file.path(raw_dir, sprintf("chunk-%04d.tsv.gz", n)))
-    chunks[[n]] <- page
+    atlas_write_tsv_gz(names_page, file.path(raw_dir, sprintf("names-%04d.tsv.gz", n)))
+    chunks[[n]] <- atlas_label_occurrences(page, names_page)
     total <- total + nrow(page)
     if (!quiet) {
       message(sprintf("  page %d: %d records (%d so far)", n, nrow(page), total))
     }
 
-    after_id <- max(as.numeric(page$id))
+    after_id <- max(ids)
     if (nrow(page) < want) break
   }
 
-  occurrences <- if (length(chunks)) do.call(rbind, chunks) else atlas_empty_occurrences()
+  labelled <- if (length(chunks)) do.call(rbind, chunks) else atlas_label_occurrences(
+    atlas_empty_occurrences(), data.frame(id = character(), species_name = character()))
+  audit <- atlas_label_audit(labelled)
+  atlas_write_json(audit, atlas_label_audit_path())
+  occurrences <- labelled[atlas_species_level(labelled$scientific_name), , drop = FALSE]
+  rownames(occurrences) <- NULL
   atlas_check_occurrences(occurrences)
   occurrences <- atlas_canonicalise_occurrences(occurrences)
   atlas_write_json(atlas_name_merges(occurrences), atlas_name_merges_path())
@@ -278,9 +291,13 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
     host = host,
     records = nrow(occurrences),
     taxa = nrow(taxa),
+    names = list(rule = audit$rule, pulled = audit$pulled,
+                 by_status = stats::setNames(as.list(audit$by_status$records),
+                                             audit$by_status$status)),
     fingerprint = atlas_fingerprint(occurrences),
     file = basename(combined),
-    sql = atlas_occurrence_sql(0, chunk_size, since)
+    sql = atlas_occurrence_sql(0, chunk_size, since),
+    names_sql = atlas_sequence_names_sql(0, chunk_size)
   )
   atlas_write_json(manifest, atlas_path("occurrences", "latest.json", create = TRUE))
   atlas_write_json(taxa, atlas_path("occurrences", "taxa-latest.json", create = TRUE))
@@ -288,6 +305,10 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
   if (!quiet) {
     message(sprintf("pulled %d records across %d taxa -> %s",
                     nrow(occurrences), nrow(taxa), combined))
+    renamed <- sum(labelled$name_status %in% c(ATLAS_LABEL_OTHER_SPECIES, ATLAS_LABEL_OTHER_GENUS))
+    left_out <- nrow(labelled) - nrow(occurrences)
+    message(sprintf("  %d records named by their sequences, not their record name; %d left out; audit: %s",
+                    renamed, left_out, atlas_label_audit_path()))
   }
   invisible(manifest)
 }

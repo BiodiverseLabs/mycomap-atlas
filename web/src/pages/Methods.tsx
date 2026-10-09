@@ -159,7 +159,12 @@ export default function Methods() {
                   that is not a county's or state's centre shared by records from other places;
                 </li>
                 <li>lie in North America (United States, Canada, Mexico, Puerto Rico, US Virgin Islands);</li>
-                <li>carry a species-level name. Provisional names count.</li>
+                <li>
+                  carry a species-level name from its DNA. Provisional names count. The name is the
+                  one on the record&rsquo;s approved sequences, not the record&rsquo;s own, which is
+                  often never updated after the sequence is named. A record whose sequences name two
+                  species, or only a genus, is left out.
+                </li>
               </ul>
               <p>
                 On production on 6 October 2026 that left <B>130,309 records across 17,415 taxa</B>.

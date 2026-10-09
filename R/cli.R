@@ -6,7 +6,7 @@ atlas_usage <- function() {
   message("")
   message("  pull-occurrences   pull the validated training universe from mycomap.org")
   message("      --since=YYYY-MM-DD   only records updated on or after this date")
-  message("      --chunk-size=N       records per query (default 20000)")
+  message("      --chunk-size=N       records per query (default 10000)")
   message("      --max-rows=N         stop after N records (smoke test)")
   message("      --dry-run            print the SQL and exit")
   message("  build-layers       build environmental layers onto a grid")
@@ -239,7 +239,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     "pull-occurrences" = {
       atlas_pull_occurrences(
         since = flags$since,
-        chunk_size = atlas_flag_number(flags, "chunk_size", 20000),
+        chunk_size = atlas_flag_number(flags, "chunk_size", 10000),
         max_rows = atlas_flag_number(flags, "max_rows", Inf),
         dry_run = isTRUE(flags$dry_run)
       )

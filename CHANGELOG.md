@@ -61,6 +61,15 @@ changed and what it means for you.
   hidden GPS point counts as none, so the location decides. A MyCoPortal record placed on a county's or state's centre is left
   out. Records with no cached answer yet are kept. Some taxa may drop below
   the sites a model needs.
+- **Records are named by their DNA.** A record is modelled under the name of
+  its approved sequences, not the name the record carries, which is often
+  never updated after the sequence is named (a record still called
+  *Tubaria* sp. 'IN01' whose sequences say *Tubaria hiemalis*). Records whose
+  sequences name two species, or only a genus, are left out; a genus-only
+  record whose sequences name a species now counts. On the 8 October 2026
+  pull this renamed 4,837 records, left out 3,628, and changed the record set
+  of 1,435 taxa with 10 or more localities: *Tubaria hiemalis* goes from 3 to
+  125 localities, *Tubaria* sp. 'IN01' from 153 to 26.
 - A sparse map that failed its null test no longer quotes a skill rate
   borrowed from thinned common fungi; it says there are too few sites to
   tell.
