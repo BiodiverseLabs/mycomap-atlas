@@ -160,3 +160,21 @@ test_that("a link to the list is presigned for an S3 store only, and for at most
   expect_error(atlas_trained_ids_link("C:/atlas/store", "r1", presign = presign), "S3")
   expect_error(atlas_trained_ids_link("s3://b/p", "r1", hours = 24, presign = presign), "12")
 })
+
+test_that("a release made before lists were kept gets one from its job's pull, with nothing refitted", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(TAXA)))
+  release <- full_cycle(store, boss)
+  expected <- trained_list(store, release$id)
+  root <- sub("^file://", "", store$uri)
+  for (key in store$list(paste0(ATLAS_TRAINED_PREFIX, "/"))) unlink(file.path(root, key))
+  expect_false(store$exists(atlas_trained_release_key(release$id)))
+  # The box has pulled again since: its own pull no longer matches the
+  # models, so the list must come from the job's pull in the store.
+  on_machine(boss, orchestrator_data(synthetic_occurrences(c("Taxon A" = 40, "Taxon B" = 41, "Taxon C" = 42))))
+  summary <- on_machine(boss, atlas_backfill_trained_ids(store, quiet = TRUE))
+  expect_equal(trained_list(store, release$id), expected)
+  expect_length(summary$not_found, 0)
+})

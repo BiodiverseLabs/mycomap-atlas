@@ -223,6 +223,11 @@ atlas user:
 - **A copy**: `./atlas trained-ids --out=/tmp/trained.tsv.gz`, then copy it
   across yourself. Delete the copy afterwards.
 
+A release made before these lists were kept has none. `./atlas trained-ids
+--write` (with `--release=ID` for one that is not current) makes it from the
+pull the release's job was planned from, which the store keeps, and the
+box's own pull besides; it refits nothing.
+
 ## The monthly budget alarm
 
 The limits above stop one job from running away; they say nothing about the

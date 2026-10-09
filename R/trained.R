@@ -152,6 +152,38 @@ atlas_trained_ids_quietly <- function(expr, release) {
   })
 }
 
+#' The pull a release's job was planned from, read back from the store's
+#' objects (a job carries its pull to the workers that way), or NULL.
+atlas_release_job_occurrences <- function(store, release, grid = "draft") {
+  id <- atlas_json_string(release$job)
+  if (is.null(id)) return(NULL)
+  job <- tryCatch(atlas_read_job(store, id, grid), error = function(e) NULL)
+  pulls <- Filter(function(e) grepl("^occurrences/occurrences-.*[.]tsv[.]gz$", e$path %||% ""), job$inputs %||% list())
+  if (!length(pulls)) return(NULL)
+  file <- tempfile(fileext = ".tsv.gz")
+  on.exit(unlink(file), add = TRUE)
+  store$get(atlas_object_key(pulls[[1]]$sha256), file)
+  atlas_read_occurrences(file)
+}
+
+#' Write the list for a release made before lists were kept (or whose list
+#' failed to write): from the pull its job was planned from, kept in the
+#' store, and this machine's own pull besides. A model whose record set is in
+#' neither is named in the summary. The current release when none is named.
+atlas_backfill_trained_ids <- function(store, release = NULL, grid = "draft", quiet = FALSE) {
+  manifest <- if (is.null(release)) {
+    atlas_current_release(store, grid)
+  } else {
+    atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
+  }
+  if (is.null(manifest)) stop("nothing has been published for the ", grid, " grid", call. = FALSE)
+  job_pull <- atlas_release_job_occurrences(store, manifest, grid)
+  prefer <- if (!is.null(job_pull)) atlas_save_trained_pull(store, grid, job_pull)
+  local <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
+  if (!is.null(local)) atlas_save_trained_pull(store, grid, local)
+  atlas_write_trained_ids(store, manifest, grid, prefer = prefer, quiet = quiet)
+}
+
 #' Fetch a release's list from the store to a local file (the current
 #' release when none is named), for handing to Vision's box.
 atlas_fetch_trained_ids <- function(store, release = NULL, grid = "draft", out) {

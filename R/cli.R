@@ -116,7 +116,8 @@ atlas_usage <- function() {
   message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
   message("      --fits-at-once=N          fits running together on EC2 (default 84)")
   message("  trained-ids        PRIVATE: which records trained a release (--out=FILE or --link [--hours=N],")
-  message("                     [--release=ID]); never publish it")
+  message("                     [--release=ID]); never publish it. --write makes the list from this")
+  message("                     machine's pull, for a release made before lists were kept")
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
@@ -550,7 +551,9 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       store <- atlas_store(store_uri)
       grid <- atlas_flag_grid(flags)
       release <- if (is.null(flags$release)) NULL else as.character(flags$release)
-      if (isTRUE(flags$link)) {
+      if (isTRUE(flags$write)) {
+        atlas_backfill_trained_ids(store, release, grid)
+      } else if (isTRUE(flags$link)) {
         release <- release %||% atlas_current_release(store, grid)$id
         cat(atlas_trained_ids_link(store_uri, release, grid, hours = atlas_flag_number(flags, "hours", 1)), "\n")
       } else {
