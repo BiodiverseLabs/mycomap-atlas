@@ -402,6 +402,27 @@ function() {
   atlas_algorithm_labels()
 }
 
+#* The location prior: every strong map's ranks by 20 km cell, for weighing a
+#* photo identification by where it was taken. Lists its files and the grid.
+#* @param grid draft or production
+#* @get /api/prior
+#* @serializer unboxedJSON
+function(grid = "draft", res) {
+  listing <- atlas_prior_listing(grid)
+  if (is.null(listing)) {
+    res$status <- 404L
+    return(list(error = "this server holds no location prior yet"))
+  }
+  listing
+}
+
+#* One file of the location prior: ranks.parquet, ranks.tsv.gz, taxa.tsv or grid.json.
+#* @param grid draft or production
+#* @get /api/prior/<file>
+function(file, grid = "draft", res) {
+  atlas_send(res, atlas_prior_file_answer(file, grid))
+}
+
 #* The newest model benchmark: every model scored on the same folds.
 #* @get /api/benchmarks/latest
 #* @serializer unboxedJSON

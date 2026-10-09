@@ -10,6 +10,16 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/prior`** and **`GET /api/prior/{file}`** are new: the
+  location prior, every strong map's ranks by 20 km cell over the whole of a
+  taxon's reach (below the median included, unranked where the maps cannot
+  judge the ground), with its taxa and the grid. For weighing a photo
+  identification by where it was taken. Parquet and TSV; built when a release
+  is finished, and in each Zenodo models version as `prior-*`.
+- **`/api/here`** ranks each map inside its area of applicability, as its
+  map is coloured: ground a map knows nothing about is no longer "here", and
+  the ranks of the ground it does know are taken among that ground alone.
+
 - **Model `grade`** on `/api/models`, `/api/taxa/{name}/model` and the
   release index: `strong` (passed its null test against shifted nulls),
   `weak` (not shown to beat clustered collecting), `failed` or `untested`.

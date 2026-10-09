@@ -457,6 +457,28 @@ export function checklistUrl(params: { region?: string; taxon?: string } = {}): 
   return `/api/checklist.csv${text ? `?${text}` : ""}`;
 }
 
+/** One file of the location prior, as GET /api/prior lists it. */
+export interface PriorFile {
+  name: string;
+  bytes: number;
+  sha256: string;
+  url: string;
+}
+
+/** The location prior: every strong map's ranks by 20 km cell. */
+export interface Prior {
+  release?: string;
+  grid: string;
+  taxa: number;
+  rows: number;
+  cellKm: number;
+  files: PriorFile[];
+}
+
+export async function getPrior(): Promise<Prior> {
+  return get<Prior>("/api/prior");
+}
+
 /** The bare map page another site puts in an iframe. */
 export function embedPath(name: string, algorithm: Algorithm, points = true): string {
   const query = new URLSearchParams({ model: algorithm });

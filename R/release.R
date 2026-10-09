@@ -179,8 +179,8 @@ atlas_release_pull_summary <- function(manifest) {
 #'
 #' An allowlist: model scores, rasters and maps of every algorithm, per-taxon
 #' counts and fingerprints, the pull summary, public cells and regions, the layer
-#' manifest, and the newest benchmark. Nothing else under data/ can be
-#' published, whatever lands there.
+#' manifest, the newest benchmark, the here index and the location prior.
+#' Nothing else under data/ can be published, whatever lands there.
 atlas_release_files <- function(grid = "draft") {
   root <- atlas_data_dir()
   model_files <- unlist(lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
@@ -202,8 +202,10 @@ atlas_release_files <- function(grid = "draft") {
     atlas_public_regions_path(),
     file.path(atlas_layer_dir(grid), "manifest.json"),
     utils::tail(benchmarks, 1),
-    # Ranks by 20 km cell for "what could grow here", built from the maps above.
-    atlas_here_index_path(grid)
+    # Ranks by 20 km cell for "what could grow here", built from the maps above,
+    # and the location prior built from the same ranks (R/prior.R).
+    atlas_here_index_path(grid),
+    file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES)
   )
   files <- files[file.exists(files)]
   rel <- substring(normalizePath(files, winslash = "/"),

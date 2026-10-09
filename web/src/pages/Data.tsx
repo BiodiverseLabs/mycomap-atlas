@@ -7,7 +7,7 @@ import { ApiDown, Loading, Stat, Th } from "@/components/Common";
 import { Page, PageHeader, SectionTitle } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { checklistUrl, getLayers, getRegions, getStatus, getTaxaCount, type Region } from "@/lib/api";
+import { checklistUrl, getLayers, getPrior, getRegions, getStatus, getTaxaCount, type Region } from "@/lib/api";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber, formatWhen } from "@/lib/utils";
 
@@ -110,6 +110,56 @@ function Checklists() {
   );
 }
 
+function megabytes(bytes: number): string {
+  return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} kB`;
+}
+
+/** The location prior, for reading the maps from another program. */
+function Prior() {
+  const prior = useQuery({ queryKey: ["prior"], queryFn: getPrior, retry: false });
+  return (
+    <section id="prior">
+      <SectionTitle>Location prior</SectionTitle>
+      <p className="mb-4 max-w-3xl text-sm text-[#5c4a3a] leading-relaxed">
+        For a program that weighs what a photo shows by where it was taken, as MycoMap Vision
+        does: every map that beat its null models, as ranks by 20 km cell over the whole of the
+        taxon's reach, the poor ground as well as the good. Ground the maps cannot judge is left
+        unranked, and a taxon with no such map is simply not listed, which means no information,
+        not unlikely. A rank is the map's own percentile, not a probability: calibrate it on
+        records of your own before weighting by it. The grid file says how to find a point's
+        cell, with a few lines of Python.
+      </p>
+      <Card className="max-w-3xl">
+        <CardContent className="space-y-2 p-4 text-sm">
+          {prior.isLoading && <Loading />}
+          {prior.isError && <p className="text-muted-foreground">Not built yet: it comes with the next finished release.</p>}
+          {prior.data && (
+            <>
+              <p className="text-[#5c4a3a]">
+                {formatNumber(prior.data.taxa)} taxa, {formatNumber(prior.data.rows)} taxon and cell pairs
+                {prior.data.release ? `, release ${prior.data.release}` : ""}.
+              </p>
+              <ul className="space-y-1">
+                {prior.data.files.map((file) => (
+                  <li key={file.name}>
+                    <a href={file.url} className="text-myco-green hover:underline">
+                      {file.name}
+                    </a>{" "}
+                    <span className="text-xs text-muted-foreground tabular-nums">{megabytes(file.bytes)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                Columns, the grid and checksums: <a href="/api/prior" className="text-myco-green hover:underline">/api/prior</a>.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
 export default function Data() {
   usePageMeta({
     title: "Data",
@@ -194,6 +244,8 @@ export default function Data() {
         </section>
 
         <Checklists />
+
+        <Prior />
 
         <section>
           <SectionTitle>Environmental layers</SectionTitle>

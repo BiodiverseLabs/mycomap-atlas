@@ -46,12 +46,14 @@ test_that("a release no worker has finished is not finished", {
   expect_false(atlas_release_finished(list(finished = list(version = ATLAS_FINISH_VERSION - 1L))))
 })
 
-test_that("a finishing worker counts the maps, builds the index and reports only what changed", {
+test_that("a finishing worker counts the maps, builds the index and prior, and reports only what changed", {
   skip_if_not_installed("terra")
   setup <- published()
   record <- on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
   paths <- vapply(record$files, `[[`, "", "path")
-  expect_setequal(paths, c("index/draft/here.rds", "models/draft/taxon-a.json"))
+  prior <- paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json",
+                                    if (requireNamespace("nanoparquet", quietly = TRUE)) "ranks.parquet"))
+  expect_setequal(paths, c("index/draft/here.rds", "models/draft/taxon-a.json", prior))
   expect_equal(record$counted, 1L)
   expect_equal(record$release, setup$release$id)
   # Uploaded: the box needs only the record and the objects it names.

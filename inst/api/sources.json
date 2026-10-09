@@ -289,6 +289,13 @@
       "role": "The test suite."
     },
     {
+      "name": "nanoparquet",
+      "group": "r",
+      "license": "MIT",
+      "url": "https://nanoparquet.r-lib.org",
+      "role": "Writes the location prior as Parquet, without Arrow."
+    },
+    {
       "name": "react",
       "group": "web",
       "license": "MIT",
@@ -608,6 +615,20 @@
       "detail": "A taxon's map drawn over Natural Earth land and borders with its collections, a legend and the source, for spreadsheets, documents and slides.",
       "availability": "published",
       "where": "/api/taxa/{name}/image.png"
+    },
+    {
+      "stage": "6. Release",
+      "name": "Location prior",
+      "detail": "Every strong map's ranks by 20 km cell, below the median included, with the cells a taxon's maps reach but cannot judge left unranked; a table of its taxa; and the grid, with a Python function that finds a point's cell. For weighing a photo identification by where it was taken.",
+      "availability": "published",
+      "where": "/api/prior and /api/prior/{file}, and prior-* in each Zenodo models version"
+    },
+    {
+      "stage": "6. Release",
+      "name": "Which records trained a release",
+      "detail": "The source ids (iNaturalist, Mushroom Observer and the rest) of the records behind each release's models, so a benchmark can tell which of its test records a release has seen.",
+      "availability": "withheld",
+      "why": "A record id leads to its exact collection point, so the list stays in Atlas's private storage. It is never in a release, the API, this site or Zenodo."
     }
   ]
 }

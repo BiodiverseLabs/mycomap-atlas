@@ -1,10 +1,10 @@
 # Finishing a release: what needs every map at once.
 #
 # A job's workers each fit a share of the models, so nothing they make can
-# depend on all of them. Two products do: the "what could grow here" index
-# (R/here.R), built from every map that beat its null models, and each map's
-# counts by state (R/predictions.R), which maps drawn before those counts
-# existed lack. Until this step the index was built only by hand, and no
+# depend on all of them. Three products do: the "what could grow here" index
+# (R/here.R) and the location prior (R/prior.R), both built from every strong
+# map, and each map's counts by state (R/predictions.R), which maps drawn
+# before those counts existed lack. Until this step the index was built only by hand, and no
 # release made by a job ever carried one, so the Explore page had nothing to
 # answer from.
 #
@@ -17,8 +17,10 @@
 # fit still finishes a release that never was.
 
 # Raised whenever finishing comes to add something new, so that every
-# release is finished again under the new rule.
-ATLAS_FINISH_VERSION <- 1L
+# release is finished again under the new rule. 2: the location prior, and the
+# index ranked inside each map's area of applicability. Finishing again
+# refits nothing: it reads the release's maps and adds what it builds.
+ATLAS_FINISH_VERSION <- 2L
 
 #' Whether a release has been finished under the current rule.
 atlas_release_finished <- function(release) {
@@ -32,12 +34,12 @@ atlas_finish_id <- function(release_id) paste0("finish-", release_id)
 #' On the worker: finish one release and report what changed.
 #'
 #' Pulls the release with its rasters, counts every map not yet counted by
-#' state, builds the index, uploads the files that changed and writes the
-#' record the box turns into the finished release. count and build_index are
-#' replaceable for tests.
+#' state, builds the index and the prior, uploads the files that changed and
+#' writes the record the box turns into the finished release. count and
+#' build_index are replaceable for tests.
 atlas_finish_release_work <- function(store = atlas_store(), release, grid = "draft", workers = 1L,
                                       quiet = FALSE, count = atlas_count_regions,
-                                      build_index = atlas_build_here_index) {
+                                      build_index = atlas_build_finish_indexes) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   started <- Sys.time()
   manifest <- atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
@@ -46,14 +48,15 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
   counted <- count(grid = grid, workers = workers, only_missing = TRUE, quiet = quiet)
   build_index(grid = grid, quiet = quiet)
 
-  # What differs from the release: counted metrics and the new index.
+  # What differs from the release: counted metrics, the new index and prior.
   published <- stats::setNames(vapply(manifest$files, function(f) f$sha256, ""),
                                vapply(manifest$files, function(f) f$path, ""))
   root <- atlas_data_dir()
   metrics <- unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
     list.files(atlas_model_dir(grid, a), pattern = "[.]json$", full.names = TRUE)
   }), use.names = FALSE)
-  candidates <- substring(normalizePath(c(metrics, atlas_here_index_path(grid)), winslash = "/", mustWork = FALSE),
+  built <- c(atlas_here_index_path(grid), file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES))
+  candidates <- substring(normalizePath(c(metrics, built), winslash = "/", mustWork = FALSE),
                           nchar(normalizePath(root, winslash = "/")) + 2L)
   candidates <- candidates[file.exists(file.path(root, candidates))]
   entries <- atlas_file_entries(candidates)
@@ -69,7 +72,7 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
     files = changed
   )
   atlas_store_json(store, atlas_shard_key(id, 1L, grid), record)
-  say("finished release ", release, ": counted ", record$counted, " maps by state, built the index; ",
+  say("finished release ", release, ": counted ", record$counted, " maps by state, built the index and prior; ",
       length(changed), " files changed, ", uploaded$count, " uploaded (",
       round(uploaded$bytes / 1048576, 1), " MB)")
   invisible(record)

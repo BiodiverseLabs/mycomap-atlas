@@ -169,6 +169,8 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
     "public/pull.json" = "pull.json"
   )
   singles[[paste0("layers/", grid, "/manifest.json")]] <- "layers-manifest.json"
+  # The location prior: strong maps' ranks by 20 km cell (R/prior.R).
+  for (file in ATLAS_PRIOR_FILES) singles[[paste0("prior/", grid, "/", file)]] <- paste0("prior-", file)
   for (benchmark in paths[startsWith(paths, paste0("benchmarks/", grid, "/"))]) {
     singles[[benchmark]] <- "benchmark.json"
   }
@@ -273,6 +275,8 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
       "`maps-<model>.tar` holds, per taxon, the raw suitability raster (GeoTIFF, North America Albers Equal Area,",
       "inside the 500 km accessible area) and the drawn map (PNG, Web Mercator, coloured by percentile).",
       "`scores.tar.gz` holds each model's scores on every spatial fold, predictors and settings.",
+      "`prior-*` is the location prior: every strong map's ranks by 20 km cell (`prior-ranks.parquet`,",
+      "`prior-ranks.tsv.gz`), its taxa (`prior-taxa.tsv`), and the grid with a Python cell lookup (`prior-grid.json`).",
       "Collection locations appear only as 0.1 degree cells; exact coordinates are never published.",
       ""
     )

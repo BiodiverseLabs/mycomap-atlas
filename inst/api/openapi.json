@@ -356,7 +356,7 @@
         ],
         "operationId": "whatCouldGrowHere",
         "summary": "What could grow here",
-        "description": "Every mapped taxon whose maps rate a place highly, best first. The answer comes from an index of every map by 20 km cell: for each model, the cells where it ranks the ground in the top half of its own accessible area, as a percentile (the same rank the maps are coloured by). A taxon's score is the mean of its models' ranks there, a model that does not rate the place in its top half counting as zero. Taxa collected within nearby_km are marked with how many records, counted from 0.1 degree cells; taxa collected nearby that have no map yet are listed apart. Habitat suitability, not occurrence.",
+        "description": "Every mapped taxon whose maps rate a place highly, best first. The answer comes from an index of every map by 20 km cell: for each strong model, the cells where it ranks the ground in the top half of its own accessible area, as a percentile taken inside the model's area of applicability (the same rank the maps are coloured by), so ground a map knows nothing about is never here. A taxon's score is the mean of its models' ranks there, a model that does not rate the place in its top half counting as zero. Taxa collected within nearby_km are marked with how many records, counted from 0.1 degree cells; taxa collected nearby that have no map yet are listed apart. Habitat suitability, not occurrence.",
         "parameters": [
           {
             "name": "lat",
@@ -1387,6 +1387,147 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/prior": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "operationId": "getPrior",
+        "summary": "The location prior: maps' ranks by 20 km cell",
+        "description": "For weighing a photo identification by where it was taken (MycoMap Vision reads it). Every strong map's ranks by 20 km cell over the whole of a taxon's reach, below the median included: for each taxon with a strong map, each cell its maps reach, with the mean of its strong models' ranks there (0-100, the rank the maps are coloured by, taken inside each map's area of applicability), or empty where the cell is within reach but outside every model's area of applicability. A cell with no row is beyond the taxon's reach; a taxon not in taxa.tsv has no strong map, which means no information, not unlikely. A rank is a percentile within the taxon's own reach, not a probability, and not comparable between taxa as it stands: calibrate it on held-out records before weighting by it. The what-could-grow-here index is the same per-model ranks, kept where they are 50 or more. This answer lists the files with their sizes and SHA-256, and holds grid.json's content as definition: the projection, the cell numbering and a numpy function that finds a point's cell. Built when a release is finished; each Zenodo models version carries the same files as prior-*.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The prior's files and grid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prior"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "This server holds no location prior yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/prior/{file}": {
+      "get": {
+        "tags": [
+          "Data"
+        ],
+        "operationId": "getPriorFile",
+        "summary": "One file of the location prior",
+        "description": "ranks.parquet (taxon_id uint16, cell_id int32, rank uint8 with nulls; zstd) and ranks.tsv.gz hold the same rows, sorted by taxon_id then cell_id; taxa.tsv has taxon_id, name, grade, models, algorithms, sites, reach_cells and applicable_cells; grid.json defines the cells. Sent as an attachment. Check it against the SHA-256 GET /api/prior lists.",
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "description": "One of the files GET /api/prior lists.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ranks.parquet",
+                "ranks.tsv.gz",
+                "taxa.tsv",
+                "grid.json"
+              ]
+            },
+            "example": "ranks.parquet"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file.",
+            "content": {
+              "application/vnd.apache.parquet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/gzip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/tab-separated-values": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "404": {
+            "description": "No such file, or no prior on this server yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -3123,6 +3264,57 @@
               "type": "string"
             },
             "description": "Earlier names passed through, oldest first."
+          }
+        }
+      },
+      "PriorFile": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "Where to fetch it on this server."
+          }
+        }
+      },
+      "Prior": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "string",
+            "description": "The release this server serves, which the prior was built with."
+          },
+          "grid": {
+            "type": "string"
+          },
+          "taxa": {
+            "type": "integer",
+            "description": "Taxa with a strong map."
+          },
+          "rows": {
+            "type": "integer",
+            "description": "Rows in ranks: taxon and cell pairs."
+          },
+          "cellKm": {
+            "type": "number"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriorFile"
+            }
+          },
+          "definition": {
+            "type": "object",
+            "description": "grid.json: crs, extent, cell_m, ncol, nrow, cell_id (the numbering), python (a numpy cell lookup), columns and reading."
           }
         }
       }

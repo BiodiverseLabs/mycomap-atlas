@@ -241,3 +241,52 @@ atlas_taxon_cells <- function(name, occurrences = NULL, public = NULL) {
   rownames(rows) <- NULL
   rows
 }
+
+# ---- the location prior -----------------------------------------------------
+
+ATLAS_PRIOR_TYPES <- c(
+  "ranks.parquet" = "application/vnd.apache.parquet",
+  "ranks.tsv.gz" = "application/gzip",
+  "taxa.tsv" = "text/tab-separated-values; charset=utf-8",
+  "grid.json" = "application/json"
+)
+
+#' What GET /api/prior answers: the release the prior comes from, its size,
+#' its files with their checksums and where to fetch them, and the grid. NULL
+#' when this machine holds no prior.
+atlas_prior_listing <- function(grid = "draft") {
+  grid_path <- atlas_prior_path("grid.json", grid)
+  if (!file.exists(grid_path)) return(NULL)
+  definition <- jsonlite::fromJSON(grid_path, simplifyVector = FALSE)
+  query <- if (identical(grid, "draft")) "" else paste0("?grid=", grid)
+  files <- Filter(Negate(is.null), lapply(ATLAS_PRIOR_FILES, function(name) {
+    path <- atlas_prior_path(name, grid)
+    if (!file.exists(path)) return(NULL)
+    list(name = name, bytes = file.info(path)$size, sha256 = atlas_sha256(path),
+         url = paste0("/api/prior/", name, query))
+  }))
+  Filter(Negate(is.null), list(
+    release = atlas_status_release(grid)$id,
+    grid = grid,
+    taxa = definition$taxa,
+    rows = definition$rows,
+    cellKm = definition$cell_m / 1000,
+    files = files,
+    definition = definition
+  ))
+}
+
+#' One prior file as an answer for atlas_send: its bytes and type, or a 404.
+atlas_prior_file_answer <- function(name, grid = "draft") {
+  if (!name %in% ATLAS_PRIOR_FILES) {
+    return(list(status = 404L, body = list(error = "no such prior file: GET /api/prior lists them")))
+  }
+  path <- atlas_prior_path(name, grid)
+  if (!file.exists(path)) {
+    return(list(status = 404L, body = list(error = "this server holds no location prior yet")))
+  }
+  list(status = 200L, file = path, headers = list(
+    "Content-Type" = ATLAS_PRIOR_TYPES[[name]],
+    "Content-Disposition" = paste0("attachment; filename=\"atlas-prior-", grid, "-", name, "\"")
+  ))
+}
