@@ -42,11 +42,12 @@ RUN apt-get update --snapshot "${UBUNTU_SNAPSHOT}" \
 
 # Only what Atlas uses. terra and sf come with the base image (blockCV needs
 # sf); paws.compute
-# and curl are the nightly job's (EC2, and checking the workers' image).
+# and curl are the nightly job's (EC2, and checking the workers' image);
+# nanoparquet writes the location prior's Parquet file (R/prior.R).
 RUN . /etc/os-release \
  && install2.r --error --skipinstalled --ncpus -1 \
       -r "https://p3m.dev/cran/__linux__/${VERSION_CODENAME}/${CRAN_SNAPSHOT}" \
-      digest jsonlite plumber maxnet glmnet xgboost ranger blockCV paws.storage paws.compute curl openssl testthat targets \
+      digest jsonlite plumber maxnet glmnet xgboost ranger blockCV paws.storage paws.compute curl openssl testthat targets nanoparquet \
  && rm -rf /tmp/downloaded_packages
 
 WORKDIR /atlas

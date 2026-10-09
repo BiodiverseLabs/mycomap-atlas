@@ -88,6 +88,8 @@ jobs:
           docker run --rm --entrypoint test mycomap-atlas:ci -f /opt/atlas-web/index.html
           docker run --rm --entrypoint ssh mycomap-atlas:ci -V
           docker run --rm --entrypoint Rscript mycomap-atlas:ci -e 'stopifnot(requireNamespace("paws.compute", quietly = TRUE))'
+          # Without it a finished release has no Parquet prior, only the TSV.
+          docker run --rm --entrypoint Rscript mycomap-atlas:ci -e 'stopifnot(requireNamespace("nanoparquet", quietly = TRUE))'
       # EC2 workers pull the image of the orchestrator's own commit
       # (R/ec2.R), so every commit on main gets one, tagged with its full SHA.
       # No moving tag: a worker can only ever run a named commit.
