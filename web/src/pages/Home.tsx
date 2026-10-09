@@ -133,7 +133,7 @@ const PRINCIPLES: { icon: Icon; title: string; text: string }[] = [
   {
     icon: Mountain,
     title: "Tested on regions it never saw",
-    text: "Scores come from holding out whole 200 km blocks of the continent. A model cannot pass by memorising one wood.",
+    text: "Scores come from hiding whole regions, 50 to 300 km across, and asking the model to predict them. A good score means it found the fungus somewhere new, not just next to the collections it learned from.",
   },
   {
     icon: Layers,
