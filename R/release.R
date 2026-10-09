@@ -43,6 +43,8 @@ atlas_local_store <- function(root) {
       base <- path(prefix)
       if (!dir.exists(base)) return(character())
       files <- list.files(base, recursive = TRUE, all.files = TRUE)
+      # paste0 with no files would give the prefix itself, as if it were a key.
+      if (!length(files)) return(character())
       paste0(sub("/?$", "/", prefix), files)
     }
   )

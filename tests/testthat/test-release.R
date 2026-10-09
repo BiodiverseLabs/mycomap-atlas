@@ -245,3 +245,13 @@ test_that("a change to the model index alone is still a change", {
     expect_true(any(vapply(second$index, function(e) isTRUE(e$refused), logical(1))))
   })
 })
+
+test_that("an empty folder in a local store lists no keys, not its own name", {
+  store <- new_store()
+  file <- tempfile()
+  writeLines("x", file)
+  store$put("private/a/b.txt", file)
+  unlink(file.path(sub("^file://", "", store$uri), "private/a/b.txt"))
+  expect_identical(store$list("private/a/"), character())
+  expect_identical(store$list("nothing/here/"), character())
+})
