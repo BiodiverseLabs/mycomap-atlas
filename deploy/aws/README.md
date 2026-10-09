@@ -37,6 +37,7 @@ orchestrator cannot start an expensive or unrelated machine: AWS refuses it.
 | `worker/trust.json` | only EC2 may assume the worker role |
 | `worker/permissions.json` | the worker's bucket access (inline policy `atlas-store`) |
 | `orchestrator/permissions.json` | the box's permissions (managed policy `atlas-orchestrator`) |
+| `vision-reader/permissions.json` | MycoMap Vision's box: read each release's trained-ids list, nothing else |
 | `render.R` | fills in the templates for one deployment |
 | `check-orchestrator.R` | asks IAM how it would decide 23 requests, allowed and forbidden |
 
@@ -188,6 +189,39 @@ default: 4 workers of 32 vCPU and 64 GB, one fit per 3 GB; change it with
 Set `ATLAS_EC2_MAX_HOURS` to the wall estimate plus half again. A job that
 still runs out of time publishes what its shards saved (`finish-job
 --partial`) and the next job fits only the rest.
+
+## Which records trained a release (private)
+
+MycoMap Vision benchmarks photo identification on records it holds out,
+and weighs photos by Atlas's location prior, so it needs to know which of
+its records trained a release's maps. Every finished job writes that list
+to the store, beside nothing public:
+
+```
+private/trained-ids/<grid>/releases/<release id>.tsv.gz   source, source_id, taxon
+private/trained-ids/<grid>/releases/<release id>.json     counts, and any model whose records were not found
+private/trained-ids/<grid>/pulls/<sha256>.tsv.gz          each pull's records by taxon and record set (the box's own)
+```
+
+A source id (an iNaturalist observation id, say) leads straight to its exact
+collection point, so the list is **never** published: not in a release, the
+API, the site, Zenodo or the repository. Only presences are listed; the
+background sites carry no taxon, so they teach no map a name.
+
+Three ways to get a release's list to Vision's box, from the box as the
+atlas user:
+
+- **Its own read access (recommended).** An IAM user or role for Vision's
+  box with `vision-reader/permissions.json`: it may list and read
+  `private/trained-ids/*/releases/*` and nothing else in the bucket, not
+  even the per-pull tables. Vision then fetches the list for whichever
+  release its prior came from (`/api/prior` names it), with no step here.
+- **A presigned link**, for a one-off: `./atlas trained-ids --link --hours=6`
+  prints a link to the current release's list (`--release=ID` for another)
+  that works for that long, at most 12 hours, and no longer than the
+  signing credentials last.
+- **A copy**: `./atlas trained-ids --out=/tmp/trained.tsv.gz`, then copy it
+  across yourself. Delete the copy afterwards.
 
 ## The monthly budget alarm
 

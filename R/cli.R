@@ -115,6 +115,8 @@ atlas_usage <- function() {
   message("  job-status         which shards of a job have reported")
   message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
   message("      --fits-at-once=N          fits running together on EC2 (default 84)")
+  message("  trained-ids        PRIVATE: which records trained a release (--out=FILE or --link [--hours=N],")
+  message("                     [--release=ID]); never publish it")
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
@@ -539,6 +541,23 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       grid <- atlas_flag_grid(flags)
       atlas_run_job_on_ec2(store, atlas_read_job(store, as.character(flags$job), grid), grid,
                            config = config, finish = !isTRUE(flags$no_finish))
+      invisible(0L)
+    },
+    "trained-ids" = {
+      # Private: which records trained a release, for Vision's benchmark.
+      # --out copies it here; --link prints a presigned link instead.
+      store_uri <- flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")
+      store <- atlas_store(store_uri)
+      grid <- atlas_flag_grid(flags)
+      release <- if (is.null(flags$release)) NULL else as.character(flags$release)
+      if (isTRUE(flags$link)) {
+        release <- release %||% atlas_current_release(store, grid)$id
+        cat(atlas_trained_ids_link(store_uri, release, grid, hours = atlas_flag_number(flags, "hours", 1)), "\n")
+      } else {
+        if (is.null(flags$out)) stop("trained-ids needs --out=FILE, or --link", call. = FALSE)
+        atlas_fetch_trained_ids(store, release, grid, as.character(flags$out))
+        message("wrote ", flags$out, ": private, do not publish it")
+      }
       invisible(0L)
     },
     "job-timing" = {

@@ -278,6 +278,9 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   if (file.exists(file.path(atlas_data_dir(), guild_path))) pull_paths <- c(pull_paths, guild_path)
   inputs <- c(atlas_file_entries(pull_paths), layer_entries)
   atlas_upload_objects(store, c(inputs, public))
+  # Which record is which, by taxon and record set, for the release's private
+  # list of the records it was trained on (R/trained.R).
+  trained_ids <- atlas_save_trained_pull(store, grid, occurrences)
 
   id <- atlas_release_id(digest::digest(list(tasks, retire, base$id), algo = "sha256"))
   job <- list(
@@ -294,7 +297,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     tasks = tasks,
     retire = retire,
     deferred = deferred,
-    sample = if (is.finite(sample)) as.integer(sample) else NULL
+    sample = if (is.finite(sample)) as.integer(sample) else NULL,
+    trained_ids = trained_ids
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/job.json"), job)
   per_algorithm <- table(vapply(tasks, function(t) t$algorithm, ""))
@@ -582,6 +586,10 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/finished.json"),
                    list(release = release$id, finished_at = release$created_at))
+  atlas_trained_ids_quietly(
+    atlas_write_trained_ids(store, release, grid, prefer = atlas_json_string(job$trained_ids), quiet = quiet),
+    release$id
+  )
   say("job ", id, " finished", if (length(status$missing)) " in part" else "", ": ",
       counts[["fitted"]], " fitted, ", counts[["refused"]], " refused, ",
       counts[["failed"]], " failed (kept their previous models), ", length(job$retire), " retired",

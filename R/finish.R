@@ -98,7 +98,7 @@ atlas_apply_finish <- function(store = atlas_store(), release, grid = "draft", q
   for (f in record$files) files[[f$path]] <- f
 
   kept <- base[intersect(names(base), c("job", "job_results", "retired", "partial", "unreported_shards"))]
-  atlas_write_release(
+  finished <- atlas_write_release(
     store, grid, unname(files), base$index,
     previous = base$id, note = paste("finished", base$id),
     pull = base$pull, layers_key = base$layers_key, promote = TRUE, quiet = quiet,
@@ -107,6 +107,9 @@ atlas_apply_finish <- function(store = atlas_store(), release, grid = "draft", q
       changed = length(record$files), at = record$finished_at
     )))
   )
+  # Finishing fits nothing: the finished release was trained on what its base was.
+  atlas_trained_ids_quietly(atlas_copy_trained_ids(store, grid, base$id, finished$id), finished$id)
+  invisible(finished)
 }
 
 #' On the box: finish the current release on an EC2 worker, if it needs it.

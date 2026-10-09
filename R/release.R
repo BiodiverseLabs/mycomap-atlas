@@ -440,12 +440,22 @@ atlas_publish_release <- function(store = atlas_store(), grid = "draft", note = 
   say("uploaded ", uploaded$count, " of ", length(paths), " files (",
       round(uploaded$bytes / 1048576, 1), " MB); the rest were already stored")
 
-  atlas_write_release(
+  release <- atlas_write_release(
     store, grid, entries, index,
     previous = current$id, note = note,
     pull = atlas_release_pull_summary(manifest),
     layers_key = atlas_layers_key(grid), promote = promote, quiet = quiet
   )
+  # The private list of the records it was trained on (R/trained.R), from
+  # this machine's pull when it has one.
+  occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
+  if (!is.null(occurrences)) {
+    atlas_trained_ids_quietly({
+      key <- atlas_save_trained_pull(store, grid, occurrences)
+      atlas_write_trained_ids(store, release, grid, prefer = key, quiet = quiet)
+    }, release$id)
+  }
+  invisible(release)
 }
 
 #' Make a release the one everyone pulls. Rolling back is promoting an older one.
