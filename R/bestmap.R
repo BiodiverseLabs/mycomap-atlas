@@ -5,9 +5,15 @@
 #
 # Only a strong map makes a claim (R/map.R, atlas_map_grade), so:
 #   - two or more strong maps: their combined map (R/ensemble.R);
-#   - one or more strong maps without a combined map: the one with the best
-#     skill on held-out ground (blocked AUC, then Boyce);
+#   - one strong map, or two or more whose combined map is missing: the one
+#     drawn strongest (map_strength, its margin over the shifted nulls), then
+#     the best blocked AUC. Never AUC alone: on the virtual-species test bed it
+#     picked the truly best method only 38% of the time (method lane,
+#     2026-10-11). No algorithm is preferred, so a 3-19-site taxon's
+#     small-model ensemble is its single map when it is strong;
 #   - none: nothing, and the answer says why.
+# Only grade == "strong" counts (atlas_metrics_grade), never skill: a fit from
+# before 2026-10-08 can say skill passed and still be weak.
 # Weak maps are left out for now; ATLAS_BEST_MAP_SHOWS_WEAK turns them into a
 # faint answer (grade weak, opacity 0.25) if Steve chooses that.
 #
@@ -141,11 +147,10 @@ atlas_best_choice <- function(name, grid = "draft", show_weak = ATLAS_BEST_MAP_S
 
   pick <- function(candidates) {
     if (!length(candidates)) return(NULL)
-    auc <- vapply(candidates, function(m) atlas_model_skill(m$metrics)$auc, numeric(1))
-    boyce <- vapply(candidates, function(m) atlas_model_skill(m$metrics)$boyce, numeric(1))
-    auc[!is.finite(auc)] <- -Inf
-    boyce[!is.finite(boyce)] <- -Inf
-    best <- order(-auc, -boyce, names(candidates))[[1]]
+    finite <- function(x) { x[!is.finite(x)] <- -Inf; x }
+    strength <- finite(vapply(candidates, function(m) as.numeric(m$metrics$map_strength %||% NA), numeric(1)))
+    auc <- finite(vapply(candidates, function(m) atlas_model_skill(m$metrics)$auc, numeric(1)))
+    best <- order(-strength, -auc, names(candidates))[[1]]
     m <- candidates[[best]]
     list(kind = "model", algorithm = names(candidates)[[best]], members = names(candidates)[[best]],
          grade = m$grade, skill = atlas_model_skill(m$metrics), png = m$png,
@@ -217,7 +222,14 @@ atlas_best_overlay <- function(name, choice, origin = atlas_site_origin()) {
     sprintf("%s/api/taxa/%s/map.png?algorithm=%s&v=%s", origin, encoded, choice$algorithm, version)
   }
   wrapped <- atlas_wrap_bounds(choice$bounds)
-  list(url = url, bounds = wrapped$bounds, crosses_antimeridian = wrapped$crosses,
+  # Where the combined map's members disagree, for an app that offers it.
+  disagreement <- sub("[.]png$", ".disagreement.png", choice$png)
+  disagreement_url <- if (identical(choice$kind, "ensemble") && file.exists(disagreement)) {
+    sprintf("%s/api/taxa/%s/ensemble.png?layer=disagreement&v=%s", origin, encoded,
+            unname(tools::md5sum(disagreement)))
+  }
+  list(url = url, disagreement_url = disagreement_url, bounds = wrapped$bounds,
+       crosses_antimeridian = wrapped$crosses,
        width = if (is.null(size)) NA_integer_ else as.integer(size[["width"]]),
        height = if (is.null(size)) NA_integer_ else as.integer(size[["height"]]),
        opacity = atlas_opacity(choice$strength, choice$grade))
@@ -278,6 +290,8 @@ atlas_best_map_answer <- function(requested, taxa, renames = NULL, grid = "draft
     caption = if (!is.null(choice)) atlas_best_caption(name, choice$grade),
     provisional = !is.null(name) && atlas_is_provisional_name(name),
     page_url = if (!is.null(name)) sprintf("%s/taxa/%s", origin, utils::URLencode(name, reserved = TRUE)),
+    # The 0.1 degree collection cells, offered whether or not there is a map.
+    cells_url = if (!is.null(name)) sprintf("%s/api/taxa/%s/cells", origin, utils::URLencode(name, reserved = TRUE)),
     attribution = atlas_best_map_attribution(origin),
     license_url = ATLAS_MAP_LICENSE_URL
   )

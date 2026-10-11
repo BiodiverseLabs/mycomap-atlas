@@ -1586,7 +1586,7 @@
         ],
         "operationId": "getTaxonBestMap",
         "summary": "The one map to show for a taxon",
-        "description": "For apps that show a single map per species. Two or more maps that beat clustered collecting (grade strong): their combined map. One or more strong maps without a combined map: the one with the best skill on held-out ground (blocked AUC, then Boyce). None: available is false and reason says why (too_few_sites, no_strong_model or not_modelled). Always 200, an unknown name included. The name is matched exactly, by spelling (case and punctuation), folded (author citations and rank words) or through a rename; matched_by says which. overlay.url carries v=, the PNG's md5, so it changes exactly when the picture is redrawn and can be cached for good. overlay.bounds always lie within -180..180: a map drawn past the antimeridian has crosses_antimeridian true and its west east of its east (react-native-maps' GroundOverlay cannot take such bounds: skip it or draw two halves). Maps are at most 1600 px on their long side. No coordinate or record is in the answer: only the map's bounds, which its picture covers. The shape is fixed by inst/api/fixtures/best-map.json.",
+        "description": "For apps that show a single map per species. Two or more maps that beat clustered collecting (grade strong; skill alone never counts): their combined map, with where its members disagree. One strong map, or several whose combined map is missing: the one drawn strongest (map strength, its margin over the shifted nulls), then the best blocked AUC. None: available is false and reason says why (too_few_sites, no_strong_model or not_modelled). Always 200, an unknown name included. The name is matched exactly, by spelling (case and punctuation), folded (author citations and rank words) or through a rename; matched_by says which. overlay.url carries v=, the PNG's md5, so it changes exactly when the picture is redrawn and can be cached for good. overlay.bounds always lie within -180..180: a map drawn past the antimeridian has crosses_antimeridian true and its west east of its east (react-native-maps' GroundOverlay cannot take such bounds: skip it or draw two halves). Maps are at most 1600 px on their long side. No coordinate or record is in the answer: only the map's bounds, which its picture covers. The shape is fixed by inst/api/fixtures/best-map.json.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -1634,6 +1634,7 @@
                       },
                       "overlay": {
                         "url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
+                        "disagreement_url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?layer=disagreement&v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
                         "bounds": {
                           "south": 20.07,
                           "west": -142.65,
@@ -1658,13 +1659,14 @@
                       "caption": "Suitable habitat for Laccaria laccata, ranked within its own range. Suitable habitat, not a sighting; not for foraging.",
                       "provisional": false,
                       "page_url": "https://atlas.mycomap.org/taxa/Laccaria%20laccata",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/cells",
                       "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
                       "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
                     }
                   },
                   "single": {
                     "value": {
-                      "requested": "Mycena sp. 'IN-10'",
+                      "requested": "mycena sp. 'IN10'",
                       "taxon": "Mycena sp. 'IN10'",
                       "matched_by": "spelling",
                       "release": {
@@ -1691,6 +1693,7 @@
                       },
                       "overlay": {
                         "url": "https://atlas.mycomap.org/api/taxa/Mycena%20sp.%20%27IN10%27/map.png?algorithm=esm&v=9c1e0b7d2a4f6e8c0b2d4f6a8c0e2b4d",
+                        "disagreement_url": null,
                         "bounds": {
                           "south": 36.2,
                           "west": -91.4,
@@ -1715,6 +1718,7 @@
                       "caption": "Suitable habitat for Mycena sp. 'IN10', ranked within its own range. Suitable habitat, not a sighting; not for foraging. A provisional name: a DNA lineage without a published species name yet.",
                       "provisional": true,
                       "page_url": "https://atlas.mycomap.org/taxa/Mycena%20sp.%20%27IN10%27",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Mycena%20sp.%20%27IN10%27/cells",
                       "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
                       "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
                     }
@@ -1737,6 +1741,7 @@
                       "caption": null,
                       "provisional": false,
                       "page_url": "https://atlas.mycomap.org/taxa/Trametes%20versicolor",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/cells",
                       "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
                       "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
                     }
@@ -1759,6 +1764,7 @@
                       "caption": null,
                       "provisional": false,
                       "page_url": "https://atlas.mycomap.org/taxa/Rhodotus%20reticeps",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Rhodotus%20reticeps/cells",
                       "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
                       "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
                     }
@@ -1781,6 +1787,7 @@
                       "caption": null,
                       "provisional": false,
                       "page_url": null,
+                      "cells_url": null,
                       "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
                       "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
                     }
@@ -1858,6 +1865,7 @@
                       "presences": 129,
                       "provisional": false,
                       "url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
+                      "disagreement_url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?layer=disagreement&v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
                       "bounds": {
                         "south": 20.07,
                         "west": -142.65,
@@ -3676,6 +3684,7 @@
         "type": "object",
         "required": [
           "url",
+          "disagreement_url",
           "bounds",
           "crosses_antimeridian",
           "width",
@@ -3723,6 +3732,13 @@
             "type": "number",
             "minimum": 0,
             "maximum": 1
+          },
+          "disagreement_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For a combined map: where its member maps disagree, as an image over the same bounds. Null for a single model."
           }
         }
       },
@@ -3763,6 +3779,7 @@
           "caption",
           "provisional",
           "page_url",
+          "cells_url",
           "attribution",
           "license_url"
         ],
@@ -3936,6 +3953,13 @@
           },
           "license_url": {
             "type": "string"
+          },
+          "cells_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The taxon's 0.1 degree collection cells, offered whether or not it has a map. Null for an unknown name."
           }
         }
       },
@@ -3981,6 +4005,7 @@
                 "presences",
                 "provisional",
                 "url",
+                "disagreement_url",
                 "bounds",
                 "crosses_antimeridian",
                 "width",
@@ -4054,6 +4079,12 @@
                 },
                 "opacity": {
                   "type": "number"
+                },
+                "disagreement_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
               }
             }

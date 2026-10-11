@@ -31,6 +31,7 @@ fake_ensemble <- function(name, members, bounds = BOUNDS) {
                         map_strength = 0.7, bounds = bounds),
                    atlas_ensemble_path(name, "draft", ".json"))
   fake_png(atlas_ensemble_path(name, "draft", ".png"), 1500, 900, paste(name, "ensemble"))
+  fake_png(atlas_ensemble_path(name, "draft", ".disagreement.png"), 1500, 900, paste(name, "disagreement"))
 }
 
 TAXA <- data.frame(
@@ -75,6 +76,8 @@ test_that("two or more strong maps give their combined map, built from the stron
     expect_equal(a$overlay$url, paste0("https://atlas.example.org/api/taxa/Combined%20one/ensemble.png?v=", md5))
     expect_equal(c(a$overlay$width, a$overlay$height), c(1500L, 900L))
     expect_equal(a$overlay$opacity, round(0.25 + 0.55 * 0.7, 2))
+    expect_match(a$overlay$disagreement_url, "/ensemble.png?layer=disagreement&v=", fixed = TRUE)
+    expect_equal(a$cells_url, "https://atlas.example.org/api/taxa/Combined%20one/cells")
     expect_equal(a$release$id, "20261012T080000Z-1a2b3c4d")
   })
 })
@@ -88,9 +91,52 @@ test_that("without a combined map the strong map with the best held-out skill is
     expect_equal(a$choice$skill$auc, 0.71)
     expect_equal(a$choice$skill$null_z, round((0.71 - 0.55) / 0.05, 2))
     expect_match(a$overlay$url, "/map.png?algorithm=rf&v=", fixed = TRUE)
+    expect_null(a$overlay$disagreement_url)
     # Two strong maps whose combined map has not been built: still one map.
     unlink(atlas_ensemble_path("Combined one", "draft", ".png"))
     expect_equal(answer("Combined one")$choice$algorithm, "rf")
+  })
+})
+
+test_that("between single maps the one drawn strongest wins, even over a higher AUC", {
+  with_data_dir({
+    fake_model("Strength one", "maxnet", "strong", auc = 0.80, strength = 0.2)
+    fake_model("Strength one", "rf", "strong", auc = 0.70, strength = 0.8)
+    expect_equal(atlas_best_choice("Strength one")$algorithm, "rf")
+    # Equal strength: the better blocked AUC decides.
+    fake_model("Tied one", "maxnet", "strong", auc = 0.68, strength = 0.5)
+    fake_model("Tied one", "esm", "strong", auc = 0.72, strength = 0.5)
+    expect_equal(atlas_best_choice("Tied one")$algorithm, "esm")
+  })
+})
+
+test_that("only grade strong counts: a fit from before 2026-10-08 that says skill passed is never chosen", {
+  with_data_dir({
+    # No grade recorded, passed against scattered nulls: that grades weak.
+    atlas_write_json(list(taxon = "Old one", algorithm = "maxnet", skill = "passed", auc_mean = 0.85, boyce = 0.9,
+                          map_strength = 0.9, bounds = BOUNDS,
+                          null = list(design = "scatter", observed_auc = 0.85, auc_mean = 0.55, auc_sd = 0.05)),
+                     atlas_model_path("Old one", "draft", ".json", "maxnet"))
+    fake_png(atlas_model_path("Old one", "draft", ".png", "maxnet"), 800, 600)
+    expect_equal(atlas_metrics_grade(atlas_read_metrics("Old one")), "weak")
+    expect_null(atlas_best_choice("Old one"))
+    # A recorded weak grade beside a passed skill is weak too.
+    atlas_write_json(list(taxon = "Old one", algorithm = "maxnet", grade = "weak", skill = "passed", auc_mean = 0.85,
+                          map_strength = 0.9, bounds = BOUNDS, null = list(design = "shift")),
+                     atlas_model_path("Old one", "draft", ".json", "maxnet"))
+    expect_null(atlas_best_choice("Old one"))
+  })
+})
+
+test_that("a barely strong map is drawn fainter than one far above its nulls", {
+  with_data_dir({
+    fake_model("Barely one", "rf", "strong", auc = 0.66, strength = 0.05)
+    fake_model("Far one", "rf", "strong", auc = 0.66, strength = 0.95)
+    barely <- atlas_best_overlay("Barely one", atlas_best_choice("Barely one"))$opacity
+    far <- atlas_best_overlay("Far one", atlas_best_choice("Far one"))$opacity
+    expect_lt(barely, far)
+    expect_equal(barely, round(0.25 + 0.55 * 0.05, 2))
+    expect_equal(far, round(0.25 + 0.55 * 0.95, 2))
   })
 })
 
