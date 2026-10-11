@@ -39,7 +39,7 @@
       "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
     },
     "single": {
-      "requested": "Mycena sp. 'IN-10'",
+      "requested": "mycena sp. 'IN10'",
       "taxon": "Mycena sp. 'IN10'",
       "matched_by": "spelling",
       "release": { "id": "20261012T080000Z-1a2b3c4d", "built_at": "2026-10-12T08:00:00Z" },

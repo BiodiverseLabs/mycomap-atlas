@@ -240,7 +240,10 @@ function() {
     pulledAt = manifest$pulled_at,
     records = manifest$records,
     taxa = manifest$taxa,
-    fingerprint = manifest$fingerprint
+    fingerprint = manifest$fingerprint,
+    # How a map's grade is decided (R/map.R): "shift" since the clustered
+    # nulls. Apps that show strong maps only wait for it.
+    grading = ATLAS_NULL_DESIGN
   )
   # A full pull has no since date. Leave the field out rather than shipping an
   # NA, which serialises as an empty object.
@@ -497,6 +500,47 @@ function(name, grid = "draft", layer = "map", res) {
   }
   res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)
+}
+
+# JSON with real nulls: the best-map answers' shape (inst/api/fixtures/
+# best-map.json) has null for what a taxon lacks, where plumber's serializer
+# would write {}.
+best_map_json <- function(x) {
+  charToRaw(as.character(jsonlite::toJSON(x, auto_unbox = TRUE, null = "null", na = "null", digits = NA)))
+}
+
+#* The one map to show for a taxon, for apps that show a single map per
+#* species: its combined map, else its strongest model, else why there is none.
+#* @get /api/taxa/<name>/best-map
+#* @serializer contentType list(type = "application/json")
+function(name, grid = "draft") {
+  if (is.null(cache$renames_read)) {
+    cache$renames <- atlas_read_renames()
+    cache$renames_read <- TRUE
+  }
+  best_map_json(atlas_best_map_answer(atlas_decode_name(name), cached_taxa(), cache$renames, grid))
+}
+
+#* Every taxon with a map to show, in one list: fetch once per release. Sends
+#* an ETag, and answers 304 to a request that already has this list.
+#* @get /api/maps/best
+#* @serializer contentType list(type = "application/json")
+function(req, res, grid = "draft") {
+  key <- paste0("models_", grid)
+  if (is.null(cache[[key]])) cache[[key]] <- new.env(parent = emptyenv())
+  entry <- cache[[paste0("best_maps_", grid)]]
+  now <- as.numeric(Sys.time())
+  if (is.null(entry) || now - entry$at >= 60) {
+    body <- best_map_json(atlas_best_maps(atlas_model_index(grid, cache[[key]]), grid))
+    entry <- list(at = now, body = body, etag = paste0("\"", digest::digest(body, algo = "md5", serialize = FALSE), "\""))
+    assign(paste0("best_maps_", grid), entry, envir = cache)
+  }
+  res$setHeader("ETag", entry$etag)
+  if (identical(req$HTTP_IF_NONE_MATCH %||% "", entry$etag)) {
+    res$status <- 304L
+    return(raw())
+  }
+  entry$body
 }
 
 #* A taxon's suitability raster as a GeoTIFF. Needs a session or a token.
