@@ -281,6 +281,14 @@ test_that("anyone may ask the routes; nulls are null; the list has an ETag; stat
 
       status <- jsonlite::fromJSON(call_api(api, "/api/status")$body)
       expect_equal(status$grading, "shift")
+
+      # An app keeps a saved answer while its release id matches the
+      # server's: the three must name the same release, read from the same place.
+      list_body <- jsonlite::fromJSON(list1$body, simplifyVector = FALSE)
+      expect_equal(status$release$id, "20261012T080000Z-1a2b3c4d")
+      expect_identical(body$release$id, status$release$id)
+      expect_identical(list_body$release$id, status$release$id)
+      expect_identical(body$release$built_at, status$release$createdAt)
     })
   })
 })
