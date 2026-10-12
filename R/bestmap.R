@@ -102,7 +102,47 @@ atlas_opacity <- function(strength, grade) {
   round(ATLAS_OPACITY_FAINT + (ATLAS_OPACITY_STANDARD - ATLAS_OPACITY_FAINT) * s, 2)
 }
 
-#' The map to show for a taxon, or NULL. The one place the rule lives.
+#' The rule itself, on models already read: which map stands for a taxon.
+#'
+#' models is a list named by algorithm of list(metrics, grade), holding only
+#' models that have a map; ensemble is the combined map's JSON, or NULL when
+#' it has none. Returns kind, algorithm (NULL for the ensemble), members and,
+#' for the ensemble, the members' weights; or NULL. The site reads models
+#' from its data directory (atlas_best_choice); the new-find tracker reads
+#' them from a past release in the store (R/tracker.R), so the two can never
+#' choose differently.
+atlas_best_rule <- function(models, ensemble = NULL, show_weak = ATLAS_BEST_MAP_SHOWS_WEAK) {
+  strong <- Filter(function(m) identical(m$grade, "strong"), models)
+
+  # The combined map, while two or more of its members are still strong.
+  if (is.list(ensemble) && !is.null(ensemble$bounds)) {
+    members <- Filter(function(m) is.list(m) && m$algorithm %in% names(strong), ensemble$members %||% list())
+    if (length(members) >= 2L) {
+      weights <- vapply(members, function(m) as.numeric(m$weight %||% 0), numeric(1))
+      if (sum(weights) <= 0) weights <- rep(1, length(members))
+      return(list(kind = "ensemble", algorithm = NULL,
+                  members = vapply(members, function(m) m$algorithm, character(1)),
+                  weights = weights, grade = "strong"))
+    }
+  }
+
+  pick <- function(candidates) {
+    if (!length(candidates)) return(NULL)
+    finite <- function(x) { x[!is.finite(x)] <- -Inf; x }
+    strength <- finite(vapply(candidates, function(m) as.numeric(m$metrics$map_strength %||% NA), numeric(1)))
+    auc <- finite(vapply(candidates, function(m) atlas_model_skill(m$metrics)$auc, numeric(1)))
+    best <- order(-strength, -auc, names(candidates))[[1]]
+    list(kind = "model", algorithm = names(candidates)[[best]], members = names(candidates)[[best]],
+         grade = candidates[[best]]$grade)
+  }
+  chosen <- pick(strong)
+  if (is.null(chosen) && isTRUE(show_weak)) {
+    chosen <- pick(Filter(function(m) identical(m$grade, "weak"), models))
+  }
+  chosen
+}
+
+#' The map to show for a taxon, or NULL. The rule is atlas_best_rule.
 #'
 #' Returns kind ("ensemble" or "model"), algorithm (NULL for the ensemble),
 #' members, grade, skill, the PNG's path, its bounds and its map strength.
@@ -114,53 +154,34 @@ atlas_best_choice <- function(name, grid = "draft", show_weak = ATLAS_BEST_MAP_S
     if (is.null(metrics) || !file.exists(png) || is.null(metrics$bounds)) next
     models[[algorithm]] <- list(metrics = metrics, png = png, grade = atlas_metrics_grade(metrics))
   }
-  strong <- Filter(function(m) identical(m$grade, "strong"), models)
-
-  # The combined map, while two or more of its members are still strong.
   json <- atlas_ensemble_path(name, grid, ".json")
   png <- atlas_ensemble_path(name, grid, ".png")
   ensemble <- if (file.exists(json) && file.exists(png)) {
     tryCatch(jsonlite::fromJSON(json, simplifyVector = FALSE), error = function(e) NULL)
   }
-  if (is.list(ensemble) && !is.null(ensemble$bounds)) {
-    members <- Filter(function(m) is.list(m) && m$algorithm %in% names(strong), ensemble$members %||% list())
-    if (length(members) >= 2L) {
-      weights <- vapply(members, function(m) as.numeric(m$weight %||% 0), numeric(1))
-      if (sum(weights) <= 0) weights <- rep(1, length(members))
-      skills <- lapply(members, function(m) atlas_model_skill(strong[[m$algorithm]]$metrics))
-      mean_of <- function(field) {
-        v <- vapply(skills, function(s) s[[field]], numeric(1))
-        ok <- is.finite(v)
-        if (any(ok)) sum(v[ok] * weights[ok]) / sum(weights[ok]) else NA_real_
-      }
-      zs <- vapply(skills, function(s) s$null_z, numeric(1))
-      return(list(
-        kind = "ensemble", algorithm = NULL,
-        members = vapply(members, function(m) m$algorithm, character(1)),
-        grade = "strong",
-        skill = list(auc = mean_of("auc"), boyce = mean_of("boyce"),
-                     null_z = if (any(is.finite(zs))) min(zs[is.finite(zs)]) else NA_real_),
-        png = png, bounds = ensemble$bounds, strength = as.numeric(ensemble$map_strength %||% NA)
-      ))
-    }
-  }
+  rule <- atlas_best_rule(models, ensemble, show_weak)
+  if (is.null(rule)) return(NULL)
 
-  pick <- function(candidates) {
-    if (!length(candidates)) return(NULL)
-    finite <- function(x) { x[!is.finite(x)] <- -Inf; x }
-    strength <- finite(vapply(candidates, function(m) as.numeric(m$metrics$map_strength %||% NA), numeric(1)))
-    auc <- finite(vapply(candidates, function(m) atlas_model_skill(m$metrics)$auc, numeric(1)))
-    best <- order(-strength, -auc, names(candidates))[[1]]
-    m <- candidates[[best]]
-    list(kind = "model", algorithm = names(candidates)[[best]], members = names(candidates)[[best]],
-         grade = m$grade, skill = atlas_model_skill(m$metrics), png = m$png,
-         bounds = m$metrics$bounds, strength = as.numeric(m$metrics$map_strength %||% NA))
+  if (identical(rule$kind, "ensemble")) {
+    weights <- rule$weights
+    skills <- lapply(rule$members, function(a) atlas_model_skill(models[[a]]$metrics))
+    mean_of <- function(field) {
+      v <- vapply(skills, function(s) s[[field]], numeric(1))
+      ok <- is.finite(v)
+      if (any(ok)) sum(v[ok] * weights[ok]) / sum(weights[ok]) else NA_real_
+    }
+    zs <- vapply(skills, function(s) s$null_z, numeric(1))
+    return(list(
+      kind = "ensemble", algorithm = NULL, members = rule$members, grade = "strong",
+      skill = list(auc = mean_of("auc"), boyce = mean_of("boyce"),
+                   null_z = if (any(is.finite(zs))) min(zs[is.finite(zs)]) else NA_real_),
+      png = png, bounds = ensemble$bounds, strength = as.numeric(ensemble$map_strength %||% NA)
+    ))
   }
-  chosen <- pick(strong)
-  if (is.null(chosen) && isTRUE(show_weak)) {
-    chosen <- pick(Filter(function(m) identical(m$grade, "weak"), models))
-  }
-  chosen
+  m <- models[[rule$algorithm]]
+  list(kind = "model", algorithm = rule$algorithm, members = rule$members,
+       grade = m$grade, skill = atlas_model_skill(m$metrics), png = m$png,
+       bounds = m$metrics$bounds, strength = as.numeric(m$metrics$map_strength %||% NA))
 }
 
 #' Why a taxon has nothing to show: too_few_sites, no_strong_model or

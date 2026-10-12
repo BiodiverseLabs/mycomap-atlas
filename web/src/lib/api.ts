@@ -30,6 +30,8 @@ export interface Taxon {
   fingerprint: string;
   /** Sequenced records still waiting for a verdict; absent until counted. */
   not_yet_validated?: number;
+  /** Records validated since its map was made, scored on it; absent when none. */
+  new_finds?: TrackerTally;
 }
 
 export interface TaxaPage {
@@ -190,6 +192,7 @@ export interface Model {
 export type Skill = "passed" | "failed" | "untested";
 export type { Grade } from "./grade";
 import type { Grade } from "./grade";
+import type { Tracker, TrackerTally } from "./tracker";
 
 /** A model scored against null models: the same number of sites drawn at
  * random from the surveyed sites, fitted and scored the same way. */
@@ -260,6 +263,11 @@ export async function getTaxaCount(minLocalities: number): Promise<number> {
 
 export function getLayers(grid = "draft"): Promise<LayersResponse> {
   return get<LayersResponse>(`/api/layers?grid=${encodeURIComponent(grid)}`);
+}
+
+/** How the maps stood up to records validated after them (status not_started before the first run). */
+export function getTracker(): Promise<Tracker> {
+  return get<Tracker>("/api/tracker");
 }
 
 export function getTaxon(name: string): Promise<Taxon> {

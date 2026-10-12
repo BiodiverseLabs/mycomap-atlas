@@ -13,6 +13,7 @@ import { gradeNote, gradeVerdict, isFaint, mapGrade } from "@/lib/grade";
 import { reachedFromNote, renamedTaxonPath } from "@/lib/renamed";
 import { openingView } from "@/lib/mapView";
 import { NOT_YET_VALIDATED_HELP, notYetValidatedLine } from "@/lib/unvalidated";
+import { NEW_FINDS_HELP, newFindsLine } from "@/lib/tracker";
 import { useFullscreen } from "@/components/Fullscreen";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { BASEMAP_ATTRIBUTION, BASEMAP_URL } from "@/lib/basemap";
@@ -768,6 +769,19 @@ export default function Taxon() {
               {notYetValidatedLine(taxon.data?.not_yet_validated)}
               <Help label="Sequenced but not yet validated">
                 <p>{NOT_YET_VALIDATED_HELP}</p>
+              </Help>
+            </span>
+          )}
+          {newFindsLine(taxon.data?.new_finds) && (
+            <span className="inline-flex items-center gap-1 tabular-nums">
+              {newFindsLine(taxon.data?.new_finds)}
+              <Help label="New finds since this map was made">
+                <p>{NEW_FINDS_HELP}</p>
+                <p>
+                  <Link href="/methods#stood-up" className="underline">
+                    How the maps stood up
+                  </Link>
+                </p>
               </Help>
             </span>
           )}

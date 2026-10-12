@@ -1913,6 +1913,164 @@
           }
         }
       }
+    },
+    "/api/tracker": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "getTracker",
+        "summary": "How the maps stood up to records validated after them",
+        "description": "Every record first validated by DNA on a day is scored against the release that was live when that day began, so it cannot have trained that release's maps. A strong taxon is scored on the map an app shows for it, any other on the mean of its models, at the find's own model-grid cell, as a rank from 0 (the map's lowest-rated ground) to 1 (its highest) inside the area of applicability. A find outside that area, or beyond every model's 500 km reach, gets no rank and is counted apart. By chance half of ranked finds land in the top half and a tenth in the top tenth. Finds cluster where people already collect, so the rows for new sites (over 5 km from every known record of the taxon) and the distance bands are the honest test, and beats_effort compares each find with where every other taxon's finds landed in the same window (0.5 = no better than knowing where people look). Rows count places (a taxon's cell in a release window), so one foray's batch is one place. Shares are null below min_ranked_for_share ranked places, Boyce below min_ranked_for_boyce; per-taxon tallies below min_taxon_finds give finds_text only. scheme skill: releases graded passed or failed by scattered nulls and named by record name (before the rebuild); shift: strong, weak or failed, named by DNA. Counts and shares only: no record, id or coordinate is published. status is not_started before the first run.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The running count.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tracker"
+                },
+                "example": {
+                  "grid": "draft",
+                  "generated_at": "2026-10-20T09:15:02Z",
+                  "status": "tracking",
+                  "pulled_at": "2026-10-20T07:04:11Z",
+                  "since": "2026-10-03",
+                  "latest_find_on": "2026-10-19",
+                  "current_release": {
+                    "id": "20261019T081500Z-1a2b3c4d",
+                    "scheme": "shift",
+                    "naming": "sequence"
+                  },
+                  "min_taxon_finds": 5,
+                  "min_ranked_for_share": 30,
+                  "min_ranked_for_boyce": 50,
+                  "finds": {
+                    "total": 1310,
+                    "by_status": {
+                      "scored": 1004,
+                      "no_map": 187,
+                      "not_in_release": 96,
+                      "in_release_pull": 0,
+                      "no_release": 0
+                    },
+                    "retracted": 23,
+                    "held_out": {
+                      "triage": 0,
+                      "priority_sort": 0,
+                      "auto": 0,
+                      "other": 0
+                    }
+                  },
+                  "coverage": {
+                    "finds": 1287,
+                    "with_map": 1004,
+                    "with_strong_map": 388
+                  },
+                  "headline": {
+                    "scheme": "shift",
+                    "grade": "strong",
+                    "subset": "new_site",
+                    "places": 143,
+                    "ranked": 121,
+                    "top_half": 0.661,
+                    "top_half_chance": 0.5,
+                    "beats_effort": 0.571,
+                    "effort_chance": 0.5
+                  },
+                  "releases": [
+                    {
+                      "id": "20261007T085351Z-89ef2317",
+                      "scheme": "skill",
+                      "naming": "record",
+                      "promoted_at": "2026-10-07T08:54:12Z",
+                      "from": "2026-10-08",
+                      "to": "2026-10-16"
+                    },
+                    {
+                      "id": "20261019T081500Z-1a2b3c4d",
+                      "scheme": "shift",
+                      "naming": "sequence",
+                      "promoted_at": "2026-10-17T08:15:00Z",
+                      "from": "2026-10-18",
+                      "to": "2026-10-19"
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "scheme": "skill",
+                      "release": "all",
+                      "grade": "passed",
+                      "subset": "new_site",
+                      "places": 212,
+                      "finds": 240,
+                      "ranked": 171,
+                      "top_half": 0.637,
+                      "top_half_ci": [
+                        0.563,
+                        0.705
+                      ],
+                      "top_tenth": 0.181,
+                      "top_tenth_ci": [
+                        0.129,
+                        0.247
+                      ],
+                      "mean_rank": 0.598,
+                      "mean_rank_p": 0.000214,
+                      "top_tenth_p": 0.000913,
+                      "beats_effort": 0.556,
+                      "beats_effort_n": 168,
+                      "outside_aoa": 0.0,
+                      "beyond_reach": 0.193,
+                      "aoa": "unknown",
+                      "boyce": 0.71,
+                      "boyce_effort": 0.38
+                    }
+                  ],
+                  "taxa": [
+                    {
+                      "taxon": "Laccaria laccata",
+                      "since": "2026-10-18",
+                      "finds": 7,
+                      "finds_text": "7",
+                      "top_half": 5,
+                      "outside": 1,
+                      "new_sites": 3
+                    },
+                    {
+                      "taxon": "Mycena sp. 'IN10'",
+                      "since": "2026-10-19",
+                      "finds_text": "fewer than 5"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2255,6 +2413,14 @@
           "not_yet_validated": {
             "type": "integer",
             "description": "On GET /api/taxa/{name} only: sequenced records under this name that no validation project has given a verdict yet. The maps do not use them. Absent while no counts have been taken; 0 when there are none. Not part of the fingerprint."
+          },
+          "new_finds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrackerTaxon"
+              }
+            ],
+            "description": "On GET /api/taxa/{name} only: records validated since the map it shows now was made, and how they scored on it (GET /api/tracker). Absent when there are none; below 5 finds, finds_text only."
           }
         }
       },
@@ -4098,6 +4264,277 @@
                   ]
                 }
               }
+            }
+          }
+        }
+      },
+      "TrackerRow": {
+        "type": "object",
+        "required": [
+          "scheme",
+          "release",
+          "grade",
+          "subset",
+          "places",
+          "finds",
+          "ranked"
+        ],
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "enum": [
+              "shift",
+              "skill"
+            ]
+          },
+          "release": {
+            "type": "string",
+            "description": "A release id, or all. Release rows are given for subset all only."
+          },
+          "grade": {
+            "type": "string",
+            "description": "any, or the taxon's best grade in that release: strong, weak, failed, untested (shift); passed, failed, untested (skill)."
+          },
+          "subset": {
+            "type": "string",
+            "description": "all; new_site or known_site (over or within 5 km of a known record of the taxon); band_under_100, band_100_500, band_500_plus, band_none (km to the nearest known record of the taxon). channel_triage, channel_priority_sort, channel_auto, channel_other: finds held out because of how their verdict came about."
+          },
+          "places": {
+            "type": "integer",
+            "description": "Taxon x model-grid cell x release window."
+          },
+          "finds": {
+            "type": "integer",
+            "description": "Records behind those places."
+          },
+          "ranked": {
+            "type": "integer",
+            "description": "Places inside the area of applicability, with a rank."
+          },
+          "top_half": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "top_half_ci": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "top_tenth": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "top_tenth_ci": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "mean_rank": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "0.5 by chance."
+          },
+          "mean_rank_p": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Wilcoxon signed-rank test of the ranks against 0.5."
+          },
+          "top_tenth_p": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "One-sided binomial test of the top-tenth share against 0.1."
+          },
+          "beats_effort": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Mean share of other taxa's find cells in the same window that a find's rank beats, on its own taxon's map. 0.5 = no better than where people look."
+          },
+          "beats_effort_n": {
+            "type": "integer"
+          },
+          "outside_aoa": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "beyond_reach": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "aoa": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "known, unknown (releases without area-of-applicability layers, before the rebuild) or mixed."
+          },
+          "boyce": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Continuous Boyce index against a uniform expectation (Hirzel et al. 2006)."
+          },
+          "boyce_effort": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The same against where other taxa's finds landed: the effort-corrected one."
+          }
+        }
+      },
+      "TrackerTaxon": {
+        "type": "object",
+        "required": [
+          "since",
+          "finds_text"
+        ],
+        "properties": {
+          "taxon": {
+            "type": "string",
+            "description": "In GET /api/tracker only."
+          },
+          "since": {
+            "type": "string",
+            "format": "date",
+            "description": "The first find scored on the map the taxon shows now."
+          },
+          "finds": {
+            "type": "integer",
+            "description": "Left out below min_taxon_finds."
+          },
+          "finds_text": {
+            "type": "string"
+          },
+          "top_half": {
+            "type": "integer"
+          },
+          "outside": {
+            "type": "integer"
+          },
+          "new_sites": {
+            "type": "integer"
+          }
+        }
+      },
+      "Tracker": {
+        "type": "object",
+        "required": [
+          "grid",
+          "status",
+          "since"
+        ],
+        "properties": {
+          "grid": {
+            "type": "string"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "tracking",
+              "not_started"
+            ]
+          },
+          "pulled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The newest pull the last run read. Scoring runs after the nightly pull, so while the nightly is off this stops moving and no new finds are scored; none are lost, and each is scored on its own day's release when scoring resumes."
+          },
+          "since": {
+            "type": "string",
+            "format": "date"
+          },
+          "latest_find_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "current_release": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "min_taxon_finds": {
+            "type": "integer"
+          },
+          "min_ranked_for_share": {
+            "type": "integer"
+          },
+          "min_ranked_for_boyce": {
+            "type": "integer"
+          },
+          "finds": {
+            "type": "object",
+            "description": "Every find (records) by outcome: scored; no_map (its taxon has no map in that release); not_in_release (its name is not in that release); in_release_pull (never scored, expected 0); no_release. And how many were later retracted (lost their green, or were renamed). held_out: finds whose verdict came through the triage card, the priority-sorted list, automatic validation or a channel not named yet (other), by channel. They are held out of every other row and counted in rows with subset channel_<channel>; finds a validator chose (organic), or with no channel recorded, are the evaluated ones."
+          },
+          "coverage": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Of the finds counted, how many had a map, and a strong (before the rebuild, passing) one."
+          },
+          "headline": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "New sites for strong (or passing) maps under the live release's scheme."
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerRow"
+            }
+          },
+          "taxa": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerTaxon"
             }
           }
         }

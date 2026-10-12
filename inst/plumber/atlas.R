@@ -381,7 +381,33 @@ function(name, res) {
     return(list(error = "no such taxon in the current pull"))
   }
   row$not_yet_validated <- atlas_unvalidated_for(cached_unvalidated(), name)
+  # Records validated since its map was made, and how they scored on it
+  # (R/tracker.R); left out while it has none.
+  row$new_finds <- atlas_tracker_for(cached_tracker(), name)
   row
+}
+
+# The new-find tracker's published summary, read again when the daily run
+# rewrites it.
+cached_tracker <- function(grid = "draft") {
+  path <- atlas_tracker_summary_path(grid)
+  stamp <- if (file.exists(path)) paste(file.info(path)$mtime, file.info(path)$size) else ""
+  key <- paste0("tracker_", grid)
+  if (is.null(cache[[key]]) || !identical(cache[[key]]$stamp, stamp)) {
+    assign(key, list(stamp = stamp, summary = atlas_read_tracker_summary(grid)), envir = cache)
+  }
+  cache[[key]]$summary
+}
+
+#* How the maps stood up: records validated after each map was made, scored
+#* on it. Counts and shares only; status not_started before the first run.
+#* @get /api/tracker
+#* @serializer contentType list(type = "application/json")
+function(grid = "draft") {
+  # Only a grid's own name reaches the path the summary is read from.
+  grid <- if (identical(grid, "production")) "production" else "draft"
+  summary <- cached_tracker(grid)
+  best_map_json(if (is.null(summary)) atlas_tracker_answer(grid) else summary)
 }
 
 # The release's not-yet-validated counts (R/unvalidated.R), read once.
