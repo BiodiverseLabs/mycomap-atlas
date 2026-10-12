@@ -22,7 +22,7 @@ northwest_model <- function() {
   tif <- atlas_model_path("Taxon A", "draft", ".tif", "maxnet")
   terra::writeRaster(r, tif, overwrite = TRUE)
   drawn <- atlas_write_map_png(r, sub("[.]tif$", ".png", tif))
-  atlas_write_json(list(taxon = "Taxon A", algorithm = "maxnet", skill = "passed", presences = 25,
+  atlas_write_json(list(taxon = "Taxon A", algorithm = "maxnet", skill = "passed", grade = "strong", presences = 25,
                         raster = basename(tif), map = basename(drawn$path), bounds = drawn$bounds,
                         built_at = "2026-10-06T00:00:00Z"),
                    sub("[.]tif$", ".json", tif))

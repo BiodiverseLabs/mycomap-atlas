@@ -108,16 +108,20 @@ atlas_usage <- function() {
   message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
   message("      --shards=N                how many workers will share it (default 4)")
   message("      --limit=N                 fit only the N richest taxa that need it (a trial)")
+  message("      --sample=N                fit N taxa spread from richest to sparsest (a pilot)")
   message("  run-shard          fit one shard of a job and upload the results")
   message("      --job=ID --shard=N        which (both required)")
   message("      --workers=N               fits at once on this machine (default 1)")
   message("  job-status         which shards of a job have reported")
+  message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
+  message("      --fits-at-once=N          fits running together on EC2 (default 84)")
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
   message("      --partial                 publish what unreported shards saved (a job past its deadline)")
   message("  run-job-ec2        run a planned job's shards on EC2 spot workers, then finish it")
   message("      --job=ID                  which job (required)")
+  message("      --no-finish               stop when the shards report: no release (a pilot)")
   message("  nightly            pull, plan, run the job on EC2 and finish it: the box's cron job")
   message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
   message("      --tasks-per-shard=N       about this many models per worker (default 40)")
@@ -497,7 +501,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         algorithms = flags$algorithms %||% "all",
         shards = as.integer(atlas_flag_number(flags, "shards", 4)),
         min_presences = atlas_flag_number(flags, "min_presences", 20),
-        limit = atlas_flag_number(flags, "limit", Inf)
+        limit = atlas_flag_number(flags, "limit", Inf),
+        sample = atlas_flag_number(flags, "sample", Inf)
       )
       invisible(0L)
     },
@@ -533,7 +538,19 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       store <- atlas_store(flags$store %||% config$store)
       grid <- atlas_flag_grid(flags)
       atlas_run_job_on_ec2(store, atlas_read_job(store, as.character(flags$job), grid), grid,
-                           config = config)
+                           config = config, finish = !isTRUE(flags$no_finish))
+      invisible(0L)
+    },
+    "job-timing" = {
+      if (is.null(flags$job)) stop("job-timing needs --job=ID", call. = FALSE)
+      timing <- atlas_job_timing(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
+                                 fits_at_once = atlas_flag_number(flags, "fits_at_once", 84))
+      print(timing$per_algorithm, row.names = FALSE)
+      message(sprintf(paste("job %s: %d models, %d timed, %.2f CPU-h. A full job of %d models:",
+                            "about %.0f CPU-h, %.1f h wall at %d fits at once."),
+                      timing$job, timing$models, timing$timed, timing$pilot_cpu_hours,
+                      timing$full_models, timing$full_cpu_hours, timing$full_wall_hours,
+                      as.integer(timing$fits_at_once)))
       invisible(0L)
     },
     "nightly" = {

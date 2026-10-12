@@ -161,6 +161,34 @@ aws ec2 describe-instances --filters Name=tag:atlas,Values=worker Name=instance-
 A worker's log is uploaded to `jobs/<grid>/<job>/logs/<shard>.log` when it
 finishes. There is no SSH into a worker.
 
+## A pilot before a full rebuild
+
+A change that makes every model stale (a new null design, a new layer) is
+priced with a pilot first: a sample of taxa spread from the richest to the
+sparsest, fitted on EC2 like any job, and stopped before a release is built.
+On the box, as the atlas user:
+
+```bash
+./atlas plan-job --sample=200
+./atlas run-job-ec2 --job=<ID from plan-job> --no-finish
+./atlas job-timing --job=<ID>
+```
+
+`plan-job` says how many models it left for later; the pilot's models plus
+those are the full job. `--no-finish` stops once every shard has reported:
+nothing is built or promoted, and the release the site serves is untouched.
+The pilot's models are refitted by the full job anyway, because the full job
+is planned against the current release, not against the pilot.
+
+`job-timing` prints each algorithm's mean and longest seconds per model, the
+pilot's own CPU-hours, and the full job's estimate: mean seconds per model
+times the full job's models, and that over the fits that run at once (84 by
+default: 4 workers of 32 vCPU and 64 GB, one fit per 3 GB; change it with
+`--fits-at-once=N` if `ATLAS_EC2_MAX_WORKERS` or the instance types differ).
+Set `ATLAS_EC2_MAX_HOURS` to the wall estimate plus half again. A job that
+still runs out of time publishes what its shards saved (`finish-job
+--partial`) and the next job fits only the rest.
+
 ## The monthly budget alarm
 
 The limits above stop one job from running away; they say nothing about the

@@ -29,13 +29,13 @@ atlas_ensemble_path <- function(name, grid = "draft", extension = ".tif") {
   atlas_path("models", grid, "ensemble", paste0(slug, extension))
 }
 
-#' A taxon's models that can join its ensemble: those that passed their null
-#' test and have a map, with their weights.
+#' A taxon's models that can join its ensemble: strong ones (atlas_map_grade)
+#' with a map, with their weights.
 atlas_ensemble_members <- function(name, grid = "draft") {
   members <- lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
     metrics <- atlas_read_metrics(name, grid, algorithm)
     raster <- atlas_model_path(name, grid, ".tif", algorithm)
-    if (is.null(metrics) || !identical(metrics$skill, "passed") || !file.exists(raster)) {
+    if (is.null(metrics) || !identical(atlas_metrics_grade(metrics), "strong") || !file.exists(raster)) {
       return(NULL)
     }
     auc <- as.numeric(metrics$auc_mean %||% NA)
@@ -182,7 +182,7 @@ atlas_build_ensemble <- function(name, grid = "draft", force = FALSE) {
 #' Build the ensemble of every taxon with two or more passing members.
 atlas_build_ensembles <- function(grid = "draft", force = FALSE, quiet = FALSE) {
   index <- atlas_model_index(grid)
-  passed <- index[index$skill == "passed" & index$map, , drop = FALSE]
+  passed <- index[index$grade %in% "strong" & index$map, , drop = FALSE]
   counts <- table(passed$taxon)
   taxa <- names(counts)[counts >= ATLAS_ENSEMBLE_MIN_MEMBERS]
   # A taxon that has dropped below two passing members loses its ensemble.

@@ -695,7 +695,7 @@
         ],
         "operationId": "getTaxonImage",
         "summary": "A taxon's map as one picture",
-        "description": "The map drawn over land, lakes and state and country lines (Natural Earth), with the collections in 0.1 degree cells, the name, a legend and the source, as a PNG for a spreadsheet, document or slide. In Excel: =IMAGE(\"https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/image.png\"). A map that did no better than its null models is drawn faint and says so; a taxon with no map shows its collections alone.",
+        "description": "The map drawn over land, lakes and state and country lines (Natural Earth), with the collections in 0.1 degree cells, the name, a legend and the source, as a PNG for a spreadsheet, document or slide. In Excel: =IMAGE(\"https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/image.png\"). A map that is not strong is drawn faint and says why: weak (skill on held-out ground, but not shown to beat clustered collecting) or failed (no better than chance on held-out ground); a taxon with no map shows its collections alone.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -2200,7 +2200,17 @@
               "failed",
               "untested"
             ],
-            "description": "Whether the taxon beat null models (random draws of surveyed sites, busier sites more often; taxon and nulls both fitted at untuned settings) on blocked AUC at p <= 0.05 and the map has a positive blocked Boyce index (boyce). Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
+            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well. Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "weak",
+              "failed",
+              "untested"
+            ],
+            "description": "How much the null test vouches for the map. strong: passed against shifted nulls, which keep the taxon's clustering; the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
           },
           "null": {
             "type": "object",
@@ -2232,6 +2242,26 @@
               },
               "boyce_p": {
                 "type": "number"
+              },
+              "design": {
+                "type": "string",
+                "enum": [
+                  "shift",
+                  "scatter"
+                ],
+                "description": "The null design: shift (production since 2026-10-08) or, absent, scatter."
+              },
+              "stopped_early": {
+                "type": "boolean",
+                "description": "The sequential test stopped once 5 nulls did as well as the map."
+              },
+              "drawn": {
+                "type": "integer",
+                "description": "Nulls drawn, counting any that could not be fitted."
+              },
+              "best_effort": {
+                "type": "integer",
+                "description": "Shifted nulls that could not be placed cleanly on survey sites and took their best try."
               }
             }
           },
@@ -2307,7 +2337,7 @@
             "type": "number",
             "minimum": 0,
             "maximum": 1,
-            "description": "How strongly the map is drawn: 0 when it failed its null test; from 0.4 to 1 as its blocked AUC rises from just passing to five null standard deviations above its nulls. 0.5 when untested."
+            "description": "How strongly the map is drawn: 0 for a weak or failed map (grade); for a strong one, from 0.4 to 1 as its blocked AUC rises from just passing to five null standard deviations above its nulls. 0.5 when untested."
           },
           "applicability": {
             "type": "object",
@@ -2423,7 +2453,17 @@
               "failed",
               "untested"
             ],
-            "description": "Whether the taxon beat null models (random draws of surveyed sites, busier sites more often; taxon and nulls both fitted at untuned settings) on blocked AUC at p <= 0.05 and the map has a positive blocked Boyce index (boyce). Only passed maps are used by the Explore index; treat failed and untested maps as saying nothing about habitat."
+            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well. Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
+          },
+          "grade": {
+            "type": "string",
+            "enum": [
+              "strong",
+              "weak",
+              "failed",
+              "untested"
+            ],
+            "description": "How much the null test vouches for the map. strong: passed against shifted nulls, which keep the taxon's clustering; the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
           }
         }
       },

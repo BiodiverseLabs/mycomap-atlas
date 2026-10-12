@@ -102,9 +102,10 @@ atlas_build_here_index <- function(grid = "draft", cell_km = ATLAS_HERE_CELL_KM,
                                    min_rank = ATLAS_HERE_MIN_RANK, quiet = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   models <- atlas_model_index(grid)
-  # Only maps that beat their null models: one that cannot tell a fungus
-  # from a random handful of collections has nothing to say about a place.
-  models <- models[models$map & models$skill == "passed", c("taxon", "algorithm"), drop = FALSE]
+  # Only strong maps, which beat nulls that keep their clustering: one that
+  # cannot tell a fungus from its own collecting pattern moved elsewhere has
+  # nothing to say about a place (atlas_map_grade).
+  models <- models[models$map & models$grade %in% "strong", c("taxon", "algorithm"), drop = FALSE]
   rownames(models) <- NULL
   if (!nrow(models)) stop("no maps that beat their null models on the ", grid, " grid to index", call. = FALSE)
 

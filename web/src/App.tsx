@@ -5,6 +5,7 @@ import Layout from "@/components/Layout";
 import Data from "@/pages/Data";
 import Developers from "@/pages/Developers";
 import Embed from "@/pages/Embed";
+import Guide from "@/pages/Guide";
 import Here from "@/pages/Here";
 import Home from "@/pages/Home";
 import Maps from "@/pages/Maps";
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/taxa" component={Taxa} />
               <Route path="/taxa/:name" component={Taxon} />
               <Route path="/data" component={Data} />
+              <Route path="/guide" component={Guide} />
               <Route path="/methods" component={Methods} />
               <Route path="/sources" component={Sources} />
               <Route path="/developers" component={Developers} />

@@ -9,6 +9,7 @@ import { WhatDrives } from "@/components/WhatDrives";
 import { MapStrength, defaultStrength } from "@/components/MapStrength";
 import { ShareMap } from "@/components/ShareMap";
 import { sparseFailedNote } from "@/lib/sparseSkill";
+import { gradeNote, gradeVerdict, isFaint, mapGrade } from "@/lib/grade";
 import { reachedFromNote, renamedTaxonPath } from "@/lib/renamed";
 import { openingView } from "@/lib/mapView";
 import { NOT_YET_VALIDATED_HELP, notYetValidatedLine } from "@/lib/unvalidated";
@@ -155,7 +156,10 @@ function AboutTheseMaps({ name }: { name: string }) {
         <strong className="text-[#4a3728]">What these maps show.</strong> How closely each place's
         climate, soil and trees match the places where this fungus has been confirmed by DNA,
         ranked within its own range. They show suitable habitat, not where it grows or how common
-        it is, and they know nothing about places unlike any surveyed site (hatched).
+        it is, and they know nothing about places unlike any surveyed site (hatched).{" "}
+        <Link href="/guide" className="font-semibold text-myco-green underline-offset-2 hover:underline">
+          How to read a map
+        </Link>
       </p>
       <p>
         <strong className="text-[#4a3728]">Not for decisions about safety or land.</strong> Never use
@@ -332,13 +336,16 @@ function ModelMap({
   const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
   const overlay = boundsOf(model);
   const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
-  const failed = model?.skill === "failed";
+  const grade = mapGrade(model);
+  const failed = isFaint(grade);
   // Starts where the model's null test puts it, and again whenever the model
-  // (or its verdict) changes; after that it is the viewer's.
-  const [strength, setStrength] = useState(defaultStrength(failed, model?.map_strength));
+  // (or its verdict) changes; after that it is the viewer's. Only a strong
+  // map is drawn by its margin.
+  const measured = grade === "strong" ? model?.map_strength : failed ? 0 : model?.map_strength;
+  const [strength, setStrength] = useState(defaultStrength(failed, measured));
   useEffect(
-    () => setStrength(defaultStrength(failed, model?.map_strength)),
-    [failed, model?.map_strength, model?.built_at],
+    () => setStrength(defaultStrength(failed, measured)),
+    [failed, measured, model?.built_at],
   );
   const screen = useFullscreen<HTMLDivElement>();
   useLayoutEffect(() => {
@@ -374,10 +381,11 @@ function ModelMap({
                 {model.bounds && <RasterDownload name={name} algorithm={algorithm} />}
               </>
             )}
+            {/* Below lg the panels stack full width, so expanding one has nothing to widen. */}
             {!alone && <button
               type="button"
               onClick={onToggle}
-              className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
+              className={`${expanded ? "" : "hidden lg:inline-flex"} rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]`}
               title={expanded ? "Back to all three maps (Esc)" : "Expand this map across all three panels"}
               aria-label={
                 expanded
@@ -391,7 +399,8 @@ function ModelMap({
             <button
               type="button"
               onClick={screen.toggle}
-              className="rounded p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
+              // A thumb-sized target on a phone; compact beside the scores on wider screens.
+              className="rounded p-3 sm:p-1 text-muted-foreground hover:bg-[#A87146]/10 hover:text-[#4a3728]"
               title={screen.full ? "Leave full screen (Esc)" : "Full screen"}
               aria-label={
                 screen.full
@@ -444,7 +453,7 @@ function ModelMap({
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
             {algorithm === "esm" && (model?.presences ?? presences ?? 0) < SPARSE_BELOW
               ? sparseFailedNote(model?.presences ?? presences ?? 0)
-              : "No better than its null models: this map says little about habitat."}
+              : gradeNote(grade)}
           </div>
         )}
         {model?.map_withheld && (
@@ -540,15 +549,16 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
       help: (
         <>
           <p>
-            Each model is refitted {first?.null?.reps ?? 19} times on a made-up species: the same
-            number of sites drawn at random from everywhere people collected, busier places more
-            often. A map that knows something about this fungus should score higher than every one
-            of those.
+            Each model is refitted on made-up species that keep this fungus's own pattern: its
+            sites rotated and moved together onto other places people collected. A map that knows
+            something about this fungus's habitat, not just where it was collected, should score
+            higher than nearly all of them. Up to 99 are drawn, stopping once 5 have done as well.
           </p>
           <p className="mt-1.5">
             Shown as the null models' AUC and the share that scored at least as well (p). A map
-            passes at p ≤ 0.05 with a Boyce index above zero. One that fails is drawn faint and left
-            out of Explore: its colours rank ground no better than collecting effort does.
+            passes at p ≤ 0.05 with a Boyce index above zero. One that does not is drawn faint and
+            left out of Explore: "not shown" when it still ranks held-out ground better than chance,
+            "no" when it does not.
           </p>
           <p className="mt-1.5">
             Below 20 sites the test has too little to go on: the made-up species score so variously
@@ -558,13 +568,13 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
         </>
       ),
       cell: (m) =>
-        m.skill === "passed" || m.skill === "failed" ? (
-          <span className={m.skill === "passed" ? "text-myco-green" : "text-muted-foreground"}>
-            {m.skill === "passed"
-              ? "Yes"
+        mapGrade(m) !== "untested" ? (
+          <span className={mapGrade(m) === "strong" ? "text-myco-green" : "text-muted-foreground"}>
+            {mapGrade(m) === "strong"
+              ? gradeVerdict("strong")
               : m.algorithm === "esm" && (m.presences ?? 0) < SPARSE_BELOW
                 ? "Too few sites to tell"
-                : "No"}
+                : gradeVerdict(mapGrade(m))}
             {m.null?.auc_mean != null && (
               <span className="text-muted-foreground">
                 {" "}
