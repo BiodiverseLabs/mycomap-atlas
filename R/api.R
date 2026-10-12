@@ -248,7 +248,10 @@ ATLAS_PRIOR_TYPES <- c(
   "ranks.parquet" = "application/vnd.apache.parquet",
   "ranks.tsv.gz" = "application/gzip",
   "taxa.tsv" = "text/tab-separated-values; charset=utf-8",
-  "grid.json" = "application/json"
+  "grid.json" = "application/json",
+  "models.tsv" = "text/tab-separated-values; charset=utf-8",
+  "aoa.parquet" = "application/vnd.apache.parquet",
+  "aoa.tsv.gz" = "application/gzip"
 )
 
 #' What GET /api/prior answers: the release the prior comes from, its size,
