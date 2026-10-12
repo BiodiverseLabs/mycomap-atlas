@@ -17,6 +17,19 @@ changed and what it means for you.
   counted them, and 0 when there are none. Added field. Releases carry the
   counts as `public/unvalidated.tsv.gz`, the Zenodo archive as
   `taxa-not-yet-validated.tsv.gz`.
+- **`GET /api/taxa/{name}/best-map`** is new: the one map to show for a
+  taxon, for apps that show a single map per species. It is the combined map
+  when two or more of the taxon's maps are strong, else its strong map with
+  the best held-out skill, else nothing, with a reason (`too_few_sites`,
+  `no_strong_model` or `not_modelled`). Always 200. It gives the overlay
+  (versioned URL, bounds within -180..180, pixel size, opacity), the legend, a
+  caption and the attribution. The shape is fixed by
+  `inst/api/fixtures/best-map.json`.
+- **`GET /api/maps/best`** is new: the same choice for every taxon that has
+  one, in one list, with an ETag (304 on If-None-Match).
+- **`GET /api/status`** gains `grading`: `"shift"` once maps are graded
+  against shifted null models. Added field.
+
 - **`GET /api/prior`** and **`GET /api/prior/{file}`** are new: the
   location prior, every strong map's ranks by 20 km cell over the whole of a
   taxon's reach (below the median included, unranked where the maps cannot
