@@ -20,6 +20,8 @@ site_records <- function() {
   away$id <- away$observation_id <- paste0("c", 1:2)
   out <- rbind(spread, bunched, away)
   rownames(out) <- NULL
+  # Numeric, as .org's are: the pull's first-green query spans a page's id range.
+  out$id <- as.character(seq_len(nrow(out)))
   out
 }
 
@@ -51,6 +53,7 @@ test_that("a pull carries sites, keeps its fingerprint, and survives a count tha
   records <- site_records()
   pull <- function() {
     testthat::local_mocked_bindings(atlas_run_sql = function(sql, host) {
+      if (startsWith(sql, "SELECT g.observation_id")) return(first_green_none)
       if (grepl("not_yet_validated", sql, fixed = TRUE)) return("taxon\tnot_yet_validated\twith_coordinates")
       tsv_text(records)
     })

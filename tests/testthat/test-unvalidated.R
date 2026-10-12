@@ -62,8 +62,11 @@ test_that("the count covers the same places and names as the pull, and only reco
 
 test_that("a pull's counts leave its fingerprint alone, and a failed count never fails the pull", {
   records <- synthetic_occurrences(c("Taxon A" = 12, "Taxon B" = 8))
+  # Numeric, as .org's are: the pull's first-green query spans a page's id range.
+  records$id <- as.character(seq_len(nrow(records)))
   pull_with <- function(counts) {
     testthat::local_mocked_bindings(atlas_run_sql = function(sql, host) {
+      if (startsWith(sql, "SELECT g.observation_id")) return(first_green_none)
       if (grepl("not_yet_validated", sql, fixed = TRUE)) {
         if (is.null(counts)) stop("the database went away")
         return(tsv_text(counts))

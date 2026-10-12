@@ -18,3 +18,9 @@ fake_occurrences <- function() {
     stringsAsFactors = FALSE
   )
 }
+
+# What the pull's first-green side query (R/firstgreen.R) answers when no
+# record has a validation: for SQL stand-ins that answer every other query
+# with the pull's own rows.
+first_green_none <- paste(c("observation_id", sprintf("validation_status_%d\tvalidation_date_%d", 1:3, 1:3)),
+                          collapse = "\t")
