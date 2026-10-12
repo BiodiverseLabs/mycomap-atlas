@@ -10,6 +10,11 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/taxa`** and **`/api/taxa/{name}`** gain `sites`: each taxon's
+  5 km survey sites with a record, counted as the fits count them, for every
+  taxon including those with no map yet. It shows how close a taxon is to a
+  map's minimums (3 sites for a first map, 20 for the three full models). It
+  is not part of the fingerprint, so it changes no model. Added field.
 - **`GET /api/taxa/{name}`** gains `not_yet_validated`: how many of the
   taxon's sequenced records no validation project has given a verdict yet.
   The maps do not use them, and the count is not part of the taxon's
