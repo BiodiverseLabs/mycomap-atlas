@@ -157,9 +157,9 @@ atlas_recount_regions <- function(raster_path, cells) {
 #' Count every stored map on a grid by state. Needs the rasters (a pull of a
 #' release with them, or the machine that fitted them) and the public cells.
 atlas_count_regions <- function(grid = "draft", quiet = FALSE, workers = 1L, only_missing = FALSE) {
-  rasters <- unlist(lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
-    list.files(atlas_model_dir(grid, algorithm), pattern = "[.]tif$", full.names = TRUE)
-  }), use.names = FALSE)
+  # Each map's own raster: not its dissimilarity layer or full-extent files,
+  # which a count would take for maps and give metrics of their own.
+  rasters <- atlas_model_map_rasters(grid)
   if (isTRUE(only_missing)) {
     # Maps fitted since counting began carry their counts already.
     uncounted <- vapply(rasters, function(path) {

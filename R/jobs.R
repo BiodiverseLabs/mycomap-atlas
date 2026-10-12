@@ -358,8 +358,11 @@ atlas_shard_result <- function(name, algorithm, row, fingerprint, settings_key) 
     fingerprint = fingerprint,
     settings_key = settings_key,
     presences = row$presences %||% NULL,
-    # How long the fit took, so a pilot can say what a full job costs.
-    seconds = row$seconds %||% NULL
+    # How long the fit took, so a pilot can say what a full job costs, and
+    # what its full-extent view added (time and bytes).
+    seconds = row$seconds %||% NULL,
+    full_seconds = row$full_seconds %||% NULL,
+    full_bytes = row$full_bytes %||% NULL
   ))
 }
 
@@ -455,7 +458,7 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       buffer_km = job$fit$buffer_km, folds = job$fit$folds, block_km = job$fit$block_km,
       regmult = job$fit$regmult, correlation = job$fit$correlation,
       nulls = job$fit$nulls %||% ATLAS_NULL_REPS, tune = job$fit$tune %||% TRUE,
-      quiet = TRUE, fit = fit,
+      quiet = TRUE, fit = fit, full = job$fit$full,
       on_row = function(row, settings_key) {
         if (!row$taxon %in% taxa || row$taxon %in% reported) return(invisible(NULL))
         reported <<- c(reported, row$taxon)
@@ -615,6 +618,7 @@ atlas_job_timing <- function(store = atlas_store(), id, grid = "draft", fits_at_
   rows <- do.call(rbind, lapply(results, function(r) data.frame(
     taxon = r$taxon, algorithm = r$algorithm, status = r$status,
     presences = as.numeric(r$presences %||% NA), seconds = as.numeric(r$seconds %||% NA),
+    extent_seconds = as.numeric(r$full_seconds %||% NA), extent_bytes = as.numeric(r$full_bytes %||% NA),
     stringsAsFactors = FALSE
   )))
   if (is.null(rows) || !nrow(rows)) stop("job ", id, " has no shard results yet", call. = FALSE)
@@ -626,6 +630,19 @@ atlas_job_timing <- function(store = atlas_store(), id, grid = "draft", fits_at_
   )))
   full_models <- length(job$tasks) + (job$deferred %||% 0L)
   cpu_hours <- if (nrow(timed)) mean(timed$seconds) * full_models / 3600 else NA_real_
+  # The full-extent views (strong maps only, R/fullextent.R): their share of
+  # the models, and what they add, in time (included in the seconds above)
+  # and storage, scaled to the full job.
+  extended <- rows[is.finite(rows$extent_seconds), , drop = FALSE]
+  share <- if (nrow(timed)) nrow(extended) / nrow(timed) else NA_real_
+  extent <- list(
+    models = nrow(extended),
+    share = round(share, 3),
+    mean_seconds = if (nrow(extended)) round(mean(extended$extent_seconds), 1) else NA_real_,
+    mean_mb = if (nrow(extended)) round(mean(extended$extent_bytes, na.rm = TRUE) / 1048576, 1) else NA_real_,
+    full_cpu_hours = if (nrow(extended)) round(mean(extended$extent_seconds) * share * full_models / 3600, 1) else 0,
+    full_gb = if (nrow(extended)) round(mean(extended$extent_bytes, na.rm = TRUE) * share * full_models / 1024^3, 1) else 0
+  )
   list(
     job = id, models = nrow(rows), timed = nrow(timed),
     pilot_cpu_hours = round(sum(timed$seconds) / 3600, 2),
@@ -633,6 +650,7 @@ atlas_job_timing <- function(store = atlas_store(), id, grid = "draft", fits_at_
     full_models = full_models,
     full_cpu_hours = round(cpu_hours, 1),
     full_wall_hours = round(cpu_hours / fits_at_once, 1),
-    fits_at_once = fits_at_once
+    fits_at_once = fits_at_once,
+    extent = extent
   )
 }

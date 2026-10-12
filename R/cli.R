@@ -573,6 +573,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
                       timing$job, timing$models, timing$timed, timing$pilot_cpu_hours,
                       timing$full_models, timing$full_cpu_hours, timing$full_wall_hours,
                       as.integer(timing$fits_at_once)))
+      x <- timing$extent
+      if (x$models) {
+        message(sprintf(paste("full-extent views: %d models (%.0f%% of those timed), %.1f s and %.1f MB each;",
+                              "in a full job about %.1f CPU-h (already in the total) and %.1f GB."),
+                        x$models, 100 * x$share, x$mean_seconds, x$mean_mb, x$full_cpu_hours, x$full_gb))
+      }
       invisible(0L)
     },
     "nightly" = {

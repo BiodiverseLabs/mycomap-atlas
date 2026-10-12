@@ -1046,7 +1046,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             layers = NULL, algorithm = "maxnet",
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
                             tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
-                            guilds = atlas_guild_table(), importance = TRUE) {
+                            guilds = atlas_guild_table(), importance = TRUE, full = NULL) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
@@ -1182,6 +1182,19 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     atlas_remove_map(name, grid, algo$id)
   }
 
+  # A strong map is also predicted over the whole grid, for the map's full
+  # view (R/fullextent.R). Nothing else reads it; the default map above is
+  # unchanged by it.
+  full_suitability <- NULL
+  full_dissimilarity <- NULL
+  full_seconds <- NA_real_
+  if (!is.null(suitability) && atlas_full_extent_wanted(grade, full)) {
+    started_full <- Sys.time()
+    full_suitability <- atlas_predict_raster_full(model, stack, held_score)
+    full_dissimilarity <- atlas_predict_raster_full(aoa, stack, atlas_aoa_index, name = "dissimilarity")
+    full_seconds <- as.numeric(difftime(Sys.time(), started_full, units = "secs"))
+  }
+
   # Two names that make the same file name would overwrite each other's map
   # without a word. Refuse instead: it means two spellings need merging.
   if (isTRUE(write)) {
@@ -1220,6 +1233,15 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
       dissimilarity, dissimilarity_path, overwrite = TRUE,
       gdal = c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
     )
+  }
+  full_map <- NULL
+  if (isTRUE(write)) {
+    if (!is.null(full_suitability)) {
+      full_map <- atlas_write_full_map(name, grid, algo$id, full_suitability, full_dissimilarity,
+                                       suitability, dissimilarity, aoa$threshold, full_seconds)
+    } else {
+      atlas_remove_full_map(name, grid, algo$id)
+    }
   }
 
   metrics <- list(
@@ -1288,6 +1310,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     package_version = as.character(utils::packageVersion(algo$package)),
     terra_version = as.character(utils::packageVersion("terra"))
   )
+  if (!is.null(full_map)) metrics$full_map <- full_map
   if (isTRUE(write)) {
     atlas_write_json(metrics, atlas_model_path(name, grid, ".json", algo$id))
   }
@@ -1326,7 +1349,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
 #' Delete a taxon's map, leaving its scores.
 atlas_remove_map <- function(name, grid = "draft", algorithm = "maxnet") {
-  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml", ".di.tif"), algorithm)
+  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml", ".di.tif",
+                                          ATLAS_FULL_EXTS, ".full.png.aux.xml"), algorithm)
   unlink(paths[file.exists(paths)])
   invisible(paths)
 }
