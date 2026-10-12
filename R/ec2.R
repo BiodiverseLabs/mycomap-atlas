@@ -94,6 +94,9 @@ atlas_ec2_config <- function(env = function(name, unset = "") Sys.getenv(name, u
 
 #' The script a worker runs at boot. `minutes` is how long it may live: the
 #' time left before the job's deadline.
+# How often a running worker uploads its logs, in seconds.
+ATLAS_WORKER_LOG_SECONDS <- 300L
+
 atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config$max_hours * 60,
                                    command = NULL) {
   store <- config$store
@@ -101,6 +104,7 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
   # given its own command.
   command <- command %||% sprintf("run-shard --grid=%s --job=%s --shard=%d --workers=$WORKERS",
                                   grid, job_id, as.integer(shard))
+  logs <- if (grepl("^s3://", store)) sprintf("%s/jobs/%s/%s/logs", sub("/$", "", store), grid, job_id)
   paste(c(
     "#!/bin/bash",
     "# MycoMap Atlas worker. Runs one shard of a job, then shuts down (which",
@@ -113,6 +117,15 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
     "systemctl start docker",
     sprintf("docker pull %s", config$image),
     "mkdir -p /data && chown 10001:10001 /data",
+    # The log, and the fits' own progress logs, go up every 5 minutes while
+    # the shard runs: a worker stopped at the deadline (terminated, not shut
+    # down) never reaches the upload at the end, and its log was lost (the
+    # 2026-10-12 pilot).
+    if (!is.null(logs)) {
+      sprintf(paste("( while sleep %d; do aws s3 cp --quiet /var/log/atlas-worker.log %s/%d.log;",
+                    "aws s3 sync --quiet --exclude '*' --include '*.log' /data/batches/ %s/%d-batches/; done ) &"),
+              ATLAS_WORKER_LOG_SECONDS, logs, as.integer(shard), logs, as.integer(shard))
+    },
     "# One fit per ~3 GB of memory, at most one per core.",
     "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 3 ))",
     "[ \"$WORKERS\" -gt \"$(nproc)\" ] && WORKERS=$(nproc)",
@@ -120,9 +133,8 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
     sprintf("docker run --rm -v /data:/data -e ATLAS_STORE=%s -e AWS_REGION=%s %s %s",
             shQuote(store), shQuote(config$region), config$image, command),
     "STATUS=$?",
-    if (grepl("^s3://", store)) {
-      sprintf("aws s3 cp /var/log/atlas-worker.log %s/jobs/%s/%s/logs/%d.log || true",
-              sub("/$", "", store), grid, job_id, as.integer(shard))
+    if (!is.null(logs)) {
+      sprintf("aws s3 cp /var/log/atlas-worker.log %s/%d.log || true", logs, as.integer(shard))
     },
     sprintf("echo \"%s exited $STATUS\"", sub(" .*$", "", command)),
     "shutdown -h now"

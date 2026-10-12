@@ -72,6 +72,9 @@ atlas_map_centre_longitude <- function(raster) {
 #' because a projection hands longitudes back folded into -180 to 180. A map
 #' that reaches past the antimeridian keeps a west edge below -180, which is
 #' what Leaflet needs to draw it as one piece.
+# How far north and south a drawn map reaches: Web Mercator's, as Leaflet draws it.
+ATLAS_MAP_MAX_LATITUDE <- 85
+
 atlas_map_bounds <- function(mercator) {
   proj <- terra::crs(mercator, proj = TRUE)
   if (!grepl("+proj=merc", proj, fixed = TRUE) ||
@@ -167,7 +170,7 @@ atlas_map_colours <- function(rank, outside, ncol) {
 #' dissimilarity layer and its threshold, ground outside the area of
 #' applicability is hatched and left out of the ranking.
 atlas_write_map_png <- function(suitability, path, max_pixels = 1600,
-                                dissimilarity = NULL, threshold = NULL, layers = NULL) {
+                                dissimilarity = NULL, threshold = NULL, layers = NULL, trim = FALSE) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed to draw maps: install.packages('terra')", call. = FALSE)
   }
@@ -181,6 +184,10 @@ atlas_write_map_png <- function(suitability, path, max_pixels = 1600,
   # scale (R/fullextent.R).
   layers <- layers %||% atlas_map_layers(suitability, dissimilarity, threshold)
   mercator <- atlas_map_warp(layers, max_pixels)
+  # Cut the empty margin the warp leaves: a rectangle's corners in Albers
+  # land far out in Mercator. Only a full view asks; a 500 km map is drawn as
+  # it always was.
+  if (isTRUE(trim)) mercator <- terra::trim(mercator)
   values <- terra::values(mercator)
   colours <- atlas_map_colours(pmin(1, pmax(0, values[, 1])), values[, 2], terra::ncol(mercator))
   atlas_write_rgba_png(mercator, colours, path)
@@ -193,6 +200,15 @@ atlas_map_warp <- function(layers, max_pixels = 1600) {
     layers, atlas_map_mercator(atlas_map_centre_longitude(layers)),
     method = "bilinear"
   )
+  # Web Mercator stops at about 85 degrees (Leaflet's own limit), and grows
+  # without bound toward the pole: a raster reaching past it would be drawn
+  # as a sliver of a very tall image. No 500 km map reaches it.
+  limit <- ATLAS_MERCATOR_RADIUS * log(tan(pi / 4 + ATLAS_MAP_MAX_LATITUDE * pi / 360))
+  extent <- as.vector(terra::ext(mercator))
+  if (extent[["ymax"]] > limit || extent[["ymin"]] < -limit) {
+    mercator <- terra::crop(mercator, terra::ext(extent[["xmin"]], extent[["xmax"]],
+                                                 max(extent[["ymin"]], -limit), min(extent[["ymax"]], limit)))
+  }
   widest <- max(dim(mercator)[1:2])
   if (widest > max_pixels) {
     mercator <- terra::aggregate(

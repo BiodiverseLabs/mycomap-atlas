@@ -4,7 +4,8 @@
 # A model is fitted inside its accessible area (500 km around its sites), and
 # its map is predicted only there (atlas_predict_raster masks first). That
 # stays the default everywhere. A strong model is also predicted over the
-# whole grid, at the same 5 km cells, and written beside its map:
+# rest of North America (the states and provinces of the three countries
+# Atlas maps), at the same 5 km cells, and written beside its map:
 #
 #   <taxon>.full.tif      suitability over the whole grid
 #   <taxon>.full.di.tif   its area-of-applicability index over the whole grid
@@ -25,6 +26,10 @@
 # models are not predicted beyond their reach: their maps make no claim.
 
 ATLAS_FULL_EXTS <- c(".full.tif", ".full.di.tif", ".full.png")
+
+# The widest a full view is drawn, in pixels: room for a continent at about
+# its 5 km cells, where a 500 km map is drawn at up to 1,600.
+ATLAS_FULL_MAX_PIXELS <- 4096
 
 #' Whether a model gets a full-extent map: a strong one does; a refit job may
 #' ask for it whatever the grade (full = TRUE), and a fit may refuse it
@@ -48,7 +53,16 @@ atlas_predict_raster_full <- function(model, stack, score, name = "suitability")
 atlas_predict_full_extent <- function(model, score, aoa, stack, area, suitability, dissimilarity) {
   template <- stack[[1]]
   in_area <- !is.na(terra::values(terra::rasterize(area, template), mat = FALSE))
-  cells <- which(!in_area & !is.na(terra::values(template, mat = FALSE)))
+  # Beyond the reach, North America only: the states and provinces of the
+  # three countries Atlas maps (R/predictions.R), not every land cell of the
+  # grid's rectangle, which runs from Siberia and Greenland to South America
+  # (the 2026-10-12 pilot drew them). Inside the reach the map is as it is.
+  regions <- atlas_region_grid()$ids
+  if (!terra::compareGeom(regions, template, stopOnError = FALSE)) {
+    regions <- terra::resample(regions, template, method = "near")
+  }
+  in_scope <- !is.na(terra::values(regions, mat = FALSE))
+  cells <- which(!in_area & in_scope & !is.na(terra::values(template, mat = FALSE)))
   data <- terra::extract(stack, cells)
   data <- data[, setdiff(names(data), "ID"), drop = FALSE]
   ok <- stats::complete.cases(data)
@@ -136,7 +150,14 @@ atlas_write_full_map <- function(name, grid, algorithm, full, full_dissimilarity
   terra::writeRaster(full, paths[[1]], overwrite = TRUE, gdal = gdal)
   terra::writeRaster(full_dissimilarity, paths[[2]], overwrite = TRUE, gdal = gdal)
   layers <- atlas_full_map_layers(full, full_dissimilarity, suitability, dissimilarity, threshold)
-  drawn <- atlas_write_map_png(full, paths[[3]], layers = layers)
+  # Drawn over the cells that have data, not the grid's whole rectangle: in
+  # Albers its corners reach past the pole and the antimeridian, and the
+  # picture became a tall sliver with North America a few pixels at its foot
+  # (the 2026-10-12 pilot). Hatched cells have data and stay. At about the
+  # grid's own 5 km (a continent is wider than the 1,600 pixels a 500 km map
+  # never reaches).
+  drawn <- atlas_write_map_png(full, paths[[3]], layers = terra::trim(layers),
+                               max_pixels = ATLAS_FULL_MAX_PIXELS, trim = TRUE)
   rank <- terra::values(layers[["rank"]], mat = FALSE)
   outside <- terra::values(layers[["outside"]], mat = FALSE)
   in_area <- !is.na(terra::values(terra::extend(suitability, full), mat = FALSE))
@@ -145,6 +166,8 @@ atlas_write_full_map <- function(name, grid, algorithm, full, full_dissimilarity
     dissimilarity = basename(paths[[2]]),
     map = basename(drawn$path),
     bounds = drawn$bounds,
+    width = drawn$width,
+    height = drawn$height,
     cells = sum(is.finite(outside)),
     beyond_reach = sum(is.finite(outside) & !in_area),
     beyond_reach_ranked = sum(is.finite(rank) & !in_area),
