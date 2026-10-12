@@ -86,6 +86,59 @@ test_that("the box publishes the finished release: the worker's files in, everyt
   })
 })
 
+# Taxon A's map, also fitted by the forest: two strong maps, so a combined one.
+second_northwest_model <- function() {
+  r <- terra::rast(xmin = -2.3e6, xmax = -1.3e6, ymin = 2e5, ymax = 1.6e6, resolution = 5000, crs = ATLAS_CRS)
+  terra::values(r) <- -terra::yFromCell(r, seq_len(terra::ncell(r)))
+  dir.create(atlas_model_dir("draft", "rf"), recursive = TRUE, showWarnings = FALSE)
+  tif <- atlas_model_path("Taxon A", "draft", ".tif", "rf")
+  terra::writeRaster(r, tif, overwrite = TRUE)
+  drawn <- atlas_write_map_png(r, sub("[.]tif$", ".png", tif))
+  atlas_write_json(list(taxon = "Taxon A", algorithm = "rf", skill = "passed", grade = "strong", presences = 25,
+                        auc_mean = 0.75, raster = basename(tif), map = basename(drawn$path), bounds = drawn$bounds,
+                        built_at = "2026-10-06T00:00:00Z"),
+                   sub("[.]tif$", ".json", tif))
+}
+
+test_that("finishing builds the combined map of a taxon's strong maps, which no job's release had", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  boss <- machine()
+  release <- on_machine(boss, {
+    orchestrator_data(synthetic_occurrences(c("Taxon A" = 25)))
+    northwest_model()
+    metrics <- jsonlite::fromJSON(atlas_model_path("Taxon A", "draft", ".json"), simplifyVector = FALSE)
+    metrics$auc_mean <- 0.7
+    atlas_write_json(metrics, atlas_model_path("Taxon A", "draft", ".json"))
+    second_northwest_model()
+    atlas_publish_release(store, quiet = TRUE)
+  })
+  expect_false(any(grepl("/ensemble/", vapply(release$files, `[[`, "", "path"))))
+  record <- on_machine(machine(), atlas_finish_release_work(store, release$id, quiet = TRUE))
+  expect_true("models/draft/ensemble/taxon-a.json" %in% vapply(record$files, `[[`, "", "path"))
+  finished <- on_machine(boss, atlas_apply_finish(store, release$id, quiet = TRUE))
+  expect_true(all(paste0("models/draft/ensemble/taxon-a", c(".json", ".tif", ".png")) %in%
+                    vapply(finished$files, `[[`, "", "path")))
+})
+
+test_that("a combined map a taxon no longer qualifies for leaves the finished release", {
+  skip_if_not_installed("terra")
+  setup <- published()
+  # The release carries a combined map left from when the taxon had two strong maps.
+  stale <- tempfile()
+  writeLines("an old combined map", stale)
+  entry <- list(path = "models/draft/ensemble/taxon-a.json", sha256 = atlas_sha256(stale), bytes = 20)
+  setup$store$put(atlas_object_key(entry$sha256), stale)
+  base <- setup$release
+  base$files <- c(base$files, list(entry))
+  with_stale <- atlas_write_release(setup$store, "draft", base$files, base$index, previous = base$id,
+                                    pull = base$pull, quiet = TRUE)
+  record <- on_machine(machine(), atlas_finish_release_work(setup$store, with_stale$id, quiet = TRUE))
+  expect_true("models/draft/ensemble/taxon-a.json" %in% unlist(record$removed))
+  finished <- on_machine(setup$boss, atlas_apply_finish(setup$store, with_stale$id, quiet = TRUE))
+  expect_false("models/draft/ensemble/taxon-a.json" %in% vapply(finished$files, `[[`, "", "path"))
+})
+
 test_that("a finished release is left alone, and a release that moved on is not overwritten", {
   skip_if_not_installed("terra")
   setup <- published()
