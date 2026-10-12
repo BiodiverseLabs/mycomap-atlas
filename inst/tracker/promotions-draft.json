@@ -1,0 +1,14 @@
+{
+  "note": "Which release was live when, on the draft grid, before Atlas kept a record of its own promotions. Read on 2026-10-12 from the stored versions of current/draft.json, which the bucket expires 30 days after they are replaced. Release ids and times only; R/tracker.R reads it to choose the release a find is scored against.",
+  "promotions": [
+    {"release": "20260929T200904Z-c61ce15d", "promoted_at": "2026-09-29T20:09:04Z"},
+    {"release": "20260929T201953Z-2c8fb5b3", "promoted_at": "2026-09-29T20:19:53Z"},
+    {"release": "20260930T081438Z-3b7439f8", "promoted_at": "2026-09-30T08:14:38Z"},
+    {"release": "20260930T144629Z-e9daa88e", "promoted_at": "2026-09-30T14:46:29Z"},
+    {"release": "20260930T145901Z-a774a43c", "promoted_at": "2026-09-30T14:59:01Z"},
+    {"release": "20261002T041943Z-beedc5ef", "promoted_at": "2026-10-02T04:19:59Z"},
+    {"release": "20261006T082050Z-d5bb064c", "promoted_at": "2026-10-06T08:21:11Z"},
+    {"release": "20261007T080359Z-f2658f68", "promoted_at": "2026-10-07T08:04:23Z"},
+    {"release": "20261007T085351Z-89ef2317", "promoted_at": "2026-10-07T08:54:12Z"}
+  ]
+}

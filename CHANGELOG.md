@@ -10,6 +10,21 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/tracker`** is new: how the maps stood up to records validated
+  after them. Each record first validated by DNA on a day is scored on the
+  release that was live when the day began, at its own cell: its rank on the
+  drawn map (0 to 1, so half land in the top half by chance), or counted
+  apart when it falls outside the map's area of applicability or beyond its
+  reach. Rows are split by grade, by new sites (over 5 km from every known
+  record of the taxon) and by distance to the nearest known record, with an
+  effort-corrected comparison (`beats_effort`, `boyce_effort`) against where
+  every other taxon's finds landed. Releases from before the rebuild are kept
+  apart (`scheme: "skill"`). Counts and shares only; shares are null below
+  30 ranked places. `status: "not_started"` before the first run. New route.
+- **`GET /api/taxa/{name}`** gains `new_finds`: records validated since the
+  map the taxon shows now was made, and how many fell in its top half;
+  below 5 finds, only `finds_text: "fewer than 5"`. Absent when there are
+  none. Added field.
 - **`GET /api/taxa`** and **`/api/taxa/{name}`** gain `sites`: each taxon's
   5 km survey sites with a record, counted as the fits count them, for every
   taxon including those with no map yet. It shows how close a taxon is to a
@@ -166,6 +181,11 @@ changed and what it means for you.
 
 ### The site
 
+- A running count on Home of how the maps stood up to records validated
+  after they were made, linking to a new Methods section, "How the maps stood
+  up", with the tables and the caveat that finds cluster where people already
+  collect. A taxon page says how many new finds its map has had, and how many
+  fell in its top half.
 - Map backgrounds now come from Stadia Maps (the OSM Bright style, drawn from
   OpenStreetMap data) instead of OpenStreetMap's own tile servers, whose
   policy is for light use. The credits under every map, the footer, the
@@ -203,6 +223,12 @@ changed and what it means for you.
 
 ### The server
 
+- `atlas track-new-finds` scores records first validated since each map was
+  made (lookups only: this machine's newest pull and the store; nothing is
+  asked of mycomap.org). Its per-find ledger is private, kept under the
+  store's `private/tracker/` prefix and never published; the summary it
+  serves is counts and shares. A failed run only warns. It is meant to run
+  daily after the nightly pull; it is not installed as a unit yet.
 - `atlas sitemap` writes the site's pages and every taxon whose model passed
   its null test and drew a map. The nightly job puts it in the web root after
   `pull-release`, and a deploy keeps it.

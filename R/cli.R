@@ -118,6 +118,11 @@ atlas_usage <- function() {
   message("  trained-ids        PRIVATE: which records trained a release (--out=FILE or --link [--hours=N],")
   message("                     [--release=ID]); never publish it. --write makes the list from this")
   message("                     machine's pull, for a release made before lists were kept")
+  message("  track-new-finds    score records first validated since each map was made against the release")
+  message("                     live when their day began; private ledger in the store, public summary")
+  message("                     (lookups only: reads this machine's newest pull and the store)")
+  message("      --since=YYYY-MM-DD        first day counted (default 2026-10-03)")
+  message("      --dry-run                 score and summarise, write nothing")
   message("  finish-job         build and promote the release once every shard reported")
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
@@ -561,6 +566,15 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         atlas_fetch_trained_ids(store, release, grid, as.character(flags$out))
         message("wrote ", flags$out, ": private, do not publish it")
       }
+      invisible(0L)
+    },
+    "track-new-finds" = {
+      # Bookkeeping: a failure warns and the command still succeeds, so a
+      # unit running it never fails anything after it.
+      atlas_track_new_finds_quietly(
+        store = atlas_flag_store(flags), grid = atlas_flag_grid(flags),
+        since = as.character(flags$since %||% ATLAS_TRACKER_SINCE), dry_run = isTRUE(flags$dry_run)
+      )
       invisible(0L)
     },
     "job-timing" = {
