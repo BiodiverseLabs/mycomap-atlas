@@ -65,10 +65,12 @@ atlas_parse_validation_date <- function(x) {
 #' observations that have one.
 atlas_first_green_dates <- function(slots) {
   if (is.null(slots) || !nrow(slots)) return(stats::setNames(character(), character()))
+  # A slot the answer lacks is an empty one.
+  column <- function(name) slots[[name]] %||% rep(NA_character_, nrow(slots))
   dates <- lapply(1:3, function(i) {
-    status <- slots[[sprintf("validation_status_%d", i)]]
+    status <- column(sprintf("validation_status_%d", i))
     green <- !is.na(status) & tolower(trimws(status)) == "yes"
-    date <- atlas_parse_validation_date(slots[[sprintf("validation_date_%d", i)]])
+    date <- atlas_parse_validation_date(column(sprintf("validation_date_%d", i)))
     # Ids trimmed, as Vision keys its records.
     data.frame(observation_id = trimws(slots$observation_id), date = ifelse(green, date, NA_character_),
                stringsAsFactors = FALSE)

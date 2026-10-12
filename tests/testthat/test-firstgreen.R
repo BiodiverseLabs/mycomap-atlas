@@ -54,6 +54,8 @@ test_that("the first green date is the earliest green slot over all of an observ
   page$observation_id <- c("100", "200", "400")
   added <- atlas_add_first_green(page, slots)
   expect_equal(added$first_green_on, c("2026-03-01", "2025-05-20", NA))
+  # An answer without the slot columns gives no dates, not an error.
+  expect_length(atlas_first_green_dates(data.frame(observation_id = "100")), 0L)
 })
 
 test_that("the dates come from a query of their own, one line and safe for the SQL route", {
@@ -88,6 +90,10 @@ pull_with_dates <- function(page = fake_occurrences(),
     atlas_run_sql = function(sql, host = NULL) {
       asked <<- c(asked, sql)
       if (startsWith(sql, "SELECT g.observation_id")) return(as_tsv(slots))
+      # Each record's approved sequences name it as it is already named.
+      if (startsWith(sql, "SELECT o.id, s.species_name")) {
+        return(as_tsv(data.frame(id = page$id, species_name = page$scientific_name)))
+      }
       if (grepl("o.id > 0 ", sql, fixed = TRUE)) return(as_tsv(page))
       ""
     },
@@ -103,7 +109,7 @@ test_that("a pull carries each record's first green date, and its fingerprints a
     pulled <- atlas_read_occurrences()
     expect_equal(pulled$first_green_on, c("2025-01-02", "2026-03-04", NA))
     # The main query asked is exactly the pull's own, unchanged.
-    expect_equal(run$asked[[1]], atlas_occurrence_sql(0, 20000, NULL))
+    expect_equal(run$asked[[1]], atlas_occurrence_sql(0, formals(atlas_pull_occurrences)$chunk_size, NULL))
     expect_equal(run$manifest$fingerprint, atlas_fingerprint(fake_occurrences()))
     taxa <- jsonlite::fromJSON(atlas_path("occurrences", "taxa-latest.json"))
     expect_equal(taxa$fingerprint, atlas_taxon_fingerprints(fake_occurrences())$fingerprint)
