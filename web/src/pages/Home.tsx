@@ -29,6 +29,7 @@ import {
   getModel,
   getModels,
   getStatus,
+  getTracker,
   imageUrl,
   mapUrl,
   type Model,
@@ -37,6 +38,7 @@ import {
 import { FEATURED_PATH, readFeatured, showFeatured, type FeaturedTaxon } from "@/lib/featured";
 import { mapGrade } from "@/lib/grade";
 import { GITHUB_URL } from "@/lib/contract";
+import { homeLine } from "@/lib/tracker";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
 import { DevHint } from "@/components/DevHint";
@@ -297,6 +299,8 @@ export default function Home() {
   });
   const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
+  const tracker = useQuery({ queryKey: ["tracker"], queryFn: getTracker });
+  const stoodUp = homeLine(tracker.data);
   const mappedModels = (models.data ?? []).filter((m) => m.map);
   const mapped = new Set(mappedModels.map((m) => m.taxon));
 
@@ -355,6 +359,14 @@ export default function Home() {
           <BigStat value={models.data ? formatNumber(mapped.size) : "—"} label="taxa with habitat maps" />
           <BigStat value={models.data ? formatNumber(mappedModels.length) : "—"} label="fitted models" />
         </section>
+        {stoodUp && (
+          <p className="-mt-6 border-b border-[#A87146]/10 pb-6 text-[#5c4a3a]">
+            {stoodUp}{" "}
+            <Link href="/methods#stood-up" className="font-semibold text-myco-green underline-offset-2 hover:underline">
+              How the maps stood up
+            </Link>
+          </p>
+        )}
 
         <FeaturedSpecies />
 

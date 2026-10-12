@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 
@@ -6,6 +7,20 @@ import { GithubMark } from "@/components/Common";
 import { PageHeader } from "@/components/Layout";
 import { GITHUB_URL, SOURCES } from "@/lib/contract";
 import { usePageMeta } from "@/lib/usePageMeta";
+import { getTracker } from "@/lib/api";
+import {
+  SUBSETS_DISTANCE,
+  SUBSETS_MAIN,
+  TRACKER_CAVEAT,
+  gradeLabel,
+  longDate,
+  percent,
+  schemeLabel,
+  schemeRows,
+  subsetLabel,
+  type Tracker,
+  type TrackerRow,
+} from "@/lib/tracker";
 
 // The method in full, for someone deciding whether to build on Atlas. Numbers
 // here come from the README's measurements; when a setting changes in R/,
@@ -20,6 +35,7 @@ const SECTIONS: { id: string; title: string }[] = [
   { id: "selection", title: "Choosing predictors" },
   { id: "models", title: "The models" },
   { id: "evaluation", title: "Evaluation" },
+  { id: "stood-up", title: "How the maps stood up" },
   { id: "thresholds", title: "How much data a map needs" },
   { id: "maps", title: "Drawing the maps" },
   { id: "reproducibility", title: "Reproducibility" },
@@ -63,6 +79,63 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** One scheme's table of finds: by grade, and by new site or distance. */
+function StoodUpTable({ tracker, scheme, subsets }: { tracker: Tracker; scheme: string; subsets: readonly string[] }) {
+  const rows = schemeRows(tracker, scheme, subsets);
+  if (!rows.length) return null;
+  const cell = (r: TrackerRow) => [
+    gradeLabel(scheme, r.grade),
+    subsetLabel(r.subset),
+    r.places.toLocaleString("en-US"),
+    r.ranked.toLocaleString("en-US"),
+    percent(r.top_half),
+    percent(r.top_tenth),
+    percent(r.beats_effort),
+    percent(r.beyond_reach),
+    r.aoa === "unknown" ? "not kept" : percent(r.outside_aoa),
+  ];
+  return (
+    <Table
+      head={["Maps", "Finds", "Places", "Ranked", "Top half (50%)", "Top tenth (10%)", "Beat effort (50%)", "Beyond reach", "Outside applicability"]}
+      rows={rows.map(cell)}
+    />
+  );
+}
+
+function StoodUp() {
+  const tracker = useQuery({ queryKey: ["tracker"], queryFn: getTracker });
+  const t = tracker.data;
+  if (!t || t.status !== "tracking") {
+    return <p>The first scores appear here once records validated after the rebuild have been counted.</p>;
+  }
+  const schemes = ["shift", "skill"].filter((s) => t.rows.some((r) => r.scheme === s));
+  const finds = t.finds;
+  return (
+    <>
+      <p>
+        Counted since {longDate(t.since)}
+        {t.latest_find_on ? `, to finds validated on ${longDate(t.latest_find_on)}` : ""}:{" "}
+        {(finds?.by_status.scored ?? 0).toLocaleString("en-US")} finds scored on a map; besides them,{" "}
+        {(finds?.by_status.no_map ?? 0).toLocaleString("en-US")} finds of species with no map yet and{" "}
+        {(finds?.by_status.not_in_release ?? 0).toLocaleString("en-US")} under a name the map&rsquo;s release did not know.{" "}
+        {finds?.retracted ? `${finds.retracted.toLocaleString("en-US")} later lost their validation or were renamed, and are left out.` : ""}
+      </p>
+      {schemes.map((scheme) => (
+        <div key={scheme} className="space-y-3">
+          <h3 className="font-semibold text-[#4a3728]">{schemeLabel(scheme)}</h3>
+          <StoodUpTable tracker={t} scheme={scheme} subsets={SUBSETS_MAIN} />
+          <StoodUpTable tracker={t} scheme={scheme} subsets={SUBSETS_DISTANCE} />
+        </div>
+      ))}
+      <p className="text-sm">
+        A dash means too few places to give a share ({t.min_ranked_for_share ?? 30} ranked places are needed).
+        The full table, with intervals, Boyce indices and each release on its own, is at{" "}
+        <a href="/api/tracker" className="underline">/api/tracker</a>.
+      </p>
+    </>
   );
 }
 
@@ -114,7 +187,7 @@ export default function Methods() {
             </ol>
           </nav>
 
-          <div className="max-w-3xl space-y-10 text-[#5c4a3a] leading-relaxed">
+          <div className="min-w-0 max-w-3xl space-y-10 text-[#5c4a3a] leading-relaxed">
             <Section id="brief" title="In brief">
               <p>
                 A habitat map answers one question: given the climate, soil and cover of a place,
@@ -548,6 +621,29 @@ export default function Methods() {
                 sitemap. Weak and failed maps are drawn faint on their taxon page, hidden from the Maps
                 list unless asked for, and left out of anything mycomap.org reads from a release.
               </p>
+            </Section>
+
+            <Section id="stood-up" title="How the maps stood up">
+              <p>
+                Every day, records first validated by DNA that day are scored on the map that was live
+                when the day began. Atlas trains only on validated records, so none of them can have
+                taught that map anything. Each find gets the rank of its own cell on the map a visitor
+                sees: the share of the map&rsquo;s ground it beats, from 0 to 1. By chance, half of
+                the finds would land in the top half and a tenth in the top tenth. A find on ground
+                the map cannot vouch for (outside its area of applicability) or beyond its 500 km
+                reach gets no rank and is counted apart: many such finds would mean the maps are
+                drawn too narrowly.
+              </p>
+              <p>
+                <B>The caveat.</B> {TRACKER_CAVEAT} &ldquo;Beat effort&rdquo; reads each find&rsquo;s
+                map at the cells where every other species&rsquo; finds landed in the same days, and
+                asks how many of those cells the find outranks: 50% is no better than knowing where
+                people look. Several finds of one species in one 5 km cell count as one place, so one
+                foray cannot fill a row. Maps from before the October 2026 rebuild were graded by the
+                old test, which clustered collecting alone could pass, and are kept in a table of
+                their own.
+              </p>
+              <StoodUp />
             </Section>
 
             <Section id="thresholds" title="How much data a map needs">
