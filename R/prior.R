@@ -291,6 +291,8 @@ atlas_build_finish_indexes <- function(grid = "draft", quiet = FALSE) {
   index <- atlas_build_here_index(grid, quiet = quiet, strong = strong)
   atlas_build_prior(grid, quiet = quiet, strong = strong)
   atlas_build_weak_ranks(grid, quiet = quiet)
+  # Vision's continent export, from the strong maps' full-extent files.
+  atlas_build_continent(grid, quiet = quiet)
   invisible(index)
 }
 

@@ -526,6 +526,11 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
                              note = NULL, quiet = FALSE, partial = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   job <- atlas_read_job(store, id, grid)
+  # A prior-only job is Vision's benchmark, never a release (R/prioronly.R).
+  if (atlas_is_prior_only(job)) {
+    stop("job ", id, " is a prior-only job: it never becomes a release; ",
+         "finish it with finish-prior-only", call. = FALSE)
+  }
   status <- atlas_job_status(store, id, grid)
   if (length(status$missing) && !isTRUE(partial)) {
     stop("job ", id, " is not finished: shard", if (length(status$missing) > 1L) "s " else " ",

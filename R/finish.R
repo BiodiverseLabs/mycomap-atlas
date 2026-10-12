@@ -23,9 +23,10 @@
 # (until now built only by hand, so no job's release had them). 3: the
 # prior's trust signals (models per cell and their spread, map strength per
 # taxon, each model's area-of-applicability index and threshold), and the weak
-# maps' ranks, filed privately. Finishing again refits nothing: it reads the
-# release's maps and adds what it builds.
-ATLAS_FINISH_VERSION <- 3L
+# maps' ranks, filed privately. 4: the continent export (R/continent.R), from
+# the strong maps' full-extent files, filed privately. Finishing again refits
+# nothing: it reads the release's maps and adds what it builds.
+ATLAS_FINISH_VERSION <- 4L
 
 #' Whether a release has been finished under the current rule.
 atlas_release_finished <- function(release) {
@@ -91,7 +92,9 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
     # Files the box files privately, never in the release: a worker may not
     # write private/ (its IAM policy), so they go up as objects and the box
     # puts them in place (atlas_apply_finish).
-    private = atlas_upload_private(store, atlas_weak_ranks_path(grid))
+    private = c(atlas_upload_private(store, atlas_weak_ranks_path(grid), ATLAS_WEAK_PREFIX),
+                atlas_upload_private(store, file.path(atlas_continent_dir(grid), ATLAS_CONTINENT_FILES),
+                                     ATLAS_CONTINENT_PREFIX))
   )
   atlas_store_json(store, atlas_shard_key(id, 1L, grid), record)
   say("finished release ", release, ": counted ", record$counted, " maps by state, built the combined maps, index and prior; ",
@@ -140,14 +143,14 @@ ATLAS_WEAK_PREFIX <- "private/atlas-weak"
 
 #' On the worker: upload files bound for a private prefix as objects, and say
 #' which: name, hash and size. Missing files are skipped.
-atlas_upload_private <- function(store, paths) {
+atlas_upload_private <- function(store, paths, prefix) {
   paths <- paths[file.exists(paths)]
   if (!length(paths)) return(list())
   root <- normalizePath(atlas_data_dir(), winslash = "/")
   relative <- substring(normalizePath(paths, winslash = "/"), nchar(root) + 2L)
   entries <- atlas_file_entries(relative)
   atlas_upload_objects(store, entries)
-  lapply(entries, function(e) list(name = basename(e$path), sha256 = e$sha256, bytes = e$bytes))
+  lapply(entries, function(e) list(prefix = prefix, name = basename(e$path), sha256 = e$sha256, bytes = e$bytes))
 }
 
 #' On the box: file a finishing worker's private files under the finished
@@ -156,7 +159,7 @@ atlas_place_private <- function(store, entries, release, grid = "draft") {
   for (entry in entries %||% list()) {
     file <- tempfile()
     store$get(atlas_object_key(entry$sha256), file)
-    store$put(paste(ATLAS_WEAK_PREFIX, release, grid, entry$name, sep = "/"), file)
+    store$put(paste(entry$prefix %||% ATLAS_WEAK_PREFIX, release, grid, entry$name, sep = "/"), file)
     unlink(file)
   }
   invisible(length(entries %||% list()))
@@ -171,19 +174,35 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
                                 poll_seconds = 60, wait = Sys.sleep, quiet = FALSE,
                                 clock = Sys.time, hours = config$finish_hours %||% 3,
                                 image_exists = atlas_image_exists, ...) {
-  say <- function(...) if (!isTRUE(quiet)) message(format(clock(), "%H:%M:%S"), "  ", ...)
   current <- atlas_current_release(store, grid)
   if (is.null(current) || atlas_release_finished(current)) return(invisible(NULL))
+  atlas_one_worker_on_ec2(
+    store, atlas_finish_id(current$id), grid,
+    command = sprintf("finish-release --grid=%s --release=%s --workers=$WORKERS", grid, current$id),
+    label = paste("release", current$id),
+    ec2 = ec2, config = config, poll_seconds = poll_seconds, wait = wait, quiet = quiet,
+    clock = clock, hours = hours, image_exists = image_exists
+  )
+  release <- atlas_apply_finish(store, current$id, grid, quiet = quiet)
+  invisible(release)
+}
+
+#' On the box: run one command on one EC2 worker until it writes the record
+#' at atlas_shard_key(id, 1). Launches the worker, launches it again if it is
+#' lost without reporting (up to config$max_attempts), and stops it at the
+#' deadline. Finishing a release and building a prior-only job's prior both
+#' run this way.
+atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL, config = atlas_ec2_config(),
+                                    poll_seconds = 60, wait = Sys.sleep, quiet = FALSE,
+                                    clock = Sys.time, hours = 3, image_exists = atlas_image_exists) {
+  say <- function(...) if (!isTRUE(quiet)) message(format(clock(), "%H:%M:%S"), "  ", ...)
   if (identical(image_exists(config$image), FALSE)) {
-    stop("the image ", config$image, " is not in its registry, so release ", current$id,
+    stop("the image ", config$image, " is not in its registry, so ", label,
          " could not be finished", call. = FALSE)
   }
-
   ec2 <- ec2 %||% paws.compute::ec2(config = list(region = config$region))
-  id <- atlas_finish_id(current$id)
   deadline <- clock() + hours * 3600
   minutes_left <- function() as.numeric(difftime(deadline, clock(), units = "mins"))
-  command <- sprintf("finish-release --grid=%s --release=%s --workers=$WORKERS", grid, current$id)
   reported <- function() store$exists(atlas_shard_key(id, 1L, grid))
 
   terminate_all <- function() {
@@ -200,7 +219,7 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
   repeat {
     if (reported()) break
     if (clock() > deadline) {
-      stop("finishing release ", current$id, " ran past its ", hours, " h deadline; its worker was stopped",
+      stop("finishing ", label, " ran past its ", hours, " h deadline; its worker was stopped",
            call. = FALSE)
     }
     if (!is.na(instance)) {
@@ -210,7 +229,7 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
       gone <- if (length(state)) state[[1]] %in% ATLAS_EC2_GONE else instance %in% seen
       if (gone && !reported()) {
         if (attempts >= config$max_attempts) {
-          stop("finishing release ", current$id, " failed ", attempts, " times without reporting",
+          stop("finishing ", label, " failed ", attempts, " times without reporting",
                call. = FALSE)
         }
         say("finishing worker ", instance, " is gone without reporting; launching another")
@@ -223,13 +242,12 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
       if (!is.null(launched)) {
         attempts <- attempts + 1L
         instance <- launched
-        say("finishing release ", current$id, ": launched ", instance)
+        say("finishing ", label, ": launched ", instance)
       }
     }
     wait(poll_seconds)
   }
-  release <- atlas_apply_finish(store, current$id, grid, quiet = quiet)
   done <- TRUE
   terminate_all()
-  invisible(release)
+  invisible(TRUE)
 }

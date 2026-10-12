@@ -96,6 +96,13 @@ changed and what it means for you.
 
 ### Maps
 
+- **Full-extent maps.** Each strong map is also predicted over the whole of
+  North America, beyond its 500 km reach, on the same colour scale, with
+  ground the model knows nothing about hatched (most of the continent, far
+  from its finds). The 500 km map stays the default, byte for byte as
+  before; releases add `<taxon>.full.png`, `.full.tif` and `.full.di.tif`.
+  Weak and failed maps are not projected.
+
 - **A stricter null test.** Every map is tested against null species that
   keep its own clustering (its detections rotated and moved onto other
   survey sites), up to 99, stopping once 5 do as well. The old scattered

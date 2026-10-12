@@ -109,10 +109,14 @@ atlas_usage <- function() {
   message("      --shards=N                how many workers will share it (default 4)")
   message("      --limit=N                 fit only the N richest taxa that need it (a trial)")
   message("      --sample=N                fit N taxa spread from richest to sparsest (a pilot)")
+  message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
+  message("                                refit a release's strong models on its pull without the records")
+  message("                                validated after the date, for Vision's benchmark: never a release")
   message("  run-shard          fit one shard of a job and upload the results")
   message("      --job=ID --shard=N        which (both required)")
   message("      --workers=N               fits at once on this machine (default 1)")
   message("  job-status         which shards of a job have reported")
+  message("  finish-prior-only  build a prior-only job's private prior, trained ids and summary (--job=ID)")
   message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
   message("      --fits-at-once=N          fits running together on EC2 (default 84)")
   message("  trained-ids        PRIVATE: which records trained a release (--out=FILE or --link [--hours=N],")
@@ -499,7 +503,16 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "plan-job" = {
-      atlas_plan_job(
+      if (isTRUE(flags$prior_only)) {
+        if (is.null(flags$from_release) || is.null(flags$validated_through)) {
+          stop("plan-job --prior-only needs --from-release=ID and --validated-through=YYYY-MM-DD", call. = FALSE)
+        }
+        atlas_plan_prior_only(
+          atlas_flag_store(flags), from_release = as.character(flags$from_release),
+          validated_through = as.character(flags$validated_through), grid = atlas_flag_grid(flags),
+          shards = as.integer(atlas_flag_number(flags, "shards", 4))
+        )
+      } else atlas_plan_job(
         atlas_flag_store(flags), grid = atlas_flag_grid(flags),
         algorithms = flags$algorithms %||% "all",
         shards = as.integer(atlas_flag_number(flags, "shards", 4)),
@@ -561,6 +574,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         atlas_fetch_trained_ids(store, release, grid, as.character(flags$out))
         message("wrote ", flags$out, ": private, do not publish it")
       }
+      invisible(0L)
+    },
+    "finish-prior-only" = {
+      if (is.null(flags$job)) stop("finish-prior-only needs --job=ID", call. = FALSE)
+      atlas_finish_prior_only_work(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
+                                   usd_per_vcpu_hour = atlas_flag_number(flags, "usd_per_vcpu_hour", 0.025),
+                                   defer = isTRUE(flags$defer))
       invisible(0L)
     },
     "job-timing" = {
