@@ -45,6 +45,13 @@ test_that("a record with no approved named sequence is kept or dropped as config
   expect_error(atlas_dna_names("x y", list("x y"), no_sequence = "maybe"))
 })
 
+test_that("by default a record with no approved named sequence is left out", {
+  # Steve, 2026-10-11: only a name the DNA gives is modelled.
+  out <- atlas_dna_names("Amanita muscaria", list(character()))
+  expect_true(is.na(out$name))
+  expect_equal(out$status, ATLAS_LABEL_NONE)
+})
+
 test_that("only species-level names are modelled", {
   expect_equal(
     atlas_species_level(c("Amanita muscaria", "Mycena sp. 'IN10'", "Mycena sp.", "Mycena sp",

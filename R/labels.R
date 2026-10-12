@@ -15,13 +15,14 @@
 # spelling differences (R/names.R atlas_name_key). Two different names, or a
 # one-word sequence name, leave the record out: the DNA does not settle which
 # species it is. A record with no approved named sequence that .org can link
-# keeps its record name or is left out, as ATLAS_NO_SEQUENCE_NAME says; most
-# such records are Mushroom Observer, MyCoPortal and GenBank records whose
-# sequences .org cannot yet join to them, not records without DNA.
+# is left out too (Steve, 2026-10-11): only a name the DNA gives is modelled.
+# Most such records are Mushroom Observer, MyCoPortal and GenBank records
+# whose sequences .org cannot yet join to them, not records without DNA, so
+# they come back as those joins are built.
 
 # What a record with no approved named sequence .org can link does: keep its
 # record name ("keep") or leave the pull ("drop").
-ATLAS_NO_SEQUENCE_NAME <- "keep"
+ATLAS_NO_SEQUENCE_NAME <- "drop"
 
 # The linked_observations database that holds iNaturalist observations.
 ATLAS_LINKED_INAT_DATABASE <- 43L

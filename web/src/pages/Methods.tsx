@@ -163,7 +163,7 @@ export default function Methods() {
                   carry a species-level name from its DNA. Provisional names count. The name is the
                   one on the record&rsquo;s approved sequences, not the record&rsquo;s own, which is
                   often never updated after the sequence is named. A record whose sequences name two
-                  species, or only a genus, is left out.
+                  species, or only a genus, or that has no approved named sequence, is left out.
                 </li>
               </ul>
               <p>
