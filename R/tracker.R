@@ -53,11 +53,18 @@ ATLAS_TRACKER_SINCE <- "2026-10-03"
 ATLAS_TRACKER_PRIVATE_PREFIX <- "private/tracker"
 ATLAS_TRACKER_PUBLIC_PREFIX <- "tracker"
 
-# A private side column of the pull, when .org records it: the channel a
-# record came through when the maps steered it (survey guidance, a validation
-# priority). Empty today; plumbed like first_green_on, outside every
-# fingerprint, and never published per record.
+# A private side column of the pull, when .org records it: how each verdict
+# came about (validation_priority_events on .org): organic (a validator's own
+# choice, and anything unknown), triage (the triage card), priority_sort (the
+# priority-sorted list) or auto (validated automatically). Empty today;
+# plumbed like first_green_on, outside every fingerprint, and never published
+# per record. Organic and empty finds are evaluated; every other channel is a
+# population of its own (steered towards new ground, or chosen by no one), so
+# each is held out of the evaluation and counted in its own row. A value .org
+# adds later is held out too, as "other", until it is named here.
 ATLAS_TRACKER_CHANNEL_FIELD <- "channel"
+ATLAS_TRACKER_EVALUATED_CHANNELS <- c("organic")
+ATLAS_TRACKER_HELD_CHANNELS <- c("triage", "priority_sort", "auto")
 
 # Per-taxon tallies below this many finds say "fewer than 5" and no more.
 ATLAS_TRACKER_MIN_TAXON <- 5L
@@ -738,11 +745,12 @@ atlas_tracker_summary <- function(ledger, current = NULL, tg = list(per_find = N
                                   pulled_at = NULL) {
   live <- ledger[is.na(ledger$retracted_on), , drop = FALSE]
   scored <- live[live$status == "scored", , drop = FALSE]
-  # Finds that came through a channel the maps steer (survey guidance, a
-  # validation priority) are held out of every evaluation row and shown on
-  # their own: a map cannot be credited for finds made where it sent people.
-  guided <- scored[!is.na(scored$channel) & nzchar(scored$channel), , drop = FALSE]
-  scored <- scored[is.na(scored$channel) | !nzchar(scored$channel), , drop = FALSE]
+  # Finds that came through a steered or automatic channel are held out of
+  # every evaluation row and shown on their own, one row per channel.
+  evaluated <- is.na(scored$channel) | !nzchar(scored$channel) | scored$channel %in% ATLAS_TRACKER_EVALUATED_CHANNELS
+  held <- scored[!evaluated, , drop = FALSE]
+  held$channel <- ifelse(held$channel %in% ATLAS_TRACKER_HELD_CHANNELS, held$channel, "other")
+  scored <- scored[evaluated, , drop = FALSE]
   counts <- function(x) stats::setNames(as.list(as.integer(table(factor(x, levels = names(ATLAS_TRACKER_STATUSES))))),
                                         names(ATLAS_TRACKER_STATUSES))
   strong_word <- function(scheme) if (identical(scheme, "shift")) "strong" else "passed"
@@ -768,10 +776,13 @@ atlas_tracker_summary <- function(ledger, current = NULL, tg = list(per_find = N
     }
   }
 
-  for (scheme in intersect(c("shift", "skill"), unique(guided$scheme))) {
-    part <- guided[guided$scheme == scheme, , drop = FALSE]
-    rows[[length(rows) + 1L]] <- c(list(scheme = scheme, release = "all", grade = "any", subset = "guided"),
-                                   atlas_tracker_row(part, tg$per_find, tg$hist))
+  for (scheme in intersect(c("shift", "skill"), unique(held$scheme))) {
+    for (channel in intersect(c(ATLAS_TRACKER_HELD_CHANNELS, "other"), held$channel[held$scheme == scheme])) {
+      part <- held[held$scheme == scheme & held$channel == channel, , drop = FALSE]
+      rows[[length(rows) + 1L]] <- c(list(scheme = scheme, release = "all", grade = "any",
+                                          subset = paste0("channel_", channel)),
+                                     atlas_tracker_row(part, tg$per_find, tg$hist))
+    }
   }
 
   # The line a visitor sees first: new sites for strong (or, before the
@@ -831,7 +842,10 @@ atlas_tracker_summary <- function(ledger, current = NULL, tg = list(per_find = N
     min_taxon_finds = ATLAS_TRACKER_MIN_TAXON,
     min_ranked_for_share = ATLAS_TRACKER_MIN_SHARE,
     min_ranked_for_boyce = ATLAS_TRACKER_MIN_BOYCE,
-    finds = list(total = nrow(ledger), by_status = counts(live$status), guided = nrow(guided),
+    finds = list(total = nrow(ledger), by_status = counts(live$status),
+                 held_out = stats::setNames(lapply(c(ATLAS_TRACKER_HELD_CHANNELS, "other"),
+                                                   function(ch) sum(held$channel == ch)),
+                                            c(ATLAS_TRACKER_HELD_CHANNELS, "other")),
                  retracted = sum(!is.na(ledger$retracted_on))),
     coverage = coverage,
     headline = headline,

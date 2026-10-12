@@ -776,10 +776,14 @@ from weeks ago is scored exactly as it was drawn:
   below 50, per-taxon tallies below 5 ("fewer than 5").
 - **Retractions:** a find the newest pull drops, or holds under another name,
   is marked retracted and left out of the counts; it is never re-scored.
-- **Steered finds:** a pull that carries a private `channel` column (the
-  channel a record came through when the maps steered it: survey guidance, a
-  validation priority; empty until .org records it) has those finds held out
-  of every evaluation row and counted in a row of their own (`guided`).
+- **Channels:** a pull that carries a private `channel` column (how each
+  verdict came about, from .org's validation_priority_events: `organic`,
+  `triage`, `priority_sort` or `auto`; empty until .org records it) has
+  organic and unrecorded finds evaluated, and each other channel held out of
+  every evaluation row and counted in a row of its own (`channel_triage`,
+  `channel_priority_sort`, `channel_auto`, and `channel_other` for a value
+  not named yet). Triage and the priority list steer validators towards new
+  ground; automatic verdicts were chosen by no one.
 - **While the nightly is off** no new pull arrives, so nothing new is scored;
   the summary's `pulled_at` stops moving and the site says scoring resumes
   with the nightly. Nothing is lost: each find is scored on its own day's

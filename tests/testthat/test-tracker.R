@@ -504,26 +504,31 @@ test_that("a taxon's tally counts finds since the map it shows now, even one red
   expect_equal(tally$since, "2026-10-06")
 })
 
-test_that("finds a map steered (a channel) are held out of every evaluation row and shown on their own", {
+test_that("organic finds are evaluated; triage, priority-sorted and automatic finds each get their own row", {
   skip_if_not_installed("terra")
   store <- fresh_store()
   two_releases(store)
-  finds <- rbind(tracker_records("Amanita one", 3:20, rows = 2, first_green_on = "2026-10-06"),
-                 tracker_records("Amanita one", 3:20, rows = 4, first_green_on = "2026-10-06"))
-  finds$channel <- NA_character_
-  finds$channel[19:36] <- "survey_guidance"
+  finds <- do.call(rbind, lapply(c(2, 4, 6, 8, 10, 12), function(r) {
+    tracker_records("Amanita one", 3:20, rows = r, first_green_on = "2026-10-06")
+  }))
+  finds$channel <- rep(c(NA, "organic", "triage", "priority_sort", "auto", "something_new"), each = 18)
   result <- tracker_run(store, finds, since = "2026-10-01")
-  expect_equal(sum(!is.na(result$ledger$channel)), 18L)
+  expect_equal(sum(!is.na(result$ledger$channel)), 90L)
   rows <- result$summary$rows
-  guided <- Filter(function(r) r$subset == "guided", rows)
-  expect_length(guided, 1L)
-  expect_equal(guided[[1]]$finds, 18L)
+  by_subset <- function(name) Filter(function(r) r$subset == name, rows)
+  for (channel in c("triage", "priority_sort", "auto", "other")) {
+    expect_length(by_subset(paste0("channel_", channel)), 1L)
+    expect_equal(by_subset(paste0("channel_", channel))[[1]]$finds, 18L)
+  }
+  # Unrecorded and organic finds are the evaluated ones.
   evaluated <- Filter(function(r) r$subset == "all" && r$grade == "any" && r$release == "all", rows)[[1]]
-  expect_equal(evaluated$finds, 18L)
-  expect_equal(result$summary$headline$places, 18L)
-  expect_equal(result$summary$finds$guided, 18L)
-  # The channel is private like the rest of a find: not in anything published.
-  expect_false(grepl("survey_guidance", jsonlite::toJSON(result$summary, auto_unbox = TRUE, null = "null")))
+  expect_equal(evaluated$finds, 36L)
+  expect_equal(result$summary$headline$places, 36L)
+  expect_equal(result$summary$finds$held_out$auto, 18L)
+  expect_equal(result$summary$finds$held_out$other, 18L)
+  expect_equal(atlas_tracker_for(result$summary, "Amanita one")$finds, 36L)
+  # A channel .org adds later is held out as "other", never published by its own name.
+  expect_false(grepl("something_new", jsonlite::toJSON(result$summary, auto_unbox = TRUE, null = "null")))
 })
 
 test_that("the summary says which pull it read, so the site can say scoring waits for the nightly", {

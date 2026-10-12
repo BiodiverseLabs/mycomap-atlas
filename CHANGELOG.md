@@ -19,7 +19,9 @@ changed and what it means for you.
   record of the taxon) and by distance to the nearest known record, with an
   effort-corrected comparison (`beats_effort`, `boyce_effort`) against where
   every other taxon's finds landed. Releases from before the rebuild are kept
-  apart (`scheme: "skill"`). Counts and shares only; shares are null below
+  apart (`scheme: "skill"`), and so are finds whose verdict came through the
+  triage card, the priority list or automatic validation, each in a row of its
+  own. Counts and shares only; shares are null below
   30 ranked places. `status: "not_started"` before the first run. New route.
 - **`GET /api/taxa/{name}`** gains `new_finds`: records validated since the
   map the taxon shows now was made, and how many fell in its top half;

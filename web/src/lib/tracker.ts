@@ -63,7 +63,7 @@ export interface Tracker {
   min_taxon_finds?: number;
   min_ranked_for_share?: number;
   min_ranked_for_boyce?: number;
-  finds?: { total: number; by_status: Record<string, number>; retracted: number; guided?: number };
+  finds?: { total: number; by_status: Record<string, number>; retracted: number; held_out?: Record<string, number> };
   coverage?: { finds: number; with_map: number; with_strong_map: number } | null;
   headline?: TrackerHeadline | null;
   releases?: { id: string; scheme: string; naming: string; promoted_at: string; from: string; to: string }[];
@@ -153,7 +153,10 @@ const SUBSET_WORDS: Record<string, string> = {
   band_100_500: "100–500 km",
   band_500_plus: "500 km or more",
   band_none: "First record of the species",
-  guided: "Found where the maps sent people (left out above)",
+  channel_triage: "Validated from the triage card (left out above)",
+  channel_priority_sort: "Validated from the priority list (left out above)",
+  channel_auto: "Validated automatically (left out above)",
+  channel_other: "Validated another way (left out above)",
 };
 
 export function subsetLabel(subset: string): string {
@@ -175,5 +178,7 @@ export function schemeRows(tracker: Tracker, scheme: string, subsets: readonly s
     .sort((a, b) => grades.indexOf(a.grade) - grades.indexOf(b.grade) || subsets.indexOf(a.subset) - subsets.indexOf(b.subset));
 }
 
-export const SUBSETS_MAIN = ["all", "new_site", "known_site", "guided"] as const;
+export const SUBSETS_MAIN = [
+  "all", "new_site", "known_site", "channel_triage", "channel_priority_sort", "channel_auto", "channel_other",
+] as const;
 export const SUBSETS_DISTANCE = ["band_under_100", "band_100_500", "band_500_plus", "band_none"] as const;
