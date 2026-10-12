@@ -33,18 +33,16 @@ test_that("a Mushroom Observer record needs a visible GPS point or a small named
   expect_match(sql, clause, fixed = TRUE)
   # Only MO records are judged by it; every other source passes untouched.
   expect_match(clause, "AND (o.source <> 'MO Observations' OR ", fixed = TRUE)
-  expect_match(clause, "m.source = 'mo' AND m.source_observation_id = o.observation_id", fixed = TRUE)
+  expect_match(clause, "FROM atlas.mo_points m WHERE m.source_observation_id = o.observation_id", fixed = TRUE)
   # A GPS point counts only when the observer shows it; a hidden one is no
-  # GPS point, and the location box decides.
+  # GPS point (the view has none for it), and the location box decides.
   answer <- atlas_mo_answer_sql()
   expect_match(clause, sprintf("AND (%s OR %s))", answer$gps, answer$small), fixed = TRUE)
-  expect_match(answer$gps, "coalesce((CAST(m.api_response_json AS jsonb) ->> 'gps_hidden')::boolean, false) = false",
-               fixed = TRUE)
-  expect_match(answer$gps, "(CAST(m.api_response_json AS jsonb) ->> 'latitude') IS NOT NULL", fixed = TRUE)
-  expect_false(grepl("gps_hidden", answer$small, fixed = TRUE))
+  expect_equal(answer$gps, "(m.latitude IS NOT NULL AND m.longitude IS NOT NULL)")
+  expect_false(grepl("m.latitude IS", answer$small, fixed = TRUE))
   # Without one, half the location box's diagonal must be within the limit, in km.
   for (side in c("latitude_north", "latitude_south", "longitude_east", "longitude_west")) {
-    expect_match(clause, sprintf("'location' ->> '%s'", side), fixed = TRUE)
+    expect_match(clause, sprintf("m.%s", side), fixed = TRUE)
   }
   expect_match(atlas_mo_location_clause(max_m = 5000), "/ 2 <= 5)", fixed = TRUE)
   expect_match(atlas_mo_location_clause(max_m = 1000), "/ 2 <= 1)", fixed = TRUE)
@@ -66,13 +64,23 @@ test_that("an MO record's coordinate comes from MO's own answer, not from .org's
   # .org's own MO coordinate is never selected as is.
   expect_false(grepl("o.latitude, o.longitude", sql, fixed = TRUE))
   expect_match(atlas_occurrence_columns_sql(), "^o.id, o.observation_id, o.source")
-  expect_match(answer$centre$latitude, "'latitude_north')::numeric + (", fixed = TRUE)
+  expect_equal(answer$centre$latitude, "(m.latitude_north + m.latitude_south) / 2")
+})
+
+test_that("nothing Atlas asks .org for reads a cached API answer: MO places come from the view", {
+  # The answer holds the observer's name and any GPS point they hid, and
+  # Atlas's login cannot read it (.org deploy/readonly-sql/atlas-install.sh).
+  asked <- c(atlas_occurrence_sql(), atlas_unvalidated_sql(), atlas_first_green_sql(1, 2),
+             atlas_sequence_names_sql(1, 2))
+  for (sql in asked) expect_false(grepl("api_response_json", sql, fixed = TRUE))
+  expect_match(asked[[1]], "FROM atlas.mo_points m", fixed = TRUE)
+  expect_false(grepl("observation_cache m", asked[[1]], fixed = TRUE))
 })
 
 test_that("an MO record .org has no MO answer for is kept or dropped as configured", {
   kept <- atlas_mo_location_clause(unknown = "keep")
   dropped <- atlas_mo_location_clause(unknown = "drop")
-  expect_match(kept, "OR NOT EXISTS (SELECT 1 FROM observation_cache m", fixed = TRUE)
+  expect_match(kept, "OR NOT EXISTS (SELECT 1 FROM atlas.mo_points m", fixed = TRUE)
   expect_false(grepl("NOT EXISTS", dropped, fixed = TRUE))
   expect_error(atlas_mo_location_clause(unknown = "maybe"))
 })
