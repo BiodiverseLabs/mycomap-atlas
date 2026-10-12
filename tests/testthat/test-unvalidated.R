@@ -43,10 +43,11 @@ test_that("a taxon with none waiting has no row, and a spelling of no modelled t
   expect_equal(nrow(atlas_unvalidated_table(NULL, "Trametes versicolor")), 0L)
 })
 
-test_that("the count covers the same places and names as the pull, and only records with no verdict", {
-  shared <- atlas_one_line(atlas_place_and_name_clause())
-  expect_true(grepl(shared, atlas_occurrence_sql(), fixed = TRUE))
-  expect_true(grepl(shared, atlas_unvalidated_sql(), fixed = TRUE))
+test_that("the count covers the same places as the pull, species-level names, and only records with no verdict", {
+  place <- atlas_one_line(atlas_place_clause())
+  expect_true(grepl(place, atlas_occurrence_sql(), fixed = TRUE))
+  expect_true(grepl(atlas_one_line(atlas_place_and_name_clause()), atlas_unvalidated_sql(), fixed = TRUE))
+  expect_match(atlas_place_and_name_clause(), place, fixed = TRUE)
   sql <- atlas_unvalidated_sql()
   for (slot in 1:3) {
     expect_match(sql, sprintf("coalesce(o.validation_status_%d, '') NOT IN ('yes', 'no')", slot), fixed = TRUE)
@@ -67,6 +68,10 @@ test_that("a pull's counts leave its fingerprint alone, and a failed count never
   pull_with <- function(counts) {
     testthat::local_mocked_bindings(atlas_run_sql = function(sql, host) {
       if (startsWith(sql, "SELECT g.observation_id")) return(first_green_none)
+      # Each record's approved sequence names it as the record does.
+      if (startsWith(sql, "SELECT o.id, s.species_name")) {
+        return(tsv_text(data.frame(id = records$id, species_name = records$scientific_name)))
+      }
       if (grepl("not_yet_validated", sql, fixed = TRUE)) {
         if (is.null(counts)) stop("the database went away")
         return(tsv_text(counts))

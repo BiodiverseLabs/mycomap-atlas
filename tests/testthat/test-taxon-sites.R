@@ -54,6 +54,10 @@ test_that("a pull carries sites, keeps its fingerprint, and survives a count tha
   pull <- function() {
     testthat::local_mocked_bindings(atlas_run_sql = function(sql, host) {
       if (startsWith(sql, "SELECT g.observation_id")) return(first_green_none)
+      # Each record's approved sequence names it as the record does.
+      if (startsWith(sql, "SELECT o.id, s.species_name")) {
+        return(tsv_text(data.frame(id = records$id, species_name = records$scientific_name)))
+      }
       if (grepl("not_yet_validated", sql, fixed = TRUE)) return("taxon\tnot_yet_validated\twith_coordinates")
       tsv_text(records)
     })

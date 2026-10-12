@@ -88,6 +88,10 @@ pull_with_dates <- function(page = fake_occurrences(),
     atlas_run_sql = function(sql, host = NULL) {
       asked <<- c(asked, sql)
       if (startsWith(sql, "SELECT g.observation_id")) return(as_tsv(slots))
+      # Each record's approved sequence names it as the record does (R/labels.R).
+      if (startsWith(sql, "SELECT o.id, s.species_name")) {
+        return(as_tsv(data.frame(id = page$id, species_name = page$scientific_name)))
+      }
       if (grepl("o.id > 0 ", sql, fixed = TRUE)) return(as_tsv(page))
       ""
     },
@@ -103,7 +107,7 @@ test_that("a pull carries each record's first green date, and its fingerprints a
     pulled <- atlas_read_occurrences()
     expect_equal(pulled$first_green_on, c("2025-01-02", "2026-03-04", NA))
     # The main query asked is exactly the pull's own, unchanged.
-    expect_equal(run$asked[[1]], atlas_occurrence_sql(0, 20000, NULL))
+    expect_equal(run$asked[[1]], atlas_occurrence_sql(0, formals(atlas_pull_occurrences)$chunk_size, NULL))
     expect_equal(run$manifest$fingerprint, atlas_fingerprint(fake_occurrences()))
     taxa <- jsonlite::fromJSON(atlas_path("occurrences", "taxa-latest.json"))
     expect_equal(taxa$fingerprint, atlas_taxon_fingerprints(fake_occurrences())$fingerprint)
