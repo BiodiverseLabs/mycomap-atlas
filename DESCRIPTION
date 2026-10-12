@@ -34,5 +34,6 @@ Suggests:
     ecospat,
     xgboost,
     paws.storage,
-    paws.compute
+    paws.compute,
+    nanoparquet
 Config/testthat/edition: 3

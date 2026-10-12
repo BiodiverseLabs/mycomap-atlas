@@ -1,26 +1,6 @@
 # What could grow here: a place's index cell, the maps that rate it, ranked,
 # with what has been collected nearby. Built from maps, never from records.
 
-# A small model raster on the Atlas grid around Albers' origin (40N, 96W),
-# its values rising eastward, or westward with rising = "west".
-here_raster <- function(rising = "east") {
-  r <- terra::rast(ncols = 40, nrows = 40, xmin = -100000, xmax = 100000,
-                   ymin = -100000, ymax = 100000, crs = ATLAS_CRS)
-  x <- terra::xFromCell(r, seq_len(terra::ncell(r)))
-  terra::values(r) <- if (rising == "east") x else -x
-  r
-}
-
-write_model <- function(taxon, algorithm, raster, skill = "passed") {
-  dir.create(atlas_model_dir("draft", algorithm), recursive = TRUE, showWarnings = FALSE)
-  terra::writeRaster(raster, atlas_model_path(taxon, "draft", ".tif", algorithm), overwrite = TRUE)
-  atlas_write_json(list(taxon = taxon, algorithm = algorithm, presences = 30, predictors = list("bio1"),
-                        auc_mean = 0.7, boyce_mean = 0.5, built_at = "2026-09-29T00:00:00Z",
-                        map = "x.png", skill = skill,
-                        null = list(design = ATLAS_NULL_DESIGN, observed_auc = 0.7, observed_boyce = 0.5)),
-                   atlas_model_path(taxon, "draft", ".json", algorithm))
-}
-
 # East of the origin, about 43 km; and west, about 43 km.
 EAST <- c(lat = 40, lng = -95.5)
 WEST <- c(lat = 40, lng = -96.5)
