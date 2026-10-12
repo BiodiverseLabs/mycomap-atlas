@@ -228,6 +228,61 @@ A release made before these lists were kept has none. `./atlas trained-ids
 pull the release's job was planned from, which the store keeps, and the
 box's own pull besides; it refits nothing.
 
+## Vision's benchmark prior (a prior-only job)
+
+MycoMap Vision benchmarks on records validated after a cutoff, so it needs a
+prior fitted without them (`R_train`). A prior-only job refits the main
+release's strong models on that release's own pull, minus every record whose
+first green validation came after the cutoff. Vision hands over only the
+date. On the box, as the atlas user:
+
+```bash
+./atlas plan-job --prior-only --from-release=<R_main id> --validated-through=<YYYY-MM-DD>
+./atlas run-job-ec2 --job=<train-... id from plan-job>
+```
+
+It runs no null tests: grades come from `R_main`, and the summary says so.
+Its fits run like any job's; then one worker builds its prior. It is **never a
+release**: nothing is promoted, pulled to the box, served, archived or put in
+the sitemap. A job that runs past its deadline publishes nothing, and
+`finish-job` refuses it. Everything it makes is private:
+
+```
+private/vision-benchmark/<id>/prior/<grid>/      ranks.parquet, ranks.tsv.gz, taxa.tsv, grid.json
+private/vision-benchmark/<id>/summary.json       records left out (and the 0 dated after the cutoff kept),
+                                                 taxa refitted and lost, CPU-hours, worker hours, cost estimate
+private/trained-ids/<grid>/releases/<id>.tsv.gz  the records it was trained on
+```
+
+The pull it filters must carry first green dates: a main release fitted on a
+pull from before 2026-10-12 cannot be used. The cost estimate is worker hours
+x 32 vCPU x $0.025 per vCPU-hour (spot); `./atlas finish-prior-only
+--job=<id> --usd-per-vcpu-hour=<rate>` rebuilds it at another rate.
+
+### Continent-wide projections (Vision item 5)
+
+A prior-only job also projects each refitted strong model over the whole
+grid at 20 km: each cell's rank on the model's own in-area scale and its
+area-of-applicability index (`R/continent.R`). Its export sits beside the
+prior, under `private/vision-benchmark/<id>/continent/<grid>/`.
+
+The main release gets the same from a continent-only job, which refits its
+strong models on its own pull with nothing left out, the same settings,
+layers and seeds, and no nulls:
+
+```bash
+./atlas plan-job --continent-only --from-release=<R_main id>
+./atlas run-job-ec2 --job=<cont-... id from plan-job>
+```
+
+Its export goes to `private/atlas-continent/<R_main id>/<grid>/`, and its
+summary (`private/atlas-continent/<R_main id>/summary.json`) checks each
+refit's in-area map against the release's: `identity.identical` of
+`identity.compared` byte-identical, and any that differ listed by path. A
+model that differs means its projection belongs to a slightly different fit.
+Neither copy is published: releases refuse `.cont.tif` files, and nothing in
+the API or Zenodo reads the private prefixes.
+
 ## The monthly budget alarm
 
 The limits above stop one job from running away; they say nothing about the

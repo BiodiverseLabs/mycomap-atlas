@@ -212,6 +212,9 @@ atlas_release_files <- function(grid = "draft") {
     file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES)
   )
   files <- files[file.exists(files)]
+  # A continent projection (R/continent.R) is never published, wherever a
+  # fit left one: it is extrapolation beyond each map's area of applicability.
+  files <- files[!grepl("[.]cont[.]tif$", files)]
   rel <- substring(normalizePath(files, winslash = "/"),
                    nchar(normalizePath(root, winslash = "/")) + 2L)
   sort(unique(rel))

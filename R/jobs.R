@@ -428,7 +428,11 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
     pending$results[[length(pending$results) + 1L]] <<-
       atlas_shard_result(name, algorithm, row, fingerprint, settings_key)
     if (identical(row$status, "fitted")) {
-      paths <- atlas_model_relpaths(name, grid, algorithm)
+      # A prior-only job's continent projections go to the store with its
+      # fits; it never becomes a release, and releases refuse them anyway.
+      paths <- atlas_model_relpaths(name, grid, algorithm,
+                                    extensions = c(".json", ".tif", ".png", ".di.tif",
+                                                   if (isTRUE(job$fit$continent)) ATLAS_CONTINENT_EXT))
       paths <- paths[file.exists(file.path(atlas_data_dir(), paths))]
       pending$files <<- c(pending$files, atlas_file_entries(paths))
       metrics <- tryCatch(
@@ -455,7 +459,7 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       buffer_km = job$fit$buffer_km, folds = job$fit$folds, block_km = job$fit$block_km,
       regmult = job$fit$regmult, correlation = job$fit$correlation,
       nulls = job$fit$nulls %||% ATLAS_NULL_REPS, tune = job$fit$tune %||% TRUE,
-      quiet = TRUE, fit = fit,
+      quiet = TRUE, fit = fit, continent = isTRUE(job$fit$continent),
       on_row = function(row, settings_key) {
         if (!row$taxon %in% taxa || row$taxon %in% reported) return(invisible(NULL))
         reported <<- c(reported, row$taxon)
@@ -523,6 +527,11 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
                              note = NULL, quiet = FALSE, partial = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   job <- atlas_read_job(store, id, grid)
+  # A prior-only job is Vision's benchmark, never a release (R/prioronly.R).
+  if (atlas_is_prior_only(job)) {
+    stop("job ", id, " is a prior-only job: it never becomes a release; ",
+         "finish it with finish-prior-only", call. = FALSE)
+  }
   status <- atlas_job_status(store, id, grid)
   if (length(status$missing) && !isTRUE(partial)) {
     stop("job ", id, " is not finished: shard", if (length(status$missing) > 1L) "s " else " ",
