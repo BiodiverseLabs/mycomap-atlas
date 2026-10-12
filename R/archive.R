@@ -166,6 +166,7 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
     "occurrences/taxa-latest.json" = "taxa.json",
     "public/cells.tsv.gz" = "collection-cells-0.1deg.tsv.gz",
     "public/regions.tsv.gz" = "taxa-by-state-province.tsv.gz",
+    "public/unvalidated.tsv.gz" = "taxa-not-yet-validated.tsv.gz",
     "public/pull.json" = "pull.json"
   )
   singles[[paste0("layers/", grid, "/manifest.json")]] <- "layers-manifest.json"

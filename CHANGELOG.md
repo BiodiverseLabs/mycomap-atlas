@@ -10,6 +10,13 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/taxa/{name}`** gains `not_yet_validated`: how many of the
+  taxon's sequenced records no validation project has given a verdict yet.
+  The maps do not use them, and the count is not part of the taxon's
+  fingerprint, so it changes no model. The field is absent until a pull has
+  counted them, and 0 when there are none. Added field. Releases carry the
+  counts as `public/unvalidated.tsv.gz`, the Zenodo archive as
+  `taxa-not-yet-validated.tsv.gz`.
 - **Stricter inputs.** Every `/api/` route refuses, with 400 and a JSON
   reason, a `grid` other than `draft` or `production`, and a `limit`,
   `offset`, `min_localities`, `lat`, `lng`, `min_score`, `nearby_km` or
@@ -102,6 +109,9 @@ changed and what it means for you.
   OpenStreetMap data) instead of OpenStreetMap's own tile servers, whose
   policy is for light use. The credits under every map, the footer, the
   Sources page and the privacy page say so.
+- Taxon pages show "Sequenced but not yet validated: N" beside the validated
+  count when a taxon has records waiting for review, with a short note that
+  the maps do not use them yet.
 - A privacy page (`/privacy`): no analytics, a cookie only on sign-in, what
   the web logs keep, and what Cloudflare and OpenStreetMap see.
 - Fonts are served from the site instead of Google Fonts, and every map's

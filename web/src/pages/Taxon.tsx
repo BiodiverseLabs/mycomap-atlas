@@ -11,6 +11,7 @@ import { ShareMap } from "@/components/ShareMap";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { reachedFromNote, renamedTaxonPath } from "@/lib/renamed";
 import { openingView } from "@/lib/mapView";
+import { NOT_YET_VALIDATED_HELP, notYetValidatedLine } from "@/lib/unvalidated";
 import { useFullscreen } from "@/components/Fullscreen";
 import { CircleMarker, FitBounds, ImageOverlay, MapContainer, TileLayer, useMap } from "@/components/Leaflet";
 import { BASEMAP_ATTRIBUTION, BASEMAP_URL } from "@/lib/basemap";
@@ -750,6 +751,14 @@ export default function Taxon() {
             <span className="tabular-nums">
               {formatNumber(taxon.data.records)} validated records ·{" "}
               {formatNumber(taxon.data.localities)} independent localities
+            </span>
+          )}
+          {notYetValidatedLine(taxon.data?.not_yet_validated) && (
+            <span className="inline-flex items-center gap-1 tabular-nums">
+              {notYetValidatedLine(taxon.data?.not_yet_validated)}
+              <Help label="Sequenced but not yet validated">
+                <p>{NOT_YET_VALIDATED_HELP}</p>
+              </Help>
             </span>
           )}
           {anyModel?.record_years?.first != null && (

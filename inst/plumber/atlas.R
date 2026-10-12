@@ -366,16 +366,27 @@ function(name, res) {
   c(list(requested = requested), resolved)
 }
 
-#* One taxon's counts.
+#* One taxon's counts, with how many of its sequenced records still wait for
+#* a verdict (not_yet_validated, left out while no counts have been taken).
 #* @get /api/taxa/<name>
 #* @serializer unboxedJSON
 function(name, res) {
-  row <- atlas_taxon_row(cached_taxa(), atlas_decode_name(name))
+  name <- atlas_decode_name(name)
+  row <- atlas_taxon_row(cached_taxa(), name)
   if (is.null(row)) {
     res$status <- 404L
     return(list(error = "no such taxon in the current pull"))
   }
+  row$not_yet_validated <- atlas_unvalidated_for(cached_unvalidated(), name)
   row
+}
+
+# The release's not-yet-validated counts (R/unvalidated.R), read once.
+cached_unvalidated <- function() {
+  if (is.null(cache$unvalidated)) {
+    cache$unvalidated <- list(table = atlas_read_public_unvalidated())
+  }
+  cache$unvalidated$table
 }
 
 #* Every fitted model, newest first, as a light summary. The full record of
