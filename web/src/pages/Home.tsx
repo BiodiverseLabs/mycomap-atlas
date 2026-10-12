@@ -38,7 +38,7 @@ import {
 import { FEATURED_PATH, readFeatured, showFeatured, type FeaturedTaxon } from "@/lib/featured";
 import { mapGrade } from "@/lib/grade";
 import { GITHUB_URL } from "@/lib/contract";
-import { homeLine } from "@/lib/tracker";
+import { PAUSED_NOTE, homeLine, scoringPaused } from "@/lib/tracker";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { formatNumber } from "@/lib/utils";
 import { DevHint } from "@/components/DevHint";
@@ -361,7 +361,7 @@ export default function Home() {
         </section>
         {stoodUp && (
           <p className="-mt-6 border-b border-[#A87146]/10 pb-6 text-[#5c4a3a]">
-            {stoodUp}{" "}
+            {stoodUp} {scoringPaused(tracker.data) && `${PAUSED_NOTE} `}
             <Link href="/methods#stood-up" className="font-semibold text-myco-green underline-offset-2 hover:underline">
               How the maps stood up
             </Link>

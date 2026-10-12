@@ -53,6 +53,12 @@ ATLAS_TRACKER_SINCE <- "2026-10-03"
 ATLAS_TRACKER_PRIVATE_PREFIX <- "private/tracker"
 ATLAS_TRACKER_PUBLIC_PREFIX <- "tracker"
 
+# A private side column of the pull, when .org records it: the channel a
+# record came through when the maps steered it (survey guidance, a validation
+# priority). Empty today; plumbed like first_green_on, outside every
+# fingerprint, and never published per record.
+ATLAS_TRACKER_CHANNEL_FIELD <- "channel"
+
 # Per-taxon tallies below this many finds say "fewer than 5" and no more.
 ATLAS_TRACKER_MIN_TAXON <- 5L
 # A pooled share is shown from this many ranked places, Boyce from the next.
@@ -72,7 +78,7 @@ ATLAS_TRACKER_STATUSES <- c(
 
 ATLAS_TRACKER_LEDGER_FIELDS <- c(
   "key", "source", "observation_id", "first_green_on", "observed_on",
-  "pulled_name", "pulled_naming", "taxon", "matched_by",
+  "pulled_name", "pulled_naming", "channel", "taxon", "matched_by",
   "release", "release_promoted_at", "scheme", "naming", "status", "grade",
   "kind", "rank", "place", "aoa",
   paste0("rank_", names(ATLAS_ALGORITHMS)), paste0("place_", names(ATLAS_ALGORITHMS)),
@@ -491,6 +497,7 @@ atlas_tracker_score_release <- function(finds, view, promoted_at, scored_at, pul
   rows$observation_id <- finds$observation_id
   rows$first_green_on <- finds[[ATLAS_FIRST_GREEN_FIELD]]
   rows$observed_on <- finds$observed_on
+  if (ATLAS_TRACKER_CHANNEL_FIELD %in% names(finds)) rows$channel <- finds[[ATLAS_TRACKER_CHANNEL_FIELD]]
   rows$pulled_name <- finds$scientific_name
   rows$pulled_naming <- pulled_naming
   rows$release <- view$id
@@ -727,9 +734,15 @@ atlas_tracker_subsets <- function(finds) {
 #' effort baseline. Each published row covers places (taxon x 5 km cell x
 #' release); per-taxon tallies count finds.
 atlas_tracker_summary <- function(ledger, current = NULL, tg = list(per_find = NULL, hist = list()),
-                                  grid = "draft", since = ATLAS_TRACKER_SINCE, generated_at = Sys.time()) {
+                                  grid = "draft", since = ATLAS_TRACKER_SINCE, generated_at = Sys.time(),
+                                  pulled_at = NULL) {
   live <- ledger[is.na(ledger$retracted_on), , drop = FALSE]
   scored <- live[live$status == "scored", , drop = FALSE]
+  # Finds that came through a channel the maps steer (survey guidance, a
+  # validation priority) are held out of every evaluation row and shown on
+  # their own: a map cannot be credited for finds made where it sent people.
+  guided <- scored[!is.na(scored$channel) & nzchar(scored$channel), , drop = FALSE]
+  scored <- scored[is.na(scored$channel) | !nzchar(scored$channel), , drop = FALSE]
   counts <- function(x) stats::setNames(as.list(as.integer(table(factor(x, levels = names(ATLAS_TRACKER_STATUSES))))),
                                         names(ATLAS_TRACKER_STATUSES))
   strong_word <- function(scheme) if (identical(scheme, "shift")) "strong" else "passed"
@@ -753,6 +766,12 @@ atlas_tracker_summary <- function(ledger, current = NULL, tg = list(per_find = N
         }
       }
     }
+  }
+
+  for (scheme in intersect(c("shift", "skill"), unique(guided$scheme))) {
+    part <- guided[guided$scheme == scheme, , drop = FALSE]
+    rows[[length(rows) + 1L]] <- c(list(scheme = scheme, release = "all", grade = "any", subset = "guided"),
+                                   atlas_tracker_row(part, tg$per_find, tg$hist))
   }
 
   # The line a visitor sees first: new sites for strong (or, before the
@@ -803,13 +822,16 @@ atlas_tracker_summary <- function(ledger, current = NULL, tg = list(per_find = N
     grid = grid,
     generated_at = format(generated_at, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     status = if (nrow(ledger)) "tracking" else "not_started",
+    # The newest pull the run read: scoring stops while the nightly pull is
+    # off, and the site says so.
+    pulled_at = pulled_at,
     since = since,
     latest_find_on = if (nrow(live)) max(live$first_green_on) else NULL,
     current_release = if (!is.null(current)) list(id = current$id, scheme = current$scheme, naming = current$naming),
     min_taxon_finds = ATLAS_TRACKER_MIN_TAXON,
     min_ranked_for_share = ATLAS_TRACKER_MIN_SHARE,
     min_ranked_for_boyce = ATLAS_TRACKER_MIN_BOYCE,
-    finds = list(total = nrow(ledger), by_status = counts(live$status),
+    finds = list(total = nrow(ledger), by_status = counts(live$status), guided = nrow(guided),
                  retracted = sum(!is.na(ledger$retracted_on))),
     coverage = coverage,
     headline = headline,
@@ -921,7 +943,8 @@ atlas_track_new_finds <- function(store = NULL, grid = "draft", since = ATLAS_TR
 
   current <- if (!is.null(current_pointer$release)) view_of(current_pointer$release)
   tg <- atlas_tracker_target_group(ledger, view_of, grid)
-  summary <- atlas_tracker_summary(ledger, current, tg, grid, since, now)
+  summary <- atlas_tracker_summary(ledger, current, tg, grid, since, now,
+                                   pulled_at = as.character(manifest$pulled_at %||% NA))
 
   run <- data.frame(ran_at = stamp, pull = as.character(manifest$file %||% NA),
                     pulled_at = as.character(manifest$pulled_at %||% NA),
@@ -948,14 +971,4 @@ atlas_track_new_finds_quietly <- function(...) {
     warning("the new-find tracker did not run: ", conditionMessage(e), call. = FALSE)
     invisible(NULL)
   })
-}
-
-#' The published summary from the store, when this machine has none (after a
-#' release cutover replaces the data directory). Never fails.
-atlas_tracker_fetch_summary <- function(store, grid = "draft") {
-  tryCatch({
-    key <- atlas_tracker_summary_key(grid)
-    if (!is.null(store) && store$exists(key)) store$get(key, atlas_tracker_summary_path(grid))
-  }, error = function(e) NULL)
-  invisible(file.exists(atlas_tracker_summary_path(grid)))
 }

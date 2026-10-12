@@ -11,12 +11,14 @@ import { getTracker } from "@/lib/api";
 import {
   SUBSETS_DISTANCE,
   SUBSETS_MAIN,
+  PAUSED_NOTE,
   TRACKER_CAVEAT,
   gradeLabel,
   longDate,
   percent,
   schemeLabel,
   schemeRows,
+  scoringPaused,
   subsetLabel,
   type Tracker,
   type TrackerRow,
@@ -123,6 +125,7 @@ function StoodUp() {
         {(finds?.by_status.not_in_release ?? 0).toLocaleString("en-US")} under a name the map&rsquo;s release did not know.{" "}
         {finds?.retracted ? `${finds.retracted.toLocaleString("en-US")} later lost their validation or were renamed, and are left out.` : ""}
       </p>
+      {scoringPaused(t) && <p className="font-semibold text-[#4a3728]">{PAUSED_NOTE}</p>}
       {schemes.map((scheme) => (
         <div key={scheme} className="space-y-3">
           <h3 className="font-semibold text-[#4a3728]">{schemeLabel(scheme)}</h3>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { gradeLabel, homeLine, newFindsLine, percent, schemeRows, type Tracker, type TrackerRow } from "./tracker.ts";
+import { gradeLabel, homeLine, newFindsLine, percent, schemeRows, scoringPaused, type Tracker, type TrackerRow } from "./tracker.ts";
 
 const row = (over: Partial<TrackerRow>): TrackerRow => ({
   scheme: "shift", release: "all", grade: "strong", subset: "new_site", places: 40, finds: 44, ranked: 36,
@@ -62,4 +62,12 @@ test("the site never asks for the private ledger or any record of a find", () =>
     const text = readFileSync(join(import.meta.dirname, "..", file), "utf8");
     assert.doesNotMatch(text, /ledger|private\/tracker|observation_id/, file);
   }
+});
+
+test("scoring is said to wait for the nightly once the newest pull is over two days old", () => {
+  const now = new Date("2026-10-20T12:00:00Z");
+  assert.equal(scoringPaused(tracking({ pulled_at: "2026-10-20T07:00:00Z" }), now), false);
+  assert.equal(scoringPaused(tracking({ pulled_at: "2026-10-17T07:00:00Z" }), now), true);
+  assert.equal(scoringPaused(tracking({ pulled_at: null }), now), false);
+  assert.equal(scoringPaused(undefined, now), false);
 });

@@ -1936,6 +1936,7 @@
                   "grid": "draft",
                   "generated_at": "2026-10-20T09:15:02Z",
                   "status": "tracking",
+                  "pulled_at": "2026-10-20T07:04:11Z",
                   "since": "2026-10-03",
                   "latest_find_on": "2026-10-19",
                   "current_release": {
@@ -1955,7 +1956,8 @@
                       "in_release_pull": 0,
                       "no_release": 0
                     },
-                    "retracted": 23
+                    "retracted": 23,
+                    "guided": 0
                   },
                   "coverage": {
                     "finds": 1287,
@@ -4287,7 +4289,7 @@
           },
           "subset": {
             "type": "string",
-            "description": "all; new_site or known_site (over or within 5 km of a known record of the taxon); band_under_100, band_100_500, band_500_plus, band_none (km to the nearest known record of the taxon)."
+            "description": "all; new_site or known_site (over or within 5 km of a known record of the taxon); band_under_100, band_100_500, band_500_plus, band_none (km to the nearest known record of the taxon). guided: finds the maps steered, held out of all other rows."
           },
           "places": {
             "type": "integer",
@@ -4457,6 +4459,14 @@
               "not_started"
             ]
           },
+          "pulled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The newest pull the last run read. Scoring runs after the nightly pull, so while the nightly is off this stops moving and no new finds are scored; none are lost, and each is scored on its own day's release when scoring resumes."
+          },
           "since": {
             "type": "string",
             "format": "date"
@@ -4485,7 +4495,7 @@
           },
           "finds": {
             "type": "object",
-            "description": "Every find (records) by outcome: scored; no_map (its taxon has no map in that release); not_in_release (its name is not in that release); in_release_pull (never scored, expected 0); no_release. And how many were later retracted (lost their green, or were renamed)."
+            "description": "Every find (records) by outcome: scored; no_map (its taxon has no map in that release); not_in_release (its name is not in that release); in_release_pull (never scored, expected 0); no_release. And how many were later retracted (lost their green, or were renamed). guided: finds that came through a channel the maps steer (survey guidance, a validation priority), held out of every other row and counted in the row with subset guided."
           },
           "coverage": {
             "type": [

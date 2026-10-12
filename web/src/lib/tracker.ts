@@ -56,12 +56,14 @@ export interface Tracker {
   status: "tracking" | "not_started";
   since: string;
   generated_at?: string;
+  /** The newest pull the last run read; it stops moving while the nightly is off. */
+  pulled_at?: string | null;
   latest_find_on?: string | null;
   current_release?: { id: string; scheme: string; naming: string } | null;
   min_taxon_finds?: number;
   min_ranked_for_share?: number;
   min_ranked_for_boyce?: number;
-  finds?: { total: number; by_status: Record<string, number>; retracted: number };
+  finds?: { total: number; by_status: Record<string, number>; retracted: number; guided?: number };
   coverage?: { finds: number; with_map: number; with_strong_map: number } | null;
   headline?: TrackerHeadline | null;
   releases?: { id: string; scheme: string; naming: string; promoted_at: string; from: string; to: string }[];
@@ -96,6 +98,21 @@ export function homeLine(tracker: Tracker | null | undefined): string | null {
     `of their map, against ${percent(h.top_half_chance)} by chance.`
   );
 }
+
+/** Days without a new pull before the site says scoring is waiting. */
+export const PAUSED_AFTER_DAYS = 2;
+
+/**
+ * Whether scoring is waiting for the nightly pull: the newest pull the last
+ * run read is more than PAUSED_AFTER_DAYS old. No finds are lost meanwhile.
+ */
+export function scoringPaused(tracker: Tracker | null | undefined, now: Date = new Date()): boolean {
+  const at = tracker?.pulled_at ? Date.parse(tracker.pulled_at) : NaN;
+  return Number.isFinite(at) && now.getTime() - at > PAUSED_AFTER_DAYS * 86_400_000;
+}
+
+export const PAUSED_NOTE =
+  "Scoring resumes with the nightly update; records validated meanwhile are scored then, each on the map of its own day.";
 
 /** The taxon page's line, or null when the taxon has no finds yet. */
 export function newFindsLine(tally: TrackerTally | null | undefined): string | null {
@@ -136,6 +153,7 @@ const SUBSET_WORDS: Record<string, string> = {
   band_100_500: "100–500 km",
   band_500_plus: "500 km or more",
   band_none: "First record of the species",
+  guided: "Found where the maps sent people (left out above)",
 };
 
 export function subsetLabel(subset: string): string {
@@ -157,5 +175,5 @@ export function schemeRows(tracker: Tracker, scheme: string, subsets: readonly s
     .sort((a, b) => grades.indexOf(a.grade) - grades.indexOf(b.grade) || subsets.indexOf(a.subset) - subsets.indexOf(b.subset));
 }
 
-export const SUBSETS_MAIN = ["all", "new_site", "known_site"] as const;
+export const SUBSETS_MAIN = ["all", "new_site", "known_site", "guided"] as const;
 export const SUBSETS_DISTANCE = ["band_under_100", "band_100_500", "band_500_plus", "band_none"] as const;

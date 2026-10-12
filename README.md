@@ -776,6 +776,14 @@ from weeks ago is scored exactly as it was drawn:
   below 50, per-taxon tallies below 5 ("fewer than 5").
 - **Retractions:** a find the newest pull drops, or holds under another name,
   is marked retracted and left out of the counts; it is never re-scored.
+- **Steered finds:** a pull that carries a private `channel` column (the
+  channel a record came through when the maps steered it: survey guidance, a
+  validation priority; empty until .org records it) has those finds held out
+  of every evaluation row and counted in a row of their own (`guided`).
+- **While the nightly is off** no new pull arrives, so nothing new is scored;
+  the summary's `pulled_at` stops moving and the site says scoring resumes
+  with the nightly. Nothing is lost: each find is scored on its own day's
+  release whenever it is first seen.
 
 The per-find ledger is **private**: an observation id leads to a coordinate.
 It lives only under the store's `private/tracker/<grid>/` prefix (with a

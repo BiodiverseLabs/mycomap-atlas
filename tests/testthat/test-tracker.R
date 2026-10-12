@@ -503,3 +503,37 @@ test_that("a taxon's tally counts finds since the map it shows now, even one red
   expect_equal(tally$finds, 5L)
   expect_equal(tally$since, "2026-10-06")
 })
+
+test_that("finds a map steered (a channel) are held out of every evaluation row and shown on their own", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  two_releases(store)
+  finds <- rbind(tracker_records("Amanita one", 3:20, rows = 2, first_green_on = "2026-10-06"),
+                 tracker_records("Amanita one", 3:20, rows = 4, first_green_on = "2026-10-06"))
+  finds$channel <- NA_character_
+  finds$channel[19:36] <- "survey_guidance"
+  result <- tracker_run(store, finds, since = "2026-10-01")
+  expect_equal(sum(!is.na(result$ledger$channel)), 18L)
+  rows <- result$summary$rows
+  guided <- Filter(function(r) r$subset == "guided", rows)
+  expect_length(guided, 1L)
+  expect_equal(guided[[1]]$finds, 18L)
+  evaluated <- Filter(function(r) r$subset == "all" && r$grade == "any" && r$release == "all", rows)[[1]]
+  expect_equal(evaluated$finds, 18L)
+  expect_equal(result$summary$headline$places, 18L)
+  expect_equal(result$summary$finds$guided, 18L)
+  # The channel is private like the rest of a find: not in anything published.
+  expect_false(grepl("survey_guidance", jsonlite::toJSON(result$summary, auto_unbox = TRUE, null = "null")))
+})
+
+test_that("the summary says which pull it read, so the site can say scoring waits for the nightly", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  two_releases(store)
+  dir <- machine()
+  on_machine(dir, atlas_write_json(list(file = "occurrences-x.tsv.gz", pulled_at = "2026-10-06T07:00:00Z"),
+                                   atlas_path("occurrences", "latest.json")))
+  result <- tracker_run(store, tracker_records("Amanita one", 18, first_green_on = "2026-10-06"), dir = dir,
+                        since = "2026-10-01")
+  expect_equal(result$summary$pulled_at, "2026-10-06T07:00:00Z")
+})
