@@ -150,6 +150,15 @@ atlas_request_algorithm <- function(value) {
   if (value %in% names(ATLAS_ALGORITHMS)) value else NULL
 }
 
+#' The map file a request's view asks for: the default map, within the
+#' model's 500 km reach ("accessible", also when no view is given), or a
+#' strong map's full-extent view ("full", R/fullextent.R). NULL for anything
+#' else, so the route can answer 400.
+atlas_map_view_extension <- function(value) {
+  if (is.null(value) || !length(value) || !nzchar(as.character(value)[[1]])) return(".png")
+  switch(as.character(value)[[1]], accessible = ".png", full = ".full.png", NULL)
+}
+
 #' The newest results file of a study (benchmarks, sweeps), or NULL.
 #'
 #' Files are named <prefix>-<UTC stamp>.json, so the newest sorts last. A

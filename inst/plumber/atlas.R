@@ -495,16 +495,26 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 
 #* A taxon's suitability map, ready to lay over a slippy map.
 #* @param algorithm maxnet (default), xgboost, rf or esm
+#* @param view accessible (default): within 500 km of records; full: a strong
+#*   map's potential everywhere conditions resemble its known sites
 #* @get /api/taxa/<name>/map.png
 #* @serializer contentType list(type = "image/png")
-function(name, grid = "draft", algorithm = "maxnet", res) {
+function(name, grid = "draft", algorithm = "maxnet", view = "accessible", res) {
   algorithm <- atlas_request_algorithm(algorithm)
   if (is.null(algorithm)) {
     return(atlas_json_error(res, 400L, "unknown algorithm"))
   }
-  path <- atlas_model_path(atlas_decode_name(name), grid, ".png", algorithm)
+  extension <- atlas_map_view_extension(view)
+  if (is.null(extension)) {
+    return(atlas_json_error(res, 400L, "unknown view: use accessible or full"))
+  }
+  path <- atlas_model_path(atlas_decode_name(name), grid, extension, algorithm)
   if (!file.exists(path)) {
-    return(atlas_json_error(res, 404L, "no map for this taxon yet"))
+    return(atlas_json_error(res, 404L, if (identical(view, "full")) {
+      "no full-extent map for this model: only strong maps are drawn beyond their reach"
+    } else {
+      "no map for this taxon yet"
+    }))
   }
   res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   readBin(path, "raw", file.info(path)$size)

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { REACH_KM, openingView } from "./mapView.ts";
+import { REACH_KM, hasFullView, mapOverlay, openingView } from "./mapView.ts";
 
 // The coloured ground of Rhodotus reticeps: five collections from Missouri to
 // Quebec, on a raster that covers the world.
@@ -62,3 +62,29 @@ test("far-north collections never push the view past where the map can draw", ()
   assert.ok(north <= 85);
   assert.ok(Number.isFinite(west) && Number.isFinite(east));
 });
+
+// A strong map: its default map within reach, and a full view of the continent.
+const strong = {
+  bounds: { south: 30, west: -100, north: 50, east: -70 },
+  full_map: { bounds: { south: 14, west: -170, north: 72, east: -52 } },
+};
+// A weak map: no full view, because it makes no claim beyond its reach.
+const weak = { bounds: { south: 30, west: -100, north: 50, east: -70 } };
+
+test("a map shows its 500 km view unless the full view is asked for", () => {
+  assert.deepEqual(mapOverlay(strong, "accessible"), { view: "accessible", bounds: [[30, -100], [50, -70]] });
+  assert.deepEqual(mapOverlay(strong, "full"), { view: "full", bounds: [[14, -170], [72, -52]] });
+});
+
+test("only a strong map has a full view: a weak one stays within its reach", () => {
+  assert.equal(hasFullView(strong), true);
+  assert.equal(hasFullView(weak), false);
+  assert.equal(hasFullView(null), false);
+  assert.deepEqual(mapOverlay(weak, "full"), { view: "accessible", bounds: [[30, -100], [50, -70]] });
+});
+
+test("a model with no map draws nothing in either view", () => {
+  assert.equal(mapOverlay(null, "full"), null);
+  assert.equal(mapOverlay({}, "accessible"), null);
+});
+

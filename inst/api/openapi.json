@@ -1022,7 +1022,7 @@
         ],
         "operationId": "getTaxonMap",
         "summary": "A taxon's habitat map as an image",
-        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks among the cells inside the model's area of applicability, darkest green highest; ground in the accessible area that no training site resembles is hatched grey, and beyond the accessible area the image is transparent. Add any v= query value to bust a cache.",
+        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks among the cells inside the model's area of applicability, darkest green highest; ground in the accessible area that no training site resembles is hatched grey, and beyond the accessible area the image is transparent. With view=full, a strong map's full-extent view instead, laid over the model's full_map.bounds: the same colour scale carried beyond 500 km wherever conditions resemble the known sites, and hatched where they do not. It shows potential, not range: the model cannot tell ground nobody surveyed from ground searched without a find. Add any v= query value to bust a cache.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -1032,6 +1032,20 @@
           },
           {
             "$ref": "#/components/parameters/algorithm"
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "description": "accessible (default): the map within 500 km of the taxon's records. full: a strong map's full-extent view; 404 for a model without one (weak and failed maps make no claim beyond their reach).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "accessible",
+                "full"
+              ],
+              "default": "accessible"
+            }
           }
         ],
         "responses": {
@@ -2787,6 +2801,51 @@
           "map_drawn_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "full_map": {
+            "type": "object",
+            "description": "A strong model's full-extent view (map.png?view=full): absent for weak and failed models, and for models fitted before 2026-10. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
+            "properties": {
+              "raster": {
+                "type": "string",
+                "description": "File name of the full-extent suitability GeoTIFF (not served on the site)."
+              },
+              "dissimilarity": {
+                "type": "string",
+                "description": "File name of its area-of-applicability index GeoTIFF."
+              },
+              "map": {
+                "type": "string",
+                "description": "File name of the full-extent PNG."
+              },
+              "bounds": {
+                "$ref": "#/components/schemas/ModelBounds"
+              },
+              "cells": {
+                "type": "integer",
+                "description": "Cells the full view covers."
+              },
+              "beyond_reach": {
+                "type": "integer",
+                "description": "Of those, cells beyond the accessible area."
+              },
+              "beyond_reach_ranked": {
+                "type": "integer",
+                "description": "Cells beyond the accessible area that are coloured: inside the area of applicability."
+              },
+              "seconds": {
+                "type": "number",
+                "description": "Time the full view took: prediction and drawing."
+              },
+              "png_seconds": {
+                "type": "number",
+                "description": "Of that, time spent writing the files and drawing the PNG."
+              },
+              "bytes": {
+                "type": "integer",
+                "description": "Size of the full view's three files."
+              }
+            }
           },
           "cells_without_data": {
             "type": "integer",

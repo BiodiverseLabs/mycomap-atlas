@@ -703,9 +703,22 @@ export default function Methods() {
 
             <Section id="maps" title="Drawing the maps">
               <p>
-                Each model predicts every cell in the accessible area. Outside it the map is blank,
-                which is why colour stops in arcs 500 km from the nearest record: there the map
-                makes no claim.
+                Each model predicts every cell in the accessible area. Outside it the default map is
+                blank, which is why colour stops in arcs 500 km from the nearest record: the map
+                makes its claim only on the ground it was fitted on.
+              </p>
+              <p>
+                <B>The full view.</B> A strong map is also predicted over the whole of North America,
+                at the same 5 km cells, and its taxon page can show that instead ("Everywhere
+                conditions resemble its known sites"). Inside the 500 km area it is the default map
+                exactly. Beyond it each cell is placed on the same colour scale (its suitability
+                ranked against the cells inside the area of applicability) and is hatched where its
+                conditions are unlike any training site, which far from the records is most of the
+                continent. It shows <B>potential, not range</B>: the model learned where the taxon was
+                found against where people collected other fungi, so beyond the survey it cannot
+                tell ground nobody looked at from ground searched without a find. Weak and failed
+                maps are not drawn beyond their reach, and everything else on the site (state
+                verdicts, Here, the combined maps, the location prior) reads the default map.
               </p>
               <p>
                 <B>Where a map applies.</B> Parts of a 500 km circle hold conditions no survey site

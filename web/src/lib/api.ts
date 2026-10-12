@@ -1,6 +1,8 @@
 // The development API is the plumber server started by `./atlas api`. In
 // production the same routes are served from atlas.mycomap.org.
 
+import type { MapView } from "./mapView";
+
 export interface Status {
   ready: boolean;
   pulledAt?: string;
@@ -134,6 +136,15 @@ export interface ModelImportance {
   predictors?: ModelImportance[];
 }
 
+/** What a strong model's full-extent view holds (R/fullextent.R). */
+export interface FullMap {
+  map: string;
+  bounds: ModelBounds;
+  cells?: number;
+  beyond_reach?: number;
+  beyond_reach_ranked?: number;
+}
+
 export interface Model {
   taxon: string;
   algorithm?: Algorithm;
@@ -169,6 +180,10 @@ export interface Model {
   /** "rank" when colours are by percentile within the map. */
   map_scale?: string;
   map_drawn_at?: string;
+  /** A strong map's full-extent view (map.png?view=full): its potential
+   * wherever conditions resemble its sites, beyond the 500 km reach. Absent
+   * for weak and failed maps, and for fits from before it existed. */
+  full_map?: FullMap;
   /** Whether the map beat its null models. Fits from before there were
    * null models have none, and read as "untested". */
   skill?: Skill;
@@ -353,9 +368,15 @@ export async function getModel(name: string, algorithm: Algorithm = "maxnet"): P
  * A map's PNG. version changes whenever the map is redrawn, so a browser never
  * shows yesterday's colours from its cache.
  */
-export function mapUrl(name: string, algorithm: Algorithm = "maxnet", version?: string): string {
+export function mapUrl(
+  name: string,
+  algorithm: Algorithm = "maxnet",
+  version?: string,
+  view: MapView = "accessible",
+): string {
   const v = version ? `&v=${encodeURIComponent(version)}` : "";
-  return `/api/taxa/${encodeURIComponent(name)}/map.png?algorithm=${algorithm}${v}`;
+  const full = view === "full" ? "&view=full" : "";
+  return `/api/taxa/${encodeURIComponent(name)}/map.png?algorithm=${algorithm}${full}${v}`;
 }
 
 /** Where the site sends someone to sign in with their mycomap.org account. */
