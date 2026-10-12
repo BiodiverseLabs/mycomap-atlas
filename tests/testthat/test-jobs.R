@@ -412,6 +412,7 @@ test_that("a shard records how long each fit took, and the timing of a sample st
   expect_equal(timing$full_cpu_hours, round(mean(seconds) * 5 / 3600, 1))
   expect_equal(timing$full_wall_hours, round(mean(seconds) * 5 / 3600 / 2, 1))
   expect_equal(timing$per_algorithm$algorithm, "maxnet")
+})
 
 test_that("a job's release carries each model's area-of-applicability layer, and a refit without one drops it", {
   skip_if_not_installed("terra")
