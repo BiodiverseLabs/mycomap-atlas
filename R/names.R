@@ -168,7 +168,7 @@ atlas_name_merges_path <- function() {
 atlas_refresh_names <- function(quiet = FALSE) {
   occurrences <- atlas_read_occurrences()
   merges <- atlas_name_merges(occurrences)
-  atlas_write_json(atlas_taxon_fingerprints(occurrences),
+  atlas_write_json(atlas_add_sites(atlas_taxon_fingerprints(occurrences), occurrences),
                    atlas_path("occurrences", "taxa-latest.json", create = TRUE))
   atlas_write_json(merges, atlas_name_merges_path())
   if (!isTRUE(quiet)) {

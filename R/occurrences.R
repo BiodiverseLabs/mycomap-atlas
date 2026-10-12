@@ -309,7 +309,7 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
                          create = TRUE)
   atlas_write_tsv_gz(occurrences, combined)
 
-  taxa <- atlas_taxon_fingerprints(occurrences)
+  taxa <- atlas_add_sites(atlas_taxon_fingerprints(occurrences), occurrences)
   manifest <- list(
     stamp = stamp,
     pulled_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),

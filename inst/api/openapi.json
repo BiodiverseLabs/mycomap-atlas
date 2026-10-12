@@ -2241,6 +2241,10 @@
             "type": "integer",
             "description": "Distinct places about 1 km apart. A better guide than records to what a model can learn."
           },
+          "sites": {
+            "type": "integer",
+            "description": "The taxon's 5 km survey sites with a record (ATLAS_SITE_KM, as the fits count them): what a map's minimums are about (3 sites for a first map, 20 for the three full models). Every taxon, mapped or not. Absent from a pull made before sites were counted. Not part of the fingerprint."
+          },
           "fingerprint": {
             "type": "string",
             "description": "Hash of this taxon's record set. A model is refitted when it changes."

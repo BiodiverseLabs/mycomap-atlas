@@ -217,3 +217,36 @@ atlas_presence_blocks <- function(training, block_km) {
     training$x[training$presence == 1L], training$y[training$presence == 1L], block_km
   )))
 }
+
+#' Each taxon's detection sites in a pull, by name: the 5 km survey sites its
+#' records fall in, as the fits count them (atlas_presence_site_counts), so a
+#' caller can tell how close a taxon is to a map's minimum. A taxon none of
+#' whose records lands on the grid has 0.
+atlas_taxon_sites <- function(occurrences, grid = "draft", thin_km = ATLAS_SITE_KM) {
+  names <- unique(as.character(occurrences$scientific_name))
+  out <- stats::setNames(integer(length(names)), names)
+  if (!length(names)) return(out)
+  counts <- atlas_presence_site_counts(atlas_occurrence_points(occurrences, grid, thin_km), thin_km)
+  out[counts$scientific_name] <- as.integer(counts$cells)
+  out
+}
+
+#' The per-taxon table with a sites column (atlas_taxon_sites) beside its
+#' counts. Sites are a count, never part of the fingerprint, so adding them
+#' changes no model. When they cannot be counted (no terra, say) the table is
+#' returned as it was, with a warning: the pull must not fail over a count.
+atlas_add_sites <- function(taxa, occurrences, grid = "draft") {
+  if (!nrow(taxa)) {
+    taxa$sites <- integer()
+    return(taxa)
+  }
+  counts <- tryCatch(atlas_taxon_sites(occurrences, grid), error = function(e) {
+    warning("survey sites not counted: ", conditionMessage(e), call. = FALSE)
+    NULL
+  })
+  if (is.null(counts)) return(taxa)
+  sites <- unname(counts[taxa$scientific_name])
+  sites[is.na(sites)] <- 0L
+  taxa$sites <- as.integer(sites)
+  taxa
+}
