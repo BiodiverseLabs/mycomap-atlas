@@ -33,15 +33,22 @@ map_fit <- function(grades = list(), seen = new.env()) {
     terra::values(r) <- seq_len(terra::ncell(r))
     terra::writeRaster(r, atlas_model_path(name, grid, ".tif", algorithm), overwrite = TRUE)
     metrics <- out$metrics
-    # A continent projection when asked, as a real fit writes one: a fixed
-    # rank and dissimilarity on four 20 km cells, the same every time.
-    if (isTRUE(args$continent)) {
-      cont <- terra::rast(ncols = 2, nrows = 2, xmin = -2.2e6, xmax = -2.16e6, ymin = 5e5, ymax = 5.4e5,
-                          crs = ATLAS_CRS, nlyrs = 2)
-      terra::values(cont) <- cbind(c(10, 40, 70, 100), c(0.2, 0.4, 1.5, 3))
-      names(cont) <- c("rank", "dissimilarity")
-      terra::writeRaster(cont, atlas_model_path(name, grid, ATLAS_CONTINENT_EXT, algorithm), overwrite = TRUE)
-      metrics$continent <- list(cell_km = 20, cells = 4L)
+    # Full-extent files when asked, as a real fit writes them (R/fullextent.R):
+    # the map's grid widened eastward, its values rising on past the map's,
+    # and the index rising with distance from it.
+    if (isTRUE(args$full)) {
+      full <- terra::extend(r, terra::ext(-2.2e6, -2.0e6, 5e5, 6e5))
+      x <- terra::xFromCell(full, seq_len(terra::ncell(full)))
+      inside <- !is.na(terra::values(full, mat = FALSE))
+      terra::values(full) <- ifelse(inside, terra::values(full, mat = FALSE), 400 + (x + 2.1e6) / 1000)
+      index <- full
+      terra::values(index) <- ifelse(inside, 0, (x + 2.1e6) / 1e5)
+      paths <- atlas_model_path(name, grid, ATLAS_FULL_EXTS, algorithm)
+      terra::writeRaster(full, paths[[1]], overwrite = TRUE)
+      terra::writeRaster(index, paths[[2]], overwrite = TRUE)
+      writeLines("full view", paths[[3]])
+      metrics$full_map <- list(map = basename(paths[[3]]), seconds = 1, bytes = 1)
+      metrics$applicability <- list(threshold = 0.5)
     }
     metrics$map <- "x.png"
     metrics$auc_mean <- 0.7

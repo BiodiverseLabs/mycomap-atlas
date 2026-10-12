@@ -212,9 +212,6 @@ atlas_release_files <- function(grid = "draft") {
     file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES)
   )
   files <- files[file.exists(files)]
-  # A continent projection (R/continent.R) is never published, wherever a
-  # fit left one: it is extrapolation beyond each map's area of applicability.
-  files <- files[!grepl("[.]cont[.]tif$", files)]
   rel <- substring(normalizePath(files, winslash = "/"),
                    nchar(normalizePath(root, winslash = "/")) + 2L)
   sort(unique(rel))
@@ -247,7 +244,7 @@ atlas_code_commit <- function() {
 #' .di.tif was, and the index, the prior and the combined maps built at
 #' finishing had no area of applicability to mask with.
 atlas_model_relpaths <- function(name, grid = "draft", algorithm = "maxnet",
-                                 extensions = c(".json", ".tif", ".png", ".di.tif")) {
+                                 extensions = c(".json", ".tif", ".png", ".di.tif", ATLAS_FULL_EXTS)) {
   slug <- gsub("(^-|-$)", "", gsub("[^a-z0-9]+", "-", tolower(name)))
   folder <- if (identical(algorithm, "maxnet")) file.path("models", grid) else file.path("models", grid, algorithm)
   file.path(folder, paste0(slug, extensions))

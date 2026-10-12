@@ -112,9 +112,6 @@ atlas_usage <- function() {
   message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
   message("                                refit a release's strong models on its pull without the records")
   message("                                validated after the date, for Vision's benchmark: never a release")
-  message("      --continent-only --from-release=ID")
-  message("                                refit a release's strong models unchanged for their private")
-  message("                                continent projections, checking each refit matches the release")
   message("  run-shard          fit one shard of a job and upload the results")
   message("      --job=ID --shard=N        which (both required)")
   message("      --workers=N               fits at once on this machine (default 1)")
@@ -511,12 +508,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "plan-job" = {
-      if (isTRUE(flags$continent_only)) {
-        if (is.null(flags$from_release)) stop("plan-job --continent-only needs --from-release=ID", call. = FALSE)
-        atlas_plan_continent_only(atlas_flag_store(flags), from_release = as.character(flags$from_release),
-                                  grid = atlas_flag_grid(flags),
-                                  shards = as.integer(atlas_flag_number(flags, "shards", 4)))
-      } else if (isTRUE(flags$prior_only)) {
+      if (isTRUE(flags$prior_only)) {
         if (is.null(flags$from_release) || is.null(flags$validated_through)) {
           stop("plan-job --prior-only needs --from-release=ID and --validated-through=YYYY-MM-DD", call. = FALSE)
         }
@@ -615,6 +607,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
                       timing$job, timing$models, timing$timed, timing$pilot_cpu_hours,
                       timing$full_models, timing$full_cpu_hours, timing$full_wall_hours,
                       as.integer(timing$fits_at_once)))
+      x <- timing$extent
+      if (x$models) {
+        message(sprintf(paste("full-extent views: %d models (%.0f%% of those timed), %.1f s and %.1f MB each;",
+                              "in a full job about %.1f CPU-h (already in the total) and %.1f GB."),
+                        x$models, 100 * x$share, x$mean_seconds, x$mean_mb, x$full_cpu_hours, x$full_gb))
+      }
       invisible(0L)
     },
     "nightly" = {

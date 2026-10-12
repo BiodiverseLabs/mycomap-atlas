@@ -167,7 +167,7 @@ atlas_map_colours <- function(rank, outside, ncol) {
 #' dissimilarity layer and its threshold, ground outside the area of
 #' applicability is hatched and left out of the ranking.
 atlas_write_map_png <- function(suitability, path, max_pixels = 1600,
-                                dissimilarity = NULL, threshold = NULL) {
+                                dissimilarity = NULL, threshold = NULL, layers = NULL) {
   if (!requireNamespace("terra", quietly = TRUE)) {
     stop("terra is needed to draw maps: install.packages('terra')", call. = FALSE)
   }
@@ -177,7 +177,9 @@ atlas_write_map_png <- function(suitability, path, max_pixels = 1600,
   if (is.character(dissimilarity)) {
     dissimilarity <- terra::rast(dissimilarity)
   }
-  layers <- atlas_map_layers(suitability, dissimilarity, threshold)
+  # A full-extent view brings its own layers, ranked on its default map's
+  # scale (R/fullextent.R).
+  layers <- layers %||% atlas_map_layers(suitability, dissimilarity, threshold)
   mercator <- atlas_map_warp(layers, max_pixels)
   values <- terra::values(mercator)
   colours <- atlas_map_colours(pmin(1, pmax(0, values[, 1])), values[, 2], terra::ncol(mercator))
@@ -420,15 +422,20 @@ atlas_redraw_map <- function(raster_path) {
   list(path = png_path, width = drawn$width, height = drawn$height)
 }
 
-#' Redraw every fitted taxon's PNG from its stored raster, and record the
-#' bounds, so a change of palette or scale does not mean refitting anything.
-atlas_rebuild_maps <- function(grid = "draft", quiet = FALSE, workers = 1L) {
+#' Every model's own map raster on a grid: <taxon>.tif, and not the layers
+#' that sit beside it (its dissimilarity layer, and its full-extent files,
+#' R/fullextent.R), which belong to that map and are not maps of their own.
+atlas_model_map_rasters <- function(grid = "draft") {
   rasters <- unlist(lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
     list.files(atlas_model_dir(grid, algorithm), pattern = "[.]tif$", full.names = TRUE)
   }), use.names = FALSE)
-  # A map's dissimilarity layer sits beside it and is drawn with it, not as a
-  # map of its own.
-  rasters <- rasters[!grepl("[.]di[.]tif$", rasters)]
+  rasters[!grepl("[.](di|full|cont)[.]tif$|[.]full[.]di[.]tif$", rasters)]
+}
+
+#' Redraw every fitted taxon's PNG from its stored raster, and record the
+#' bounds, so a change of palette or scale does not mean refitting anything.
+atlas_rebuild_maps <- function(grid = "draft", quiet = FALSE, workers = 1L) {
+  rasters <- atlas_model_map_rasters(grid)
   if (!length(rasters)) {
     message("no fitted models on the ", grid, " grid")
     return(invisible(0L))

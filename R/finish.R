@@ -23,9 +23,10 @@
 # (until now built only by hand, so no job's release had them). 3: the
 # prior's trust signals (models per cell and their spread, map strength per
 # taxon, each model's area-of-applicability index and threshold), and the weak
-# maps' ranks, filed privately. Finishing again refits nothing: it reads the
-# release's maps and adds what it builds.
-ATLAS_FINISH_VERSION <- 3L
+# maps' ranks, filed privately. 4: the continent export (R/continent.R), from
+# the strong maps' full-extent files, filed privately. Finishing again refits
+# nothing: it reads the release's maps and adds what it builds.
+ATLAS_FINISH_VERSION <- 4L
 
 #' Whether a release has been finished under the current rule.
 atlas_release_finished <- function(release) {
@@ -91,7 +92,9 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
     # Files the box files privately, never in the release: a worker may not
     # write private/ (its IAM policy), so they go up as objects and the box
     # puts them in place (atlas_apply_finish).
-    private = atlas_upload_private(store, atlas_weak_ranks_path(grid))
+    private = c(atlas_upload_private(store, atlas_weak_ranks_path(grid), ATLAS_WEAK_PREFIX),
+                atlas_upload_private(store, file.path(atlas_continent_dir(grid), ATLAS_CONTINENT_FILES),
+                                     ATLAS_CONTINENT_PREFIX))
   )
   atlas_store_json(store, atlas_shard_key(id, 1L, grid), record)
   say("finished release ", release, ": counted ", record$counted, " maps by state, built the combined maps, index and prior; ",
@@ -140,14 +143,14 @@ ATLAS_WEAK_PREFIX <- "private/atlas-weak"
 
 #' On the worker: upload files bound for a private prefix as objects, and say
 #' which: name, hash and size. Missing files are skipped.
-atlas_upload_private <- function(store, paths) {
+atlas_upload_private <- function(store, paths, prefix) {
   paths <- paths[file.exists(paths)]
   if (!length(paths)) return(list())
   root <- normalizePath(atlas_data_dir(), winslash = "/")
   relative <- substring(normalizePath(paths, winslash = "/"), nchar(root) + 2L)
   entries <- atlas_file_entries(relative)
   atlas_upload_objects(store, entries)
-  lapply(entries, function(e) list(name = basename(e$path), sha256 = e$sha256, bytes = e$bytes))
+  lapply(entries, function(e) list(prefix = prefix, name = basename(e$path), sha256 = e$sha256, bytes = e$bytes))
 }
 
 #' On the box: file a finishing worker's private files under the finished
@@ -156,7 +159,7 @@ atlas_place_private <- function(store, entries, release, grid = "draft") {
   for (entry in entries %||% list()) {
     file <- tempfile()
     store$get(atlas_object_key(entry$sha256), file)
-    store$put(paste(ATLAS_WEAK_PREFIX, release, grid, entry$name, sep = "/"), file)
+    store$put(paste(entry$prefix %||% ATLAS_WEAK_PREFIX, release, grid, entry$name, sep = "/"), file)
     unlink(file)
   }
   invisible(length(entries %||% list()))

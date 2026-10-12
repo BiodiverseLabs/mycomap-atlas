@@ -62,7 +62,7 @@ test_that("an MO record's coordinate comes from MO's own answer, not from .org's
     expect_match(column, sprintf("LIMIT 1), o.%s) ELSE o.%s END AS %s", axis, axis, axis), fixed = TRUE)
   }
   # .org's own MO coordinate is never selected as is.
-  expect_false(grepl("o.latitude, o.longitude", sql, fixed = TRUE))
+  expect_false(grepl("o.latitude, o.longitude", atlas_occurrence_columns_sql(), fixed = TRUE))
   expect_match(atlas_occurrence_columns_sql(), "^o.id, o.observation_id, o.source")
   expect_equal(answer$centre$latitude, "(m.latitude_north + m.latitude_south) / 2")
 })
@@ -101,10 +101,13 @@ test_that("a MyCoPortal record needs MyCoPortal's own coordinates or a label no 
   # Placed by MyCoPortal: within the limit, or no uncertainty recorded.
   expect_match(clause, "coalesce(p.coordinate_uncertainty_in_meters, 0) <= 5000", fixed = TRUE)
   expect_match(atlas_mycoportal_location_clause(max_m = 1000), "<= 1000)", fixed = TRUE)
-  # Geocoded: no record with another locality on the very same point.
-  expect_match(clause, "o2.latitude = o.latitude AND o2.longitude = o.longitude", fixed = TRUE)
-  expect_match(clause, "coalesce(p2.locality, '') <> coalesce(p.locality, '')", fixed = TRUE)
-  expect_match(clause, "o2.observation_id <> o.observation_id", fixed = TRUE)
+  # Geocoded: not on a point that carries two or more labels, found once for
+  # all records (test-mycoportal-parity.R holds it to the per-record form).
+  expect_match(clause, "(o.latitude, o.longitude) NOT IN (SELECT o2.latitude, o2.longitude FROM observations o2",
+               fixed = TRUE)
+  expect_match(clause, "HAVING count(DISTINCT coalesce(p2.locality, '')) >= 2", fixed = TRUE)
+  # NOT IN against a set with a NULL row would keep nothing: no NULL points.
+  expect_match(clause, "WHERE o2.latitude IS NOT NULL AND o2.longitude IS NOT NULL", fixed = TRUE)
 })
 
 test_that("every location condition opens as many brackets as it closes", {

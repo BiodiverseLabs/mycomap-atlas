@@ -66,7 +66,10 @@ atlas_batch_fit_one <- function(name, fingerprint, fit, args) {
         auc_mean = m$auc_mean,
         boyce = m$boyce,
         boyce_mean = m$boyce_mean,
-        map = !is.null(m$raster)
+        map = !is.null(m$raster),
+        # What the full-extent view cost, for a pilot to price it.
+        full_seconds = m$full_map$seconds %||% NULL,
+        full_bytes = m$full_map$bytes %||% NULL
       )
     },
     atlas_insufficient_evidence = function(e) {
@@ -261,7 +264,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             occurrences = NULL, points = NULL, stack = NULL,
                             layers = NULL, algorithm = "maxnet",
                             nulls = ATLAS_NULL_REPS, tune = TRUE,
-                            fit = atlas_fit_taxon, on_row = NULL, continent = FALSE) {
+                            fit = atlas_fit_taxon, on_row = NULL, full = NULL) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
@@ -352,9 +355,9 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     predict = predict, quiet = TRUE, layers = layers, algorithm = algo$id,
     nulls = nulls, tune = tune
   )
-  # Only prior-only jobs ask for the continent projection (R/continent.R);
-  # every other fit is called exactly as before.
-  if (isTRUE(continent)) args$continent <- TRUE
+  # A refit job may ask for full-extent maps whatever the grade; every other
+  # fit is called exactly as before.
+  if (!is.null(full)) args$full <- full
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
     atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)

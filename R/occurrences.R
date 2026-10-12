@@ -101,14 +101,17 @@ atlas_place_clause <- function() {
 #' that name. A record with no verdict yet has no approved sequence to name it,
 #' so the counts go by the record name.
 atlas_place_and_name_clause <- function() {
+  # The name trimmed as atlas_species_level trims it (spaces, tabs, line
+  # breaks), so "Russula " is no more species-level here than in the pull.
+  trimmed <- "btrim(o.scientific_name, ' ' || chr(9) || chr(10) || chr(13))"
   sprintf(
     "%s
        AND o.scientific_name IS NOT NULL
-       AND o.scientific_name NOT IN ('', 'Fungi', 'Unknown')
-       AND strpos(o.scientific_name, ' ') > 0
-       AND right(lower(o.scientific_name), 4) <> ' sp.'
-       AND right(lower(o.scientific_name), 3) <> ' sp'",
-    atlas_place_clause()
+       AND %s NOT IN ('', 'Fungi', 'Unknown')
+       AND strpos(%s, ' ') > 0
+       AND right(lower(%s), 4) <> ' sp.'
+       AND right(lower(%s), 3) <> ' sp'",
+    atlas_place_clause(), trimmed, trimmed, trimmed, trimmed
   )
 }
 
@@ -155,15 +158,25 @@ atlas_mycoportal_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
   unknown <- match.arg(unknown, c("keep", "drop"))
   sources <- paste(sprintf("'%s'", ATLAS_MYCOPORTAL_SOURCES), collapse = ", ")
   answered <- "p.observation_id = o.observation_id AND p.sync_status = 'success'"
+  # A geocoded record is kept unless its point carries two or more labels.
+  # Each observation has one mycoportal_data row, so that is the same as
+  # "another record with a different label sits on this point", and it is
+  # found in one pass: the points with several labels (a few hundred) are
+  # gathered once and probed. The per-record form scanned every observation
+  # for each geocoded record (no index on coordinates) and could run a page
+  # past the route's 60 s cap; on prod (2026-10-12) both keep the same 1,352
+  # of 4,352 geocoded green records.
+  shared <- paste(
+    "SELECT o2.latitude, o2.longitude FROM observations o2",
+    "JOIN mycoportal_data p2 ON p2.observation_id = o2.observation_id",
+    "WHERE o2.latitude IS NOT NULL AND o2.longitude IS NOT NULL",
+    "GROUP BY o2.latitude, o2.longitude HAVING count(DISTINCT coalesce(p2.locality, '')) >= 2"
+  )
   placed <- sprintf(paste(
     "EXISTS (SELECT 1 FROM mycoportal_data p WHERE %s AND (",
     "(p.decimal_latitude IS NOT NULL AND coalesce(p.coordinate_uncertainty_in_meters, 0) <= %d)",
-    "OR (p.decimal_latitude IS NULL AND NOT EXISTS (SELECT 1 FROM observations o2",
-    "JOIN mycoportal_data p2 ON p2.observation_id = o2.observation_id",
-    "WHERE o2.latitude = o.latitude AND o2.longitude = o.longitude",
-    "AND o2.observation_id <> o.observation_id",
-    "AND coalesce(p2.locality, '') <> coalesce(p.locality, '')))))"
-  ), answered, as.integer(max_m))
+    "OR (p.decimal_latitude IS NULL AND (o.latitude, o.longitude) NOT IN (%s))))"
+  ), answered, as.integer(max_m), shared)
   unanswered <- sprintf("NOT EXISTS (SELECT 1 FROM mycoportal_data p WHERE %s)", answered)
   keep <- if (identical(unknown, "keep")) paste(placed, "OR", unanswered) else placed
   sprintf("AND (o.source NOT IN (%s) OR %s)", sources, keep)

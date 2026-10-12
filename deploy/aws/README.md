@@ -261,27 +261,20 @@ x 32 vCPU x $0.025 per vCPU-hour (spot); `./atlas finish-prior-only
 
 ### Continent-wide projections (Vision item 5)
 
-A prior-only job also projects each refitted strong model over the whole
-grid at 20 km: each cell's rank on the model's own in-area scale and its
-area-of-applicability index (`R/continent.R`). Its export sits beside the
-prior, under `private/vision-benchmark/<id>/continent/<grid>/`.
+Every strong map is also predicted over the whole grid when it is fitted
+(`R/fullextent.R`): `<taxon>.full.tif`, `<taxon>.full.di.tif` and
+`<taxon>.full.png`, published with the map for the site's full-extent view.
+From those, finishing a release builds Vision's continent export (each strong
+map's rank by 20 km cell on its own map's scale, with its area-of-applicability
+index; `R/continent.R`) and files it privately under
+`private/atlas-continent/<release id>/<grid>/`: the worker uploads it as an
+object and the box files it. No separate job is needed.
 
-The main release gets the same from a continent-only job, which refits its
-strong models on its own pull with nothing left out, the same settings,
-layers and seeds, and no nulls:
-
-```bash
-./atlas plan-job --continent-only --from-release=<R_main id>
-./atlas run-job-ec2 --job=<cont-... id from plan-job>
-```
-
-Its export goes to `private/atlas-continent/<R_main id>/<grid>/`, and its
-summary (`private/atlas-continent/<R_main id>/summary.json`) checks each
-refit's in-area map against the release's: `identity.identical` of
-`identity.compared` byte-identical, and any that differ listed by path. A
-model that differs means its projection belongs to a slightly different fit.
-Neither copy is published: releases refuse `.cont.tif` files, and nothing in
-the API or Zenodo reads the private prefixes.
+A prior-only job's refits get full views too (they are the main release's
+strong models), and its export sits beside its prior, under
+`private/vision-benchmark/<id>/continent/<grid>/`. Neither copy is published:
+the export is never on the release's allowlist, and nothing in the API or
+Zenodo reads the private prefixes.
 
 ## The monthly budget alarm
 

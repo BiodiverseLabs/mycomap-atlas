@@ -598,6 +598,13 @@
       "where": "/api/taxa/{name}/map.png"
     },
     {
+      "stage": "5. Maps",
+      "name": "Full-extent maps",
+      "detail": "A strong map predicted over the whole of North America, not only its 500 km reach, on the same colour scale, with ground the model knows nothing about hatched. Fitted inside the reach as before; only the prediction goes further.",
+      "availability": "published",
+      "where": "<taxon>.full.png beside each strong map in a release, and its rasters (.full.tif, .full.di.tif) in each Zenodo models version"
+    },
+    {
       "stage": "6. Evaluation",
       "name": "Benchmarks and sweeps",
       "detail": "The three models scored on the same folds, and the predictor-cap sweep.",
@@ -642,7 +649,7 @@
     {
       "stage": "6. Release",
       "name": "Continent-wide projections",
-      "detail": "Each strong map projected over the whole grid at 20 km, with how far it is extrapolating there, for MycoMap Vision's research on photo identification.",
+      "detail": "Each strong map's rank across the whole grid by 20 km cell, on its own map's scale, with how far it is extrapolating there, for MycoMap Vision's research on photo identification. (The drawn full-extent view of a strong map is published; this table of ranks is not.)",
       "availability": "withheld",
       "why": "Beyond a map's area of applicability its values are extrapolation, which is why the maps hatch that ground. Kept private until it is shown to be useful; a later public version would show only ground inside the area of applicability."
     }

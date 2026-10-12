@@ -40,7 +40,7 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
     for (id in names(state$instances)) {
       worker <- state$instances[[id]]
       if (!worker$state %in% c("pending", "running")) next
-      if (startsWith(worker$job, "finish-train-") || startsWith(worker$job, "finish-cont-")) {
+      if (startsWith(worker$job, "finish-train-")) {
         # Building a prior-only job's prior (R/prioronly.R), its build stubbed.
         # With the worker's IAM limits: it may not write private/, so it defers.
         expect_match(user_data(state$requests[[length(state$requests)]]), "--defer", fixed = TRUE)
