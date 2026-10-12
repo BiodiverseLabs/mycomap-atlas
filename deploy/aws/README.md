@@ -37,6 +37,7 @@ orchestrator cannot start an expensive or unrelated machine: AWS refuses it.
 | `worker/trust.json` | only EC2 may assume the worker role |
 | `worker/permissions.json` | the worker's bucket access (inline policy `atlas-store`) |
 | `orchestrator/permissions.json` | the box's permissions (managed policy `atlas-orchestrator`) |
+| `vision-reader/permissions.json` | MycoMap Vision's box: read each release's trained-ids list, nothing else |
 | `render.R` | fills in the templates for one deployment |
 | `check-orchestrator.R` | asks IAM how it would decide 23 requests, allowed and forbidden |
 
@@ -160,6 +161,72 @@ aws ec2 describe-instances --filters Name=tag:atlas,Values=worker Name=instance-
 
 A worker's log is uploaded to `jobs/<grid>/<job>/logs/<shard>.log` when it
 finishes. There is no SSH into a worker.
+
+## A pilot before a full rebuild
+
+A change that makes every model stale (a new null design, a new layer) is
+priced with a pilot first: a sample of taxa spread from the richest to the
+sparsest, fitted on EC2 like any job, and stopped before a release is built.
+On the box, as the atlas user:
+
+```bash
+./atlas plan-job --sample=200
+./atlas run-job-ec2 --job=<ID from plan-job> --no-finish
+./atlas job-timing --job=<ID>
+```
+
+`plan-job` says how many models it left for later; the pilot's models plus
+those are the full job. `--no-finish` stops once every shard has reported:
+nothing is built or promoted, and the release the site serves is untouched.
+The pilot's models are refitted by the full job anyway, because the full job
+is planned against the current release, not against the pilot.
+
+`job-timing` prints each algorithm's mean and longest seconds per model, the
+pilot's own CPU-hours, and the full job's estimate: mean seconds per model
+times the full job's models, and that over the fits that run at once (84 by
+default: 4 workers of 32 vCPU and 64 GB, one fit per 3 GB; change it with
+`--fits-at-once=N` if `ATLAS_EC2_MAX_WORKERS` or the instance types differ).
+Set `ATLAS_EC2_MAX_HOURS` to the wall estimate plus half again. A job that
+still runs out of time publishes what its shards saved (`finish-job
+--partial`) and the next job fits only the rest.
+
+## Which records trained a release (private)
+
+MycoMap Vision benchmarks photo identification on records it holds out,
+and weighs photos by Atlas's location prior, so it needs to know which of
+its records trained a release's maps. Every finished job writes that list
+to the store, beside nothing public:
+
+```
+private/trained-ids/<grid>/releases/<release id>.tsv.gz   source, source_id, taxon
+private/trained-ids/<grid>/releases/<release id>.json     counts, and any model whose records were not found
+private/trained-ids/<grid>/pulls/<sha256>.tsv.gz          each pull's records by taxon and record set (the box's own)
+```
+
+A source id (an iNaturalist observation id, say) leads straight to its exact
+collection point, so the list is **never** published: not in a release, the
+API, the site, Zenodo or the repository. Only presences are listed; the
+background sites carry no taxon, so they teach no map a name.
+
+Three ways to get a release's list to Vision's box, from the box as the
+atlas user:
+
+- **Its own read access (recommended).** An IAM user or role for Vision's
+  box with `vision-reader/permissions.json`: it may list and read
+  `private/trained-ids/*/releases/*` and nothing else in the bucket, not
+  even the per-pull tables. Vision then fetches the list for whichever
+  release its prior came from (`/api/prior` names it), with no step here.
+- **A presigned link**, for a one-off: `./atlas trained-ids --link --hours=6`
+  prints a link to the current release's list (`--release=ID` for another)
+  that works for that long, at most 12 hours, and no longer than the
+  signing credentials last.
+- **A copy**: `./atlas trained-ids --out=/tmp/trained.tsv.gz`, then copy it
+  across yourself. Delete the copy afterwards.
+
+A release made before these lists were kept has none. `./atlas trained-ids
+--write` (with `--release=ID` for one that is not current) makes it from the
+pull the release's job was planned from, which the store keeps, and the
+box's own pull besides; it refits nothing.
 
 ## The monthly budget alarm
 

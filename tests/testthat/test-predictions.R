@@ -80,6 +80,7 @@ region_rows <- function() {
     taxon = c("A", "A", "A", "A", "B"),
     algorithm = c("maxnet", "maxnet", "rf", "xgboost", "maxnet"),
     skill = c("passed", "passed", "passed", "failed", "failed"),
+    grade = c("strong", "strong", "strong", "failed", "failed"),
     code = c("US-IN", "US-OH", "US-IN", "US-OH", "US-IN"),
     cells = c(200L, 400L, 200L, 400L, 200L),
     reach = c(200L, 100L, 200L, 400L, 200L),
@@ -191,7 +192,7 @@ test_that("stored maps are counted afterwards from their rasters and the public 
 test_that("the model index keeps every model's state counts for the API", {
   with_data_dir({
     dir.create(atlas_model_dir("draft", "rf"), recursive = TRUE, showWarnings = FALSE)
-    atlas_write_json(list(taxon = "A", skill = "passed", built_at = "2026-10-06T00:00:00Z",
+    atlas_write_json(list(taxon = "A", skill = "passed", grade = "strong", built_at = "2026-10-06T00:00:00Z",
                           regions = list(threshold = 0.4, presences = 10,
                                          cells = list(`US-IN` = c(200, 150, 80)))),
                      atlas_model_path("A", "draft", ".json", "rf"))
@@ -224,7 +225,7 @@ with_predicted_pull <- function(code) {
     atlas_write_json(list(stamp = stamp, file = file, records = 3), atlas_path("occurrences", "latest.json"))
     model <- function(algorithm, cells) {
       dir.create(atlas_model_dir("draft", algorithm), recursive = TRUE, showWarnings = FALSE)
-      atlas_write_json(list(taxon = "Trametes versicolor", skill = "passed", built_at = "2026-10-06T00:00:00Z",
+      atlas_write_json(list(taxon = "Trametes versicolor", skill = "passed", grade = "strong", built_at = "2026-10-06T00:00:00Z",
                             regions = list(threshold = 0.4, presences = 3, cells = cells)),
                        atlas_model_path("Trametes versicolor", "draft", ".json", algorithm))
     }
@@ -279,4 +280,12 @@ test_that("a state's checklist lists the taxa its maps call likely, marked as no
     expect_equal(parsed$status, "possible, not yet recorded")
     expect_equal(parsed$best_map_suitable_pct, 15L)
   })
+})
+
+test_that("a weak map gives a state neither likely nor possible", {
+  rows <- region_rows()
+  # Map A in Indiana passed only scattered nulls now.
+  rows$grade[rows$taxon == "A"] <- "weak"
+  out <- atlas_region_predictions(rows)
+  expect_false("A" %in% out$taxon)
 })

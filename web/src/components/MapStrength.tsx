@@ -10,8 +10,8 @@ export const STANDARD = 80;
 export const FAINT = 25;
 
 const MARKS = [
-  { value: FAINT, label: "Faint", title: "How a map that failed its null test is drawn" },
-  { value: STANDARD, label: "Standard", title: "How a map that beat its null models is drawn" },
+  { value: FAINT, label: "Faint", title: "How a map not shown to beat clustered collecting is drawn" },
+  { value: STANDARD, label: "Standard", title: "How a map that beat clustered nulls by a wide margin is drawn" },
 ];
 
 // Within this many points of a mark, the slider settles on the mark.

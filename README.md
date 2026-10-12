@@ -467,9 +467,11 @@ Mercator, and only over ground inside the map's area of applicability (below);
 ground outside it is hatched grey. Stored rasters keep the raw values.
 `./atlas redraw-maps --workers=12` redraws every map without refitting.
 
-How strongly a map is drawn follows its skill. `map_strength` is 0 for a map
-that failed its null test, and for one that passed runs from 0.4 (just past
-p = 0.05) to 1 (blocked AUC five null standard deviations above its nulls).
+How strongly a map is drawn follows its grade. `map_strength` is 0 for a weak
+map (skill on held-out ground, but not shown to beat clustered collecting) or
+a failed one (no better than chance on held-out ground), and for a strong one,
+which passed its shifted nulls, runs from 0.4 (just past p = 0.05) to 1
+(blocked AUC five null standard deviations above its nulls).
 The site starts each map's opacity between 25% and 80% in proportion; the
 viewer can still move it.
 

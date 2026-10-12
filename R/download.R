@@ -35,7 +35,7 @@ atlas_s3_location <- function(uri) {
 #' the machine's default chain provides. Signature version 4, which every
 #' region accepts. Replaced in tests, which never reach AWS.
 atlas_presign_s3 <- function(bucket, key, filename, expires = ATLAS_DOWNLOAD_LINK_SECONDS,
-                             client = NULL) {
+                             client = NULL, content_type = "image/tiff") {
   if (is.null(client)) {
     client <- paws.storage::s3(config = list(signature_version = "v4"))
   }
@@ -45,7 +45,7 @@ atlas_presign_s3 <- function(bucket, key, filename, expires = ATLAS_DOWNLOAD_LIN
       Bucket = bucket,
       Key = key,
       ResponseContentDisposition = paste0("attachment; filename=\"", filename, "\""),
-      ResponseContentType = "image/tiff"
+      ResponseContentType = content_type
     ),
     expires_in = expires
   )

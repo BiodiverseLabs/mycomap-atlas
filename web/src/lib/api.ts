@@ -170,7 +170,10 @@ export interface Model {
   /** Whether the map beat its null models. Fits from before there were
    * null models have none, and read as "untested". */
   skill?: Skill;
-  /** How strongly the map is drawn, 0 (failed its null test) to 1 (far above
+  /** How much the null test vouches for the map (lib/grade.ts). Absent on
+   * fits from before grades: work it out with mapGrade. */
+  grade?: Grade;
+  /** How strongly the map is drawn, 0 (weak or failed) to 1 (far above
    * its nulls). Absent on fits from before it was measured. */
   map_strength?: number;
   /** Where the map has training data behind it (Meyer & Pebesma 2021). */
@@ -185,6 +188,8 @@ export interface Model {
 }
 
 export type Skill = "passed" | "failed" | "untested";
+export type { Grade } from "./grade";
+import type { Grade } from "./grade";
 
 /** A model scored against null models: the same number of sites drawn at
  * random from the surveyed sites, fitted and scored the same way. */
@@ -199,6 +204,10 @@ export interface ModelNull {
   auc_p?: number;
   boyce_mean?: number;
   boyce_p?: number;
+  /** "shift" since 2026-10-08; absent on fits tested against scattered nulls. */
+  design?: string;
+  stopped_early?: boolean;
+  drawn?: number;
 }
 
 /** One row of /api/models: enough for a list. The full record is getModel. */
@@ -211,6 +220,7 @@ export interface ModelSummary {
   boyce?: number;
   boyce_mean?: number;
   skill?: Skill;
+  grade?: Grade;
   map: boolean;
   built_at: string;
 }
@@ -447,6 +457,28 @@ export function checklistUrl(params: { region?: string; taxon?: string } = {}): 
   if (params.taxon) query.set("taxon", params.taxon);
   const text = query.toString();
   return `/api/checklist.csv${text ? `?${text}` : ""}`;
+}
+
+/** One file of the location prior, as GET /api/prior lists it. */
+export interface PriorFile {
+  name: string;
+  bytes: number;
+  sha256: string;
+  url: string;
+}
+
+/** The location prior: every strong map's ranks by 20 km cell. */
+export interface Prior {
+  release?: string;
+  grid: string;
+  taxa: number;
+  rows: number;
+  cellKm: number;
+  files: PriorFile[];
+}
+
+export async function getPrior(): Promise<Prior> {
+  return get<Prior>("/api/prior");
 }
 
 /** The bare map page another site puts in an iframe. */

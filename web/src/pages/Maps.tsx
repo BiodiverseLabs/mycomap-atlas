@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ALGORITHMS, ALGORITHM_LABELS, getModels, type Algorithm, type ModelSummary } from "@/lib/api";
 import { usePageMeta } from "@/lib/usePageMeta";
+import { isFaint, mapGrade } from "@/lib/grade";
 import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -51,7 +52,7 @@ export default function Maps() {
     const byTaxon = new Map<string, Row>();
     for (const m of models.data ?? []) {
       if (!m.map) continue;
-      if (m.skill === "failed" && !showFailed) continue;
+      if (isFaint(mapGrade(m)) && !showFailed) continue;
       const row = byTaxon.get(m.taxon) ?? { taxon: m.taxon, models: {} };
       row.models[m.algorithm] = m;
       row.presences = Math.max(row.presences ?? 0, m.presences ?? 0);
@@ -69,7 +70,7 @@ export default function Maps() {
           : (a: Row, b: Row) => value(b, sort as Algorithm, measure) - value(a, sort as Algorithm, measure);
     return matching.sort(compare);
   }, [models.data, search, sort, measure, showFailed]);
-  const failed = (models.data ?? []).filter((m) => m.map && m.skill === "failed").length;
+  const failed = (models.data ?? []).filter((m) => m.map && isFaint(mapGrade(m))).length;
   const page = rows.slice(offset, offset + PAGE_SIZE);
   const measureLabel = measure === "auc_mean" ? "AUC" : "Boyce";
 
@@ -104,7 +105,7 @@ export default function Maps() {
                           setOffset(0);
                         }}
                       />
-                      Show {formatNumber(failed)} no better than chance
+                      Show {formatNumber(failed)} not shown to beat clustered collecting
                     </label>
                   )}
                   <input
@@ -179,8 +180,8 @@ export default function Maps() {
                         return (
                           <td
                             key={a}
-                            className={`px-4 py-2 text-right ${m?.skill === "failed" ? "opacity-40" : ""}`}
-                            title={m?.skill === "failed" ? "No better than its null models" : undefined}
+                            className={`px-4 py-2 text-right ${m && isFaint(mapGrade(m)) ? "opacity-40" : ""}`}
+                            title={m && isFaint(mapGrade(m)) ? "Not shown to beat clustered collecting" : undefined}
                           >
                             {!m ? (
                               <span className="text-muted-foreground">—</span>

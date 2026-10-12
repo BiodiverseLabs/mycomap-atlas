@@ -22,7 +22,7 @@ northwest_model <- function() {
   tif <- atlas_model_path("Taxon A", "draft", ".tif", "maxnet")
   terra::writeRaster(r, tif, overwrite = TRUE)
   drawn <- atlas_write_map_png(r, sub("[.]tif$", ".png", tif))
-  atlas_write_json(list(taxon = "Taxon A", algorithm = "maxnet", skill = "passed", presences = 25,
+  atlas_write_json(list(taxon = "Taxon A", algorithm = "maxnet", skill = "passed", grade = "strong", presences = 25,
                         raster = basename(tif), map = basename(drawn$path), bounds = drawn$bounds,
                         built_at = "2026-10-06T00:00:00Z"),
                    sub("[.]tif$", ".json", tif))
@@ -46,12 +46,14 @@ test_that("a release no worker has finished is not finished", {
   expect_false(atlas_release_finished(list(finished = list(version = ATLAS_FINISH_VERSION - 1L))))
 })
 
-test_that("a finishing worker counts the maps, builds the index and reports only what changed", {
+test_that("a finishing worker counts the maps, builds the index and prior, and reports only what changed", {
   skip_if_not_installed("terra")
   setup <- published()
   record <- on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
   paths <- vapply(record$files, `[[`, "", "path")
-  expect_setequal(paths, c("index/draft/here.rds", "models/draft/taxon-a.json"))
+  prior <- paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json",
+                                    if (requireNamespace("nanoparquet", quietly = TRUE)) "ranks.parquet"))
+  expect_setequal(paths, c("index/draft/here.rds", "models/draft/taxon-a.json", prior))
   expect_equal(record$counted, 1L)
   expect_equal(record$release, setup$release$id)
   # Uploaded: the box needs only the record and the objects it names.

@@ -7,6 +7,7 @@ sitemap_models <- function(...) {
   do.call(rbind, lapply(rows, function(r) {
     atlas_model_summary(list(
       taxon = r$taxon, algorithm = r$algorithm %||% "maxnet", skill = r$skill,
+      null = list(design = r$design %||% ATLAS_NULL_DESIGN),
       map = if (isTRUE(r$map %||% TRUE)) "map.png", built_at = r$built_at %||% "2026-10-01T07:00:00Z"
     ))
   }))
@@ -119,4 +120,13 @@ test_that("the command line writes the sitemap into the data directory", {
     expect_message(atlas_main(c("sitemap", "--origin=https://atlas.mycomap.org")), "0 taxa")
     expect_true(file.exists(file.path(atlas_data_dir(), "sitemap.xml")))
   })
+})
+
+test_that("a weak map, which passed only scattered nulls, is not sent to searchers", {
+  models <- sitemap_models(
+    list(taxon = "Amanita muscaria", skill = "passed"),
+    list(taxon = "Boletus edulis", skill = "passed", design = "scatter")
+  )
+  expect_equal(models$grade, c("strong", "weak"))
+  expect_equal(atlas_sitemap_taxa(models)$taxon, "Amanita muscaria")
 })

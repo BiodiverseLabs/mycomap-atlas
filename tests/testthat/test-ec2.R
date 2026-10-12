@@ -576,6 +576,22 @@ test_that("a worker may write its results, shard record and log, and nothing tha
   expect_false(any(grepl("Delete", unlist(lapply(policy$Statement, function(s) s$Action)))))
 })
 
+test_that("Vision's reader may read each release's trained-ids list and nothing else in the store", {
+  policy <- aws_policy("vision-reader/permissions.json")
+  reads <- sub("^arn:aws:s3:::bucket/", "", unlist(statement(policy, "ReadTheTrainedIdsOnly")$Resource))
+  may_read <- function(key) glob_matches(reads, key)
+  expect_true(may_read(atlas_trained_release_key("20261009T000000Z-abcdef12", "draft")))
+  expect_true(may_read(atlas_trained_release_key("20261009T000000Z-abcdef12", "draft", ".json")))
+  # Not the pull tables (every record, with its taxon), the pull, the models or a job.
+  for (key in c(paste0(atlas_trained_pulls_prefix("draft"), strrep("a", 64), ".tsv.gz"),
+                atlas_object_key(strrep("ab", 32)), "releases/draft/r1.json", "current/draft.json",
+                "jobs/draft/job1/job.json", "archives/models-draft.json")) {
+    expect_false(may_read(key), info = key)
+  }
+  actions <- unlist(lapply(policy$Statement, function(s) s$Action))
+  expect_setequal(actions, c("s3:ListBucket", "s3:GetObject"))
+})
+
 test_that("a list placeholder becomes one string per value, and a missing one is refused", {
   skip_if_not(dir.exists(aws_dir()), "deploy/aws is not in the image")
   env <- new.env()
@@ -642,4 +658,23 @@ test_that("a job past its deadline still publishes every model its workers saved
   expect_false(is.null(release))
   expect_length(release$index, 1L)
   expect_true(isTRUE(release$partial))
+})
+
+test_that("a pilot run with no finish fits every shard and builds no release", {
+  skip_if_not_installed("terra")
+  setup <- planned()
+  ec2 <- fake_ec2(setup$store)
+  time <- fake_clock()
+  before <- atlas_current_release(setup$store)
+  out <- on_machine(setup$boss, atlas_run_job_on_ec2(
+    setup$store, setup$job, ec2 = ec2$client, config = test_config(setup$store$uri), poll_seconds = 60,
+    wait = time$wait, clock = time$clock, quiet = TRUE, image_exists = function(image) TRUE,
+    finish = FALSE
+  ))
+  expect_null(out)
+  expect_identical(atlas_current_release(setup$store), before)
+  status <- atlas_job_status(setup$store, setup$job$id)
+  expect_length(status$done, 2L)
+  expect_false(isTRUE(status$finished))
+  expect_length(still_running(ec2), 0L)
 })

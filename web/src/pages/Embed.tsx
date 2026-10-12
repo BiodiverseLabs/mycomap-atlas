@@ -20,6 +20,7 @@ import { openingView } from "@/lib/mapView";
 import { usePageMeta } from "@/lib/usePageMeta";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { formatNumber } from "@/lib/utils";
+import { gradeNote, isFaint, mapGrade } from "@/lib/grade";
 
 /**
  * The map to show: the one asked for if it was fitted, else the first map on
@@ -62,7 +63,7 @@ export default function Embed() {
   const loading = fits.some((f) => f.isLoading);
   const algorithm = pickAlgorithm(search.get("model"), models);
   const model = algorithm ? models[algorithm] : null;
-  const failed = model?.skill === "failed";
+  const failed = isFaint(mapGrade(model));
   const bounds = model?.bounds
     ? ([[model.bounds.south, model.bounds.west], [model.bounds.north, model.bounds.east]] as [
         [number, number],
@@ -81,7 +82,7 @@ export default function Embed() {
     note =
       algorithm === "esm"
         ? sparseFailedNote(model?.presences ?? 0)
-        : "No better than its null models: this map says little about habitat.";
+        : gradeNote(mapGrade(model));
   }
 
   return (

@@ -43,6 +43,8 @@ atlas_local_store <- function(root) {
       base <- path(prefix)
       if (!dir.exists(base)) return(character())
       files <- list.files(base, recursive = TRUE, all.files = TRUE)
+      # paste0 with no files would give the prefix itself, as if it were a key.
+      if (!length(files)) return(character())
       paste0(sub("/?$", "/", prefix), files)
     }
   )
@@ -179,8 +181,8 @@ atlas_release_pull_summary <- function(manifest) {
 #'
 #' An allowlist: model scores, rasters and maps of every algorithm, per-taxon
 #' counts and fingerprints, the pull summary, public cells and regions, the
-#' not-yet-validated counts, the layer manifest, and the newest benchmark.
-#' Nothing else under data/ can be
+#' not-yet-validated counts, the layer manifest, the newest benchmark, the
+#' here index and the location prior. Nothing else under data/ can be
 #' published, whatever lands there.
 atlas_release_files <- function(grid = "draft") {
   root <- atlas_data_dir()
@@ -204,8 +206,10 @@ atlas_release_files <- function(grid = "draft") {
     atlas_public_unvalidated_path(),
     file.path(atlas_layer_dir(grid), "manifest.json"),
     utils::tail(benchmarks, 1),
-    # Ranks by 20 km cell for "what could grow here", built from the maps above.
-    atlas_here_index_path(grid)
+    # Ranks by 20 km cell for "what could grow here", built from the maps above,
+    # and the location prior built from the same ranks (R/prior.R).
+    atlas_here_index_path(grid),
+    file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES)
   )
   files <- files[file.exists(files)]
   rel <- substring(normalizePath(files, winslash = "/"),
@@ -259,8 +263,9 @@ atlas_model_index_entry <- function(metrics, algorithm) {
     # Drawn only once it passes its null test (a taxon with 3 or 4 sites).
     map_withheld = if (isTRUE(metrics$map_withheld)) TRUE else NULL,
     # Whether the map beat its null models; anything reading a release to
-    # use a map (mycomap.org, Vision) should take only "passed".
-    skill = text(metrics$skill)
+    # use a map (mycomap.org, Vision) should take only grade "strong".
+    skill = text(metrics$skill),
+    grade = atlas_metrics_grade(metrics)
   )
   Filter(Negate(is.null), entry)
 }
@@ -446,12 +451,22 @@ atlas_publish_release <- function(store = atlas_store(), grid = "draft", note = 
   say("uploaded ", uploaded$count, " of ", length(paths), " files (",
       round(uploaded$bytes / 1048576, 1), " MB); the rest were already stored")
 
-  atlas_write_release(
+  release <- atlas_write_release(
     store, grid, entries, index,
     previous = current$id, note = note,
     pull = atlas_release_pull_summary(manifest),
     layers_key = atlas_layers_key(grid), promote = promote, quiet = quiet
   )
+  # The private list of the records it was trained on (R/trained.R), from
+  # this machine's pull when it has one.
+  occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
+  if (!is.null(occurrences)) {
+    atlas_trained_ids_quietly({
+      key <- atlas_save_trained_pull(store, grid, occurrences)
+      atlas_write_trained_ids(store, release, grid, prefer = key, quiet = quiet)
+    }, release$id)
+  }
+  invisible(release)
 }
 
 #' Make a release the one everyone pulls. Rolling back is promoting an older one.

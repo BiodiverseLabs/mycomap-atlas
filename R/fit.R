@@ -42,7 +42,14 @@ ATLAS_EFFORT_COLUMN <- "effort"
 # Inner folds for tuning, inside each outer training set.
 ATLAS_INNER_FOLDS <- 3L
 # Null models per taxon. With 19, beating every one is p = 0.05.
-ATLAS_NULL_REPS <- 19L
+ATLAS_NULL_REPS <- 99L
+# Production's null design (R/nulls.R): the taxon's own pattern shifted and
+# rotated onto survey sites, so a clustered taxon cannot pass on clustering
+# alone. Calibrated on 99 virtual species (2026-10-08): scattered nulls passed
+# 74% of species with no habitat signal, shifted ones 2% (Steve, 2026-10-08).
+ATLAS_NULL_DESIGN <- "shift"
+# The sequential test stops once this many nulls have done as well as the map.
+ATLAS_NULL_STOP_AFTER <- 5L
 # A map is shown as skilled when its AUC beats the nulls at this level and its
 # Boyce index is above zero.
 ATLAS_SKILL_ALPHA <- 0.05
@@ -924,7 +931,9 @@ atlas_design <- function() list(
   inner_folds = ATLAS_INNER_FOLDS,
   skill = list(alpha = ATLAS_SKILL_ALPHA, boyce_above = 0,
                boyce = "held-out scores of every fold together",
-               nulls = "taxon and nulls both at untuned settings"),
+               nulls = "taxon and nulls both at untuned settings",
+               design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER,
+               grades = "strong: passed shifted nulls; weak: held-out skill only; failed"),
   applicability = list(method = "dissimilarity index, Meyer & Pebesma 2021",
                        weights = "mean fall in held-out AUC per predictor",
                        threshold = "upper whisker of the training sites' index across folds",
@@ -1142,11 +1151,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   boyce_mean <- mean(scores$boyce, na.rm = TRUE)
   boyce_pooled <- atlas_pooled_boyce(scores)
   null <- if (is.finite(auc_mean)) {
-    atlas_null_test(training, fold_ids, algo, reps = nulls, seed = seed)
+    atlas_null_test_sequential(training, fold_ids, algo, reps = nulls, seed = seed,
+                               design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER)
   } else {
     list(reps = 0L)
   }
   skill <- atlas_skill(null, boyce_pooled)
+  grade <- atlas_map_grade(skill, null, auc_mean, boyce_pooled)
   # An algorithm can hold back the maps of its sparsest taxa until they pass
   # their null test; the scores are kept either way.
   withheld <- atlas_map_withheld_at(algo, presences) && !identical(skill, "passed")
@@ -1260,8 +1271,9 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     boyce_sd = round(stats::sd(scores$boyce, na.rm = TRUE), 3),
     null = null,
     skill = skill,
+    grade = grade,
     applicability = atlas_aoa_summary(aoa, dissimilarity),
-    map_strength = atlas_map_strength(null, skill),
+    map_strength = atlas_map_strength(null, skill, grade),
     dissimilarity = if (is.null(dissimilarity_path)) NULL else basename(dissimilarity_path),
     raster = if (is.null(raster_path)) NULL else basename(raster_path),
     md5 = if (is.null(raster_path)) NULL else unname(tools::md5sum(raster_path)),

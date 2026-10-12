@@ -17,6 +17,24 @@ changed and what it means for you.
   counted them, and 0 when there are none. Added field. Releases carry the
   counts as `public/unvalidated.tsv.gz`, the Zenodo archive as
   `taxa-not-yet-validated.tsv.gz`.
+- **`GET /api/prior`** and **`GET /api/prior/{file}`** are new: the
+  location prior, every strong map's ranks by 20 km cell over the whole of a
+  taxon's reach (below the median included, unranked where the maps cannot
+  judge the ground), with its taxa and the grid. For weighing a photo
+  identification by where it was taken. Parquet and TSV; built when a release
+  is finished, and in each Zenodo models version as `prior-*`.
+- **`/api/here`** ranks each map inside its area of applicability, as its
+  map is coloured: ground a map knows nothing about is no longer "here", and
+  the ranks of the ground it does know are taken among that ground alone.
+
+- **Model `grade`** on `/api/models`, `/api/taxa/{name}/model` and the
+  release index: `strong` (passed its null test against shifted nulls),
+  `weak` (not shown to beat clustered collecting), `failed` or `untested`.
+  Decide whether to use a map on `grade == "strong"`, not on `skill`: a fit
+  from before 2026-10-08 can have `skill: passed` against scattered nulls,
+  which is `weak`. Added field. `null` gains `design`, `stopped_early` and
+  `drawn`.
+
 - **Stricter inputs.** Every `/api/` route refuses, with 400 and a JSON
   reason, a `grid` other than `draft` or `production`, and a `limit`,
   `offset`, `min_localities`, `lat`, `lng`, `min_score`, `nearby_km` or
@@ -30,7 +48,7 @@ changed and what it means for you.
   **`/ensemble.png?layer=map|disagreement`** are new: the average of a
   taxon's passing models, and where they disagree. A taxon with fewer than
   two passing models has none (404).
-- Model metrics gain `map_strength` (0 for a map that failed its null test,
+- Model metrics gain `map_strength` (0 for a weak or failed map,
   0.4 to 1 with its margin over the nulls), `applicability` (the area of
   applicability's threshold and the share of the accessible area inside it)
   and `record_years` (dated records, first, median and last year, share
@@ -51,6 +69,17 @@ changed and what it means for you.
   applies. Releases carry `occurrences/renames.json`.
 
 ### Maps
+
+- **A stricter null test.** Every map is tested against null species that
+  keep its own clustering (its detections rotated and moved onto other
+  survey sites), up to 99, stopping once 5 do as well. The old scattered
+  nulls let clustered collecting alone pass. Expect far fewer maps to pass:
+  on simulated species about a quarter of real habitat signals did. Only
+  strong maps are used for Explore, state verdicts ("likely" and
+  "possible"), combined maps and the sitemap; weak and failed maps are drawn
+  faint on their taxon page, worded "skill on held-out ground, but not shown
+  to beat clustered collecting" (weak) or "no better than chance on held-out
+  ground" (failed). Every model is refitted.
 
 - **Colour now follows skill and data.** Each map is ranked on the
   equal-area grid, only over its area of applicability (Meyer and Pebesma
@@ -92,8 +121,10 @@ changed and what it means for you.
 - `study-blocks`: whether the cross-validation block size tests at the
   distances a map predicts at (kNNDM's question).
 - Null models that keep a taxon's clustering (`shift`, `shift-effort`), a
-  sequential early-stopping test and Benjamini-Hochberg q-values, being
-  calibrated before production uses them.
+  sequential early-stopping test and Benjamini-Hochberg q-values. Calibrated
+  on 99 virtual species: scattered nulls passed 74% of species with no
+  habitat signal, shifted ones 2%; production now uses shifted nulls (see
+  Maps).
 - Candidate layers, not yet in production: ClimateNA 1991-2020 normals (the
   test kept WorldClim), and host trees by species, one band for each of 316
   tree species beside the genera. Walnut, hackberry, bald cypress, redwoods
@@ -112,6 +143,21 @@ changed and what it means for you.
 - Taxon pages show "Sequenced but not yet validated: N" beside the validated
   count when a taxon has records waiting for review, with a short note that
   the maps do not use them yet.
+- **How to read a map** (`/guide`), linked from every taxon page and the home
+  page: what the colours, dots and hatching mean, strong and faint maps (with
+  the notes faint maps carry), the combined map and where its models
+  disagree, and what a map is not: suitable habitat, not a sighting, and not
+  for foraging.
+- The home page says in two sentences what Atlas is and how it differs, then
+  offers four ways in: explore a species, what could grow near me, embed or
+  download, and how it works. Its preview map is a strong map once the
+  release has any.
+- A featured-species slot on the home page, filled from `web/public/featured.json`
+  (up to three names, each with an optional note). It stays hidden while the
+  list is empty.
+- On a phone, each map's full-screen button is a thumb-sized target, and the
+  "expand across all three panels" button is hidden, since the panels stack
+  full width there anyway.
 - A privacy page (`/privacy`): no analytics, a cookie only on sign-in, what
   the web logs keep, and what Cloudflare and OpenStreetMap see.
 - Fonts are served from the site instead of Google Fonts, and every map's

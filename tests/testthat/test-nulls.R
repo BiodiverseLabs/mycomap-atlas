@@ -132,3 +132,53 @@ test_that("q-values are Benjamini-Hochberg's, and a missing p is not counted as 
   expect_equal(q[-3], stats::p.adjust(p[-3], method = "BH"))
   expect_true(all(q[-3] >= p[-3]))
 })
+
+# ---- production's null test (Steve, 2026-10-08) ---------------------------------
+
+test_that("production tests every map against shifted nulls, up to 99, stopping after 5", {
+  expect_equal(ATLAS_NULL_DESIGN, "shift")
+  expect_equal(ATLAS_NULL_REPS, 99L)
+  expect_equal(ATLAS_NULL_STOP_AFTER, 5L)
+  # Recorded in the design, so every model fitted under scattered nulls is stale.
+  expect_equal(atlas_design()$skill$design, "shift")
+  expect_equal(atlas_design()$skill$stop_after, 5L)
+})
+
+test_that("a fitted map's null test is the shifted one, and its grade follows it", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    metrics <- atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                               fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                               buffer_km = 300, predict = FALSE, quiet = TRUE, nulls = 9L,
+                               tune = FALSE, guilds = stats::setNames(character(), character()))$metrics
+    expect_equal(metrics$null$design, "shift")
+    expect_lte(metrics$null$reps, 9L)
+    expect_true(metrics$grade %in% c("strong", "weak", "failed"))
+    expect_equal(metrics$grade, atlas_map_grade(metrics$skill, metrics$null, metrics$auc_mean,
+                                                metrics$boyce))
+  })
+})
+
+test_that("only a map that beat shifted nulls is strong; scattered nulls or held-out skill alone is weak", {
+  shift <- list(design = "shift", observed_auc = 0.8, observed_boyce = 0.6)
+  scatter <- list(observed_auc = 0.8, observed_boyce = 0.6)
+  expect_equal(atlas_map_grade("passed", shift), "strong")
+  # A fit from before the switch passed scattered nulls only.
+  expect_equal(atlas_map_grade("passed", scatter), "weak")
+  expect_equal(atlas_map_grade("passed", c(scatter, design = "scatter")), "weak")
+  # Not passed, but better than chance on held-out ground.
+  expect_equal(atlas_map_grade("failed", shift, auc = 0.66, boyce = 0.3), "weak")
+  # No better than chance.
+  expect_equal(atlas_map_grade("failed", shift, auc = 0.66, boyce = -0.1), "failed")
+  expect_equal(atlas_map_grade("failed", shift, auc = 0.49, boyce = 0.3), "failed")
+  expect_equal(atlas_map_grade("failed", shift), "weak")
+  expect_equal(atlas_map_grade("failed", list(design = "shift", observed_auc = 0.5)), "failed")
+  expect_equal(atlas_map_grade("untested"), "untested")
+  expect_equal(atlas_map_grade(NULL), "untested")
+  # A stored fit's grade is the one it recorded, else worked out.
+  expect_equal(atlas_metrics_grade(list(skill = "passed", grade = "strong")), "strong")
+  expect_equal(atlas_metrics_grade(list(skill = "passed", null = scatter)), "weak")
+  expect_equal(atlas_metrics_grade(list(skill = "failed", auc_mean = 0.7, boyce = 0.2, null = shift)), "weak")
+})
