@@ -587,7 +587,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     "finish-prior-only" = {
       if (is.null(flags$job)) stop("finish-prior-only needs --job=ID", call. = FALSE)
       atlas_finish_prior_only_work(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
-                                   usd_per_vcpu_hour = atlas_flag_number(flags, "usd_per_vcpu_hour", 0.025))
+                                   usd_per_vcpu_hour = atlas_flag_number(flags, "usd_per_vcpu_hour", 0.025),
+                                   defer = isTRUE(flags$defer))
       invisible(0L)
     },
     "job-timing" = {

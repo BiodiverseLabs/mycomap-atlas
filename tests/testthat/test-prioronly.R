@@ -134,3 +134,28 @@ test_that("a plan needs a dated pull, a real release made by a job, and a date",
   expect_error(on_machine(boss, atlas_plan_prior_only(store, undated$id, PRIOR_ONLY_CUTOFF, quiet = TRUE)),
                "no first green dates")
 })
+
+test_that("on a worker, which may not write private/, the job defers its private files to the box", {
+  skip_if_not_installed("terra")
+  setup <- prior_only_setup()
+  job <- on_machine(setup$boss, atlas_plan_prior_only(setup$store, setup$main$id, PRIOR_ONLY_CUTOFF,
+                                                      shards = 1L, quiet = TRUE))
+  on_machine(machine(), atlas_run_shard(setup$store, job$id, 1L, quiet = TRUE, fit = map_fit()))
+  worker <- worker_store(setup$store)
+  # Writing straight to private/ is refused, as IAM refuses it on EC2.
+  expect_error(on_machine(machine(), atlas_finish_prior_only_work(worker, job$id, quiet = TRUE,
+                                                                  build = stub_prior_build)),
+               "AccessDenied")
+  summary <- on_machine(machine(), atlas_finish_prior_only_work(worker, job$id, quiet = TRUE,
+                                                                build = stub_prior_build, defer = TRUE))
+  record <- atlas_store_text(setup$store, atlas_shard_key(atlas_finish_id(job$id), 1L))
+  keys <- vapply(record$deferred, function(e) e$key, "")
+  expect_true(all(startsWith(keys, "private/")))
+  expect_true(atlas_benchmark_key(job$id, "summary.json") %in% keys)
+  expect_true(atlas_trained_release_key(job$id) %in% keys)
+  # Nothing is in place until the box places it.
+  expect_false(setup$store$exists(atlas_benchmark_key(job$id, "summary.json")))
+  atlas_place_deferred(setup$store, record$deferred)
+  for (key in keys) expect_true(setup$store$exists(key), info = key)
+  expect_equal(atlas_store_text(setup$store, atlas_benchmark_key(job$id, "summary.json"))$job, job$id)
+})

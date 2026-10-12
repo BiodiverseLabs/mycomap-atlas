@@ -208,6 +208,46 @@ atlas_plan_refit <- function(store, from_release, validated_through, purpose, gr
 
 ATLAS_CONTINENT_PREFIX <- "private/atlas-continent"
 
+#' A store for an EC2 worker, which may not write under private/: its IAM
+#' policy (deploy/aws/worker/permissions.json) allows objects/ and its job's
+#' records only. A file put under a private key goes to objects/ by its hash
+#' instead, and the key is remembered; reads see it as if it were in place.
+#' The box, which may write anywhere, puts each one where it belongs once the
+#' worker has reported (atlas_place_deferred).
+atlas_deferring_store <- function(store) {
+  deferred <- list()
+  wrapped <- store
+  wrapped$put <- function(key, file) {
+    if (!startsWith(key, "private/")) return(store$put(key, file))
+    sha <- atlas_sha256(file)
+    object <- atlas_object_key(sha)
+    if (!store$exists(object)) store$put(object, file)
+    deferred[[key]] <<- list(key = key, sha256 = sha, bytes = file.info(file)$size)
+    invisible(key)
+  }
+  wrapped$exists <- function(key) !is.null(deferred[[key]]) || store$exists(key)
+  wrapped$get <- function(key, dest) {
+    entry <- deferred[[key]]
+    if (is.null(entry)) store$get(key, dest) else store$get(atlas_object_key(entry$sha256), dest)
+  }
+  wrapped$list <- function(prefix) {
+    unique(c(store$list(prefix), Filter(function(k) startsWith(k, prefix), names(deferred))))
+  }
+  wrapped$deferred <- function() unname(deferred)
+  wrapped
+}
+
+#' On the box: put a worker's deferred private files where they belong.
+atlas_place_deferred <- function(store, entries) {
+  for (entry in entries %||% list()) {
+    file <- tempfile()
+    store$get(atlas_object_key(entry$sha256), file)
+    store$put(entry$key, file)
+    unlink(file)
+  }
+  invisible(length(entries %||% list()))
+}
+
 #' Where a refit job's products go: a benchmark (R_train) under its own id,
 #' the main release's continent projection under that release's id.
 atlas_refit_key <- function(job, ...) {
@@ -243,8 +283,10 @@ atlas_refit_identity <- function(store, job, files, grid = "draft") {
 #' happens in a scratch data directory and goes only to private prefixes.
 atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draft", quiet = FALSE,
                                          build = atlas_build_prior, build_continent = atlas_build_continent,
-                                         usd_per_vcpu_hour = 0.025, vcpus_per_worker = 32) {
+                                         usd_per_vcpu_hour = 0.025, vcpus_per_worker = 32, defer = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
+  # On an EC2 worker the private files wait in objects/ for the box to place.
+  if (isTRUE(defer)) store <- atlas_deferring_store(store)
   job <- atlas_read_job(store, id, grid)
   if (!atlas_is_prior_only(job)) stop("job ", id, " is not a prior-only job", call. = FALSE)
   train <- !identical(job$purpose, "continent")
@@ -353,7 +395,8 @@ atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draf
   atlas_store_json(store, atlas_refit_key(job, "summary.json"), summary)
   # The record the EC2 loop waits for, as a finishing worker writes one.
   atlas_store_json(store, atlas_shard_key(atlas_finish_id(id), 1L, grid),
-                   list(job = atlas_finish_id(id), shard = 1L, prior_only = id, finished_at = summary$finished_at))
+                   list(job = atlas_finish_id(id), shard = 1L, prior_only = id, finished_at = summary$finished_at,
+                        deferred = if (isTRUE(defer)) store$deferred() else list()))
   say(if (train) "prior-only" else "continent-only", " job ", id, ": ", length(fitted_taxa), " of ",
       length(planned_taxa), " taxa refitted, ", length(lost), " lost",
       if (!train) paste0("; ", summary$identity$identical, " of ", summary$identity$compared,
@@ -372,10 +415,13 @@ atlas_finish_prior_only_on_ec2 <- function(store, job, grid = "draft", ec2 = NUL
   if (!atlas_is_prior_only(job)) stop("job ", job$id, " is not a prior-only job", call. = FALSE)
   atlas_one_worker_on_ec2(
     store, atlas_finish_id(job$id), grid,
-    command = sprintf("finish-prior-only --grid=%s --job=%s", grid, job$id),
+    command = sprintf("finish-prior-only --grid=%s --job=%s --defer", grid, job$id),
     label = paste("the prior of job", job$id),
     ec2 = ec2, config = config, poll_seconds = poll_seconds, wait = wait, quiet = quiet,
     clock = clock, hours = hours, image_exists = image_exists
   )
+  # The worker could not write private/; the box puts what it made in place.
+  record <- atlas_store_text(store, atlas_shard_key(atlas_finish_id(job$id), 1L, grid))
+  atlas_place_deferred(store, record$deferred)
   invisible(atlas_store_text(store, atlas_refit_key(job, "summary.json")))
 }

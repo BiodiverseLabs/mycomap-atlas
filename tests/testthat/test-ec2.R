@@ -42,9 +42,11 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
       if (!worker$state %in% c("pending", "running")) next
       if (startsWith(worker$job, "finish-train-") || startsWith(worker$job, "finish-cont-")) {
         # Building a prior-only job's prior (R/prioronly.R), its build stubbed.
+        # With the worker's IAM limits: it may not write private/, so it defers.
+        expect_match(user_data(state$requests[[length(state$requests)]]), "--defer", fixed = TRUE)
         on_machine(machine(), atlas_finish_prior_only_work(
-          store, sub("^finish-", "", worker$job), quiet = TRUE, build = stub_prior_build,
-          build_continent = stub_continent_build))
+          worker_store(store), sub("^finish-", "", worker$job), quiet = TRUE, build = stub_prior_build,
+          build_continent = stub_continent_build, defer = TRUE))
         worker$state <- "terminated"
       } else if (startsWith(worker$job, "finish-")) {
         # A finishing worker (R/finish.R, tested in test-finish.R), with its

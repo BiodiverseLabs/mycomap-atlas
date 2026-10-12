@@ -85,3 +85,16 @@ stub_continent_build <- function(grid = "draft", quiet = TRUE) {
   utils::write.table(taxa, file.path(atlas_continent_dir(grid), "taxa.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
   list(taxa = taxa, table = table)
 }
+
+# A store with an EC2 worker's write limits (deploy/aws/worker/permissions.json):
+# objects/ and a job's shard records and logs, nothing else.
+worker_store <- function(store) {
+  limited <- store
+  limited$put <- function(key, file) {
+    if (!grepl("^(objects/|jobs/[^/]+/[^/]+/(shards|logs)/)", key)) {
+      stop("AccessDenied: a worker may not write ", key, call. = FALSE)
+    }
+    store$put(key, file)
+  }
+  limited
+}
