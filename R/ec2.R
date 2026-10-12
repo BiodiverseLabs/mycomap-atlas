@@ -277,6 +277,10 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
                                  clock = Sys.time, image_exists = atlas_image_exists,
                                  finish = TRUE) {
   say <- function(...) if (!isTRUE(quiet)) message(format(clock(), "%H:%M:%S"), "  ", ...)
+  # A prior-only job never becomes a release, not even in part at a deadline:
+  # once its shards report, one worker builds its private prior instead.
+  prior_only <- atlas_is_prior_only(job)
+  if (prior_only) finish <- FALSE
   # finish = FALSE runs the shards and stops there: no release is built or
   # promoted (a pilot, run to measure cost; atlas_job_timing reads it).
   # Nothing to fit: only retirements or refreshed public files.
@@ -355,7 +359,9 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
       stop("job ", job$id, " ran past its ", config$max_hours, " h deadline with shard",
            if (length(missing) > 1L) "s " else " ", paste(missing, collapse = ", "),
            " unreported; its workers were terminated",
-           if (is.null(partial)) {
+           if (prior_only) {
+             "; a prior-only job is never published, in part or whole: plan it again"
+           } else if (is.null(partial)) {
              ", having saved nothing"
            } else if (inherits(partial, "error")) {
              paste0(", and what they saved could not be published: ", conditionMessage(partial))
@@ -394,6 +400,13 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     wait(poll_seconds)
   }
   say("all ", job$shards, " shards reported")
+  if (prior_only) {
+    finished <- TRUE
+    terminate_all()
+    return(atlas_finish_prior_only_on_ec2(store, job, grid, ec2 = ec2, config = config,
+                                          poll_seconds = poll_seconds, wait = wait, quiet = quiet,
+                                          clock = clock, image_exists = image_exists))
+  }
   if (!isTRUE(finish)) {
     finished <- TRUE
     terminate_all()

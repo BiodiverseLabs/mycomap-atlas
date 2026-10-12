@@ -137,19 +137,35 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
                                 poll_seconds = 60, wait = Sys.sleep, quiet = FALSE,
                                 clock = Sys.time, hours = config$finish_hours %||% 3,
                                 image_exists = atlas_image_exists, ...) {
-  say <- function(...) if (!isTRUE(quiet)) message(format(clock(), "%H:%M:%S"), "  ", ...)
   current <- atlas_current_release(store, grid)
   if (is.null(current) || atlas_release_finished(current)) return(invisible(NULL))
+  atlas_one_worker_on_ec2(
+    store, atlas_finish_id(current$id), grid,
+    command = sprintf("finish-release --grid=%s --release=%s --workers=$WORKERS", grid, current$id),
+    label = paste("release", current$id),
+    ec2 = ec2, config = config, poll_seconds = poll_seconds, wait = wait, quiet = quiet,
+    clock = clock, hours = hours, image_exists = image_exists
+  )
+  release <- atlas_apply_finish(store, current$id, grid, quiet = quiet)
+  invisible(release)
+}
+
+#' On the box: run one command on one EC2 worker until it writes the record
+#' at atlas_shard_key(id, 1). Launches the worker, launches it again if it is
+#' lost without reporting (up to config$max_attempts), and stops it at the
+#' deadline. Finishing a release and building a prior-only job's prior both
+#' run this way.
+atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL, config = atlas_ec2_config(),
+                                    poll_seconds = 60, wait = Sys.sleep, quiet = FALSE,
+                                    clock = Sys.time, hours = 3, image_exists = atlas_image_exists) {
+  say <- function(...) if (!isTRUE(quiet)) message(format(clock(), "%H:%M:%S"), "  ", ...)
   if (identical(image_exists(config$image), FALSE)) {
-    stop("the image ", config$image, " is not in its registry, so release ", current$id,
+    stop("the image ", config$image, " is not in its registry, so ", label,
          " could not be finished", call. = FALSE)
   }
-
   ec2 <- ec2 %||% paws.compute::ec2(config = list(region = config$region))
-  id <- atlas_finish_id(current$id)
   deadline <- clock() + hours * 3600
   minutes_left <- function() as.numeric(difftime(deadline, clock(), units = "mins"))
-  command <- sprintf("finish-release --grid=%s --release=%s --workers=$WORKERS", grid, current$id)
   reported <- function() store$exists(atlas_shard_key(id, 1L, grid))
 
   terminate_all <- function() {
@@ -166,7 +182,7 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
   repeat {
     if (reported()) break
     if (clock() > deadline) {
-      stop("finishing release ", current$id, " ran past its ", hours, " h deadline; its worker was stopped",
+      stop("finishing ", label, " ran past its ", hours, " h deadline; its worker was stopped",
            call. = FALSE)
     }
     if (!is.na(instance)) {
@@ -176,7 +192,7 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
       gone <- if (length(state)) state[[1]] %in% ATLAS_EC2_GONE else instance %in% seen
       if (gone && !reported()) {
         if (attempts >= config$max_attempts) {
-          stop("finishing release ", current$id, " failed ", attempts, " times without reporting",
+          stop("finishing ", label, " failed ", attempts, " times without reporting",
                call. = FALSE)
         }
         say("finishing worker ", instance, " is gone without reporting; launching another")
@@ -189,13 +205,12 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
       if (!is.null(launched)) {
         attempts <- attempts + 1L
         instance <- launched
-        say("finishing release ", current$id, ": launched ", instance)
+        say("finishing ", label, ": launched ", instance)
       }
     }
     wait(poll_seconds)
   }
-  release <- atlas_apply_finish(store, current$id, grid, quiet = quiet)
   done <- TRUE
   terminate_all()
-  invisible(release)
+  invisible(TRUE)
 }

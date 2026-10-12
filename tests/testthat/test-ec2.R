@@ -40,7 +40,12 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
     for (id in names(state$instances)) {
       worker <- state$instances[[id]]
       if (!worker$state %in% c("pending", "running")) next
-      if (startsWith(worker$job, "finish-")) {
+      if (startsWith(worker$job, "finish-train-")) {
+        # Building a prior-only job's prior (R/prioronly.R), its build stubbed.
+        on_machine(machine(), atlas_finish_prior_only_work(
+          store, sub("^finish-", "", worker$job), quiet = TRUE, build = stub_prior_build))
+        worker$state <- "terminated"
+      } else if (startsWith(worker$job, "finish-")) {
         # A finishing worker (R/finish.R, tested in test-finish.R), with its
         # counting and index stubbed.
         on_machine(machine(), atlas_finish_release_work(
@@ -137,6 +142,24 @@ still_running <- function(ec2) {
 }
 
 user_data <- function(request) rawToChar(jsonlite::base64_dec(request$UserData))
+
+test_that("run-job-ec2 fits a prior-only job's shards, then builds its prior on one worker, never a release", {
+  skip_if_not_installed("terra")
+  base <- prior_only_setup()
+  job <- on_machine(base$boss, atlas_plan_prior_only(base$store, base$main$id, PRIOR_ONLY_CUTOFF,
+                                                     shards = 2L, quiet = TRUE))
+  current <- atlas_current_release(base$store)
+  ec2 <- fake_ec2(base$store)
+  summary <- run_on(list(store = base$store, boss = base$boss, job = job), ec2)
+  expect_equal(summary$job, job$id)
+  scripts <- vapply(ec2$state$requests, user_data, "")
+  expect_equal(sum(grepl("run-shard", scripts, fixed = TRUE)), job$shards)
+  expect_equal(sum(grepl(paste0("finish-prior-only --grid=draft --job=", job$id), scripts, fixed = TRUE)), 1L)
+  expect_false(any(grepl("finish-release", scripts, fixed = TRUE)))
+  expect_identical(atlas_current_release(base$store), current)
+  expect_true(base$store$exists(atlas_benchmark_key(job$id, "summary.json")))
+  expect_length(still_running(ec2), 0L)
+})
 
 # ---- whole jobs --------------------------------------------------------------
 
@@ -677,4 +700,27 @@ test_that("a pilot run with no finish fits every shard and builds no release", {
   expect_length(status$done, 2L)
   expect_false(isTRUE(status$finished))
   expect_length(still_running(ec2), 0L)
+})
+
+test_that("a prior-only job past its deadline publishes nothing, not even what its workers saved", {
+  skip_if_not_installed("terra")
+  base <- prior_only_setup()
+  job <- on_machine(base$boss, atlas_plan_prior_only(base$store, base$main$id, PRIOR_ONLY_CUTOFF,
+                                                     shards = 1L, quiet = TRUE))
+  current <- atlas_current_release(base$store)
+  ec2 <- fake_ec2(base$store, script = function(shard, attempt) if (attempt == 1L) "partial" else "hang")
+  # It is not even tried: finish-job would refuse it too, but run-job-ec2
+  # never asks.
+  tried <- FALSE
+  testthat::local_mocked_bindings(atlas_finish_job = function(...) {
+    tried <<- TRUE
+    stop("finish-job was called")
+  })
+  expect_error(run_on(list(store = base$store, boss = base$boss, job = job), ec2,
+                      config = test_config(base$store$uri, ATLAS_EC2_MAX_HOURS = "1")),
+               "prior-only job is never published, in part or whole")
+  expect_false(tried)
+  expect_length(still_running(ec2), 0L)
+  expect_identical(atlas_current_release(base$store), current)
+  expect_false(base$store$exists(atlas_benchmark_key(job$id, "summary.json")))
 })

@@ -228,6 +228,37 @@ A release made before these lists were kept has none. `./atlas trained-ids
 pull the release's job was planned from, which the store keeps, and the
 box's own pull besides; it refits nothing.
 
+## Vision's benchmark prior (a prior-only job)
+
+MycoMap Vision benchmarks on records validated after a cutoff, so it needs a
+prior fitted without them (`R_train`). A prior-only job refits the main
+release's strong models on that release's own pull, minus every record whose
+first green validation came after the cutoff. Vision hands over only the
+date. On the box, as the atlas user:
+
+```bash
+./atlas plan-job --prior-only --from-release=<R_main id> --validated-through=<YYYY-MM-DD>
+./atlas run-job-ec2 --job=<train-... id from plan-job>
+```
+
+It runs no null tests: grades come from `R_main`, and the summary says so.
+Its fits run like any job's; then one worker builds its prior. It is **never a
+release**: nothing is promoted, pulled to the box, served, archived or put in
+the sitemap. A job that runs past its deadline publishes nothing, and
+`finish-job` refuses it. Everything it makes is private:
+
+```
+private/vision-benchmark/<id>/prior/<grid>/      ranks.parquet, ranks.tsv.gz, taxa.tsv, grid.json
+private/vision-benchmark/<id>/summary.json       records left out (and the 0 dated after the cutoff kept),
+                                                 taxa refitted and lost, CPU-hours, worker hours, cost estimate
+private/trained-ids/<grid>/releases/<id>.tsv.gz  the records it was trained on
+```
+
+The pull it filters must carry first green dates: a main release fitted on a
+pull from before 2026-10-12 cannot be used. The cost estimate is worker hours
+x 32 vCPU x $0.025 per vCPU-hour (spot); `./atlas finish-prior-only
+--job=<id> --usd-per-vcpu-hour=<rate>` rebuilds it at another rate.
+
 ## The monthly budget alarm
 
 The limits above stop one job from running away; they say nothing about the
