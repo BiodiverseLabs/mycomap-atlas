@@ -10,6 +10,11 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/taxa`** and **`/api/taxa/{name}`** gain `sites`: each taxon's
+  5 km survey sites with a record, counted as the fits count them, for every
+  taxon including those with no map yet. It shows how close a taxon is to a
+  map's minimums (3 sites for a first map, 20 for the three full models). It
+  is not part of the fingerprint, so it changes no model. Added field.
 - **`GET /api/taxa/{name}`** gains `not_yet_validated`: how many of the
   taxon's sequenced records no validation project has given a verdict yet.
   The maps do not use them, and the count is not part of the taxon's
@@ -17,6 +22,19 @@ changed and what it means for you.
   counted them, and 0 when there are none. Added field. Releases carry the
   counts as `public/unvalidated.tsv.gz`, the Zenodo archive as
   `taxa-not-yet-validated.tsv.gz`.
+- **`GET /api/taxa/{name}/best-map`** is new: the one map to show for a
+  taxon, for apps that show a single map per species. It is the combined map
+  when two or more of the taxon's maps are strong, else its strong map with
+  the best held-out skill, else nothing, with a reason (`too_few_sites`,
+  `no_strong_model` or `not_modelled`). Always 200. It gives the overlay
+  (versioned URL, bounds within -180..180, pixel size, opacity), the legend, a
+  caption and the attribution. The shape is fixed by
+  `inst/api/fixtures/best-map.json`.
+- **`GET /api/maps/best`** is new: the same choice for every taxon that has
+  one, in one list, with an ETag (304 on If-None-Match).
+- **`GET /api/status`** gains `grading`: `"shift"` once maps are graded
+  against shifted null models. Added field.
+
 - **`GET /api/prior`** and **`GET /api/prior/{file}`** are new: the
   location prior, every strong map's ranks by 20 km cell over the whole of a
   taxon's reach (below the median included, unranked where the maps cannot
@@ -97,6 +115,18 @@ changed and what it means for you.
   hidden GPS point counts as none, so the location decides. A MyCoPortal record placed on a county's or state's centre is left
   out. Records with no cached answer yet are kept. Some taxa may drop below
   the sites a model needs.
+- **Records are named by their DNA.** A record is modelled under the name of
+  its approved sequences, not the name the record carries, which is often
+  never updated after the sequence is named (a record still called
+  *Tubaria* sp. 'IN01' whose sequences say *Tubaria hiemalis*). Records whose
+  sequences name two species, or only a genus, are left out, and so are
+  records with no approved named sequence mycomap.org can link to them (mostly
+  Mushroom Observer, MyCoPortal and GenBank records, which come back as those
+  links are built). A genus-only record whose sequences name a species now
+  counts. On the 8 October 2026 pull this renamed 4,837 records, left out
+  5,747, and changed the record set
+  of 1,435 taxa with 10 or more localities: *Tubaria hiemalis* goes from 3 to
+  125 localities, *Tubaria* sp. 'IN01' from 153 to 26.
 - A sparse map that failed its null test no longer quotes a skill rate
   borrowed from thinned common fungi; it says there are too few sites to
   tell.

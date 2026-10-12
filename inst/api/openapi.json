@@ -1578,6 +1578,338 @@
           }
         }
       }
+    },
+    "/api/taxa/{name}/best-map": {
+      "get": {
+        "tags": [
+          "Taxa"
+        ],
+        "operationId": "getTaxonBestMap",
+        "summary": "The one map to show for a taxon",
+        "description": "For apps that show a single map per species. Two or more maps that beat clustered collecting (grade strong; skill alone never counts): their combined map, with where its members disagree. One strong map, or several whose combined map is missing: the one drawn strongest (map strength, its margin over the shifted nulls), then the best blocked AUC. None: available is false and reason says why (too_few_sites, no_strong_model or not_modelled). Always 200, an unknown name included. The name is matched exactly, by spelling (case and punctuation), folded (author citations and rank words) or through a rename; matched_by says which. overlay.url carries v=, the PNG's md5, so it changes exactly when the picture is redrawn and can be cached for good. overlay.bounds always lie within -180..180: a map drawn past the antimeridian has crosses_antimeridian true and its west east of its east (react-native-maps' GroundOverlay cannot take such bounds: skip it or draw two halves). Maps are at most 1600 px on their long side. No coordinate or record is in the answer: only the map's bounds, which its picture covers. The shape is fixed by inst/api/fixtures/best-map.json.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/name"
+          },
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What to show, or why there is nothing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BestMap"
+                },
+                "examples": {
+                  "combined": {
+                    "value": {
+                      "requested": "Laccaria laccata",
+                      "taxon": "Laccaria laccata",
+                      "matched_by": "exact",
+                      "release": {
+                        "id": "20261012T080000Z-1a2b3c4d",
+                        "built_at": "2026-10-12T08:00:00Z"
+                      },
+                      "available": true,
+                      "reason": null,
+                      "reason_text": null,
+                      "choice": {
+                        "kind": "ensemble",
+                        "algorithm": null,
+                        "members": [
+                          "maxnet",
+                          "rf"
+                        ],
+                        "grade": "strong",
+                        "why": "Two or more of its maps beat clustered collecting, so this is their combined map.",
+                        "label": "All passing models together",
+                        "skill": {
+                          "auc": 0.69,
+                          "boyce": 0.91,
+                          "null_z": 3.4
+                        }
+                      },
+                      "overlay": {
+                        "url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
+                        "disagreement_url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?layer=disagreement&v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
+                        "bounds": {
+                          "south": 20.07,
+                          "west": -142.65,
+                          "north": 62.04,
+                          "east": -46.61
+                        },
+                        "crosses_antimeridian": false,
+                        "width": 1550,
+                        "height": 955,
+                        "opacity": 0.69
+                      },
+                      "legend": {
+                        "ramp": [
+                          "#f7f7e8",
+                          "#94c440",
+                          "#2e5a17"
+                        ],
+                        "low": "Lowest-rated ground",
+                        "high": "Highest-rated ground",
+                        "hatch": "No data like it: conditions unlike any surveyed site"
+                      },
+                      "caption": "Suitable habitat for Laccaria laccata, ranked within its own range. Suitable habitat, not a sighting; not for foraging.",
+                      "provisional": false,
+                      "page_url": "https://atlas.mycomap.org/taxa/Laccaria%20laccata",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/cells",
+                      "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
+                      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                    }
+                  },
+                  "single": {
+                    "value": {
+                      "requested": "mycena sp. 'IN10'",
+                      "taxon": "Mycena sp. 'IN10'",
+                      "matched_by": "spelling",
+                      "release": {
+                        "id": "20261012T080000Z-1a2b3c4d",
+                        "built_at": "2026-10-12T08:00:00Z"
+                      },
+                      "available": true,
+                      "reason": null,
+                      "reason_text": null,
+                      "choice": {
+                        "kind": "model",
+                        "algorithm": "esm",
+                        "members": [
+                          "esm"
+                        ],
+                        "grade": "strong",
+                        "why": "One of its maps beat clustered collecting: the one with the best skill on held-out ground.",
+                        "label": "Small-model ensemble",
+                        "skill": {
+                          "auc": 0.74,
+                          "boyce": 0.62,
+                          "null_z": 2.1
+                        }
+                      },
+                      "overlay": {
+                        "url": "https://atlas.mycomap.org/api/taxa/Mycena%20sp.%20%27IN10%27/map.png?algorithm=esm&v=9c1e0b7d2a4f6e8c0b2d4f6a8c0e2b4d",
+                        "disagreement_url": null,
+                        "bounds": {
+                          "south": 36.2,
+                          "west": -91.4,
+                          "north": 43.8,
+                          "east": -80.1
+                        },
+                        "crosses_antimeridian": false,
+                        "width": 620,
+                        "height": 512,
+                        "opacity": 0.53
+                      },
+                      "legend": {
+                        "ramp": [
+                          "#f7f7e8",
+                          "#94c440",
+                          "#2e5a17"
+                        ],
+                        "low": "Lowest-rated ground",
+                        "high": "Highest-rated ground",
+                        "hatch": "No data like it: conditions unlike any surveyed site"
+                      },
+                      "caption": "Suitable habitat for Mycena sp. 'IN10', ranked within its own range. Suitable habitat, not a sighting; not for foraging. A provisional name: a DNA lineage without a published species name yet.",
+                      "provisional": true,
+                      "page_url": "https://atlas.mycomap.org/taxa/Mycena%20sp.%20%27IN10%27",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Mycena%20sp.%20%27IN10%27/cells",
+                      "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
+                      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                    }
+                  },
+                  "no_strong_model": {
+                    "value": {
+                      "requested": "Trametes versicolor",
+                      "taxon": "Trametes versicolor",
+                      "matched_by": "exact",
+                      "release": {
+                        "id": "20261012T080000Z-1a2b3c4d",
+                        "built_at": "2026-10-12T08:00:00Z"
+                      },
+                      "available": false,
+                      "reason": "no_strong_model",
+                      "reason_text": "None of its maps has yet shown it beats clustered collecting, so there is no map to make a claim with.",
+                      "choice": null,
+                      "overlay": null,
+                      "legend": null,
+                      "caption": null,
+                      "provisional": false,
+                      "page_url": "https://atlas.mycomap.org/taxa/Trametes%20versicolor",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Trametes%20versicolor/cells",
+                      "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
+                      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                    }
+                  },
+                  "too_few_sites": {
+                    "value": {
+                      "requested": "Rhodotus reticeps",
+                      "taxon": "Rhodotus reticeps",
+                      "matched_by": "exact",
+                      "release": {
+                        "id": "20261012T080000Z-1a2b3c4d",
+                        "built_at": "2026-10-12T08:00:00Z"
+                      },
+                      "available": false,
+                      "reason": "too_few_sites",
+                      "reason_text": "Found at 2 independent places so far; a first map needs 3.",
+                      "choice": null,
+                      "overlay": null,
+                      "legend": null,
+                      "caption": null,
+                      "provisional": false,
+                      "page_url": "https://atlas.mycomap.org/taxa/Rhodotus%20reticeps",
+                      "cells_url": "https://atlas.mycomap.org/api/taxa/Rhodotus%20reticeps/cells",
+                      "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
+                      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                    }
+                  },
+                  "not_modelled": {
+                    "value": {
+                      "requested": "Nobody knowsius",
+                      "taxon": null,
+                      "matched_by": null,
+                      "release": {
+                        "id": "20261012T080000Z-1a2b3c4d",
+                        "built_at": "2026-10-12T08:00:00Z"
+                      },
+                      "available": false,
+                      "reason": "not_modelled",
+                      "reason_text": "Atlas has no DNA-validated records under this name.",
+                      "choice": null,
+                      "overlay": null,
+                      "legend": null,
+                      "caption": null,
+                      "provisional": false,
+                      "page_url": null,
+                      "cells_url": null,
+                      "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
+                      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/api/maps/best": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "operationId": "listBestMaps",
+        "summary": "Every taxon with a map to show, in one list",
+        "description": "The best-map choice (GET /api/taxa/{name}/best-map) for every taxon that has one, so an app can fetch it once per release. Sends an ETag; a request with If-None-Match set to it gets 304 and no body. Rebuilt at most once a minute.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/grid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BestMaps"
+                },
+                "example": {
+                  "release": {
+                    "id": "20261012T080000Z-1a2b3c4d",
+                    "built_at": "2026-10-12T08:00:00Z"
+                  },
+                  "grading": "shift",
+                  "count": 1,
+                  "legend": {
+                    "ramp": [
+                      "#f7f7e8",
+                      "#94c440",
+                      "#2e5a17"
+                    ],
+                    "low": "Lowest-rated ground",
+                    "high": "Highest-rated ground",
+                    "hatch": "No data like it: conditions unlike any surveyed site"
+                  },
+                  "attribution": "Map © MycoMap Atlas, CC BY-SA 4.0. Built on WorldClim 2.1 and the sources at https://atlas.mycomap.org/sources",
+                  "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+                  "items": [
+                    {
+                      "taxon": "Laccaria laccata",
+                      "kind": "ensemble",
+                      "algorithm": null,
+                      "grade": "strong",
+                      "presences": 129,
+                      "provisional": false,
+                      "url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
+                      "disagreement_url": "https://atlas.mycomap.org/api/taxa/Laccaria%20laccata/ensemble.png?layer=disagreement&v=3f2a9c0d1e5b7a64c8d2e0f1a3b5c7d9",
+                      "bounds": {
+                        "south": 20.07,
+                        "west": -142.65,
+                        "north": 62.04,
+                        "east": -46.61
+                      },
+                      "crosses_antimeridian": false,
+                      "width": 1550,
+                      "height": 955,
+                      "opacity": 0.69
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/X-RateLimit-Limit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/X-RateLimit-Remaining"
+              },
+              "X-Atlas-Tier": {
+                "$ref": "#/components/headers/X-Atlas-Tier"
+              },
+              "ETag": {
+                "description": "Changes when the list does.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The list is the one the request's If-None-Match names."
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidToken"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1805,6 +2137,10 @@
                 "description": "Hash of the record set the release was fitted on."
               }
             }
+          },
+          "grading": {
+            "type": "string",
+            "description": "How a map's grade is decided: \"shift\" (clustered, shifted null models) from the 2026-10 rebuild on. Absent before. Apps that show strong maps only can wait for it."
           }
         }
       },
@@ -1904,6 +2240,10 @@
           "localities": {
             "type": "integer",
             "description": "Distinct places about 1 km apart. A better guide than records to what a model can learn."
+          },
+          "sites": {
+            "type": "integer",
+            "description": "The taxon's 5 km survey sites with a record (ATLAS_SITE_KM, as the fits count them): what a map's minimums are about (3 sites for a first map, 20 for the three full models). Every taxon, mapped or not. Absent from a pull made before sites were counted. Not part of the fingerprint."
           },
           "fingerprint": {
             "type": "string",
@@ -3319,6 +3659,443 @@
           "definition": {
             "type": "object",
             "description": "grid.json: crs, extent, cell_m, ncol, nrow, cell_id (the numbering), python (a numpy cell lookup), columns and reading."
+          }
+        }
+      },
+      "BestMapLegend": {
+        "type": "object",
+        "required": [
+          "ramp",
+          "low",
+          "high",
+          "hatch"
+        ],
+        "properties": {
+          "ramp": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "low": {
+            "type": "string"
+          },
+          "high": {
+            "type": "string"
+          },
+          "hatch": {
+            "type": "string"
+          }
+        }
+      },
+      "BestMapOverlay": {
+        "type": "object",
+        "required": [
+          "url",
+          "disagreement_url",
+          "bounds",
+          "crosses_antimeridian",
+          "width",
+          "height",
+          "opacity"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "bounds": {
+            "type": "object",
+            "required": [
+              "south",
+              "west",
+              "north",
+              "east"
+            ],
+            "properties": {
+              "south": {
+                "type": "number"
+              },
+              "west": {
+                "type": "number"
+              },
+              "north": {
+                "type": "number"
+              },
+              "east": {
+                "type": "number"
+              }
+            }
+          },
+          "crosses_antimeridian": {
+            "type": "boolean"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "opacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "disagreement_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For a combined map: where its member maps disagree, as an image over the same bounds. Null for a single model."
+          }
+        }
+      },
+      "BestMapRelease": {
+        "type": "object",
+        "required": [
+          "id",
+          "built_at"
+        ],
+        "properties": {
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "built_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "BestMap": {
+        "type": "object",
+        "required": [
+          "requested",
+          "taxon",
+          "matched_by",
+          "release",
+          "available",
+          "reason",
+          "reason_text",
+          "choice",
+          "overlay",
+          "legend",
+          "caption",
+          "provisional",
+          "page_url",
+          "cells_url",
+          "attribution",
+          "license_url"
+        ],
+        "properties": {
+          "requested": {
+            "type": "string"
+          },
+          "taxon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "matched_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "exact",
+              "spelling",
+              "folded",
+              "renamed",
+              null
+            ]
+          },
+          "release": {
+            "$ref": "#/components/schemas/BestMapRelease"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "too_few_sites",
+              "no_strong_model",
+              "not_modelled",
+              null
+            ]
+          },
+          "reason_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "choice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "algorithm",
+                  "members",
+                  "grade",
+                  "why",
+                  "label",
+                  "skill"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "ensemble",
+                      "model"
+                    ]
+                  },
+                  "algorithm": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "maxnet",
+                      "xgboost",
+                      "rf",
+                      "esm",
+                      null
+                    ]
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "grade": {
+                    "type": "string",
+                    "enum": [
+                      "strong",
+                      "weak"
+                    ]
+                  },
+                  "why": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "skill": {
+                    "type": "object",
+                    "properties": {
+                      "auc": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "boyce": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "null_z": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "overlay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BestMapOverlay"
+              }
+            ]
+          },
+          "legend": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BestMapLegend"
+              }
+            ]
+          },
+          "caption": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provisional": {
+            "type": "boolean"
+          },
+          "page_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "license_url": {
+            "type": "string"
+          },
+          "cells_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The taxon's 0.1 degree collection cells, offered whether or not it has a map. Null for an unknown name."
+          }
+        }
+      },
+      "BestMaps": {
+        "type": "object",
+        "required": [
+          "release",
+          "grading",
+          "count",
+          "legend",
+          "attribution",
+          "license_url",
+          "items"
+        ],
+        "properties": {
+          "release": {
+            "$ref": "#/components/schemas/BestMapRelease"
+          },
+          "grading": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "legend": {
+            "$ref": "#/components/schemas/BestMapLegend"
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "license_url": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "taxon",
+                "kind",
+                "algorithm",
+                "grade",
+                "presences",
+                "provisional",
+                "url",
+                "disagreement_url",
+                "bounds",
+                "crosses_antimeridian",
+                "width",
+                "height",
+                "opacity"
+              ],
+              "properties": {
+                "taxon": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "ensemble",
+                    "model"
+                  ]
+                },
+                "algorithm": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "grade": {
+                  "type": "string"
+                },
+                "presences": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "provisional": {
+                  "type": "boolean"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "bounds": {
+                  "type": "object",
+                  "required": [
+                    "south",
+                    "west",
+                    "north",
+                    "east"
+                  ],
+                  "properties": {
+                    "south": {
+                      "type": "number"
+                    },
+                    "west": {
+                      "type": "number"
+                    },
+                    "north": {
+                      "type": "number"
+                    },
+                    "east": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "crosses_antimeridian": {
+                  "type": "boolean"
+                },
+                "width": {
+                  "type": "integer"
+                },
+                "height": {
+                  "type": "integer"
+                },
+                "opacity": {
+                  "type": "number"
+                },
+                "disagreement_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
           }
         }
       }
