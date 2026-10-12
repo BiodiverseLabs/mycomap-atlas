@@ -114,6 +114,18 @@ atlas_spatial_folds <- function(x, y, k = 5, block_km = 200, seed = 1L,
 # features, 35 times faster, and to r = 0.99999 with hinges, 1.4 times faster.
 ATLAS_MAXNET_PATH_STEPS <- 20L
 
+# glmnet's passes over the data, summed along the path, that a short path may
+# take before it gives up and maxnet's own 200 steps are fitted instead.
+# glmnet's own cap is 100,000, and a short-path step that does not converge
+# spends all of them: on Trametes versicolor (2026-10-12) one fold's fit
+# (lqh, regmult 0.5, 6,758 rows by 3,500 features) ground for 807 s to its
+# cap, after which the 200-step path fitted in 3 s on 1,701 passes. Every
+# short path that converged in that taxon's fits took 169 to 2,308. Capped at
+# 5,000, such a step gives up in about 20 s; the null test fits about 500
+# models, and a few stalls each had cost a taxon hours (job
+# 20261012T135059Z-fd7c13c5). A fit the cap stops is then maxnet's own.
+ATLAS_MAXNET_SHORT_PATH_PASSES <- 5000L
+
 #' Fit Maxent to a training table.
 #'
 #' maxnet adds presences to the background itself, but checks every presence
@@ -294,11 +306,14 @@ atlas_fit_sharing <- function(algo, params, seed, features, tuning = TRUE) {
 }
 
 #' One penalised fit along a path of penalties: maxnet's glmnet call. An
-#' offset, when given, is added to every row's linear predictor.
-atlas_glmnet_path <- function(mm, p, reg, lambda, weights, offset = NULL) {
+#' offset, when given, is added to every row's linear predictor; maxit caps
+#' glmnet's passes over the data along the whole path (glmnet's own default
+#' unless given), and a path that reaches it stops short of its last penalty.
+atlas_glmnet_path <- function(mm, p, reg, lambda, weights, offset = NULL, maxit = 1e5) {
   suppressWarnings(glmnet::glmnet(
     x = mm, y = as.factor(p), family = "binomial", standardize = FALSE,
-    penalty.factor = reg, lambda = lambda, weights = weights, offset = offset
+    penalty.factor = reg, lambda = lambda, weights = weights, offset = offset,
+    maxit = maxit
   ))
 }
 
@@ -319,7 +334,8 @@ atlas_glmnet_path <- function(mm, p, reg, lambda, weights, offset = NULL) {
 atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult = 1,
                          regfun = atlas_maxnet_regularization,
                          steps = ATLAS_MAXNET_PATH_STEPS, features = NULL,
-                         background_weight = NULL, offset = NULL) {
+                         background_weight = NULL, offset = NULL,
+                         short_passes = ATLAS_MAXNET_SHORT_PATH_PASSES) {
   if (anyNA(data)) {
     stop("NA values in data table. Please remove them and rerun.", call. = FALSE)
   }
@@ -337,12 +353,15 @@ atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult =
   glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
   path <- function(steps) {
     lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
-    atlas_glmnet_path(mm, p, reg, lambda, weights, offset = offset)
+    # A short path gets a pass budget (ATLAS_MAXNET_SHORT_PATH_PASSES);
+    # maxnet's own path keeps glmnet's.
+    atlas_glmnet_path(mm, p, reg, lambda, weights, offset = offset,
+                      maxit = if (steps < 200L) short_passes else 1e5)
   }
   model <- path(steps)
   # A short path takes big steps, and now and then one does not converge
-  # within glmnet's iterations, which a 200-step path would have: fall back
-  # to maxnet's own path for that fit, so it fails only where maxnet would.
+  # within its passes, which a 200-step path would have: fall back to
+  # maxnet's own path for that fit, so it fails only where maxnet would.
   if (length(model$lambda) < steps && steps < 200L) {
     steps <- 200L
     model <- path(steps)
