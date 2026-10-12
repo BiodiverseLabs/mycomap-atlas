@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@fontsource-variable/fraunces':
-        specifier: ^5.3.0
-        version: 5.3.0
+      '@fontsource-variable/libre-franklin':
+        specifier: 5.2.8
+        version: 5.2.8
       '@fontsource-variable/source-sans-3':
         specifier: ^5.3.0
         version: 5.3.0
@@ -324,8 +324,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@fontsource-variable/fraunces@5.3.0':
-    resolution: {integrity: sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA==}
+  '@fontsource-variable/libre-franklin@5.2.8':
+    resolution: {integrity: sha512-Ffl+p4aO3jcZmxzDmRafi5e6bI3qzMN3UxG2QOSvpeKgXMr93jtHOmlLHMsBOYccnpDmL55PBq65ayQJmfC0Rw==}
 
   '@fontsource-variable/source-sans-3@5.3.0':
     resolution: {integrity: sha512-dpi0GZk7EQe2tYpg6Q0Fx0OmUgnuGu+0rHPgtXqtKhglYmJuP7jZ12Mu1uN+NfRaJRY1Emn8AQJEWzmoZ4wa9g==}
@@ -1216,7 +1216,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@fontsource-variable/fraunces@5.3.0': {}
+  '@fontsource-variable/libre-franklin@5.2.8': {}
 
   '@fontsource-variable/source-sans-3@5.3.0': {}
 
