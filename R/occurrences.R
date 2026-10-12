@@ -169,7 +169,7 @@ ATLAS_MO_UNKNOWN <- "keep"
 
 # What .org holds for an MO record is not the observer's GPS point: its index
 # takes MO's GPS field and then overwrites it with the named location's
-# centre, or a geocoded point near it (data inputs lane, 2026-10-07: of 333
+# centre, or a geocoded point near it (measured 2026-10-07: of 333
 # cached green MO rows, 47 sat outside their own location box, and only 4 of
 # the 12 with a visible GPS point held that point). So Atlas takes an MO
 # record's coordinate from .org's cache of MO's own answer, not from .org's

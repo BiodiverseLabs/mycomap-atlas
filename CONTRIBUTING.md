@@ -81,6 +81,15 @@ Layers live in the registry in `R/layers.R`. A new entry needs:
 - A note about what the layer does **not** say. Tree cover is a fraction, not
   host identity, and the registry says so.
 
+## Reading the code
+
+Comments record why, not only what. A decision is credited and dated where it
+was made, as in "(Steve, 2026-10-06)": Steve is MycoMap's project lead, and the
+note says the choice was deliberate, so a change to it should be argued in the
+pull request rather than made in passing. The method in full is in
+[docs/method.md](docs/method.md), and the commands in
+[docs/running.md](docs/running.md).
+
 ## Pull requests
 
 Keep them to one topic. Explain any new dependency — the web app's dependency

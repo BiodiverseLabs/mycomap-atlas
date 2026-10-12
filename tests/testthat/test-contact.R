@@ -5,7 +5,7 @@
 contact_root <- function() testthat::test_path("..", "..")
 
 contact_files <- function(root) {
-  dirs <- c("R", "inst", "web/src", "web/public", "deploy")
+  dirs <- c("R", "inst", "web/src", "web/public", "deploy", "docs")
   files <- unlist(lapply(file.path(root, dirs), list.files, full.names = TRUE, recursive = TRUE))
   top <- file.path(root, c("DESCRIPTION", "SECURITY.md", "README.md", "CONTRIBUTING.md",
                            "CHANGELOG.md", "web/index.html"))

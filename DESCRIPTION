@@ -5,10 +5,11 @@ Version: 0.0.0.9000
 Authors@R: person("MycoMap", role = c("aut", "cre"), email = "info@mycomap.org")
 Description: Fits and publishes species distribution models for fungi from
     DNA-validated MycoMap records. Reads mycomap.org through its read-only SQL
-    route, fits Maxent (maxnet) and boosted-tree models against a target-group
+    route, fits Maxent (maxnet), boosted-tree and random-forest models, and
+    ensembles of small models for taxa with few sites, against a target-group
     background drawn from the same validated universe, evaluates them with
-    spatially blocked folds, and publishes versioned map and metric releases
-    that mycomap.org and MycoMap Vision read over HTTP.
+    spatially blocked folds against null models, and publishes versioned map
+    and metric releases that mycomap.org and MycoMap Vision read over HTTP.
 License: GPL (>= 3)
 Encoding: UTF-8
 Imports:
