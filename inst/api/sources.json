@@ -347,11 +347,11 @@
       "role": "Icons."
     },
     {
-      "name": "@fontsource-variable/fraunces",
+      "name": "@fontsource-variable/libre-franklin",
       "group": "web",
       "license": "OFL-1.1",
-      "url": "https://fontsource.org/fonts/fraunces",
-      "role": "Fraunces, the headings' typeface (Undercase Type), served from this site rather than Google Fonts."
+      "url": "https://fontsource.org/fonts/libre-franklin",
+      "role": "Libre Franklin, the headings' typeface (Impallari Type), served from this site rather than Google Fonts."
     },
     {
       "name": "@fontsource-variable/source-sans-3",
