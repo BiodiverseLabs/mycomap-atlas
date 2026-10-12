@@ -1,10 +1,11 @@
 # Finishing a release: what needs every map at once.
 #
 # A job's workers each fit a share of the models, so nothing they make can
-# depend on all of them. Three products do: the "what could grow here" index
+# depend on all of them. Four products do: the "what could grow here" index
 # (R/here.R) and the location prior (R/prior.R), both built from every strong
-# map, and each map's counts by state (R/predictions.R), which maps drawn
-# before those counts existed lack. Until this step the index was built only by hand, and no
+# map; each taxon's combined map of its strong models (R/ensemble.R); and each
+# map's counts by state (R/predictions.R), which maps drawn before those
+# counts existed lack. Until this step the index was built only by hand, and no
 # release made by a job ever carried one, so the Explore page had nothing to
 # answer from.
 #
@@ -17,9 +18,10 @@
 # fit still finishes a release that never was.
 
 # Raised whenever finishing comes to add something new, so that every
-# release is finished again under the new rule. 2: the location prior, and the
-# index ranked inside each map's area of applicability. Finishing again
-# refits nothing: it reads the release's maps and adds what it builds.
+# release is finished again under the new rule. 2: the location prior, the
+# index ranked inside each map's area of applicability, and the combined maps
+# (until now built only by hand, so no job's release had them). Finishing
+# again refits nothing: it reads the release's maps and adds what it builds.
 ATLAS_FINISH_VERSION <- 2L
 
 #' Whether a release has been finished under the current rule.
@@ -39,23 +41,35 @@ atlas_finish_id <- function(release_id) paste0("finish-", release_id)
 #' build_index are replaceable for tests.
 atlas_finish_release_work <- function(store = atlas_store(), release, grid = "draft", workers = 1L,
                                       quiet = FALSE, count = atlas_count_regions,
-                                      build_index = atlas_build_finish_indexes) {
+                                      build_index = atlas_build_finish_indexes,
+                                      ensembles = atlas_build_ensembles) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   started <- Sys.time()
   manifest <- atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
   atlas_pull_release(store, grid, release = release, rasters = TRUE, quiet = quiet)
 
   counted <- count(grid = grid, workers = workers, only_missing = TRUE, quiet = quiet)
+  # The combined maps: built for each taxon with two or more strong maps,
+  # removed for one that has fallen below. The release gets both.
+  ensemble_dir <- atlas_path("models", grid, "ensemble")
+  ensemble_files <- function() {
+    files <- list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE)
+    substring(normalizePath(files, winslash = "/"), nchar(normalizePath(atlas_data_dir(), winslash = "/")) + 2L)
+  }
+  had <- ensemble_files()
+  ensembles(grid = grid, quiet = quiet)
   build_index(grid = grid, quiet = quiet)
 
-  # What differs from the release: counted metrics, the new index and prior.
+  # What differs from the release: counted metrics, the combined maps, the
+  # new index and prior.
   published <- stats::setNames(vapply(manifest$files, function(f) f$sha256, ""),
                                vapply(manifest$files, function(f) f$path, ""))
   root <- atlas_data_dir()
   metrics <- unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
     list.files(atlas_model_dir(grid, a), pattern = "[.]json$", full.names = TRUE)
   }), use.names = FALSE)
-  built <- c(atlas_here_index_path(grid), file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES))
+  built <- c(atlas_here_index_path(grid), file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES),
+             list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE))
   candidates <- substring(normalizePath(c(metrics, built), winslash = "/", mustWork = FALSE),
                           nchar(normalizePath(root, winslash = "/")) + 2L)
   candidates <- candidates[file.exists(file.path(root, candidates))]
@@ -69,10 +83,11 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
     started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     counted = as.integer(counted %||% 0L),
-    files = changed
+    files = changed,
+    removed = as.list(setdiff(had, ensemble_files()))
   )
   atlas_store_json(store, atlas_shard_key(id, 1L, grid), record)
-  say("finished release ", release, ": counted ", record$counted, " maps by state, built the index and prior; ",
+  say("finished release ", release, ": counted ", record$counted, " maps by state, built the combined maps, index and prior; ",
       length(changed), " files changed, ", uploaded$count, " uploaded (",
       round(uploaded$bytes / 1048576, 1), " MB)")
   invisible(record)
@@ -96,6 +111,7 @@ atlas_apply_finish <- function(store = atlas_store(), release, grid = "draft", q
   files <- list()
   for (f in base$files) files[[f$path]] <- f
   for (f in record$files) files[[f$path]] <- f
+  for (p in unlist(record$removed)) files[[p]] <- NULL
 
   kept <- base[intersect(names(base), c("job", "job_results", "retired", "partial", "unreported_shards"))]
   finished <- atlas_write_release(
