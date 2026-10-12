@@ -40,10 +40,11 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
     for (id in names(state$instances)) {
       worker <- state$instances[[id]]
       if (!worker$state %in% c("pending", "running")) next
-      if (startsWith(worker$job, "finish-train-")) {
+      if (startsWith(worker$job, "finish-train-") || startsWith(worker$job, "finish-cont-")) {
         # Building a prior-only job's prior (R/prioronly.R), its build stubbed.
         on_machine(machine(), atlas_finish_prior_only_work(
-          store, sub("^finish-", "", worker$job), quiet = TRUE, build = stub_prior_build))
+          store, sub("^finish-", "", worker$job), quiet = TRUE, build = stub_prior_build,
+          build_continent = stub_continent_build))
         worker$state <- "terminated"
       } else if (startsWith(worker$job, "finish-")) {
         # A finishing worker (R/finish.R, tested in test-finish.R), with its

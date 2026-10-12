@@ -261,7 +261,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             occurrences = NULL, points = NULL, stack = NULL,
                             layers = NULL, algorithm = "maxnet",
                             nulls = ATLAS_NULL_REPS, tune = TRUE,
-                            fit = atlas_fit_taxon, on_row = NULL) {
+                            fit = atlas_fit_taxon, on_row = NULL, continent = FALSE) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
@@ -352,6 +352,9 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
     predict = predict, quiet = TRUE, layers = layers, algorithm = algo$id,
     nulls = nulls, tune = tune
   )
+  # Only prior-only jobs ask for the continent projection (R/continent.R);
+  # every other fit is called exactly as before.
+  if (isTRUE(continent)) args$continent <- TRUE
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
     atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)

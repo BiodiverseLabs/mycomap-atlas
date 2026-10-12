@@ -1046,7 +1046,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             layers = NULL, algorithm = "maxnet",
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
                             tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
-                            guilds = atlas_guild_table(), importance = TRUE) {
+                            guilds = atlas_guild_table(), importance = TRUE,
+                            continent = FALSE) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
@@ -1288,6 +1289,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     package_version = as.character(utils::packageVersion(algo$package)),
     terra_version = as.character(utils::packageVersion("terra"))
   )
+  # Continent-wide too, for Vision, when asked (R/continent.R): after the
+  # in-area map, which it leaves as it is.
+  if (isTRUE(continent) && !is.null(suitability)) {
+    projection <- atlas_continent_projection(model, held_score, aoa, stack, suitability, dissimilarity)
+    if (isTRUE(write)) atlas_write_continent(projection, name, grid, algo$id)
+    metrics$continent <- projection$summary
+  }
   if (isTRUE(write)) {
     atlas_write_json(metrics, atlas_model_path(name, grid, ".json", algo$id))
   }
@@ -1326,7 +1334,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
 #' Delete a taxon's map, leaving its scores.
 atlas_remove_map <- function(name, grid = "draft", algorithm = "maxnet") {
-  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml", ".di.tif"), algorithm)
+  paths <- atlas_model_path(name, grid, c(".tif", ".png", ".png.aux.xml", ".di.tif", ATLAS_CONTINENT_EXT), algorithm)
   unlink(paths[file.exists(paths)])
   invisible(paths)
 }

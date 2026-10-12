@@ -112,6 +112,9 @@ atlas_usage <- function() {
   message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
   message("                                refit a release's strong models on its pull without the records")
   message("                                validated after the date, for Vision's benchmark: never a release")
+  message("      --continent-only --from-release=ID")
+  message("                                refit a release's strong models unchanged for their private")
+  message("                                continent projections, checking each refit matches the release")
   message("  run-shard          fit one shard of a job and upload the results")
   message("      --job=ID --shard=N        which (both required)")
   message("      --workers=N               fits at once on this machine (default 1)")
@@ -503,7 +506,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "plan-job" = {
-      if (isTRUE(flags$prior_only)) {
+      if (isTRUE(flags$continent_only)) {
+        if (is.null(flags$from_release)) stop("plan-job --continent-only needs --from-release=ID", call. = FALSE)
+        atlas_plan_continent_only(atlas_flag_store(flags), from_release = as.character(flags$from_release),
+                                  grid = atlas_flag_grid(flags),
+                                  shards = as.integer(atlas_flag_number(flags, "shards", 4)))
+      } else if (isTRUE(flags$prior_only)) {
         if (is.null(flags$from_release) || is.null(flags$validated_through)) {
           stop("plan-job --prior-only needs --from-release=ID and --validated-through=YYYY-MM-DD", call. = FALSE)
         }

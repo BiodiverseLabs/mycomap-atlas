@@ -33,6 +33,16 @@ map_fit <- function(grades = list(), seen = new.env()) {
     terra::values(r) <- seq_len(terra::ncell(r))
     terra::writeRaster(r, atlas_model_path(name, grid, ".tif", algorithm), overwrite = TRUE)
     metrics <- out$metrics
+    # A continent projection when asked, as a real fit writes one: a fixed
+    # rank and dissimilarity on four 20 km cells, the same every time.
+    if (isTRUE(args$continent)) {
+      cont <- terra::rast(ncols = 2, nrows = 2, xmin = -2.2e6, xmax = -2.16e6, ymin = 5e5, ymax = 5.4e5,
+                          crs = ATLAS_CRS, nlyrs = 2)
+      terra::values(cont) <- cbind(c(10, 40, 70, 100), c(0.2, 0.4, 1.5, 3))
+      names(cont) <- c("rank", "dissimilarity")
+      terra::writeRaster(cont, atlas_model_path(name, grid, ATLAS_CONTINENT_EXT, algorithm), overwrite = TRUE)
+      metrics$continent <- list(cell_km = 20, cells = 4L)
+    }
     metrics$map <- "x.png"
     metrics$auc_mean <- 0.7
     if (!is.null(grades[[name]])) metrics$grade <- grades[[name]]
@@ -64,4 +74,14 @@ stub_prior_build <- function(grid = "draft", quiet = TRUE) {
   utils::write.table(taxa, atlas_prior_path("taxa.tsv", grid), sep = "\t", quote = FALSE, row.names = FALSE)
   atlas_write_json(list(taxa = nrow(taxa), rows = 0L), atlas_prior_path("grid.json", grid))
   list(taxa = taxa, ranks = ranks)
+}
+
+# And for the continent export.
+stub_continent_build <- function(grid = "draft", quiet = TRUE) {
+  dir.create(atlas_continent_dir(grid), recursive = TRUE, showWarnings = FALSE)
+  taxa <- data.frame(taxon_id = integer(), name = character())
+  table <- data.frame(taxon_id = integer(), cell_id = integer(), rank = integer(), aoa = integer())
+  atlas_write_tsv_gz(table, file.path(atlas_continent_dir(grid), "continent.tsv.gz"))
+  utils::write.table(taxa, file.path(atlas_continent_dir(grid), "taxa.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+  list(taxa = taxa, table = table)
 }

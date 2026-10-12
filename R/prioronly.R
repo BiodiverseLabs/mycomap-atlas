@@ -83,15 +83,33 @@ atlas_in_scratch_data_dir <- function(code, dir = tempfile("atlas-prior-only-"))
   force(code)
 }
 
-#' Plan a prior-only job from a release (R_main) and a cutoff date.
+#' Plan a prior-only job from a release (R_main) and a cutoff date: R_train,
+#' with its prior, trained ids and (continent = TRUE) continent projection.
 atlas_plan_prior_only <- function(store = atlas_store(), from_release, validated_through,
-                                  grid = "draft", shards = 4L, tasks_per_shard = NULL, quiet = FALSE) {
-  say <- function(...) if (!isTRUE(quiet)) message(...)
+                                  grid = "draft", shards = 4L, tasks_per_shard = NULL, quiet = FALSE,
+                                  continent = TRUE) {
   if (!is.character(validated_through) || length(validated_through) != 1L ||
       !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", validated_through) ||
       is.na(as.Date(validated_through, format = "%Y-%m-%d"))) {
     stop("--validated-through must be a date, YYYY-MM-DD", call. = FALSE)
   }
+  atlas_plan_refit(store, from_release, validated_through, "train", grid, shards, tasks_per_shard,
+                   quiet, continent)
+}
+
+#' Plan a continent-only job: the main release's own strong models refitted on
+#' its own pull with nothing left out, only for their continent projections.
+#' The same data, settings, layers and seeds make the same models, and
+#' finishing checks that each refit's in-area map is byte-identical to the
+#' release's.
+atlas_plan_continent_only <- function(store = atlas_store(), from_release, grid = "draft", shards = 4L,
+                                      tasks_per_shard = NULL, quiet = FALSE) {
+  atlas_plan_refit(store, from_release, NULL, "continent", grid, shards, tasks_per_shard, quiet, TRUE)
+}
+
+atlas_plan_refit <- function(store, from_release, validated_through, purpose, grid, shards,
+                             tasks_per_shard, quiet, continent) {
+  say <- function(...) if (!isTRUE(quiet)) message(...)
   key <- paste0("releases/", grid, "/", from_release, ".json")
   if (!store$exists(key)) stop("no release ", from_release, " for the ", grid, " grid", call. = FALSE)
   base <- atlas_store_text(store, key)
@@ -106,7 +124,13 @@ atlas_plan_prior_only <- function(store = atlas_store(), from_release, validated
   pull_file <- tempfile(fileext = ".tsv.gz")
   on.exit(unlink(pull_file), add = TRUE)
   store$get(atlas_object_key(pull_entry$sha256), pull_file)
-  filtered <- atlas_filter_validated_through(atlas_read_occurrences(pull_file), validated_through)
+  pulled <- atlas_read_occurrences(pull_file)
+  filtered <- if (identical(purpose, "train")) {
+    atlas_filter_validated_through(pulled, validated_through)
+  } else {
+    list(occurrences = pulled, counts = list(records_in_pull = nrow(pulled), records_removed = 0L,
+                                             records_after_cutoff_kept = 0L))
+  }
   if (filtered$counts$records_after_cutoff_kept != 0L) {
     stop("records validated after the cutoff survived the filter; nothing planned", call. = FALSE)
   }
@@ -129,8 +153,9 @@ atlas_plan_prior_only <- function(store = atlas_store(), from_release, validated
   assignment <- atlas_assign_shards(costs, shards)
   for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
 
-  id <- paste0("train-", atlas_release_id(digest::digest(list(tasks, from_release, validated_through),
-                                                         algo = "sha256")))
+  id <- paste0(if (identical(purpose, "train")) "train-" else "cont-",
+               atlas_release_id(digest::digest(list(tasks, from_release, validated_through, purpose),
+                                               algo = "sha256")))
   # The filtered pull goes to the workers as the job's pull. It is written in
   # a scratch directory, never over this machine's own pull.
   pull_entries <- atlas_in_scratch_data_dir({
@@ -148,41 +173,81 @@ atlas_plan_prior_only <- function(store = atlas_store(), from_release, validated
   })
   # Layers and the guild table exactly as R_main's job had them.
   others <- Filter(function(e) !startsWith(e$path, "occurrences/"), main_job$inputs %||% list())
-  trained_ids <- atlas_save_trained_pull(store, grid, occurrences)
+  trained_ids <- if (identical(purpose, "train")) atlas_save_trained_pull(store, grid, occurrences)
 
   job <- list(
-    id = id, grid = grid, kind = "prior-only",
+    id = id, grid = grid, kind = "prior-only", purpose = purpose,
     created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     from_release = from_release, from_job = main_job_id, validated_through = validated_through,
     algorithms = as.list(unique(vapply(tasks, function(t) t$algorithm, ""))),
     shards = max(assignment),
     # R_main's settings, with no null tests: the grades are R_main's.
-    fit = utils::modifyList(main_job$fit, list(nulls = 0)),
+    fit = utils::modifyList(main_job$fit, list(nulls = 0, continent = isTRUE(continent))),
     layers_key = main_job$layers_key,
     pull = base$pull,
     inputs = c(pull_entries, others),
     public = list(), tasks = tasks, retire = list(), deferred = 0L,
     trained_ids = trained_ids,
     filter = filtered$counts,
-    declared = paste("Grades are inherited from", from_release, "and were judged on records this job leaves",
-                     "out; no null tests were run.")
+    declared = if (identical(purpose, "train")) {
+      paste("Grades are inherited from", from_release, "and were judged on records this job leaves",
+            "out; no null tests were run.")
+    } else {
+      paste("The models of", from_release, "refitted on its own pull with its settings and seeds, for",
+            "their continent projections only; no null tests were run.")
+    }
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/job.json"), job)
-  say("prior-only job ", id, " from ", from_release, " validated through ", validated_through, ": ",
-      filtered$counts$records_removed, " of ", filtered$counts$records_in_pull, " records left out; ",
-      length(tasks), " strong models to refit in ", job$shards, " shard", if (job$shards == 1L) "" else "s")
+  say(if (identical(purpose, "train")) "prior-only" else "continent-only", " job ", id, " from ", from_release,
+      if (identical(purpose, "train")) paste0(" validated through ", validated_through, ": ",
+                                              filtered$counts$records_removed, " of ",
+                                              filtered$counts$records_in_pull, " records left out"),
+      "; ", length(tasks), " strong models to refit in ", job$shards, " shard", if (job$shards == 1L) "" else "s")
   invisible(job)
 }
 
-#' On a worker (or any machine): build the prior-only job's prior from its
-#' shards, and write its trained ids and summary. Everything happens in a
-#' scratch data directory, and goes only under the store's private prefixes.
+ATLAS_CONTINENT_PREFIX <- "private/atlas-continent"
+
+#' Where a refit job's products go: a benchmark (R_train) under its own id,
+#' the main release's continent projection under that release's id.
+atlas_refit_key <- function(job, ...) {
+  if (identical(job$purpose, "continent")) {
+    paste(c(ATLAS_CONTINENT_PREFIX, job$from_release, ...), collapse = "/")
+  } else {
+    atlas_benchmark_key(job$id, ...)
+  }
+}
+
+#' Each refitted model's in-area map against the main release's: the same
+#' data, settings, layers and seeds should give byte-identical files.
+atlas_refit_identity <- function(store, job, files, grid = "draft") {
+  base <- atlas_store_text(store, paste0("releases/", grid, "/", job$from_release, ".json"))
+  published <- stats::setNames(vapply(base$files, function(f) f$sha256, ""),
+                               vapply(base$files, function(f) f$path, ""))
+  rasters <- Filter(function(f) grepl("[.]tif$", f$path) && !grepl("[.](di|cont)[.]tif$", f$path), files)
+  missing <- vapply(rasters, function(f) is.na(published[f$path]), logical(1))
+  same <- vapply(rasters, function(f) identical(unname(published[f$path]), f$sha256), logical(1))
+  paths <- function(keep) as.list(vapply(rasters[keep], function(f) f$path, ""))
+  list(
+    compared = length(rasters),
+    identical = sum(same),
+    differ = paths(!same & !missing),
+    not_in_release = paths(missing)
+  )
+}
+
+#' On a worker (or any machine): finish a refit job from its shards. A
+#' benchmark (purpose "train") gets its prior, trained ids and, when its fits
+#' made them, its continent projection; the main release's continent job
+#' (purpose "continent") gets the projection and the identity check. All of it
+#' happens in a scratch data directory and goes only to private prefixes.
 atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draft", quiet = FALSE,
-                                         build = atlas_build_prior, usd_per_vcpu_hour = 0.025,
-                                         vcpus_per_worker = 32) {
+                                         build = atlas_build_prior, build_continent = atlas_build_continent,
+                                         usd_per_vcpu_hour = 0.025, vcpus_per_worker = 32) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   job <- atlas_read_job(store, id, grid)
   if (!atlas_is_prior_only(job)) stop("job ", id, " is not a prior-only job", call. = FALSE)
+  train <- !identical(job$purpose, "continent")
   status <- atlas_job_status(store, id, grid)
   if (length(status$missing)) {
     stop("job ", id, " is not finished: shard", if (length(status$missing) > 1L) "s " else " ",
@@ -198,6 +263,17 @@ atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draf
   grades <- list()
   for (t in job$tasks) grades[[paste(t$algorithm, t$taxon)]] <- t$inherited_grade
 
+  upload <- function(dir, names, ...) {
+    keys <- character()
+    for (file in names) {
+      path <- file.path(dir, file)
+      if (!file.exists(path)) next
+      key <- atlas_refit_key(job, ..., file)
+      store$put(key, path)
+      keys <- c(keys, key)
+    }
+    keys
+  }
   built <- atlas_in_scratch_data_dir({
     atlas_fetch_entries(store, files)
     # The grade each model had in the release this job refits: no null test
@@ -210,23 +286,29 @@ atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draf
       metrics$grade_inherited_from <- job$from_release
       atlas_write_json(metrics, path)
     }
-    prior <- build(grid = grid, quiet = quiet)
-    uploaded <- character()
-    for (file in ATLAS_PRIOR_FILES) {
-      path <- atlas_prior_path(file, grid)
-      if (!file.exists(path)) next
-      key <- atlas_benchmark_key(id, "prior", grid, file)
-      store$put(key, path)
-      uploaded <- c(uploaded, key)
+    out <- list(uploaded = character())
+    if (train) {
+      out$prior <- build(grid = grid, quiet = quiet)
+      out$uploaded <- c(out$uploaded, upload(atlas_prior_dir(grid), ATLAS_PRIOR_FILES, "prior", grid))
     }
-    list(prior = prior, uploaded = uploaded)
+    if (isTRUE(job$fit$continent)) {
+      out$continent <- build_continent(grid = grid, quiet = quiet)
+      # A benchmark's beside its prior; the main release's at its own prefix.
+      out$uploaded <- c(out$uploaded, upload(atlas_continent_dir(grid), ATLAS_CONTINENT_FILES,
+                                             if (train) c("continent", grid) else grid))
+    }
+    out
   })
 
   fitted <- Filter(function(r) identical(r$status, "fitted"), results)
-  fitted_index <- Filter(function(e) paste(e$algorithm, e$taxon) %in%
-                           vapply(fitted, function(r) paste(r$algorithm, r$taxon), ""), index)
-  trained <- atlas_write_trained_ids(store, list(id = id, index = fitted_index), grid,
-                                     prefer = atlas_json_string(job$trained_ids), quiet = TRUE)
+  fitted_paths <- unlist(lapply(fitted, function(r) atlas_model_relpaths(r$taxon, grid, r$algorithm)))
+  trained <- NULL
+  if (train) {
+    fitted_index <- Filter(function(e) paste(e$algorithm, e$taxon) %in%
+                             vapply(fitted, function(r) paste(r$algorithm, r$taxon), ""), index)
+    trained <- atlas_write_trained_ids(store, list(id = id, index = fitted_index), grid,
+                                       prefer = atlas_json_string(job$trained_ids), quiet = TRUE)
+  }
 
   planned_taxa <- unique(vapply(job$tasks, function(t) t$taxon, ""))
   fitted_taxa <- unique(vapply(fitted, function(r) r$taxon, ""))
@@ -242,8 +324,8 @@ atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draf
     as.numeric(difftime(as.POSIXct(r$finished_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
                         as.POSIXct(r$started_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), units = "hours"))
   }, 0), na.rm = TRUE)
-  summary <- list(
-    job = id, grid = grid, kind = "prior-only",
+  summary <- Filter(Negate(is.null), list(
+    job = id, grid = grid, kind = "prior-only", purpose = job$purpose %||% "train",
     from_release = job$from_release, validated_through = job$validated_through,
     finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     filter = job$filter,
@@ -254,23 +336,30 @@ atlas_finish_prior_only_work <- function(store = atlas_store(), id, grid = "draf
     taxa_planned = length(planned_taxa),
     taxa_refitted = length(fitted_taxa),
     taxa_lost = lost_rows,
-    prior = list(taxa = nrow(built$prior$taxa), rows = nrow(built$prior$ranks), files = as.list(built$uploaded)),
-    trained_ids = list(key = atlas_trained_release_key(id, grid), records = trained$records,
-                       not_found = trained$not_found),
+    prior = if (train) list(taxa = nrow(built$prior$taxa), rows = nrow(built$prior$ranks)),
+    continent = if (!is.null(built$continent)) list(taxa = nrow(built$continent$taxa),
+                                                     rows = nrow(built$continent$table)),
+    files = as.list(built$uploaded),
+    trained_ids = if (train) list(key = atlas_trained_release_key(id, grid), records = trained$records,
+                                  not_found = trained$not_found),
+    identity = if (!train) atlas_refit_identity(store, job, Filter(function(f) f$path %in% fitted_paths, files), grid),
     cpu_hours = round(seconds / 3600, 2),
     worker_hours = round(worker_hours, 2),
     cost_estimate_usd = round(worker_hours * vcpus_per_worker * usd_per_vcpu_hour, 2),
     cost_basis = sprintf("worker hours x %d vCPU x $%.3f per vCPU-hour (spot, estimate; a lost worker's hours are not counted)",
                          as.integer(vcpus_per_worker), usd_per_vcpu_hour),
     declared = job$declared
-  )
-  atlas_store_json(store, atlas_benchmark_key(id, "summary.json"), summary)
+  ))
+  atlas_store_json(store, atlas_refit_key(job, "summary.json"), summary)
   # The record the EC2 loop waits for, as a finishing worker writes one.
   atlas_store_json(store, atlas_shard_key(atlas_finish_id(id), 1L, grid),
                    list(job = atlas_finish_id(id), shard = 1L, prior_only = id, finished_at = summary$finished_at))
-  say("prior-only job ", id, ": ", length(fitted_taxa), " of ", length(planned_taxa), " taxa refitted, ",
-      length(lost), " lost; prior of ", summary$prior$taxa, " taxa; ", summary$cpu_hours, " CPU-h, about $",
-      summary$cost_estimate_usd, "; summary at ", atlas_benchmark_key(id, "summary.json"))
+  say(if (train) "prior-only" else "continent-only", " job ", id, ": ", length(fitted_taxa), " of ",
+      length(planned_taxa), " taxa refitted, ", length(lost), " lost",
+      if (!train) paste0("; ", summary$identity$identical, " of ", summary$identity$compared,
+                         " in-area maps identical to ", job$from_release),
+      "; ", summary$cpu_hours, " CPU-h, about $", summary$cost_estimate_usd, "; summary at ",
+      atlas_refit_key(job, "summary.json"))
   invisible(summary)
 }
 
@@ -288,5 +377,5 @@ atlas_finish_prior_only_on_ec2 <- function(store, job, grid = "draft", ec2 = NUL
     ec2 = ec2, config = config, poll_seconds = poll_seconds, wait = wait, quiet = quiet,
     clock = clock, hours = hours, image_exists = image_exists
   )
-  invisible(atlas_store_text(store, atlas_benchmark_key(job$id, "summary.json")))
+  invisible(atlas_store_text(store, atlas_refit_key(job, "summary.json")))
 }

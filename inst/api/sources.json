@@ -638,6 +638,13 @@
       "detail": "The source ids (iNaturalist, Mushroom Observer and the rest) of the records behind each release's models, so a benchmark can tell which of its test records a release has seen.",
       "availability": "withheld",
       "why": "A record id leads to its exact collection point, so the list stays in Atlas's private storage. It is never in a release, the API, this site or Zenodo."
+    },
+    {
+      "stage": "6. Release",
+      "name": "Continent-wide projections",
+      "detail": "Each strong map projected over the whole grid at 20 km, with how far it is extrapolating there, for MycoMap Vision's research on photo identification.",
+      "availability": "withheld",
+      "why": "Beyond a map's area of applicability its values are extrapolation, which is why the maps hatch that ground. Kept private until it is shown to be useful; a later public version would show only ground inside the area of applicability."
     }
   ]
 }
