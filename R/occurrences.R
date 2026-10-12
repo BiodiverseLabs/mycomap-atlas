@@ -283,7 +283,11 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
 
     n <- length(chunks) + 1L
     atlas_write_tsv_gz(page, file.path(raw_dir, sprintf("chunk-%04d.tsv.gz", n)))
-    chunks[[n]] <- page
+    # Each record's first green validation date, from a query of its own so
+    # the pull's rows and fingerprints stay as they were (R/firstgreen.R).
+    ids <- as.numeric(page$id)
+    slots <- atlas_parse_tsv(atlas_run_sql(atlas_first_green_sql(min(ids), max(ids)), host = host))
+    chunks[[n]] <- atlas_add_first_green(page, slots)
     total <- total + nrow(page)
     if (!quiet) {
       message(sprintf("  page %d: %d records (%d so far)", n, nrow(page), total))
@@ -315,7 +319,14 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
     taxa = nrow(taxa),
     fingerprint = atlas_fingerprint(occurrences),
     file = basename(combined),
-    sql = atlas_occurrence_sql(0, chunk_size, since)
+    # Private, like the rest of this manifest: atlas_release_pull_summary
+    # publishes none of it.
+    first_green = list(
+      records_with_date = sum(!is.na(occurrences[[ATLAS_FIRST_GREEN_FIELD]])),
+      latest = if (any(!is.na(occurrences[[ATLAS_FIRST_GREEN_FIELD]]))) max(occurrences[[ATLAS_FIRST_GREEN_FIELD]], na.rm = TRUE)
+    ),
+    sql = atlas_occurrence_sql(0, chunk_size, since),
+    first_green_sql = atlas_first_green_sql(0, 1)
   )
   atlas_write_json(manifest, atlas_path("occurrences", "latest.json", create = TRUE))
   atlas_write_json(taxa, atlas_path("occurrences", "taxa-latest.json", create = TRUE))
@@ -335,11 +346,12 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 20000,
 
 #' An empty pull, with the columns a real one has.
 atlas_empty_occurrences <- function() {
+  fields <- c(ATLAS_OCCURRENCE_FIELDS, ATLAS_FIRST_GREEN_FIELD)
   out <- as.data.frame(
-    matrix(character(), nrow = 0, ncol = length(ATLAS_OCCURRENCE_FIELDS)),
+    matrix(character(), nrow = 0, ncol = length(fields)),
     stringsAsFactors = FALSE
   )
-  names(out) <- ATLAS_OCCURRENCE_FIELDS
+  names(out) <- fields
   out
 }
 
