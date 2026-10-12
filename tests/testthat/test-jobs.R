@@ -378,3 +378,32 @@ test_that("a job whose shards all reported finishes as before, and is not marked
   expect_length(release$index, 5L)
   expect_null(release$partial)
 })
+
+test_that("a job's release carries each model's area-of-applicability layer, and a refit without one drops it", {
+  skip_if_not_installed("terra")
+  # A fit that writes a dissimilarity layer beside its raster, as a real one does.
+  with_aoa <- local({
+    f <- function(name, fingerprint, grid = "draft", algorithm = "maxnet", ...) {
+      out <- fake_fit(name, fingerprint, grid = grid, algorithm = algorithm, ...)
+      writeLines("dissimilarity", atlas_model_path(name, grid, ".di.tif", algorithm))
+      out
+    }
+    environment(f) <- globalenv()
+    f
+  })
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(synthetic_occurrences(TAXA)))
+  release <- full_cycle(store, boss, fit = with_aoa)
+  expect_true(all(c("models/draft/taxon-a.di.tif", "models/draft/rf/taxon-c.di.tif") %in% release_paths(release)))
+  # Pulled, it is where the index, the prior and the combined maps look for it.
+  on_machine(machine(), {
+    atlas_pull_release(store, quiet = TRUE)
+    expect_true(file.exists(atlas_model_path("Taxon B", "draft", ".di.tif", "rf")))
+  })
+  # A refit that writes none leaves no stale layer behind.
+  on_machine(boss, orchestrator_data(synthetic_occurrences(c(TAXA[-1], "Taxon A" = 26))))
+  again <- full_cycle(store, boss, fit = fake_fit)
+  expect_false("models/draft/taxon-a.di.tif" %in% release_paths(again))
+  expect_true("models/draft/taxon-b.di.tif" %in% release_paths(again))
+})

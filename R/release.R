@@ -233,9 +233,14 @@ atlas_code_commit <- function() {
   if (length(out) == 1L && grepl("^[0-9a-f]{40}$", out)) out else NA_character_
 }
 
-#' A model's published paths, relative to the data directory.
+#' A model's published paths, relative to the data directory: its metrics,
+#' suitability raster, drawn map and area-of-applicability layer. A job's
+#' shards upload these, and finishing a job puts them in the release, so a
+#' file missing here never reaches a job's release: until 2026-10-12 the
+#' .di.tif was, and the index, the prior and the combined maps built at
+#' finishing had no area of applicability to mask with.
 atlas_model_relpaths <- function(name, grid = "draft", algorithm = "maxnet",
-                                 extensions = c(".json", ".tif", ".png")) {
+                                 extensions = c(".json", ".tif", ".png", ".di.tif")) {
   slug <- gsub("(^-|-$)", "", gsub("[^a-z0-9]+", "-", tolower(name)))
   folder <- if (identical(algorithm, "maxnet")) file.path("models", grid) else file.path("models", grid, algorithm)
   file.path(folder, paste0(slug, extensions))
