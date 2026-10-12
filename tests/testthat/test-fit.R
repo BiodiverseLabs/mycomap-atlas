@@ -632,9 +632,9 @@ test_that("a short path that does not converge falls back to maxnet's own 200 st
   calls <- integer()
   real <- atlas_glmnet_path
   testthat::local_mocked_bindings(atlas_glmnet_path = function(mm, p, reg, lambda, weights,
-                                                               offset = NULL) {
+                                                               offset = NULL, maxit = 1e5) {
     calls <<- c(calls, length(lambda))
-    model <- real(mm, p, reg, lambda, weights, offset = offset)
+    model <- real(mm, p, reg, lambda, weights, offset = offset, maxit = maxit)
     # The first, short path stops short of its last penalty, as glmnet does
     # when a step does not converge.
     if (length(calls) == 1L) model$lambda <- model$lambda[-length(model$lambda)]
@@ -644,6 +644,50 @@ test_that("a short path that does not converge falls back to maxnet's own 200 st
   expect_equal(calls, c(ATLAS_MAXNET_PATH_STEPS, 200L))
   expect_equal(length(model$lambda), 200L)
   expect_true(all(is.finite(atlas_suitability(model, training[, c("v1", "v2")]))))
+})
+
+test_that("a short path's step that will not converge gives up within its pass budget, not glmnet's", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 600, n_presence = 50)
+  budgets <- list()
+  real <- atlas_glmnet_path
+  testthat::local_mocked_bindings(atlas_glmnet_path = function(mm, p, reg, lambda, weights,
+                                                               offset = NULL, maxit = 1e5) {
+    budgets[[length(budgets) + 1L]] <<- c(steps = length(lambda), maxit = maxit)
+    real(mm, p, reg, lambda, weights, offset = offset, maxit = maxit)
+  })
+  # The short path is held to its budget; maxnet's own path keeps glmnet's.
+  atlas_fit_maxnet(training, classes = "lq")
+  expect_equal(budgets, list(c(steps = ATLAS_MAXNET_PATH_STEPS, maxit = ATLAS_MAXNET_SHORT_PATH_PASSES)))
+  # With a budget it cannot finish in, the short path stops early and the fit
+  # is maxnet's own 200 steps, held only to glmnet's cap.
+  budgets <- list()
+  presence <- training$presence
+  data <- training[, c("v1", "v2")]
+  data <- rbind(data, data[presence == 1L, , drop = FALSE])
+  p <- c(presence, rep(0L, sum(presence == 1L)))
+  model <- atlas_maxnet(p, data, maxnet::maxnet.formula(p, data, classes = "lqh"), short_passes = 5L)
+  expect_equal(budgets, list(c(steps = ATLAS_MAXNET_PATH_STEPS, maxit = 5),
+                             c(steps = 200L, maxit = 1e5)))
+  expect_equal(length(model$lambda), 200L)
+  expect_true(all(is.finite(atlas_suitability(model, data))))
+})
+
+test_that("a short path that converges within its budget gives the model glmnet's own cap gives, byte for byte", {
+  skip_if_not_installed("maxnet")
+  training <- simulated_training(n_background = 600, n_presence = 50)
+  presence <- training$presence
+  data <- training[, c("v1", "v2")]
+  data <- rbind(data, data[presence == 1L, , drop = FALSE])
+  p <- c(presence, rep(0L, sum(presence == 1L)))
+  for (classes in c("lq", "lqh")) for (regmult in c(4, 1, 0.25)) {
+    f <- maxnet::maxnet.formula(p, data, classes = classes)
+    capped <- atlas_maxnet(p, data, f, regmult = regmult)
+    uncapped <- atlas_maxnet(p, data, f, regmult = regmult, short_passes = 1e5)
+    expect_equal(length(capped$lambda), ATLAS_MAXNET_PATH_STEPS)
+    expect_lt(capped$npasses, ATLAS_MAXNET_SHORT_PATH_PASSES)
+    expect_identical(capped, uncapped)
+  }
 })
 
 test_that("a null model whose fit fails is replaced, so the test keeps all its nulls", {
