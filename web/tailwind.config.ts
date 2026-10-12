@@ -12,7 +12,7 @@ export default {
     extend: {
       fontFamily: {
         // Self-hosted through @fontsource-variable (src/main.tsx).
-        species: ['"Source Sans 3 Variable"', "system-ui", "sans-serif"],
+        species: ['"Libre Franklin Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
         display: ['"Libre Franklin Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
       },
       borderRadius: {
