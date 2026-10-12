@@ -48,17 +48,15 @@
   }
 }
 
-/* Scientific names: italic, as on mycomap.org. */
+/* Scientific names: Libre Franklin italic 500, in running text and headings
+   alike, as on mycomap.org (Steve, 2026-10-06 and 2026-10-13). */
 .sci {
   @apply font-species italic;
+  font-weight: 500;
 }
 
-/* Headings: Libre Franklin 600, and a species name in one italic 500, as on
-   mycomap.org and MycoMap Vision (Steve chose both on their live pages). */
+/* Headings: Libre Franklin 600, as on mycomap.org and MycoMap Vision (Steve
+   chose it on the live Vision page). */
 .font-display {
   font-weight: 600;
-}
-.font-display .sci {
-  font-family: theme("fontFamily.display");
-  font-weight: 500;
 }
