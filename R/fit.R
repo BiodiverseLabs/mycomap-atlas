@@ -1190,8 +1190,9 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   full_seconds <- NA_real_
   if (!is.null(suitability) && atlas_full_extent_wanted(grade, full)) {
     started_full <- Sys.time()
-    full_suitability <- atlas_predict_raster_full(model, stack, held_score)
-    full_dissimilarity <- atlas_predict_raster_full(aoa, stack, atlas_aoa_index, name = "dissimilarity")
+    predicted <- atlas_predict_full_extent(model, held_score, aoa, stack, area, suitability, dissimilarity)
+    full_suitability <- predicted$suitability
+    full_dissimilarity <- predicted$dissimilarity
     full_seconds <- as.numeric(difftime(Sys.time(), started_full, units = "secs"))
   }
 

@@ -41,6 +41,35 @@ atlas_predict_raster_full <- function(model, stack, score, name = "suitability")
   predicted
 }
 
+#' The full-extent suitability and dissimilarity, predicting only the ground
+#' beyond the accessible area: inside it they are the default map's values,
+#' already predicted (about half of a widespread taxon's continent, measured
+#' 2026-10-12), so the full raster equals the default map there exactly.
+atlas_predict_full_extent <- function(model, score, aoa, stack, area, suitability, dissimilarity) {
+  template <- stack[[1]]
+  in_area <- !is.na(terra::values(terra::rasterize(area, template), mat = FALSE))
+  cells <- which(!in_area & !is.na(terra::values(template, mat = FALSE)))
+  data <- terra::extract(stack, cells)
+  data <- data[, setdiff(names(data), "ID"), drop = FALSE]
+  ok <- stats::complete.cases(data)
+  values <- rep(NA_real_, terra::ncell(template))
+  index <- rep(NA_real_, terra::ncell(template))
+  if (any(ok)) {
+    values[cells[ok]] <- score(model, data[ok, , drop = FALSE])
+    index[cells[ok]] <- atlas_aoa_index(aoa, data[ok, , drop = FALSE])
+  }
+  full <- terra::rast(template)
+  full_index <- terra::rast(template)
+  terra::values(full) <- values
+  terra::values(full_index) <- index
+  # Inside the accessible area: the default map's own values.
+  full <- terra::cover(terra::extend(suitability, full), full)
+  full_index <- terra::cover(terra::extend(dissimilarity, full_index), full_index)
+  names(full) <- "suitability"
+  names(full_index) <- "dissimilarity"
+  list(suitability = full, dissimilarity = full_index)
+}
+
 #' Where values fall among a reference, as atlas_rank_scale ranks the
 #' reference itself: a value in it gets its rank, (rank - 1) / (n - 1) with
 #' ties at their average; a value between two gets the midpoint of their

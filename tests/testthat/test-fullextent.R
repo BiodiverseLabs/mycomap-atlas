@@ -65,8 +65,12 @@ fit_synthetic <- function(full) {
                     guilds = stats::setNames(character(), character()), full = full)
     paths <- atlas_model_path("Eastern fungus", "draft", c(".tif", ".di.tif", ".png", ATLAS_FULL_EXTS))
     list(sha = vapply(paths, function(p) if (file.exists(p)) atlas_sha256(p) else NA_character_, "", USE.NAMES = FALSE),
-         full = if (file.exists(paths[[4]])) terra::rast(paths[[4]]),
-         default = if (file.exists(paths[[1]])) terra::rast(paths[[1]]),
+         # Read now: the data directory goes when this returns.
+         values = if (file.exists(paths[[4]])) {
+           full <- terra::rast(paths[[4]])
+           list(full = terra::values(full, mat = FALSE),
+                default = terra::values(terra::extend(terra::rast(paths[[1]]), full), mat = FALSE))
+         },
          metrics = atlas_read_metrics("Eastern fungus", "draft"))
   })
 }
@@ -81,6 +85,10 @@ test_that("a full view only adds ground: the default map, its layer and its pict
   expect_true(all(!is.na(with$sha[4:6])))
   expect_null(without$metrics$full_map)
   expect_equal(with$metrics$full_map$map, "eastern-fungus.full.png")
+  # Inside the reach the full raster is the default map, cell for cell.
+  same <- !is.na(with$values$default)
+  expect_gt(sum(same), 0L)
+  expect_identical(with$values$full[same], with$values$default[same])
   # The whole landscape, not only the 300 km around the finds.
   expect_equal(with$metrics$full_map$cells, 200L * 200L)
   expect_gt(with$metrics$full_map$beyond_reach, 0L)
