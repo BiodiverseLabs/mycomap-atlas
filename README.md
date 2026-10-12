@@ -737,6 +737,69 @@ or by hand on a machine with the rasters:
 `/api/taxa/<name>/image.png` draws a taxon's map as one picture, over
 Natural Earth land and borders, for Excel's `=IMAGE()`, documents and slides.
 
+## How the maps stood up
+
+Records validated after a map was made are a test it could not have trained
+on (`R/tracker.R`; Steve, 2026-10-12). Every day, each record first green on
+day D (its `first_green_on`, from the pull) is scored on the release that was
+live when D began; that release's pull was taken before D, and a record
+already in it is never scored. The tracker reads the release's own model
+rasters and the pull its job was planned from out of the store, so a release
+from weeks ago is scored exactly as it was drawn:
+
+```bash
+./atlas track-new-finds                       # daily, after the nightly pull
+./atlas track-new-finds --since=2026-10-03 --dry-run
+```
+
+- **The rank** is the drawn map's: the share of the map's ground inside its
+  area of applicability that the find's cell beats (`atlas_map_layers`). A
+  strong taxon is scored on the map an app shows for it (`atlas_best_rule`,
+  shared with `/api/taxa/{name}/best-map`), any other on the mean of its
+  models that apply there. Outside the area of applicability, or beyond
+  every model's reach, a find gets no rank and is counted apart. Releases
+  without `.di.tif` layers (before the rebuild) say their area is unknown.
+- **Names** follow the release: one fitted on record names scores a find by
+  its record name (`record_name` in a DNA-named pull), a later one by its DNA
+  name. A name the release does not know is counted as `not_in_release`, not
+  as a taxon without a map.
+- **Finds cluster where people already collect**, so each also records
+  whether it is a new site for its taxon (over `ATLAS_SITE_KM` from every
+  record of the taxon in that release's pull), whether its 5 km cell was new
+  ground for anyone, and its distance band to the nearest known record. The
+  effort-corrected baseline reads the taxon's map at the cells where every
+  other taxon's finds landed in the same release window: `beats_effort` is
+  the share of those it outranks (0.5 = no better than knowing where people
+  look), and `boyce_effort` the Boyce index against them. Several finds of a
+  taxon in one cell are one place.
+- **Small counts** are withheld: pooled shares below 30 ranked places, Boyce
+  below 50, per-taxon tallies below 5 ("fewer than 5").
+- **Retractions:** a find the newest pull drops, or holds under another name,
+  is marked retracted and left out of the counts; it is never re-scored.
+- **Channels:** a pull that carries a private `channel` column (how each
+  verdict came about, from .org's validation_priority_events: `organic`,
+  `triage`, `priority_sort` or `auto`; empty until .org records it) has
+  organic and unrecorded finds evaluated, and each other channel held out of
+  every evaluation row and counted in a row of its own (`channel_triage`,
+  `channel_priority_sort`, `channel_auto`, and `channel_other` for a value
+  not named yet). Triage and the priority list steer validators towards new
+  ground; automatic verdicts were chosen by no one.
+- **While the nightly is off** no new pull arrives, so nothing new is scored;
+  the summary's `pulled_at` stops moving and the site says scoring resumes
+  with the nightly. Nothing is lost: each find is scored on its own day's
+  release whenever it is first seen.
+
+The per-find ledger is **private**: an observation id leads to a coordinate.
+It lives only under the store's `private/tracker/<grid>/` prefix (with a
+working copy in the box's `data/private/`), with a log of each run and the
+release live then, and never reaches a release, the API, Zenodo, the sitemap
+or this repository. What is published is `tracker/<grid>/summary.json`
+(served at `/api/tracker`, and per taxon in `/api/taxa/{name}`): counts and
+shares only. The tracker is in no fingerprint and no fit setting, and a run
+that fails only warns. Which release was live before Atlas kept promotion
+records is frozen in `inst/tracker/promotions-draft.json`, read from the
+store's object versions of `current/draft.json` on 2026-10-12.
+
 ## Archives on Zenodo
 
 Big downloads live on Zenodo, versioned, each version with its own DOI.
