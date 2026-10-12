@@ -727,3 +727,21 @@ test_that("a prior-only job past its deadline publishes nothing, not even what i
   expect_identical(atlas_current_release(base$store), current)
   expect_false(base$store$exists(atlas_benchmark_key(job$id, "summary.json")))
 })
+
+test_that("a running worker uploads its logs every few minutes, so one stopped at the deadline leaves them", {
+  config <- test_config("s3://bucket")
+  script <- atlas_worker_user_data("job1", 3L, "draft", config)
+  lines <- strsplit(script, "
+")[[1]]
+  loop <- grep("while sleep", lines, value = TRUE)
+  expect_length(loop, 1L)
+  expect_match(loop, sprintf("while sleep %d;", ATLAS_WORKER_LOG_SECONDS), fixed = TRUE)
+  expect_match(loop, "aws s3 cp --quiet /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3.log", fixed = TRUE)
+  expect_match(loop, "/data/batches/ s3://bucket/jobs/draft/job1/logs/3-batches/", fixed = TRUE)
+  expect_match(loop, "&$")
+  # It starts before the shard runs, and the last upload at the end stays.
+  expect_lt(grep("while sleep", lines), grep("^docker run", lines))
+  expect_true(any(grepl("aws s3 cp /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3.log || true", lines, fixed = TRUE)))
+  # Where the worker may write: its job's logs (deploy/aws/worker/permissions.json).
+  expect_true(grepl("^jobs/[^/]+/[^/]+/logs/", "jobs/draft/job1/logs/3-batches/batch-x.log"))
+})
