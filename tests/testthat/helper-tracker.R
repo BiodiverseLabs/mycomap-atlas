@@ -134,8 +134,8 @@ tracker_release <- function(store, id, pulled_at, promoted_at, pull, models = li
                    pull = list(pulled_at = pulled_at, records = nrow(pull)),
                    index = lapply(models, `[[`, "entry"), files = files)
   atlas_store_json(store, paste0("releases/draft/", id, ".json"), manifest)
-  atlas_store_json(store, paste0("releases/draft/promotions/", gsub("[^0-9TZ]", "", promoted_at), "-", id, ".json"),
-                   list(release = id, promoted_at = promoted_at))
+  atlas_store_json(store, atlas_promotion_key(id, "draft", as.POSIXct(promoted_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")),
+                   list(release = id, grid = "draft", promoted_at = promoted_at))
   if (isTRUE(current)) atlas_store_json(store, "current/draft.json", list(release = id, promoted_at = promoted_at))
   invisible(manifest)
 }

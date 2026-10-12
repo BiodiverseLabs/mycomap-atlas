@@ -542,3 +542,19 @@ test_that("the summary says which pull it read, so the site can say scoring wait
                         since = "2026-10-01")
   expect_equal(result$summary$pulled_at, "2026-10-06T07:00:00Z")
 })
+
+test_that("the tracker reads the promotion records atlas_promote_release writes, not only the pointer", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  tracker_release(store, "R1", "2026-10-01T07:00:00Z", "2026-10-01T08:00:00Z",
+                  tracker_records("Amanita one", 15), list(tracker_model(store, "Amanita one")), current = FALSE)
+  tracker_release(store, "R2", "2026-10-05T07:00:00Z", "2026-10-05T08:00:00Z",
+                  tracker_records("Amanita one", 15), list(tracker_model(store, "Amanita one")), current = FALSE)
+  # Start from the real promotion records alone.
+  for (key in store$list("promotions/")) unlink(file.path(sub("^file://", "", store$uri), sub("^/", "", key)))
+  atlas_promote_release(store, "R1", quiet = TRUE)
+  atlas_promote_release(store, "R2", quiet = TRUE)
+  promotions <- atlas_tracker_promotions(store, "draft", frozen = "")
+  # The pointer names only R2; R1's promotion comes from its record.
+  expect_true(all(c("R1", "R2") %in% promotions$release))
+})
