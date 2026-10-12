@@ -243,3 +243,85 @@ test_that("a server with no prior says so with a 404, not an empty answer", {
     })
   })
 })
+
+test_that("each cell says how many strong maps judge it and how far apart their ranks are", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    f <- prior_fixture()
+    taxa <- f$prior$taxa
+    of <- function(name) f$prior$ranks[f$prior$ranks$taxon_id == taxa$taxon_id[taxa$name == name], , drop = FALSE]
+    # Two maps that agree everywhere: two judges, no spread.
+    agreed <- of("Eastern agreed")
+    expect_true(all(agreed$models == 2L))
+    expect_true(all(agreed$rank_sd == 0L))
+    # Two that disagree: the spread is the gap between them, over root 2.
+    split <- of("Eastern forest only")
+    parts <- f$strong$cells[f$strong$models$taxon == "Eastern forest only"]
+    a <- parts[[1]]$rank[match(split$cell_id, parts[[1]]$cell)]
+    b <- parts[[2]]$rank[match(split$cell_id, parts[[2]]$cell)]
+    expect_equal(split$rank_sd, as.integer(round(abs(a - b) / sqrt(2))))
+    expect_gt(max(split$rank_sd), 50L)
+    # One map: one judge, no spread to give.
+    western <- of("Western")
+    expect_true(all(western$models == 1L))
+    expect_true(all(is.na(western$rank_sd)))
+    # Ground no map can judge: no judges.
+    half <- of("Half known")
+    expect_equal(half$models[is.na(half$rank)], rep(0L, sum(is.na(half$rank))))
+  })
+})
+
+test_that("a taxon's map strength is its maps', weighted as the combined map weights them", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    write_model("Two maps", "maxnet", here_raster("east"), auc = 0.6, map_strength = 0.4)
+    write_model("Two maps", "rf", here_raster("east"), auc = 0.9, map_strength = 0.8)
+    write_model("One map", "rf", here_raster("west"), auc = 0.8, map_strength = 0.55)
+    prior <- atlas_build_prior("draft", quiet = TRUE)
+    strength <- stats::setNames(prior$taxa$map_strength, prior$taxa$name)
+    # Weights AUC - 0.5: 0.1 and 0.4.
+    expect_equal(strength[["Two maps"]], round((0.1 * 0.4 + 0.4 * 0.8) / 0.5, 3))
+    expect_equal(strength[["One map"]], 0.55)
+    expect_equal(sort(prior$models$weight), c(0.1, 0.3, 0.4))
+  })
+})
+
+test_that("each map's area-of-applicability index by cell sits beside its threshold", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    f <- prior_fixture()
+    models <- f$prior$models
+    half <- models[models$taxon_id == f$prior$taxa$taxon_id[f$prior$taxa$name == "Half known"], ]
+    expect_equal(nrow(half), 1L)
+    expect_equal(half$threshold, 0.5)
+    aoa <- f$prior$aoa[f$prior$aoa$model_id == half$model_id, ]
+    # The east is wholly outside (index 1, above 0.5), the west wholly inside (0).
+    expect_equal(aoa$dissimilarity[aoa$cell_id == cell_of(EAST_POINT)], 100L)
+    expect_equal(aoa$dissimilarity[aoa$cell_id == cell_of(WEST_POINT)], 0L)
+    # Every model with a map has its threshold and its weight.
+    expect_equal(nrow(models), nrow(f$strong$models))
+    files <- c("models.tsv", "aoa.tsv.gz", if (requireNamespace("nanoparquet", quietly = TRUE)) "aoa.parquet")
+    for (file in files) expect_true(file.exists(atlas_prior_path(file)), info = file)
+    if (requireNamespace("nanoparquet", quietly = TRUE)) {
+      parquet <- as.data.frame(nanoparquet::read_parquet(atlas_prior_path("aoa.parquet")))
+      expect_equal(parquet$dissimilarity, f$prior$aoa$dissimilarity)
+    }
+  })
+})
+
+test_that("weak maps' ranks are made for Vision but stay out of the prior and the release", {
+  testthat::skip_if_not_installed("terra")
+  with_data_dir({
+    write_model("Eastern agreed", "maxnet", here_raster("east"))
+    write_model("Faint", "rf", here_raster("west"))
+    metrics <- jsonlite::fromJSON(atlas_model_path("Faint", "draft", ".json", "rf"), simplifyVector = FALSE)
+    metrics$grade <- "weak"
+    atlas_write_json(metrics, atlas_model_path("Faint", "draft", ".json", "rf"))
+    atlas_build_finish_indexes("draft", quiet = TRUE)
+    weak <- utils::read.delim(gzfile(atlas_weak_ranks_path("draft")), stringsAsFactors = FALSE)
+    expect_equal(unique(weak$taxon), "Faint")
+    expect_true(all(weak$grade == "weak"))
+    expect_false("Faint" %in% atlas_read_prior("draft")$taxa$name)
+    expect_false(any(grepl("weak|unpublished", atlas_release_files("draft"))))
+  })
+})

@@ -1452,7 +1452,7 @@
         ],
         "operationId": "getPriorFile",
         "summary": "One file of the location prior",
-        "description": "ranks.parquet (taxon_id uint16, cell_id int32, rank uint8 with nulls; zstd) and ranks.tsv.gz hold the same rows, sorted by taxon_id then cell_id; taxa.tsv has taxon_id, name, grade, models, algorithms, sites, reach_cells and applicable_cells; grid.json defines the cells. Sent as an attachment. Check it against the SHA-256 GET /api/prior lists.",
+        "description": "ranks.parquet (taxon_id uint16, cell_id int32, rank uint8 with nulls, models uint8, rank_sd uint8 with nulls; zstd) and ranks.tsv.gz hold the same rows, sorted by taxon_id then cell_id: models is how many strong models judge the cell and rank_sd how far apart their ranks are; taxa.tsv has taxon_id, name, grade, models, algorithms, sites, reach_cells, applicable_cells and map_strength (member-weighted as in the combined map); models.tsv has each strong model's threshold, map_strength, auc_mean and weight; aoa.parquet and aoa.tsv.gz hold, per model and 20 km cell, 100 x the mean area-of-applicability index, to compare with 100 x the model's threshold; grid.json defines the cells. Sent as an attachment. Check it against the SHA-256 GET /api/prior lists.",
         "parameters": [
           {
             "name": "file",
@@ -1465,7 +1465,10 @@
                 "ranks.parquet",
                 "ranks.tsv.gz",
                 "taxa.tsv",
-                "grid.json"
+                "grid.json",
+                "models.tsv",
+                "aoa.parquet",
+                "aoa.tsv.gz"
               ]
             },
             "example": "ranks.parquet"

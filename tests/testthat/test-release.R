@@ -255,3 +255,21 @@ test_that("an empty folder in a local store lists no keys, not its own name", {
   expect_identical(store$list("private/a/"), character())
   expect_identical(store$list("nothing/here/"), character())
 })
+
+test_that("every promotion is recorded once and for good, so which release was live when can be told", {
+  store <- new_store()
+  with_data_dir({
+    computed_data()
+    first <- atlas_publish_release(store, quiet = TRUE)
+    writeLines("newer", atlas_path("occurrences", "name-merges.json"))
+    second <- atlas_publish_release(store, quiet = TRUE)
+    # Rolling back is a promotion too.
+    atlas_promote_release(store, first$id, quiet = TRUE)
+  })
+  history <- atlas_promotion_history(store)
+  expect_equal(history$release, c(first$id, second$id, first$id))
+  expect_equal(history$previous, c(NA, first$id, second$id))
+  expect_true(all(startsWith(store$list("promotions/draft/"), "promotions/draft/")))
+  # The records are not releases.
+  expect_setequal(atlas_list_releases(store), c(first$id, second$id))
+})

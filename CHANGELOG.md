@@ -10,6 +10,14 @@ changed and what it means for you.
 
 ### API
 
+- **The location prior gains trust signals** (`/api/prior`): each cell's
+  `models` (how many strong models judge it) and `rank_sd` (how far apart
+  their ranks are); each taxon's `map_strength`, weighted as the combined map
+  weights its models; and two new files, `models.tsv` (each strong model's
+  area-of-applicability threshold, map strength, AUC and weight) and `aoa.*`
+  (each model's mean area-of-applicability index per 20 km cell). Added
+  columns and files; nothing existing changes meaning.
+
 - **`GET /api/taxa`** and **`/api/taxa/{name}`** gain `sites`: each taxon's
   5 km survey sites with a record, counted as the fits count them, for every
   taxon including those with no map yet. It shows how close a taxon is to a

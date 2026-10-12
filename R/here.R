@@ -93,21 +93,32 @@ atlas_model_cell_ranks <- function(raster, dissimilarity = NULL, threshold = NUL
   layers <- atlas_map_layers(r, dissimilarity, threshold)
   rank <- terra::values(layers[["rank"]], mat = FALSE)
   reached <- which(is.finite(terra::values(layers[["outside"]], mat = FALSE)))
-  empty <- data.frame(cell = integer(), rank = integer())
+  empty <- data.frame(cell = integer(), rank = integer(), dissimilarity = numeric())
   if (!length(reached)) return(empty)
   xy <- terra::xyFromCell(r, reached)
   cell <- atlas_here_cell(xy[, 1], xy[, 2], cell_km)
   rank <- rank[reached]
+  index <- if (is.null(dissimilarity)) rep(NA_real_, length(reached)) else
+    terra::values(dissimilarity, mat = FALSE)[reached]
   keep <- !is.na(cell)
   cell <- cell[keep]
   rank <- rank[keep]
+  index <- index[keep]
   if (!length(cell)) return(empty)
-  out <- data.frame(cell = as.integer(sort(unique(cell))), rank = NA_integer_)
+  out <- data.frame(cell = as.integer(sort(unique(cell))), rank = NA_integer_, dissimilarity = NA_real_)
   inside <- is.finite(rank)
   if (any(inside)) {
     sums <- rowsum(rank[inside], cell[inside])
     counts <- rowsum(rep(1, sum(inside)), cell[inside])
     out$rank[match(as.integer(rownames(sums)), out$cell)] <- as.integer(round(100 * sums[, 1] / counts[, 1]))
+  }
+  # The mean area-of-applicability index of its 5 km cells, inside or not:
+  # what the prior's aoa table publishes beside each model's threshold.
+  known <- is.finite(index)
+  if (any(known)) {
+    sums <- rowsum(index[known], cell[known])
+    counts <- rowsum(rep(1, sum(known)), cell[known])
+    out$dissimilarity[match(as.integer(rownames(sums)), out$cell)] <- sums[, 1] / counts[, 1]
   }
   out
 }
@@ -131,7 +142,8 @@ atlas_here_model_cells <- function(raster, cell_km = ATLAS_HERE_CELL_KM,
 #' nothing to say about a place (atlas_map_grade).
 atlas_strong_maps <- function(grid = "draft") {
   models <- atlas_model_index(grid)
-  models <- models[models$map & models$grade %in% "strong", c("taxon", "algorithm", "presences"), drop = FALSE]
+  models <- models[models$map & models$grade %in% "strong",
+                   c("taxon", "algorithm", "presences", "map_strength", "auc_mean"), drop = FALSE]
   rownames(models) <- NULL
   if (!nrow(models)) return(models)
   models$raster <- vapply(seq_len(nrow(models)), function(i) {
