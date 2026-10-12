@@ -52,3 +52,13 @@
 .sci {
   @apply font-species italic;
 }
+
+/* Headings: Libre Franklin 600, and a species name in one italic 500, as on
+   mycomap.org and MycoMap Vision (Steve chose both on their live pages). */
+.font-display {
+  font-weight: 600;
+}
+.font-display .sci {
+  font-family: theme("fontFamily.display");
+  font-weight: 500;
+}
