@@ -15,17 +15,18 @@ here_raster <- function(rising = "east") {
 # threshold, cells whose dissimilarity is above it are outside the model's
 # area of applicability.
 write_model <- function(taxon, algorithm, raster, skill = "passed", presences = 30,
-                        dissimilarity = NULL, threshold = NULL) {
+                        dissimilarity = NULL, threshold = NULL, auc = 0.7, map_strength = NULL) {
   dir.create(atlas_model_dir("draft", algorithm), recursive = TRUE, showWarnings = FALSE)
   terra::writeRaster(raster, atlas_model_path(taxon, "draft", ".tif", algorithm), overwrite = TRUE)
   if (!is.null(dissimilarity)) {
     terra::writeRaster(dissimilarity, atlas_model_path(taxon, "draft", ".di.tif", algorithm), overwrite = TRUE)
   }
   atlas_write_json(c(list(taxon = taxon, algorithm = algorithm, presences = presences, predictors = list("bio1"),
-                          auc_mean = 0.7, boyce_mean = 0.5, built_at = "2026-09-29T00:00:00Z",
+                          auc_mean = auc, boyce_mean = 0.5, built_at = "2026-09-29T00:00:00Z",
                           map = "x.png", skill = skill,
                           null = list(design = ATLAS_NULL_DESIGN, observed_auc = 0.7, observed_boyce = 0.5)),
-                     if (!is.null(threshold)) list(applicability = list(threshold = threshold))),
+                     if (!is.null(threshold)) list(applicability = list(threshold = threshold)),
+                     if (!is.null(map_strength)) list(map_strength = map_strength)),
                    atlas_model_path(taxon, "draft", ".json", algorithm))
 }
 

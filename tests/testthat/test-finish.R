@@ -51,8 +51,8 @@ test_that("a finishing worker counts the maps, builds the index and prior, and r
   setup <- published()
   record <- on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
   paths <- vapply(record$files, `[[`, "", "path")
-  prior <- paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json",
-                                    if (requireNamespace("nanoparquet", quietly = TRUE)) "ranks.parquet"))
+  prior <- paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json", "models.tsv", "aoa.tsv.gz",
+                                    if (requireNamespace("nanoparquet", quietly = TRUE)) c("ranks.parquet", "aoa.parquet")))
   expect_setequal(paths, c("index/draft/here.rds", "models/draft/taxon-a.json", prior))
   expect_equal(record$counted, 1L)
   expect_equal(record$release, setup$release$id)
@@ -259,4 +259,27 @@ test_that("a night with nothing to fit still finishes a release that never was",
   ))
   expect_true(atlas_release_finished(atlas_current_release(store)))
   expect_length(ec2$state$requests, 1L)
+})
+
+test_that("finishing files the weak maps' ranks privately, through the box, never in the release", {
+  skip_if_not_installed("terra")
+  setup <- published()
+  # A weak map beside the strong one.
+  weak_release <- on_machine(setup$boss, {
+    northwest_model()
+    tif <- atlas_model_path("Taxon A", "draft", ".tif", "rf")
+    dir.create(dirname(tif), recursive = TRUE, showWarnings = FALSE)
+    file.copy(atlas_model_path("Taxon A", "draft", ".tif"), tif, overwrite = TRUE)
+    atlas_write_json(list(taxon = "Taxon A", algorithm = "rf", grade = "weak", presences = 25,
+                          raster = basename(tif), map = "x.png", built_at = "2026-10-06T00:00:00Z"),
+                     atlas_model_path("Taxon A", "draft", ".json", "rf"))
+    atlas_publish_release(setup$store, quiet = TRUE)
+  })
+  record <- on_machine(machine(), atlas_finish_release_work(setup$store, weak_release$id, quiet = TRUE))
+  expect_equal(vapply(record$private, `[[`, "", "name"), "weak-ranks.tsv.gz")
+  expect_false(any(grepl("weak|unpublished", vapply(record$files, `[[`, "", "path"))))
+  finished <- on_machine(setup$boss, atlas_apply_finish(setup$store, weak_release$id, quiet = TRUE))
+  key <- paste("private/atlas-weak", finished$id, "draft/weak-ranks.tsv.gz", sep = "/")
+  expect_true(setup$store$exists(key))
+  expect_false(any(grepl("weak|unpublished", vapply(finished$files, `[[`, "", "path"))))
 })

@@ -481,12 +481,41 @@ atlas_publish_release <- function(store = atlas_store(), grid = "draft", note = 
 atlas_promote_release <- function(store = atlas_store(), id, grid = "draft", quiet = FALSE) {
   key <- paste0("releases/", grid, "/", id, ".json")
   if (!store$exists(key)) stop("no release ", id, " for the ", grid, " grid", call. = FALSE)
-  atlas_store_json(store, paste0("current/", grid, ".json"), list(
-    release = id,
-    promoted_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  pointer <- paste0("current/", grid, ".json")
+  previous <- if (store$exists(pointer)) atlas_store_text(store, pointer)$release
+  now <- Sys.time()
+  promoted_at <- format(now, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  atlas_store_json(store, pointer, list(release = id, promoted_at = promoted_at))
+  # The pointer above is overwritten at every promotion, and the bucket keeps
+  # an overwritten version only 30 days. This record is written once and never
+  # again, so which release was live when can always be told (the new-find
+  # tracker scores each find against the release live on its day). It sits
+  # outside releases/, which is listed as releases.
+  atlas_store_json(store, atlas_promotion_key(id, grid, now), list(
+    release = id, grid = grid, promoted_at = promoted_at, previous = previous
   ))
   if (!isTRUE(quiet)) message("current release for the ", grid, " grid is now ", id)
   invisible(id)
+}
+
+#' Where a promotion is recorded: sortable by time, unique per promotion.
+atlas_promotion_key <- function(id, grid = "draft", time = Sys.time()) {
+  paste0("promotions/", grid, "/", format(time, "%Y%m%dT%H%M%OS3Z", tz = "UTC"), "-", id, ".json")
+}
+
+#' Every promotion on a grid, oldest first: release, when, and the release it
+#' replaced. Read from the write-once records, so it outlives the pointer.
+atlas_promotion_history <- function(store = atlas_store(), grid = "draft") {
+  keys <- sort(store$list(paste0("promotions/", grid, "/")))
+  keys <- keys[grepl("[.]json$", keys)]
+  rows <- lapply(keys, function(key) {
+    x <- atlas_store_text(store, key)
+    data.frame(release = x$release, promoted_at = x$promoted_at,
+               previous = atlas_json_string(x$previous) %||% NA_character_, stringsAsFactors = FALSE)
+  })
+  out <- do.call(rbind, rows)
+  if (is.null(out)) out <- data.frame(release = character(), promoted_at = character(), previous = character())
+  out
 }
 
 #' The current release's manifest, or NULL when nothing has been published.

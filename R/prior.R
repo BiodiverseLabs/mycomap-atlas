@@ -27,7 +27,8 @@
 # Nothing here comes from records: ranks by 20 km cell, published with the
 # maps like the index.
 
-ATLAS_PRIOR_FILES <- c("ranks.parquet", "ranks.tsv.gz", "taxa.tsv", "grid.json")
+ATLAS_PRIOR_FILES <- c("ranks.parquet", "ranks.tsv.gz", "taxa.tsv", "grid.json",
+                       "models.tsv", "aoa.parquet", "aoa.tsv.gz")
 
 atlas_prior_dir <- function(grid = "draft") atlas_path("prior", grid)
 
@@ -42,15 +43,24 @@ atlas_prior_path <- function(file, grid = "draft") {
 #' none of them can judge it.
 atlas_prior_taxon_ranks <- function(parts) {
   parts <- Filter(function(p) !is.null(p) && nrow(p), parts)
-  if (!length(parts)) return(data.frame(cell = integer(), rank = integer()))
-  all <- do.call(rbind, parts)
+  if (!length(parts)) return(data.frame(cell = integer(), rank = integer(), models = integer(), rank_sd = integer()))
+  all <- do.call(rbind, lapply(parts, function(p) p[, c("cell", "rank")]))
   known <- !is.na(all$rank)
   cells <- sort(unique(all$cell))
-  out <- data.frame(cell = as.integer(cells), rank = NA_integer_)
+  out <- data.frame(cell = as.integer(cells), rank = NA_integer_, models = 0L, rank_sd = NA_integer_)
   if (any(known)) {
-    sums <- rowsum(all$rank[known], all$cell[known])
-    counts <- rowsum(rep(1, sum(known)), all$cell[known])
-    out$rank[match(as.integer(rownames(sums)), out$cell)] <- as.integer(round(sums[, 1] / counts[, 1]))
+    r <- all$rank[known]
+    at_cell <- all$cell[known]
+    sums <- rowsum(r, at_cell)
+    squares <- rowsum(r^2, at_cell)
+    counts <- rowsum(rep(1, length(r)), at_cell)[, 1]
+    at <- match(as.integer(rownames(sums)), out$cell)
+    out$rank[at] <- as.integer(round(sums[, 1] / counts))
+    # How many strong models judge the cell, and how far apart they are: one
+    # model's word, or several that agree, or several that do not.
+    out$models[at] <- as.integer(counts)
+    variance <- ifelse(counts >= 2, (squares[, 1] - sums[, 1]^2 / counts) / (counts - 1), NA_real_)
+    out$rank_sd[at] <- as.integer(round(sqrt(pmax(0, variance))))
   }
   out
 }
@@ -84,7 +94,24 @@ atlas_prior_grid <- function(cell_km = ATLAS_HERE_CELL_KM) {
           "coloured by (the mean percentile of its 5 km cells, among the cells inside its area of",
           "applicability). Empty (NA) where the cell is within the taxon's reach but outside every",
           "strong model's area of applicability. A cell with no row is beyond the taxon's reach."
-        )
+        ),
+        models = "how many of the taxon's strong models rank the cell (0 where none can judge it)",
+        rank_sd = "the standard deviation of those models' ranks, 0-100; empty with fewer than two"
+      ),
+      models = list(
+        model_id = "1, 2, ...: each strong model, for aoa",
+        taxon_id = "its taxon in taxa.tsv",
+        algorithm = "maxnet, rf, xgboost or esm",
+        threshold = "its area-of-applicability threshold: a dissimilarity above it is outside",
+        map_strength = "0-1: how far its map beat its null models (0.4 just strong, 1 far above)",
+        auc_mean = "its blocked AUC",
+        weight = "its weight in the combined map, AUC - 0.5"
+      ),
+      aoa = list(
+        model_id = "the model in models.tsv",
+        cell_id = "the 20 km cell",
+        dissimilarity = paste("100 x the mean area-of-applicability index of the model's 5 km cells in it;",
+                              "compare with 100 x its threshold")
       ),
       taxa = list(
         taxon_id = "1, 2, ... in name order",
@@ -93,6 +120,7 @@ atlas_prior_grid <- function(cell_km = ATLAS_HERE_CELL_KM) {
         models = "how many strong models it has",
         algorithms = "which, comma separated",
         sites = "independent sites (5 km) its richest model was fitted on",
+        map_strength = "0-1: its strong models' map strength, weighted as the combined map weights them",
         reach_cells = "cells with a row in ranks",
         applicable_cells = "cells with a rank (not NA)"
       )
@@ -155,11 +183,26 @@ atlas_build_prior <- function(grid = "draft", quiet = FALSE, strong = NULL) {
   ranks <- vector("list", length(names))
   taxa <- data.frame(taxon_id = seq_along(names), name = names, grade = "strong",
                      models = 0L, algorithms = "", sites = NA_integer_,
-                     reach_cells = 0L, applicable_cells = 0L, stringsAsFactors = FALSE)
+                     reach_cells = 0L, applicable_cells = 0L, map_strength = NA_real_,
+                     stringsAsFactors = FALSE)
+  weight <- pmax(0, as.numeric(models$auc_mean) - 0.5)
   for (k in seq_along(names)) {
     mine <- which(models$taxon == names[[k]])
     taxon <- atlas_prior_taxon_ranks(strong$cells[mine])
-    if (nrow(taxon)) ranks[[k]] <- data.frame(taxon_id = k, cell_id = taxon$cell, rank = taxon$rank)
+    if (nrow(taxon)) {
+      ranks[[k]] <- data.frame(taxon_id = k, cell_id = taxon$cell, rank = taxon$rank,
+                               models = taxon$models, rank_sd = taxon$rank_sd)
+    }
+    strength <- as.numeric(models$map_strength[mine])
+    w <- weight[mine]
+    usable <- is.finite(strength) & is.finite(w) & w > 0
+    taxa$map_strength[[k]] <- if (any(usable)) {
+      round(sum(w[usable] * strength[usable]) / sum(w[usable]), 3)
+    } else if (any(is.finite(strength))) {
+      round(mean(strength[is.finite(strength)]), 3)
+    } else {
+      NA_real_
+    }
     taxa$models[[k]] <- length(mine)
     taxa$algorithms[[k]] <- paste(models$algorithm[mine], collapse = ",")
     presences <- suppressWarnings(max(models$presences[mine], na.rm = TRUE))
@@ -168,11 +211,30 @@ atlas_build_prior <- function(grid = "draft", quiet = FALSE, strong = NULL) {
     taxa$applicable_cells[[k]] <- sum(!is.na(taxon$rank))
   }
   ranks <- do.call(rbind, ranks)
-  if (is.null(ranks)) ranks <- data.frame(taxon_id = integer(), cell_id = integer(), rank = integer())
-  ranks$taxon_id <- as.integer(ranks$taxon_id)
-  ranks$cell_id <- as.integer(ranks$cell_id)
-  ranks$rank <- as.integer(ranks$rank)
+  if (is.null(ranks)) {
+    ranks <- data.frame(taxon_id = integer(), cell_id = integer(), rank = integer(),
+                        models = integer(), rank_sd = integer())
+  }
+  for (column in names(ranks)) ranks[[column]] <- as.integer(ranks[[column]])
   rownames(ranks) <- NULL
+
+  # Each strong model, and the area-of-applicability index of every cell it
+  # reaches, beside its own threshold.
+  taxon_of <- match(models$taxon, names)
+  model_table <- data.frame(
+    model_id = seq_len(nrow(models)), taxon_id = taxon_of, algorithm = models$algorithm,
+    threshold = round(as.numeric(models$threshold), 4), map_strength = round(as.numeric(models$map_strength), 3),
+    auc_mean = round(as.numeric(models$auc_mean), 4), weight = round(weight, 4), stringsAsFactors = FALSE
+  )
+  aoa <- do.call(rbind, lapply(seq_len(nrow(models)), function(i) {
+    part <- strong$cells[[i]]
+    if (is.null(part) || !nrow(part) || is.null(part$dissimilarity)) return(NULL)
+    data.frame(model_id = i, cell_id = part$cell,
+               dissimilarity = as.integer(pmin(65535, round(100 * part$dissimilarity))))
+  }))
+  if (is.null(aoa)) aoa <- data.frame(model_id = integer(), cell_id = integer(), dissimilarity = integer())
+  for (column in names(aoa)) aoa[[column]] <- as.integer(aoa[[column]])
+  rownames(aoa) <- NULL
 
   dir <- atlas_prior_dir(grid)
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
@@ -180,6 +242,9 @@ atlas_build_prior <- function(grid = "draft", quiet = FALSE, strong = NULL) {
   # older build beside a newer TSV would disagree with it.
   unlink(file.path(dir, ATLAS_PRIOR_FILES))
   atlas_write_tsv_gz(ranks, atlas_prior_path("ranks.tsv.gz", grid))
+  atlas_write_tsv_gz(aoa, atlas_prior_path("aoa.tsv.gz", grid))
+  utils::write.table(model_table, atlas_prior_path("models.tsv", grid), sep = "\t", quote = FALSE,
+                     row.names = FALSE, na = "", fileEncoding = "UTF-8")
   utils::write.table(taxa, atlas_prior_path("taxa.tsv", grid), sep = "\t", quote = FALSE,
                      row.names = FALSE, na = "", fileEncoding = "UTF-8")
   # No build time: the same maps make the same files, byte for byte.
@@ -189,17 +254,24 @@ atlas_build_prior <- function(grid = "draft", quiet = FALSE, strong = NULL) {
     schema <- nanoparquet::parquet_schema(
       taxon_id = list("INT", bit_width = 16L, is_signed = FALSE),
       cell_id = "INT32",
-      rank = list("INT", bit_width = 8L, is_signed = FALSE)
+      rank = list("INT", bit_width = 8L, is_signed = FALSE),
+      models = list("INT", bit_width = 8L, is_signed = FALSE),
+      rank_sd = list("INT", bit_width = 8L, is_signed = FALSE)
     )
     nanoparquet::write_parquet(ranks, atlas_prior_path("ranks.parquet", grid), schema = schema,
                                compression = "zstd")
+    nanoparquet::write_parquet(aoa, atlas_prior_path("aoa.parquet", grid), compression = "zstd",
+                               schema = nanoparquet::parquet_schema(
+                                 model_id = list("INT", bit_width = 16L, is_signed = FALSE),
+                                 cell_id = "INT32",
+                                 dissimilarity = list("INT", bit_width = 16L, is_signed = FALSE)))
   } else {
     say("nanoparquet is not installed: the prior has no Parquet file this time")
   }
   say(sprintf("prior: %d taxa, %s cells in %.0f s",
               nrow(taxa), format(nrow(ranks), big.mark = ","),
               as.numeric(difftime(Sys.time(), started, units = "secs"))))
-  invisible(list(ranks = ranks, taxa = taxa))
+  invisible(list(ranks = ranks, taxa = taxa, models = model_table, aoa = aoa))
 }
 
 #' Read the prior's ranks and taxa back, from the TSV files every build writes.
@@ -218,5 +290,42 @@ atlas_build_finish_indexes <- function(grid = "draft", quiet = FALSE) {
   strong <- atlas_strong_map_cells(grid, quiet = quiet)
   index <- atlas_build_here_index(grid, quiet = quiet, strong = strong)
   atlas_build_prior(grid, quiet = quiet, strong = strong)
+  atlas_build_weak_ranks(grid, quiet = quiet)
   invisible(index)
+}
+
+# ---- weak maps, privately ---------------------------------------------------
+
+#' Where finishing leaves the weak maps' ranks for the box to file privately.
+#' Not under any path a release's allowlist publishes (R/release.R).
+atlas_weak_ranks_path <- function(grid = "draft") {
+  atlas_path("unpublished", grid, "weak-ranks.tsv.gz")
+}
+
+#' The weak maps' ranks by 20 km cell, flagged weak: taxon, algorithm, cell,
+#' rank, as the prior gives strong maps'. For Vision's research only, never
+#' published: a weak map has not been shown to beat its own collecting
+#' pattern, so the public prior leaves it out. Finishing files it under
+#' private/atlas-weak/<release>/ (atlas_apply_finish). NULL when no map is weak.
+atlas_build_weak_ranks <- function(grid = "draft", quiet = FALSE) {
+  path <- atlas_weak_ranks_path(grid)
+  unlink(path)
+  models <- atlas_model_index(grid)
+  weak <- models[models$map & models$grade %in% "weak", c("taxon", "algorithm"), drop = FALSE]
+  if (!nrow(weak)) return(invisible(NULL))
+  rows <- lapply(seq_len(nrow(weak)), function(i) {
+    raster <- atlas_model_path(weak$taxon[[i]], grid, ".tif", weak$algorithm[[i]])
+    if (!file.exists(raster)) return(NULL)
+    metrics <- atlas_read_metrics(weak$taxon[[i]], grid, weak$algorithm[[i]])
+    cells <- atlas_model_cell_ranks(raster, atlas_model_path(weak$taxon[[i]], grid, ".di.tif", weak$algorithm[[i]]),
+                                    as.numeric(metrics$applicability$threshold %||% NA))
+    if (!nrow(cells)) return(NULL)
+    data.frame(taxon = weak$taxon[[i]], algorithm = weak$algorithm[[i]], grade = "weak",
+               cell_id = cells$cell, rank = cells$rank, stringsAsFactors = FALSE)
+  })
+  table <- do.call(rbind, rows)
+  if (is.null(table)) return(invisible(NULL))
+  atlas_write_tsv_gz(table, path)
+  if (!isTRUE(quiet)) message("weak maps: ", length(unique(table$taxon)), " taxa, ", nrow(table), " rows, kept private")
+  invisible(table)
 }
