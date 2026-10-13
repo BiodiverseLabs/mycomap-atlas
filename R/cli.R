@@ -133,6 +133,8 @@ atlas_usage <- function() {
   message("                     --shards=N, [--from-release=ID for its inputs], [--args=\"...\"]); results under study/<id>/")
   message("  run-study          one shard of a study job (--job=ID --shard=N), as a worker runs it")
   message("  finish-full-refresh  publish a full-view refresh whose refits match its release (--job=ID)")
+  message("                       --allow-mismatch: after reading the refusal, publish the rest; models whose")
+  message("                       refits differ keep the release's own full views, listed in the release")
   message("  pull-privacy       make the private list of records whose place their source hides (read-only),")
   message("                     which the published collection cells leave out")
   message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
@@ -711,7 +713,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     "finish-full-refresh" = {
       if (is.null(flags$job)) stop("finish-full-refresh needs --job=ID", call. = FALSE)
       atlas_finish_full_refresh(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
-                                promote = !isTRUE(flags$no_promote))
+                                promote = !isTRUE(flags$no_promote), allow_mismatch = isTRUE(flags$allow_mismatch))
       invisible(0L)
     },
     "finish-private-release" = {
