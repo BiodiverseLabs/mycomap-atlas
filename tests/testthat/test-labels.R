@@ -71,6 +71,8 @@ test_that("sequence names come from the record's key and, for iNat, from its lin
   expect_match(sql, "JOIN sequences s ON s.com_inat_record_id = l.record_id", fixed = TRUE)
   # Approved, named sequences of green records in the page only, on both arms.
   expect_equal(lengths(regmatches(sql, gregexpr("s.approved = 1", sql, fixed = TRUE))), 2L)
+  # Never a sequence from the trash, on either arm.
+  expect_equal(lengths(regmatches(sql, gregexpr("coalesce(s.category_id, 0) <> 169", sql, fixed = TRUE))), 2L)
   expect_equal(lengths(regmatches(sql, gregexpr("o.id >= 100 AND o.id <= 200", sql, fixed = TRUE))), 2L)
   expect_match(sql, "'yes' IN (coalesce(o.validation_status_1, '')", fixed = TRUE)
   expect_false(grepl("\n", sql))

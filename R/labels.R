@@ -27,6 +27,14 @@ ATLAS_NO_SEQUENCE_NAME <- "drop"
 # The linked_observations database that holds iNaturalist observations.
 ATLAS_LINKED_INAT_DATABASE <- 43L
 
+# The sequence category that is .com's ONT Trashcan: reads set aside, which
+# the mirror still marks approved (180,631 of 181,871 on 2026-10-13). Their
+# names say nothing about the record, yet they named 380 records on their own
+# and put 2,023 more among those whose sequences disagree (the data inputs
+# lane, read-only on prod). A sequence in it never names a record (Steve,
+# 2026-10-13, from the next pull; the frozen 2026-10-12 pull keeps them).
+ATLAS_TRASH_SEQUENCE_CATEGORY <- 169L
+
 # How a .org source is written in a sequence's observation key ("inat:123").
 ATLAS_SEQUENCE_KEY_PREFIXES <- c(
   "iNaturalist" = "inat", "MO Observations" = "mo", "MycoPortal" = "mp",
@@ -69,8 +77,9 @@ atlas_sequence_names_sql <- function(first_id, last_id) {
     sep = ", "
   )
   where <- sprintf(
-    "o.id >= %d AND o.id <= %d AND 'yes' IN (%s) AND s.approved = 1 AND btrim(coalesce(s.species_name, '')) <> ''",
-    as.integer(first_id), as.integer(last_id), statuses
+    paste("o.id >= %d AND o.id <= %d AND 'yes' IN (%s) AND s.approved = 1",
+          "AND coalesce(s.category_id, 0) <> %d AND btrim(coalesce(s.species_name, '')) <> ''"),
+    as.integer(first_id), as.integer(last_id), statuses, ATLAS_TRASH_SEQUENCE_CATEGORY
   )
   sql <- sprintf(
     "SELECT o.id, s.species_name FROM observations o
