@@ -173,6 +173,7 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th model from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               models at once (default 1)")
+  message("      --pool=a.json,b.json      read a run's shards together: the 2% rule over all")
   invisible(NULL)
 }
 
@@ -710,6 +711,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "study-rescan" = {
+      if (!is.null(flags$pool)) {
+        pooled <- atlas_rescan_pool(trimws(strsplit(as.character(flags$pool), ",", fixed = TRUE)[[1]]))
+        message(pooled$models, " of ", pooled$sampled, " sampled models over ", length(pooled$shards),
+                " shards; ", pooled$health$dropped, " without a verdict; readable: ", pooled$readable)
+        print(pooled$summary, row.names = FALSE)
+        return(invisible(if (isTRUE(pooled$readable)) 0L else 1L))
+      }
       if (is.null(flags$release)) stop("study-rescan needs --release=ID", call. = FALSE)
       atlas_rescan_study(
         atlas_flag_store(flags), release = as.character(flags$release),

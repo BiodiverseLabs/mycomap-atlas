@@ -221,6 +221,29 @@ atlas_rescan_health <- function(rows, max_dropped = ATLAS_RESCAN_MAX_DROPPED) {
        readable = share <= max_dropped)
 }
 
+#' The shards of one rescan read together: every shard's rows, the 2% rule
+#' over all of them (a shard on its own can pass while the run fails), and
+#' the summary. paths are the shards' results files; they must come from one
+#' release, seed, sample size and null count, and no shard may appear twice.
+atlas_rescan_pool <- function(paths) {
+  results <- lapply(paths, function(p) jsonlite::fromJSON(p, simplifyVector = FALSE))
+  key <- function(r) paste(r$settings$release, r$settings$seed, r$settings$per_cell, r$settings$nulls)
+  keys <- vapply(results, key, "")
+  if (length(unique(keys)) != 1L) {
+    stop("the results files are not shards of one rescan (release, seed, sample or nulls differ)", call. = FALSE)
+  }
+  shards <- vapply(results, function(r) as.character(r$settings$shard %||% "1/1"), "")
+  if (anyDuplicated(shards)) stop("a shard appears twice: ", paste(shards[duplicated(shards)], collapse = ", "),
+                                  call. = FALSE)
+  rows <- do.call(c, lapply(results, function(r) r$taxa))
+  sampled <- sum(unlist(results[[1]]$strata$sampled %||% list()))
+  health <- atlas_rescan_health(rows)
+  list(shards = sort(shards), models = length(rows), sampled = sampled,
+       complete = length(rows) == sampled, health = health,
+       readable = isTRUE(health$readable) && length(rows) == sampled,
+       summary = atlas_rescan_summary(rows), strata = results[[1]]$strata, rows = rows)
+}
+
 #' Rough CPU-hours for a sample.
 atlas_rescan_plan <- function(sample, seconds = ATLAS_RESCAN_PLAN_SECONDS) {
   per <- seconds[sample$algorithm]
@@ -279,11 +302,13 @@ atlas_rescan_study <- function(store = atlas_store(), release, grid = "draft",
     opening = paste0(length(ids), " models of release ", release, " (shard ", shard, ", seed ",
                      seed, "): ", reps, " scattered nulls each")
   )
+  # This shard's own health is a warning only; whether the run may be read is
+  # decided over every shard together (atlas_rescan_pool).
   health <- atlas_rescan_health(result$taxa)
   if (!isTRUE(health$readable)) {
-    warning(health$dropped, " of ", health$models, " models did not rebuild as the release ",
-            "recorded them (more than ", 100 * ATLAS_RESCAN_MAX_DROPPED, "%): stop and report ",
-            "before reading the results", call. = FALSE)
+    warning(health$dropped, " of ", health$models, " models in this shard have no verdict ",
+            "(more than ", 100 * ATLAS_RESCAN_MAX_DROPPED, "%): stop and report before reading ",
+            "the results", call. = FALSE)
   }
   if (!is.null(out$key)) {
     files <- c(result$path, sub("[.]json$", ".log", result$path))

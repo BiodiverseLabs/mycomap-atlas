@@ -171,3 +171,33 @@ test_that("the standard test's verdict needs the release's own Boyce index above
   expect_equal(good$verdict, "passed")
   expect_equal(verdict(-0.5)$verdict, "failed")
 })
+
+test_that("the 2% rule is read over every shard together, and a missing shard keeps the run unreadable", {
+  dir <- tempfile("rescan-")
+  dir.create(dir)
+  shard <- function(i, statuses) {
+    path <- file.path(dir, paste0("shard", i, ".json"))
+    jsonlite::write_json(list(settings = list(release = "r1", seed = 1, per_cell = 50, nulls = 19,
+                                              shard = paste0(i, "/2")),
+                              strata = list(sampled = list(a = 100L)),
+                              taxa = lapply(statuses, function(s) list(status = s, algorithm = "maxnet",
+                                                                       grade = "strong",
+                                                                       scatter = list(verdict = "passed")))),
+                         path, auto_unbox = TRUE)
+    path
+  }
+  # Each shard on its own is at 2%; together 4 of 100 have no verdict.
+  a <- shard(1, c(rep("scored", 49), "failed"))
+  b <- shard(2, c(rep("scored", 48), "mismatch", "mismatch"))
+  expect_true(atlas_rescan_health(jsonlite::fromJSON(a, simplifyVector = FALSE)$taxa)$readable)
+  pooled <- atlas_rescan_pool(c(a, b))
+  expect_equal(c(pooled$models, pooled$health$dropped), c(100L, 3L))
+  expect_false(pooled$readable)
+  # One shard alone is not the run.
+  expect_false(atlas_rescan_pool(a)$readable)
+  expect_error(atlas_rescan_pool(c(a, a)), "twice")
+  other <- file.path(dir, "other.json")
+  jsonlite::write_json(list(settings = list(release = "r2", seed = 1, per_cell = 50, nulls = 19, shard = "2/2"),
+                            taxa = list()), other, auto_unbox = TRUE)
+  expect_error(atlas_rescan_pool(c(a, other)), "not shards of one rescan")
+})
