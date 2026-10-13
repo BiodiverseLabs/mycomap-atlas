@@ -35,6 +35,13 @@ ATLAS_LINKED_INAT_DATABASE <- 43L
 # 2026-10-13, from the next pull; the frozen 2026-10-12 pull keeps them).
 ATLAS_TRASH_SEQUENCE_CATEGORY <- 169L
 
+# Nor does a sequence .com flags as a contaminant (its "non-target" flag:
+# another organism than the record's, such as the Bacillus mycoides read on
+# iNaturalist 292971948). .org keeps .com's flags as JSON on the sequence,
+# contaminant set as true or 1 (31,130 approved sequences on 2026-10-13), and
+# its own validation already leaves them out; Atlas named records by them.
+# From the next pull (Steve, 2026-10-13).
+
 # How a .org source is written in a sequence's observation key ("inat:123").
 ATLAS_SEQUENCE_KEY_PREFIXES <- c(
   "iNaturalist" = "inat", "MO Observations" = "mo", "MycoPortal" = "mp",
@@ -78,7 +85,9 @@ atlas_sequence_names_sql <- function(first_id, last_id) {
   )
   where <- sprintf(
     paste("o.id >= %d AND o.id <= %d AND 'yes' IN (%s) AND s.approved = 1",
-          "AND coalesce(s.category_id, 0) <> %d AND btrim(coalesce(s.species_name, '')) <> ''"),
+          "AND coalesce(s.category_id, 0) <> %d",
+          "AND coalesce(s.flags ->> 'contaminant', '') NOT IN ('true', '1')",
+          "AND btrim(coalesce(s.species_name, '')) <> ''"),
     as.integer(first_id), as.integer(last_id), statuses, ATLAS_TRASH_SEQUENCE_CATEGORY
   )
   sql <- sprintf(
