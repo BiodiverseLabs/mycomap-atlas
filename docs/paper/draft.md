@@ -221,326 +221,153 @@ record are archived for reuse.
 
 ## 2. Materials and methods
 
-*Drafted from the public Methods page (atlas.mycomap.org/methods). Numbers in
-this section that describe the data are re-read from the frozen release
-before submission. ODMAP protocol in Appendix S1: Section S1 (E17).*
+*Main text kept to the method's essentials (~1,700 words); every detail is
+in Appendix S1, and the ODMAP protocol is its Section S1. Numbers that
+describe the data are re-read from the frozen release before submission.*
 
 ### 2.1 Records and DNA-defined taxa
 
 A record trains a model only when its name is confirmed by DNA: it is marked
-correct ("Validated") in at least one MycoMap validation project, whatever
-another project said. Photo identifications, herbarium names and unassessed
-records are excluded.
+"Validated" in at least one MycoMap validation project, by a person who
+reviewed its sequences against reference data or by an automatic rule that
+accepts only decisive DNA evidence (83.6% of training records carry a
+person's verdict [provisional]). Records come from iNaturalist, Mushroom
+Observer, MyCoPortal, GenBank and MycoMap's own sequencing, all held on
+mycomap.org. Photo identifications, herbarium names and unassessed records
+are excluded.
 
-*Validation.* A validation project is a list of records, each with one or
-more sequences (ITS in most cases). Each sequence is searched against
-MycoMap's reference database (MycoBLAST) and NCBI GenBank. A record is
-validated either by hand, by a project member (project leaders,
-contributors, lab contributors or approved members) who reviews the record's
-sequences, BLAST results and name, or automatically, by the platform's
-analysis of the BLAST results; a person starts every automatic run, and
-any member can confirm or overturn its verdict. Automatic validation applies
-only when the DNA evidence is decisive: every target sequence (contaminant
-and non-target sequences excluded) has a finished BLAST analysis, all name
-the same species, and at least one reaches ≥ 70% analysis confidence and was
-assembled from at least three reads; the record is then marked correct under
-that species, and the name is written back to iNaturalist or Mushroom
-Observer with an explanatory comment. Anything short of that goes to a
-person. Each verdict records who made it and when. Only a project's own
-"Validated" counts; an echo of another project's verdict does not. Records
-that one project validates and another rejects count as validated, because
-the validating project settled the name. [CHECK: cite the mycomap.org
-Handbook and the eligibility code.]
+The name is the one on the record's approved sequences, not the record's
+own, which is often not updated after sequencing; a record whose sequences
+disagree, or name only a genus, is left out. Provisional names (sequence
+clusters without a formal name, such as *Mycena* sp. 'IN10') count as taxa,
+and about half the modelled taxa carry one [PENDING E16]. A model belongs to
+its record set, not its name: each taxon's records are hashed into a
+fingerprint, and a model is refitted when the fingerprint changes.
 
-Of an approximation of the training set (145,256 eligible records rebuilt
-read-only from production on 2026-10-13, against the rebuild pull's 138,410
-eligible and 133,311 kept), 83.6% carry a person's verdict, 5.3% an
-automatic verdict later confirmed by a person, and 11.1% an automatic
-verdict only; automatic validation touched iNaturalist records almost
-exclusively (MyCoPortal and GenBank records are all manual). 27.9% are
-validated in two or more projects. "Manual" here means no automatic-
-validation log entry, and that log begins on 2026-03-17, so earlier
-automatic verdicts count as manual. [PENDING E16: the same figures for the
-frozen pull's records, if provenance can be joined to them.] E7b measures
-what the validation level does to the maps, each arm against the
-production rule: automatic-only verdicts excluded; manual verdicts only;
-validated in at least two projects; no rejection anywhere. Records come from
-iNaturalist, Mushroom
-Observer, MyCoPortal and MycoMap's own sequence and GenBank imports, all held
-on mycomap.org.
-
-The name is the one on the record's approved sequences, not the record's own
-name, which is often not updated after the sequence is named. A record whose
-approved sequences name two species, name only a genus, or that has no
-approved named sequence, is excluded (E9 measures what this changes).
-Provisional names (DNA clusters without a formal name, e.g. *Mycena* sp.
-'IN10') count as taxa; spelling, punctuation, author-citation and rank-word
-variants are merged before modelling [CHECK: final merge counts from the
-frozen pull].
-
-Coordinates must be present and not obscured, accurate to 1 km where an
-accuracy was recorded, and in the United States, Canada, Mexico, Puerto Rico
-or the US Virgin Islands. Mushroom Observer records need a GPS point the
-observer shows, or a named location whose centre is within 5 km of all of
-it; MyCoPortal records need MyCoPortal's own coordinates accurate to 5 km, or
-a locality that is not a shared county or state centroid. [PENDING E16: the
-records kept and dropped by each rule, by source.]
+Coordinates must be present, not obscured and accurate to 1 km where an
+accuracy is recorded (Mushroom Observer and MyCoPortal records have their
+own 5 km rules), in the United States, Canada, Mexico, Puerto Rico or the
+US Virgin Islands. The frozen pull holds [133,235] records of [16,252] taxa
+[provisional].
 
 *Data errors found and removed.* Two checks before the freeze removed 76
 records whose name or place was wrong: 22 Mushroom Observer specimens
 linked to unrelated iNaturalist observations (one a striped skunk, named
 *Clitocybe deceptiva* by its fungal sequence), and 54 records of plants,
 animals and a bacterium named by sequences from pooled host samples or
-contaminants. Three fungi were refitted or retired; a 129-id exclusion list
-applies to every later pull (Appendix S1: Section S2). The pipeline did
-exactly what it was built to do with wrong links, which is why the paper
-reports data errors as well as model errors.
+contaminants. The pipeline did exactly what it was built to do with wrong
+links, which is why the paper reports data errors as well as model errors.
+Validation, every eligibility rule with its counts, both cleanings and the
+query details are in Appendix S1: Section S2.
 
-Each taxon's record set is hashed into a fingerprint. A model belongs to its
-record set, not its name: it is refitted when the fingerprint changes, and a
-provisional name can be renamed or re-clustered without leaving a stale map.
+### 2.2 Predictors, survey sites and models
 
-[PENDING E16: Table 1 (counts); Appendix S1: Section S2, records by source and where records
-are (0.1° cells) and how they cluster.]
+Everything is modelled on a North America Albers Equal Area Conic grid of
+5 km cells, with 69 predictors in eight layers: climate (WorldClim 2.1; Fick
+& Hijmans 2017), elevation and terrain, topsoil chemistry and texture
+(SoilGrids 2.0; Poggio et al. 2021), land cover (ESA WorldCover; Zanaga et
+al. 2021), forest type (NALCMS; CEC 2023), and the share of a cell's trees
+in each of 29 host genera from the United States and Canadian forest
+inventories (Wilson et al. 2018; Beaudoin et al. 2014) (Appendix S1:
+Section S3).
 
-### 2.2 Study region, grid and predictors
+Records of all taxa are gathered into survey sites by 5 km distance
+thinning. For each taxon a site is a detection if any of its records is
+that taxon and a non-detection otherwise, so the background is where people
+collected and sequenced other fungi (a target group; Phillips et al. 2009),
+within 500 km of the taxon's sites. Taxa with 20 or more sites are fitted
+with Maxent (maxnet; Phillips et al. 2017), a down-sampled random forest
+(Valavi et al. 2021) and, from 50 sites, boosted trees; taxa with 3 to 19
+sites with an ensemble of small models (Breiner et al. 2015). Settings are
+tuned by nested spatial cross-validation, with blocks sized from each
+taxon's spatial autocorrelation (Valavi et al. 2019), and every model is
+scored on whole held-out blocks by AUC against non-detection sites and the
+Boyce index (Hirzel et al. 2006). Maps are coloured by rank inside each
+model's area of applicability (Meyer & Pebesma 2021). Settings, predictor
+selection, effort handling and maps are in Appendix S1: Section S4.
 
-Everything is modelled on a North America Albers Equal Area Conic grid with
-5 km cells (3.7 million cells); the frozen release is on this grid. The
-pipeline also defines a nested 1 km grid, which no release used here.
+### 2.3 The null test and the grade
 
-Sixty-nine predictor bands in eight layers (Appendix S1: Section S3): 19 WorldClim 2.1
-bioclimatic variables (1970–2000) and elevation (Fick & Hijmans 2017); slope
-and roughness derived on the grid; topsoil (0–5 cm) pH, organic carbon, total
-nitrogen, clay, sand and cation exchange capacity from SoilGrids 2.0 (Poggio
-et al. 2021); six land-cover fractions from ESA WorldCover (Zanaga et al.
-2021); the share of a cell's trees in each of 29 host genera (19 mainly
-mycorrhizal hosts plus the conifer share, and 10 genera hosting decay and
-parasitic fungi: maple, ash, elm, juniper, cedar, tulip tree, cherry,
-sweetgum, sycamore, black locust), from BIGMAP in the United States (USDA
-Forest Service FIA, n.d.; Wilson et al. 2018) and the Canadian National
-Forest Inventory kNN maps (Beaudoin et al. 2014), with a flag where neither
-inventory reaches (Alaska, Hawaii, Puerto Rico, Mexico); and needleleaf,
-broadleaf and mixed forest shares from NALCMS (CEC 2023), filled from
-Copernicus Global Land Cover (Buchhorn et al. 2020) on Hawaii and the
-Caribbean, with a flag. The tree models also take log collecting effort;
-Maxent does not. [CHECK: the frozen release's layer manifest (sha256) once
-the rebuild finishes; the count above is from the rebuild lane's copy.]
+A held-out score cannot say whether a map knows anything, because clustered
+records are easy to separate from their background with almost any smooth
+predictor (Fourcade et al. 2018). Each model is therefore refitted, with
+the same untuned settings and folds, on null species. In the *shift*
+design, the taxon's own detection sites are rotated by one random angle and
+moved together to another surveyed place, and each point is snapped to a
+survey site: the pattern's clustering is kept and its tie to environment is
+broken. In the *scatter* design, used until October 2026 and close to
+common practice (Raes & ter Steege 2007), null detections are drawn site by
+site. Up to 99 nulls are drawn, and the sequential test of Besag & Clifford
+(1991) stops once five match the map.
 
-Sources are cropped, reprojected and averaged onto the grid (never
-interpolated); land cells left empty are filled from neighbours within
-10 km. Candidate layers (water balance, bedrock, landform, ClimateNA
-1991–2020 normals, single tree species) were built and tested in paired
-layer sweeps and not adopted (Appendix S1: Section S3; E8).
+A model is **strong** when its held-out AUC beats its shifted nulls at
+p ≤ 0.05 and its Boyce index is above zero; **weak** when it ranks held-out
+ground better than chance (AUC above 0.5 and Boyce above zero) without
+passing; and **failed** otherwise. Only strong maps feed anything that
+makes a claim (combined maps, state lists, the location prior for MycoMap
+Vision); weak and failed maps are published faint with their grade. Two
+looser tiers, moderate and indicative, are judged against pre-stated
+thresholds in Appendix S1: Section S5.
 
-### 2.3 Survey sites, target-group background and effort
+### 2.4 Calibrating the null test on simulated species
 
-All eligible records of every taxon are gathered into survey sites by
-greedy distance thinning at 5 km, busiest place first. For each taxon a site
-is a detection if any of its records is that taxon, and a non-detection
-otherwise (a target-group background; Phillips et al. 2009), each counted
-once. Sites are drawn from the taxon's accessible area, its own sites
-buffered by 500 km. Effort, the log of a site's records with the taxon's own
-records counted once, is a predictor for the tree models and held at the
-median of detection sites when maps are drawn or scored (Warton et al. 2013;
-Fithian et al. 2015). Maxent is fitted without it: on virtual species with a
-known habitat, effort as a covariate, offset or weight made Maxent's maps
-slightly worse (E14) [pre-freeze].
+Simulated species are given a habitat, a response to two or three real
+predictors, and then "collected" at MycoMap's real survey sites: each real
+record at a site is the simulated species with a probability proportional to
+the habitat there, so they inherit the real pattern of effort (Zurell et al.
+2010). *Geography* species instead follow distance from one or two centres
+and ignore the environment, so any pass is a false pass. Each goes through
+the production training table, folds, fits and null test. The study
+(pre-registered; Appendix S1: Section S5) crosses five site bands, two
+habitat breadths and two signal strengths for 1,200 habitat species, with
+800 geography species and 840 small-site species, for Maxent, random forests
+and the small-model ensembles. It reports the false-pass rate and power of
+each null design with Wilson intervals, and how closely passed and failed
+maps match the true habitat.
 
-### 2.4 Predictor selection
+### 2.5 Independent tests and baselines
 
-For Maxent and the small-model ensembles, predictors correlated at |r| ≥ 0.7
-on non-detection sites are pruned, keeping the earlier one in a fixed
-ecological order (soil pH first; host trees second for ectomycorrhizal genera
-per FungalTraits, Põlme et al. 2020), with an allowance for host-tree bands
-and a cap of one predictor per four detection sites (set by a 153-taxon sweep
-[pre-freeze]). The tree models receive all predictors.
+Two tests use only records the maps never saw. In the **hindcast**, the
+whole pipeline, null tests included, is rerun on the records first validated
+on or before 17 August 2026, and the records first validated after it are
+scored on those maps. In **prospective tracking**, each day's newly validated
+records are scored on the release live when the day began; Atlas trains only
+on validated records, so no find can have trained the map it is scored on.
+Each find, counted once per taxon and 5 km cell, is scored by its rank on
+the map (half land in the top half by chance), the share in the top tenth,
+the Boyce index, and whether it outranks the cells where other taxa's finds
+landed in the same period, so that 50% is no better than knowing where
+people collect. Results are reported by grade, pre-registered with the
+criteria for supporting the grade's claim (Appendix S1: Section S6).
 
-### 2.5 Models and evaluation
+Atlas is compared on the same finds with two baselines (Appendix S1:
+Section S7): a model that knows only the distance to a taxon's known sites
+(Bahn & McGill 2007), and Maxent as commonly run (default settings, a
+random background, random cross-validation and a scattered null test).
 
-| Sites | Models |
-|---|---|
-| 3–19 | ensemble of small models (ESM; Breiner et al. 2015): every pair of the first ten predictors, quadratic, penalised, weighted by held-out skill |
-| 20–49 | Maxent (maxnet; Phillips et al. 2017), random forest (down-sampled, ranger; Valavi et al. 2021), ESM |
-| 50+ | Maxent, random forest, boosted trees (xgboost) |
+### 2.6 Releases and reproducibility
 
-Settings are tuned by nested spatial cross-validation (Maxent feature classes
-and regularisation multiplier 0.25–4; tree depth; mtry). Blocks are sized from
-a variogram of each taxon's sites with blockCV (Valavi et al. 2019), held to
-50–300 km, dealt into five folds with detection blocks first; taxa with fewer
-than 20 sites use three folds of 100 km blocks. A kNNDM-style check (Milà et
-al. 2022) compared cross-validation distances with mapping distances (E13).
-Scores are blocked AUC against the taxon's non-detection sites and the Boyce
-index (Hirzel et al. 2006) pooled over folds. [CHECK: the maxnet glmnet path
-settings, 20 steps with a pass cap, belong in S1.]
+A server pulls eligible records nightly and refits only taxa whose
+fingerprint or settings changed, on spot instances running one pinned
+container; each release is content-addressed and records the code commit,
+package versions, layer builds and pull fingerprint, and archived releases
+carry Zenodo DOIs. Exact coordinates never leave Atlas's private compute;
+records whose location is hidden or obscured at the source stay so in every
+published dataset. A rerun on one machine reproduces maps byte for byte;
+across machines, 573 of the frozen release's 576 strong models refitted
+within float32 precision, and three tuned Maxent models chose different
+settings (Appendix S1: Section S10, which also gives the cost and time of
+every run).
 
-### 2.6 The null test and the grade
+### 2.7 Pre-declared question: a place signal for photo identification
 
-Each model is refitted, with the same untuned settings and folds, on null
-species. In the production design (*shift*), the taxon's own detection sites
-are rotated by one random angle and moved together to another surveyed place
-(busier places more often), and each point is snapped to a free survey site;
-the pattern's clustering is kept and its tie to environment is broken.
-Previously (*scatter*) null detections were drawn site by site. Up to 99
-nulls are drawn; the sequential test of Besag & Clifford (1991) stops once 5
-nulls match the map. A model passes when its blocked AUC beats the nulls at
-p ≤ 0.05 and its pooled Boyce index is above 0. Benjamini–Hochberg q-values
-across taxa are recorded but do not decide (with 99 nulls the smallest p is
-about 0.01).
-
-Grades: **strong** (passed against shift nulls); **weak** (held-out skill,
-but not shown to beat clustered collecting); **failed** (no better than
-chance on held-out ground); **untested**. Only strong maps are used
-downstream: the combined map, state verdicts, the "what could grow here"
-index, the location prior for MycoMap Vision, and the sitemap. Map opacity
-follows a map strength from the margin over the nulls.
-
-### 2.7 Calibrating the null test on virtual species
-
-Virtual species are given a habitat (a response to two or three real
-predictors, always one climate driver) and then "collected" at MycoMap's real
-survey sites: each real record at a site is the virtual species with a
-probability proportional to the habitat there. *Geography* species instead
-follow distance from one or two centres and ignore the environment, so any
-pass is a false pass. Each species goes through the production training
-table, folds, fits and null test. False-pass rate = share of geography
-species passing; power = share of habitat species passing; both with Wilson
-95% intervals, by site band and null design. [pre-freeze: 99 species, Maxent
-only; PENDING E1 rerun on the frozen pull with more species and all learners.]
-
-### 2.8 Area of applicability, maps and combined maps
-
-Each model has an area of applicability (Meyer & Pebesma 2021), from
-importance-weighted standardised distances to training sites with the
-cross-validation threshold; cells outside are hatched and unranked. Maps are
-coloured by rank within the area of applicability. Strong maps are also
-projected over North America on the same scale ("potential, not range"),
-with the AOA computed over the full extent. When two or more of a taxon's
-models are strong, they are averaged by rank, weighted by AUC − 0.5, with a
-disagreement layer.
-
-### 2.9 Independent validation
-
-- **Hindcast (E2).** The full pipeline, null tests included, is rerun on the
-  records first validated on or before a cutoff date; records first
-  validated after it are scored on those maps at their own cells.
-- **Prospective tracking (E3).** Each day, records first validated that day
-  are scored on the release live when the day began. Atlas trains only on
-  validated records, so no find can have trained the map it is scored on.
-- **Scores.** Each find's rank on the map (0–1; chance puts half in the top
-  half); the share in the top half and top tenth; Boyce; and "beats effort":
-  the find's rank compared with the ranks of the cells where every other
-  taxon's finds landed in the same period, so 50% is no better than knowing
-  where people collect. Finds outside the AOA or beyond reach are counted
-  apart. Several finds of one taxon in one 5 km cell count once. Results by
-  grade, by new site (> 5 km from the taxon's known records) and by distance.
-- **Presence–absence (E4).** [PENDING feasibility: soil and eDNA samples from
-  GlobalFungi (Větrovský et al. 2020) and MycoMap's own soil cores, matched
-  to Atlas taxa through UNITE species hypotheses; eDNA never trains a model.]
-
-### 2.10 Baseline comparisons
-
-[PENDING E6: (a) "default practice" Maxent: random background over North
-America, random 5-fold CV, default settings; (b) a spatial-only model
-(distance to known sites; Bahn & McGill 2007); (c) Maxent on
-morphology-named GBIF records of the same formally named species; (d)
-optionally a biomod2-style default ensemble. All scored on the E2/E3
-independent finds, alongside the cross-validation scores each approach
-reports for itself.]
-
-### 2.11 Releases, nightly rebuilds and reproducibility
-
-A Lightsail server pulls eligible records nightly, refits only taxa whose
-fingerprint or settings changed on EC2 spot workers in one pinned container
-(base image by digest, R packages from a dated snapshot), and publishes a
-content-addressed release recording the code commit, package versions, layer
-builds and pull fingerprint. Seeds come from the fingerprint. Releases are
-archived on Zenodo (layers and models series, CC BY-SA 4.0). Exact
-coordinates never leave Atlas's private compute and storage; everything
-published is 1 km or coarser, and records are drawn as 0.1° cells, the same
-for every taxon.
-
-Atlas is reproducible from its pinned container (base image by digest, R
-packages from a dated Posit snapshot, the store's content-addressed inputs).
-A rerun on the same machine reproduces maps byte for byte; we verified
-this for Maxent, random forests and boosted trees, tuned and untuned, with
-and without null tests. Across machines, results agree to floating-point
-precision rather than bitwise (OpenBLAS selects its matrix kernels by
-processor, and the area-of-applicability index is computed through one of
-them): equal to within float32 storage precision (four rounding steps),
-suitability to a relative 5e-7 and the index to an absolute 1e-6 (or a
-relative 5e-7 where larger), where a genuinely different model differs by
-1e-4 or more. Refitting the frozen release's 576 strong models for the
-full-view refresh met these tolerances for 573. The other three are tuned
-Maxent models whose settings choice differed: one near-tie (*Russula* sp.
-'compacta-PA01'), and two (*Stropharia hardii*, *Gliophorus fumosus*) where
-the cross-validated scores of every candidate differed across machines,
-from the same records and background; the mechanism is under
-investigation (E12). The release keeps their original fits and lists both
-fits' settings and tuning scores. The other 573 models' chosen settings,
-tuning scores, blocked AUC, pooled Boyce and per-fold AUC were identical to
-four decimals, so no score drift sits behind matching maps; the changes
-are confined to 3 of 121 tuned Maxent models and none of 455 other models.
-On one machine, repeated fits in fresh processes and different orders were
-bit-identical. E12 measures how often grades differ across processor
-families [PENDING E12]. Our refit checks enforce the tolerances
-and flag anything beyond them.
-
-Published records follow their source's privacy: records whose location
-is hidden, obscured or of unknown privacy at the source are excluded from
-all published record-level layers. In practice that is the 0.1° record
-cells, from which about 0.5% of records (those of unknown privacy, whose
-0.1° cell would be finer than iNaturalist's own obscuring) are dropped; no
-model is refitted. Everything else published is map-derived or coarse
-(state counts, the 500 km accessible area). The frozen release ships the
-corrected cells file.
-
-Each shard's record names its instance type,
-processor and BLAS. [PENDING E12: the numbers from the rerun.]
-
-### 2.12 Pre-declared question Q1: a place signal for photo identification (E21, E22)
-
-MycoMap Vision identifies fungi from photos by nearest reference images and
-adds a place term. Its current place term is a distance kernel over DNA
-records, which ranks down true species found far from known records. The
-Atlas arms replace that kernel with habitat. The design was fixed on
-2026-10-12, before any result, and is public in the Vision repository
-(`docs/atlas-environment.md`, file version b78609d). The analysis plan was
-approved in commit 5c9a4b6 and is unchanged since; b78609d only added a
-later section proposing the new-find tracker, not an edit to the analysis.
-
-- **Data.** Vision dataset release v1: training records first validated on or
-  before 2026-08-17 (155,781 records), validation records after it (13,354).
-  Atlas is refitted on records first validated on or before the same date
-  (the hindcast release, E2), so no validation record trained a map. The
-  cutoff is on the first-validation date, not the observation date.
-- **Confirmation.** Settings are chosen on validation-set cross-validation
-  (observer folds); the direction is then checked once on v1-test, a census
-  of North American records first validated after 2026-10-12 13:17 UTC
-  (≥ 3,000 records; frozen ~30 October 2026). Which Atlas release each step
-  may use: validation-set results use the hindcast release only (any later
-  pull contains the validation records); the v1-test check may use the
-  hindcast release or the October 2026 rebuild release (pull 2026-10-12
-  05:10 UTC, before v1-test opened); no nightly release pulled after
-  2026-10-12 13:17 UTC is used for either.
-- **Primary arm (P2c).** Each strong map's continent-wide projection, ranked
-  on its in-area scale, enters as log f(rank) × trust, replacing the distance
-  kernel for mapped taxa; trust = map strength × agreement among the taxon's
-  strong models × applicability (cut or graded outside the AOA).
-  Unmapped taxa keep the served kernel.
-- **Tests.** Intersection-union: species top-1 better than no place term
-  (one-sided McNemar, p < 0.05) **and** non-inferior in the 300–1,500 km band
-  at a 2% margin (paired bootstrap, 10,000 resamples). Secondary arms (P2c
-  without trust; in-area only; the accessible area as a range; combined with
-  the kernel; a low-capacity environment head on Atlas layers, P4, with a
-  coordinates-only control, P6) are Holm-adjusted and exploratory. Effects are
-  reported within reference-depth bands so map quality is not confused with
-  commonness.
-- **Projection validity (H, E22).** For validation records of mapped taxa
-  500 km or more from any training DNA record, the Boyce index of the true
-  species' projected rank, and the share in cells ranked ≥ 50 with a binomial
-  CI, inside and outside the AOA. This is also an independent test of the
-  full-extent maps (C2).
+Whether the maps carry habitat information another system can use was
+tested as registered before any result (Vision repository,
+`docs/atlas-environment.md`, version b78609d): MycoMap Vision's photo
+identifications with the continent-wide projection of strong maps,
+weighted by trust, as their place signal, against no place signal, on
+records first validated after 17 August 2026, with Atlas refitted on the
+records before that date (Appendix S1: Section S9).
 
 ---
 
@@ -789,7 +616,7 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
   the pipeline's code and the first drafts of this manuscript were written
   with an AI assistant (Claude, Anthropic; model versions in Appendix S1)
   under the author's direction; the author reviewed all code and text and is
-  responsible for them." The same disclosure goes in Methods 2.11 and on the
+  responsible for them." The same disclosure goes in Methods 2.6 and on the
   submission form.
 - **Author Contributions:** sole author.
 - **Conflict of Interest statement** (required): "The author declares no
@@ -837,12 +664,11 @@ appendix rather than words being added.
 |---|---|---|
 | 1 Introduction | the problem, the gap, C1–C4 and Q1 in a paragraph | — |
 | 2.1 Records | DNA-defined taxa, validation in two sentences, the eligibility rule in one paragraph | S2: validation provenance, every rule with counts, the data errors and exclusion list, query details, contributors |
-| 2.2–2.5 Predictors, sites, models | one paragraph each: layers by group, target-group survey sites, the learners and nested spatial CV | S3: the 69 predictors, pruning and host allowance, layer sweeps, importance (E8); S4: model settings, tuning grids, small-site ensembles, thresholds |
-| 2.6–2.7 Null test and calibration | in full: the shift null, the grade, the virtual-species design | S5: generator details, every cell, effort arms (E14), the earlier study (E1b) |
-| 2.8 Applicability and maps | two sentences | S4 |
-| 2.9–2.10 Independent tests and baselines | in full but brief: hindcast, tracker, scores, baselines | S6: every split; S7: baseline details |
-| 2.11 Releases and reproducibility | three sentences | S10: release format, tolerances, rerun (E12), stability (E11), cost and time (E23) |
-| 2.12 / 3.9 Q1 | one paragraph each | S9: the registered design, every arm, projection validity |
+| 2.2 Predictors, sites, models | two paragraphs: layers by group, target-group survey sites, the learners and nested spatial CV | S3: the 69 predictors, pruning and host allowance, layer sweeps, importance (E8); S4: model settings, tuning grids, small-site ensembles, thresholds |
+| 2.3–2.4 Null test and calibration | in full: the shift null, the grade, the simulated-species design | S5: generator details, every cell, effort arms (E14), the earlier study (E1b) |
+| 2.5 Independent tests and baselines | in full but brief: hindcast, tracker, scores, baselines | S6: every split; S7: baseline details |
+| 2.6 Releases and reproducibility | three sentences | S10: release format, tolerances, rerun (E12), stability (E11), cost and time (E23) |
+| 2.7 / 3.9 Q1 | one paragraph each | S9: the registered design, every arm, projection validity |
 | 3 Results | calibration (C1), the atlas by grade (C4), independent tests against baselines (C2), sequence names (C3, one paragraph) | S5–S10 |
 | 4 Data and reuse | one paragraph: what is deposited, the frozen release, licences, one line of cost | S11: the deposit table and usage notes; S10: the cost table |
 | 5 Discussion | grades and power, implications for automated SDM, fungi, limits | — |
@@ -1063,6 +889,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.12 (2026-10-13).** Methods cut to the lean budget (~1,700 words);
+  the previous text moved unchanged into Appendix S1 Sections S2 (S2.0),
+  S3, S4, S9 and S10.
 - **0.11 (2026-10-13).** Looser map tiers pre-specified (E24): moderate
   (shift p ≤ 0.20), indicative (AUC > 0.5, Boyce > 0), with a continuous
   variant; added to the E1 and E2 pre-registrations as secondary analyses.

@@ -3,6 +3,74 @@
 *Draft of 2026-10-13. Query details for the mycomap.org pull are still to
 write (from `R/occurrences.R` at the frozen release's commit).*
 
+## S2.0 Eligibility, validation and naming
+
+*Moved from the main text on 2026-10-13 (lean main text); edited only for the move.*
+
+A record trains a model only when its name is confirmed by DNA: it is marked
+correct ("Validated") in at least one MycoMap validation project, whatever
+another project said. Photo identifications, herbarium names and unassessed
+records are excluded.
+
+*Validation.* A validation project is a list of records, each with one or
+more sequences (ITS in most cases). Each sequence is searched against
+MycoMap's reference database (MycoBLAST) and NCBI GenBank. A record is
+validated either by hand, by a project member (project leaders,
+contributors, lab contributors or approved members) who reviews the record's
+sequences, BLAST results and name, or automatically, by the platform's
+analysis of the BLAST results; a person starts every automatic run, and
+any member can confirm or overturn its verdict. Automatic validation applies
+only when the DNA evidence is decisive: every target sequence (contaminant
+and non-target sequences excluded) has a finished BLAST analysis, all name
+the same species, and at least one reaches ≥ 70% analysis confidence and was
+assembled from at least three reads; the record is then marked correct under
+that species, and the name is written back to iNaturalist or Mushroom
+Observer with an explanatory comment. Anything short of that goes to a
+person. Each verdict records who made it and when. Only a project's own
+"Validated" counts; an echo of another project's verdict does not. Records
+that one project validates and another rejects count as validated, because
+the validating project settled the name. [CHECK: cite the mycomap.org
+Handbook and the eligibility code.]
+
+Of an approximation of the training set (145,256 eligible records rebuilt
+read-only from production on 2026-10-13, against the rebuild pull's 138,410
+eligible and 133,311 kept), 83.6% carry a person's verdict, 5.3% an
+automatic verdict later confirmed by a person, and 11.1% an automatic
+verdict only; automatic validation touched iNaturalist records almost
+exclusively (MyCoPortal and GenBank records are all manual). 27.9% are
+validated in two or more projects. "Manual" here means no automatic-
+validation log entry, and that log begins on 2026-03-17, so earlier
+automatic verdicts count as manual. [PENDING E16: the same figures for the
+frozen pull's records, if provenance can be joined to them.] E7b measures
+what the validation level does to the maps, each arm against the
+production rule: automatic-only verdicts excluded; manual verdicts only;
+validated in at least two projects; no rejection anywhere. Records come from
+iNaturalist, Mushroom
+Observer, MyCoPortal and MycoMap's own sequence and GenBank imports, all held
+on mycomap.org.
+
+The name is the one on the record's approved sequences, not the record's own
+name, which is often not updated after the sequence is named. A record whose
+approved sequences name two species, name only a genus, or that has no
+approved named sequence, is excluded (E9 measures what this changes).
+Provisional names (DNA clusters without a formal name, e.g. *Mycena* sp.
+'IN10') count as taxa; spelling, punctuation, author-citation and rank-word
+variants are merged before modelling [CHECK: final merge counts from the
+frozen pull].
+
+Coordinates must be present and not obscured, accurate to 1 km where an
+accuracy was recorded, and in the United States, Canada, Mexico, Puerto Rico
+or the US Virgin Islands. Mushroom Observer records need a GPS point the
+observer shows, or a named location whose centre is within 5 km of all of
+it; MyCoPortal records need MyCoPortal's own coordinates accurate to 5 km, or
+a locality that is not a shared county or state centroid. [PENDING E16: the
+records kept and dropped by each rule, by source.]
+
+Each taxon's record set is hashed into a fingerprint. A model belongs to its
+record set, not its name: it is refitted when the fingerprint changes, and a
+provisional name can be renamed or re-clustered without leaving a stale map.
+
+
 ## S2.1 How the records were pulled
 
 [PENDING: the eligibility rules as executed; the read-only route; the pull's
