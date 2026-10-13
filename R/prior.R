@@ -65,6 +65,22 @@ atlas_prior_taxon_ranks <- function(parts) {
   out
 }
 
+#' A taxon's map strength from its strong models': weighted as the combined
+#' map weights them (AUC above 0.5), or their plain mean when none has a
+#' usable weight. The prior and the continent export both say it this way.
+atlas_taxon_map_strength <- function(strength, auc) {
+  strength <- as.numeric(strength)
+  w <- pmax(0, as.numeric(auc) - 0.5)
+  usable <- is.finite(strength) & is.finite(w) & w > 0
+  if (any(usable)) {
+    round(sum(w[usable] * strength[usable]) / sum(w[usable]), 3)
+  } else if (any(is.finite(strength))) {
+    round(mean(strength[is.finite(strength)]), 3)
+  } else {
+    NA_real_
+  }
+}
+
 #' How to find a point's cell, for a reader in another language: the
 #' projection, the cell size, the numbering, and a numpy port of
 #' atlas_albers and atlas_here_cell that a test holds to them.
@@ -193,16 +209,7 @@ atlas_build_prior <- function(grid = "draft", quiet = FALSE, strong = NULL) {
       ranks[[k]] <- data.frame(taxon_id = k, cell_id = taxon$cell, rank = taxon$rank,
                                models = taxon$models, rank_sd = taxon$rank_sd)
     }
-    strength <- as.numeric(models$map_strength[mine])
-    w <- weight[mine]
-    usable <- is.finite(strength) & is.finite(w) & w > 0
-    taxa$map_strength[[k]] <- if (any(usable)) {
-      round(sum(w[usable] * strength[usable]) / sum(w[usable]), 3)
-    } else if (any(is.finite(strength))) {
-      round(mean(strength[is.finite(strength)]), 3)
-    } else {
-      NA_real_
-    }
+    taxa$map_strength[[k]] <- atlas_taxon_map_strength(models$map_strength[mine], models$auc_mean[mine])
     taxa$models[[k]] <- length(mine)
     taxa$algorithms[[k]] <- paste(models$algorithm[mine], collapse = ",")
     presences <- suppressWarnings(max(models$presences[mine], na.rm = TRUE))

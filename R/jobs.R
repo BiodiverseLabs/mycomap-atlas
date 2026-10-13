@@ -386,7 +386,13 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   if (!length(mine)) stop("shard ", shard, " of job ", id, " has no tasks", call. = FALSE)
   started <- Sys.time()
 
-  fetched <- atlas_fetch_entries(store, job$inputs)
+  # A full-view refresh gives each shard the inputs of the job that fitted
+  # its models (R/fullrefresh.R).
+  fetched <- atlas_fetch_entries(store, job$shard_inputs[[as.character(shard)]] %||% job$inputs)
+  refresh <- if (atlas_is_full_refresh(job)) {
+    base <- atlas_store_text(store, paste0("releases/", grid, "/", job$from_release, ".json"))
+    stats::setNames(vapply(base$files, function(f) f$sha256, ""), vapply(base$files, function(f) f$path, ""))
+  }
   saved <- atlas_shard_progress(store, id, shard, grid)
   say("shard ", shard, ": ", length(mine), " models to fit",
       if (length(saved$results)) paste0(" (", length(saved$results), " saved by an earlier worker)"),
@@ -421,15 +427,19 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
     last_save <<- Sys.time()
     if (isTRUE(progress)) {
       atlas_store_json(store, atlas_shard_key(id, shard, grid, progress = TRUE), list(
-        job = id, shard = shard,
+        job = id, shard = shard, machine = atlas_machine_info(),
         saved_at = format(last_save, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
         results = results, files = files, index = index
       ))
     }
   }
   finish_task <- function(name, algorithm, row, fingerprint, settings_key) {
-    pending$results[[length(pending$results) + 1L]] <<-
-      atlas_shard_result(name, algorithm, row, fingerprint, settings_key)
+    result <- atlas_shard_result(name, algorithm, row, fingerprint, settings_key)
+    if (!is.null(refresh) && identical(row$status, "fitted")) {
+      result$identity <- atlas_refresh_verdict(store, refresh, name, grid, algorithm,
+                                               job$tolerance %||% ATLAS_REFRESH_TOLERANCE)
+    }
+    pending$results[[length(pending$results) + 1L]] <<- result
     if (identical(row$status, "fitted")) {
       paths <- atlas_model_relpaths(name, grid, algorithm)
       paths <- paths[file.exists(file.path(atlas_data_dir(), paths))]
@@ -478,6 +488,9 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
                            levels = c("fitted", "refused", "failed")))
   record <- list(
     job = id, shard = shard,
+    # Which machine fitted it: floating point's last bits depend on the
+    # processor's matrix kernels (R/fullrefresh.R).
+    machine = atlas_machine_info(),
     started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     counts = as.list(statuses),
@@ -490,6 +503,21 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       statuses[["failed"]], " failed; uploaded ", uploaded$count, " files (",
       round(uploaded$bytes / 1048576, 1), " MB)")
   invisible(record)
+}
+
+#' What machine this is, for a shard's record: the EC2 instance type (the
+#' worker script passes it in), the processor and the BLAS library.
+atlas_machine_info <- function() {
+  cpu <- if (file.exists("/proc/cpuinfo")) {
+    line <- grep("^model name", readLines("/proc/cpuinfo", warn = FALSE), value = TRUE)
+    if (length(line)) trimws(sub("^[^:]*:", "", line[[1]]))
+  }
+  blas <- tryCatch(basename(as.character(extSoftVersion()[["BLAS"]])), error = function(e) NULL)
+  Filter(Negate(is.null), list(
+    instance_type = if (nzchar(Sys.getenv("ATLAS_INSTANCE_TYPE", unset = ""))) Sys.getenv("ATLAS_INSTANCE_TYPE"),
+    cpu = cpu,
+    blas = if (length(blas) && nzchar(blas)) blas
+  ))
 }
 
 #' How many of a shard's tasks its saved progress holds: the orchestrator
@@ -530,6 +558,11 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
   if (atlas_is_prior_only(job)) {
     stop("job ", id, " is a prior-only job: it never becomes a release; ",
          "finish it with finish-prior-only", call. = FALSE)
+  }
+  # A refresh's refits carry no grades of their own: finished as a job is,
+  # its release would take their metrics and lose R_main's (R/fullrefresh.R).
+  if (atlas_is_full_refresh(job)) {
+    stop("job ", id, " is a full-view refresh: publish it with finish-full-refresh", call. = FALSE)
   }
   status <- atlas_job_status(store, id, grid)
   if (length(status$missing) && !isTRUE(partial)) {
