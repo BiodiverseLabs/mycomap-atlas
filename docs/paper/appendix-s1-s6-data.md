@@ -21,8 +21,8 @@ audit of MycoMap Vision's training references, in which 41 records showed
 animal photos, each with a Mushroom Observer twin in the same validation
 project [CHECK: confirm with Steve or the Vision retrain lane]. A separate
 Vision export bug (Mushroom Observer and MyCoPortal ids fetched as
-iNaturalist ids, found 2026-10-09) had a different cause and did not affect
-Atlas. Twenty-two were
+iNaturalist ids, found 2026-10-09) had a different cause and is not part of
+this correction. Twenty-two of the 75 were
 in the October 2026 pull. All 75 ids are excluded from the frozen release
 and from the hindcast's pull.
 
