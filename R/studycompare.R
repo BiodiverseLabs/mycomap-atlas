@@ -164,6 +164,38 @@ atlas_e9_compare_releases <- function(frozen, record, raster_of = atlas_tracker_
   out[order(out$taxon, out$algorithm), , drop = FALSE]
 }
 
+#' What happened to every model of the frozen release under record names,
+#' so the comparisons have their denominator: refitted (the record-name
+#' release fitted it again: its record set changed), unchanged (its record
+#' set is the same, so the job skipped it: identical by construction), lost
+#' (its taxon has no records under record names), and new (a record-name
+#' model with no frozen model of that taxon and learner). unchanged is the
+#' job's own count (summary.json filter$models_unchanged); the rest come from
+#' the two indexes and the record-name pull's names.
+atlas_e9_model_counts <- function(frozen_entries, record_entries, record_names, unchanged) {
+  key <- function(entries) vapply(entries, function(e) paste(e$algorithm, e$taxon, sep = ""), "")
+  taxa <- function(entries) vapply(entries, function(e) as.character(e$taxon), "")
+  frozen <- key(frozen_entries)
+  record <- key(record_entries)
+  lost <- !taxa(frozen_entries) %in% record_names
+  refitted <- frozen %in% record
+  counts <- list(frozen_models = length(frozen), refitted = sum(refitted), unchanged = as.integer(unchanged),
+                 lost = sum(lost & !refitted), new = sum(!record %in% frozen))
+  counts$unaccounted <- counts$frozen_models - counts$refitted - counts$unchanged - counts$lost
+  counts
+}
+
+#' The record-name job's own summary of the private release, or NULL.
+atlas_e9_summary <- function(store, record) {
+  path <- tempfile(fileext = ".json")
+  ok <- tryCatch({
+    store$get(paste0(ATLAS_BENCHMARK_PREFIX, "/", record, "/summary.json"), path)
+    TRUE
+  }, error = function(e) FALSE)
+  if (!ok || !file.exists(path)) return(NULL)
+  jsonlite::fromJSON(path, simplifyVector = FALSE)
+}
+
 #' Grade changes: DNA-name grade by record-name grade.
 atlas_e9_grade_changes <- function(compared) {
   levels <- c("strong", "weak", "failed", "untested")
@@ -183,6 +215,10 @@ atlas_e9_study <- function(store = atlas_store(), frozen, record, grid = "draft"
   dna <- atlas_tracker_release_pull(store, frozen_view$manifest, grid, frozen_view$cache)
   relabelled <- atlas_tracker_release_pull(store, record_view$manifest, grid, record_view$cache)
   changed <- atlas_e9_changed_taxa(dna, relabelled)
+  summary <- atlas_e9_summary(store, record)
+  unchanged <- summary$filter$models_unchanged %||% summary$counts$models_unchanged %||% NA_integer_
+  models <- atlas_e9_model_counts(frozen_view$entries, record_view$entries,
+                                  unique(as.character(relabelled$scientific_name)), unchanged)
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
   path <- atlas_path("compare-studies", grid, paste0("e9-", frozen, "-vs-", record, "-", stamp, ".json"),
                      create = TRUE)
@@ -192,13 +228,18 @@ atlas_e9_study <- function(store = atlas_store(), frozen, record, grid = "draft"
     labels = atlas_e9_label_changes(dna, relabelled)$by_source,
     taxa = atlas_e9_taxon_changes(dna, relabelled)$counts,
     changed_taxa = list(changed = sum(changed$changed), unchanged = sum(!changed$changed)),
+    # Every frozen model accounted for: the maps below are the refitted ones,
+    # and unchanged models are identical by construction (Spearman 1, D 1).
+    models = models,
+    records_not_species_level = summary$filter$records_not_species_level %||% NA_integer_,
     grades = atlas_e9_grade_changes(compared),
     maps = compared,
     seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   )
   atlas_write_json(result, path)
   if (!isTRUE(quiet)) {
-    message("E9: ", nrow(compared), " models compared; median Spearman ",
+    message("E9: ", models$refitted, " refitted, ", models$unchanged, " unchanged, ", models$lost,
+            " lost of ", models$frozen_models, " frozen models; ", nrow(compared), " compared; median Spearman ",
             round(stats::median(compared$spearman, na.rm = TRUE), 3), ", median Schoener's D ",
             round(stats::median(compared$schoener_d, na.rm = TRUE), 3), " -> ", path)
   }

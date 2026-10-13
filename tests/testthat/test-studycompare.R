@@ -126,3 +126,30 @@ test_that("every record-name model is set against the frozen one: grades, and ma
   expect_equal(grades$Freq[grades$dna == "strong" & grades$record == "weak"], 1L)
   expect_equal(grades$Freq[grades$dna == "strong" & grades$record == "strong"], 1L)
 })
+
+test_that("every frozen model is accounted for: refitted, unchanged, lost, and new ones apart", {
+  entry <- function(taxon, algorithm) list(taxon = taxon, algorithm = algorithm)
+  frozen <- list(entry("Amanita muscaria", "maxnet"), entry("Amanita muscaria", "rf"),
+                 entry("Boletus edulis", "maxnet"), entry("Russula sp. 'IN01'", "esm"),
+                 entry("Cortinarius alboviolaceus", "esm"))
+  record <- list(entry("Amanita muscaria", "maxnet"), entry("Amanita muscaria", "rf"),
+                 entry("Amanita persicina", "esm"))
+  names <- c("Amanita muscaria", "Amanita persicina", "Boletus edulis", "Cortinarius alboviolaceus")
+  counts <- atlas_e9_model_counts(frozen, record, names, unchanged = 2L)
+  expect_equal(counts$frozen_models, 5L)
+  expect_equal(c(counts$refitted, counts$unchanged, counts$lost, counts$new), c(2L, 2L, 1L, 1L))
+  expect_equal(counts$unaccounted, 0L)
+  # A count the job did not report leaves the rest unaccounted, visibly.
+  expect_true(is.na(atlas_e9_model_counts(frozen, record, names, NA_integer_)$unaccounted))
+})
+
+test_that("the record-name job's summary is read from the private release's prefix", {
+  dir <- tempfile("store-")
+  key <- paste0(ATLAS_BENCHMARK_PREFIX, "/rn1/summary.json")
+  dir.create(file.path(dir, dirname(key)), recursive = TRUE)
+  jsonlite::write_json(list(filter = list(models_unchanged = 812L, records_not_species_level = 40L)),
+                       file.path(dir, key), auto_unbox = TRUE)
+  store <- list(get = function(k, dest) file.copy(file.path(dir, k), dest, overwrite = TRUE) || stop("missing"))
+  expect_equal(atlas_e9_summary(store, "rn1")$filter$models_unchanged, 812L)
+  expect_null(atlas_e9_summary(store, "other"))
+})
