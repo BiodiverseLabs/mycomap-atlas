@@ -923,3 +923,16 @@ test_that("a running worker uploads its logs every few minutes, so one stopped a
   # Where the worker may write: its job's logs (deploy/aws/worker/permissions.json).
   expect_true(grepl("^jobs/[^/]+/[^/]+/logs/", "jobs/draft/job1/logs/3-batches/batch-x.log"))
 })
+
+test_that("a worker runs one fit per ATLAS_EC2_GB_PER_FIT of memory, and the default leaves the script as it was", {
+  # The script before the setting existed, line for line, where it counts.
+  default <- atlas_worker_user_data("job-1", 2L, "draft", test_config())
+  expect_match(default, "# One fit per ~3 GB of memory, at most one per core.", fixed = TRUE)
+  expect_match(default, "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 3 ))", fixed = TRUE)
+  expect_identical(atlas_worker_user_data("job-1", 2L, "draft", test_config(ATLAS_EC2_GB_PER_FIT = "3")), default)
+  # Ten: a 256 GB worker runs 25 fits, not 32.
+  roomy <- atlas_worker_user_data("job-1", 2L, "draft", test_config(ATLAS_EC2_GB_PER_FIT = "10"))
+  expect_match(roomy, "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 10 ))", fixed = TRUE)
+  expect_false(grepl("/ 3 ))", roomy, fixed = TRUE))
+  expect_error(test_config(ATLAS_EC2_GB_PER_FIT = "0"), "ATLAS_EC2_GB_PER_FIT must be a positive number")
+})

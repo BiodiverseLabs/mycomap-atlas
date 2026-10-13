@@ -111,7 +111,15 @@ atlas_ec2_config <- function(env = function(name, unset = "") Sys.getenv(name, u
     # How long a finishing worker (R/finish.R) may take: counting thousands of
     # maps by state the first time, then the could-grow-here index.
     finish_hours = number("ATLAS_EC2_FINISH_HOURS", 3),
-    volume_gb = number("ATLAS_EC2_VOLUME_GB", 60)
+    volume_gb = number("ATLAS_EC2_VOLUME_GB", 60),
+    # Memory a worker allows each fit it runs at once (it runs RAM / this,
+    # at most one per core). A widespread taxon's Maxent fit, its background
+    # at the 10,000-site cap, peaked at 8.9 GB tuning (Trametes versicolor,
+    # 2026-10-13), and a shard fits its richest taxa first, so at 3 GB a
+    # 64 GB worker ran 21 of them at once and lost R processes to the
+    # kernel's OOM killer (job 20261013T001819Z-2cb67f32, 566 of 1,231
+    # failed). Set it from the box's environment, without a new image.
+    gb_per_fit = number("ATLAS_EC2_GB_PER_FIT", 3)
   )
 }
 
@@ -149,8 +157,8 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
                     "aws s3 sync --quiet --exclude '*' --include '*.log' /data/batches/ %s/%d-batches/; done ) &"),
               ATLAS_WORKER_LOG_SECONDS, logs, as.integer(shard), logs, as.integer(shard))
     },
-    "# One fit per ~3 GB of memory, at most one per core.",
-    "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 3 ))",
+    sprintf("# One fit per ~%s GB of memory, at most one per core.", format(config$gb_per_fit %||% 3)),
+    sprintf("WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / %d ))", as.integer(ceiling(config$gb_per_fit %||% 3))),
     "[ \"$WORKERS\" -gt \"$(nproc)\" ] && WORKERS=$(nproc)",
     "[ \"$WORKERS\" -lt 1 ] && WORKERS=1",
     "# The instance type, for the shard's record (IMDSv2).",

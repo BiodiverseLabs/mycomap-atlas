@@ -15,8 +15,9 @@
 # when its AUC beats every null at p <= 0.05 and its pooled Boyce index (the
 # release's own) is above 0, as production's atlas_skill decides.
 #
-# Each model's inputs are rebuilt from the release's pull as atlas_fit_taxon
-# builds them (R/fit.R; copied, since the fit path is frozen until the
+# Each model's inputs are rebuilt from the pull it was fitted on (its own
+# job's, traced through the release chain: atlas_rescan_lineage) as
+# atlas_fit_taxon builds them (R/fit.R; copied, since the fit path is frozen until the
 # full-view refresh has run). A rebuild is trusted only when it matches what
 # the release recorded: the fingerprint, the detection-site count, the
 # predictors, the block size, the detection sites in each fold, and the null
@@ -156,10 +157,55 @@ atlas_rescan_differences <- function(inputs, record, fingerprint, observed_auc =
   why
 }
 
-#' One model of the study: rebuild, check, run the old test, and set its
-#' verdict beside its grade.
+#' The points of a pull file, read once per R process: a worker rebuilds
+#' models of a few jobs, each from its own pull.
+atlas_rescan_points <- function(path, grid = "draft") {
+  cache <- get0(".atlas_rescan_points", envir = globalenv(), inherits = FALSE) %||% list()
+  if (is.null(cache[[path]])) {
+    cache[[path]] <- atlas_occurrence_points(atlas_read_occurrences(path), grid)
+    assign(".atlas_rescan_points", cache, envir = globalenv())
+  }
+  cache[[path]]
+}
+
+#' Each sampled model's own pull. A release refitted in part (a targeted job
+#' after an exclusion, a refresh) holds models fitted by different jobs on
+#' different pulls, and survey sites, effort and background are built from
+#' the whole pull a model was fitted on; rebuilt from another, a model's
+#' background moves. So each model is traced to the job that fitted it
+#' (atlas_refresh_sources, R/fullrefresh.R: the newest job in the release
+#' chain whose plan had it on the same fingerprint) and that job's pull is
+#' fetched by its hash. Returns, per model id, the local pull file (NA when
+#' no fitting job can be traced) and the job, and the models per job.
+atlas_rescan_lineage <- function(store, manifest, entries, ids, grid = "draft",
+                                 fetch = function(sha) atlas_tracker_object(store, sha, ".tsv.gz")) {
+  by_id <- list()
+  for (e in entries) by_id[[atlas_rescan_id(e$taxon, e$algorithm)]] <- e
+  tasks <- lapply(ids, function(id) {
+    e <- by_id[[id]]
+    list(taxon = as.character(e$taxon), algorithm = as.character(e$algorithm),
+         fingerprint = as.character(e$fingerprint %||% ""))
+  })
+  sources <- atlas_refresh_sources(store, manifest, tasks, grid)
+  shas <- lapply(sources$jobs, function(job) (atlas_job_pull_entry(job) %||% list())$sha256 %||% NA_character_)
+  files <- lapply(shas, function(sha) if (is.na(sha)) NA_character_ else fetch(sha))
+  job_of <- vapply(ids, function(id) {
+    m <- atlas_rescan_parse(id)
+    as.character(sources$source[[paste(m$algorithm, m$taxon)]] %||% NA_character_)
+  }, "")
+  pull_of <- vapply(job_of, function(j) if (is.na(j)) NA_character_ else as.character(files[[j]] %||% NA), "")
+  list(pull_of = stats::setNames(pull_of, ids), job_of = stats::setNames(job_of, ids),
+       models_per_job = as.list(table(job_of[!is.na(job_of)])), unresolved = sum(is.na(job_of)),
+       pull_of_job = shas)
+}
+
+#' One model of the study: rebuild it from its own pull, check it, run the
+#' old test, and set its verdict beside its grade. pull_files gives each
+#' model's pull (atlas_rescan_lineage); a model with none is a mismatch, as
+#' its inputs cannot be rebuilt.
 atlas_rescan_model <- function(name, fingerprint, points, stack, grid = "draft", records,
-                               reps = ATLAS_RESCAN_NULLS, n_background = 10000, buffer_km = 500) {
+                               reps = ATLAS_RESCAN_NULLS, n_background = 10000, buffer_km = 500,
+                               pull_files = NULL) {
   started <- Sys.time()
   seconds <- function() round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   model <- atlas_rescan_parse(name)
@@ -167,6 +213,13 @@ atlas_rescan_model <- function(name, fingerprint, points, stack, grid = "draft",
   row <- list(taxon = name, model_taxon = model$taxon, algorithm = model$algorithm,
               presences = record$presences, band = atlas_presence_band(record$presences, ATLAS_RESCAN_BANDS),
               grade = record$grade)
+  if (!is.null(pull_files)) {
+    path <- pull_files[[name]] %||% NA_character_
+    if (is.na(path)) {
+      return(c(row, list(status = "mismatch", differs = list("no fitting job traced"), seconds = seconds())))
+    }
+    points <- atlas_rescan_points(path, grid)
+  }
   inputs <- atlas_rescan_inputs(model$taxon, model$algorithm, record, points, stack, grid = grid,
                                 n_background = n_background, buffer_km = buffer_km)
   differs <- atlas_rescan_differences(inputs, record, fingerprint)
@@ -265,9 +318,11 @@ atlas_rescan_pool_from <- function(store, prefix) {
   if (!length(keys)) stop("no rescan results under ", prefix, call. = FALSE)
   dir <- tempfile("rescan-pool-")
   dir.create(dir)
-  paths <- vapply(keys, function(k) {
-    path <- file.path(dir, basename(k))
-    store$get(k, path)
+  # Numbered, so shards' files of one name in different folders never
+  # overwrite each other.
+  paths <- vapply(seq_along(keys), function(i) {
+    path <- file.path(dir, paste0(i, "-", basename(keys[[i]])))
+    store$get(keys[[i]], path)
     path
   }, "")
   atlas_rescan_pool(unname(paths))
@@ -310,18 +365,35 @@ atlas_rescan_study <- function(store = atlas_store(), release, grid = "draft",
     if (is.null(json)) stop("release ", release, " holds no record for ", id, call. = FALSE)
     atlas_rescan_record(jsonlite::fromJSON(json, simplifyVector = FALSE))
   })
-  pull <- atlas_tracker_release_pull(store, view$manifest, grid, view$cache)
-  points <- atlas_occurrence_points(pull, grid)
-  taxa <- vapply(ids, function(id) atlas_rescan_parse(id)$taxon, "")
-  by_taxon <- atlas_fingerprints_for(pull, unique(taxa))
-  fingerprints <- as.list(stats::setNames(unname(by_taxon[taxa]), ids))
+  # Each model from the pull its own job fitted it on, with its fingerprint
+  # taken from that pull.
+  lineage <- atlas_rescan_lineage(store, view$manifest, view$entries, ids, grid)
+  fingerprints <- stats::setNames(as.list(rep(NA_character_, length(ids))), ids)
+  points <- NULL
+  for (path in unique(stats::na.omit(lineage$pull_of))) {
+    mine <- ids[lineage$pull_of %in% path]
+    pull <- atlas_read_occurrences(path)
+    taxa <- vapply(mine, function(id) atlas_rescan_parse(id)$taxon, "")
+    by_taxon <- atlas_fingerprints_for(pull, unique(taxa))
+    fingerprints[mine] <- as.list(unname(by_taxon[taxa]))
+    # The workers start from the pull most models need; the rest is read as
+    # its models come up.
+    if (is.null(points) || length(mine) > attr(points, "models")) {
+      points <- structure(atlas_occurrence_points(pull, grid), models = length(mine))
+    }
+  }
   settings <- list(release = release, shard = shard, seed = seed, per_cell = per_cell,
                    nulls = reps, design = "scatter", test = "atlas_null_test, untuned, own folds",
-                   bands = ATLAS_RESCAN_BANDS, max_dropped = ATLAS_RESCAN_MAX_DROPPED)
+                   bands = ATLAS_RESCAN_BANDS, max_dropped = ATLAS_RESCAN_MAX_DROPPED,
+                   # Which job fitted how many of the models, and the pull (by
+                   # hash) each job fitted them on: the run's provenance.
+                   lineage = list(models_per_job = lineage$models_per_job, pull_of_job = lineage$pull_of_job,
+                                  unresolved = lineage$unresolved))
   result <- atlas_run_study(
     kind = "rescan-studies", file_prefix = out$prefix, taxon_fn = "atlas_rescan_model",
     sample = data.frame(scientific_name = ids, stringsAsFactors = FALSE),
-    fingerprints = fingerprints, args = list(grid = grid, records = records, reps = reps),
+    fingerprints = fingerprints,
+    args = list(grid = grid, records = records, reps = reps, pull_files = as.list(lineage$pull_of)),
     settings = settings, baseline = "scatter19", grid = grid, workers = workers,
     points = points, quiet = quiet, summarise = atlas_rescan_summary,
     extra = function(rows) list(health = atlas_rescan_health(rows),

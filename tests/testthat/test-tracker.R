@@ -558,3 +558,29 @@ test_that("the tracker reads the promotion records atlas_promote_release writes,
   # The pointer names only R2; R1's promotion comes from its record.
   expect_true(all(c("R1", "R2") %in% promotions$release))
 })
+
+test_that("a find whose place is corrected into another cell is retracted as moved and scored where it is now", {
+  skip_if_not_installed("terra")
+  store <- fresh_store()
+  two_releases(store)
+  dir <- machine()
+  find <- tracker_records("Amanita one", 19, ids = "m", first_green_on = "2026-10-06")
+  first <- tracker_run(store, find, dir = dir, since = "2026-10-01", now = as.POSIXct("2026-10-07 06:00", tz = "UTC"))
+  rank_before <- ledger_row(first, "iNaturalist:m")$rank
+  # .org corrects its coordinates (same name) to the far west of the map.
+  corrected <- tracker_records("Amanita one", 4, ids = "m", first_green_on = "2026-10-06")
+  second <- tracker_run(store, corrected, dir = dir, since = "2026-10-01", now = as.POSIXct("2026-10-08 06:00", tz = "UTC"))
+  rows <- ledger_row(second, "iNaturalist:m")
+  expect_equal(nrow(rows), 2L)
+  old <- rows[!is.na(rows$retracted_why), ]
+  new <- rows[is.na(rows$retracted_why), ]
+  expect_equal(old$retracted_why, "moved")
+  expect_equal(old$retracted_on, "2026-10-08")
+  expect_equal(new$release, "R2")
+  expect_lt(new$rank, rank_before)
+  # Counted once, at its new place; and a later run leaves it alone.
+  expect_equal(second$summary$finds$by_status$scored, 1L)
+  third <- tracker_run(store, corrected, dir = dir, since = "2026-10-01", now = as.POSIXct("2026-10-09 06:00", tz = "UTC"))
+  expect_equal(nrow(ledger_row(third, "iNaturalist:m")), 2L)
+  expect_equal(sum(is.na(ledger_row(third, "iNaturalist:m")$retracted_why)), 1L)
+})

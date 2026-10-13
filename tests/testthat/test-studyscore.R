@@ -363,3 +363,25 @@ test_that("a later find under a name the release spells otherwise is scored unde
     expect_equal(result$models$by_grade$strong$all$ranked, later_places(world))
   })
 })
+
+
+test_that("each model map carries its tier from its stored metrics, and the results report by tier", {
+  skip_if_not_installed("terra")
+  layers <- layers_from(east())
+  moderate <- list(grade = "weak", boyce = 0.2, auc_mean = 0.66,
+                   null = list(design = "shift", auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6,
+                               auc_sd = 0.03))
+  local_mocked_bindings(atlas_tracker_maps = function(view, taxon) {
+    list(none = FALSE, models = list(maxnet = c(layers, list(grade = "weak", metrics = moderate, aoa = TRUE))),
+         grade = "weak", choice = NULL, ensemble = NULL)
+  })
+  maps <- atlas_score_model_maps(list(), "T01")
+  expect_equal(maps$maxnet$tier, "moderate")
+  expect_true(maps$maxnet$moderate_z)
+  places <- score_places()
+  result <- atlas_score_baselines_core(places, function(taxon) atlas_score_model_maps(list(), taxon), reps = 200)
+  expect_true("moderate" %in% names(result$models$by_tier))
+  expect_true("moderate_z" %in% names(result$models$by_tier))
+  expect_true(result$tier_hypotheses$H2d$tested)
+  expect_true(result$tier_hypotheses$H2d$holds)
+})
