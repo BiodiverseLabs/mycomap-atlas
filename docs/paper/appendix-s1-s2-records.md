@@ -54,6 +54,17 @@ The two fungi lost one site each (*C. deceptiva* 53 → 52, *A. bitorquis*
 25 → 24) and were refitted; the 18 non-fungal names had one or two sites,
 too few for a model, and were dropped. The other models' survey sites,
 effort and background still include these 22 of about 133,000 records
-(less than 0.02% of all records). The exclusion list is versioned: each
+(less than 0.02% of all records). Measured on the 2026-10-06 pull, which
+holds the same 22 records at the same places (exact frozen-pull figures
+pending): the 22 records fall in 19 of 8,803 survey sites (0.22%); 16 of
+those consist only of these records (13 of one record, 3 of two), and 3 are
+real sites with one such record each (of 5, 17 and 110 records). Of the
+1,291 taxa with full models (20 or more detection sites), 1,288 have at
+least one of the 19 sites in their background, as expected when a
+background is every survey site within 500 km: a median of 5 such sites per
+taxon (at most 18), a median 0.13% of its background sites (at most 0.45%),
+each entering as a non-detection at the lowest effort (one record). None is
+a detection site of any modelled taxon: the two fungi involved are refitted
+on the cleaned pull, and the 18 other names are not modelled. The exclusion list is versioned: each
 pull's manifest records its SHA-256 and the number of rows removed (Atlas
 commit 643b444), and it applies to every later pull.

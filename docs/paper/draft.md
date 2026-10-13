@@ -742,9 +742,13 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
    taxa, cells or counts. Models of unaffected taxa were not refitted.
    Because survey sites, effort and background are built from the whole
    pull, their inputs still reflect these 22 records, less than 0.02% of all
-   records [CHECK: how many survey sites they touch, and how many taxa have
-   one of them in their background]. A full refit on the cleaned pull would
-   remove this; we judged the effect negligible.
+   records. They formed 16 survey sites of their own and fell in 3 others
+   (19 of 8,803 sites); they made up a median 0.13% (at most 0.45%) of the
+   non-detection sites behind any model's background, each at the lowest
+   effort, and no detection site of any modelled taxon [PENDING: exact
+   figures on the frozen pull; these are from the 2026-10-06 pull, which
+   holds the same 22 records]. A full refit on the cleaned pull would remove
+   this; we judged the effect negligible.
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -1041,6 +1045,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.1 (2026-10-13).** Limitation quantified: 19 of 8,803 survey sites;
+  median 0.13% (max 0.45%) of a model's background sites.
 - **0.9 (2026-10-13).** Lean main text, detail to the appendix (Steve):
   a word budget (~5,500), four figures and two tables in the main text, and
   Appendix S1 reorganised into sections S1–S11.
