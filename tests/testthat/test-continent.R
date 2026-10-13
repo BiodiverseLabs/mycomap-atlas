@@ -82,3 +82,48 @@ test_that("Vision's benchmark job refits with full views and carries its contine
   expect_equal(summary$filter$records_after_cutoff_kept, 0L)
   expect_true(setup$store$exists(atlas_trained_release_key(job$id)))
 })
+
+test_that("the export says what the prior says: map strength per taxon, models and their spread per cell, and unknown where no model has a threshold", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    fit <- map_fit(list("Taxon B" = "strong", "Taxon T" = "strong"))
+    strengths <- c(maxnet = 0.9, rf = 0.5)
+    for (algorithm in c("maxnet", "rf")) {
+      out <- fit("Taxon B", "f", algorithm = algorithm, full = TRUE)
+      metrics <- out$metrics
+      metrics$map_strength <- strengths[[algorithm]]
+      metrics$auc_mean <- if (algorithm == "maxnet") 0.8 else 0.6
+      atlas_write_json(metrics, atlas_model_path("Taxon B", "draft", ".json", algorithm))
+    }
+    # A model with no usable area-of-applicability threshold.
+    out <- fit("Taxon T", "f", algorithm = "maxnet", full = TRUE)
+    metrics <- out$metrics
+    metrics$applicability <- list(threshold = NA)
+    atlas_write_json(metrics, atlas_model_path("Taxon T", "draft", ".json", "maxnet"))
+
+    built <- atlas_build_continent("draft", quiet = TRUE)
+    taxa <- built$taxa
+    table <- built$table
+    b <- taxa$taxon_id[taxa$name == "Taxon B"]
+    t <- taxa$taxon_id[taxa$name == "Taxon T"]
+    # The prior's map strength: weighted by AUC above 0.5.
+    expect_equal(taxa$map_strength[taxa$name == "Taxon B"], round((0.3 * 0.9 + 0.1 * 0.5) / 0.4, 3))
+    expect_equal(taxa$map_strength[taxa$name == "Taxon B"],
+                 atlas_taxon_map_strength(c(0.9, 0.5), c(0.8, 0.6)))
+    # Two models rank every cell of Taxon B; one ranks Taxon T's, with no spread.
+    expect_true(all(table$models[table$taxon_id == b] == 2L))
+    expect_true(all(is.finite(table$rank_sd[table$taxon_id == b])))
+    expect_true(all(table$models[table$taxon_id == t] == 1L))
+    expect_true(all(is.na(table$rank_sd[table$taxon_id == t])))
+    # No threshold: unknown, never inside.
+    expect_true(all(is.na(table$aoa[table$taxon_id == t])))
+    expect_true(any(table$aoa[table$taxon_id == b] <= 100))
+    grid <- jsonlite::fromJSON(file.path(atlas_continent_dir("draft"), "grid.json"))
+    expect_equal(grid$models_without_threshold, 1L)
+    # The .tsv.gz always, beside the parquet when there is one.
+    expect_true(file.exists(file.path(atlas_continent_dir("draft"), "continent.tsv.gz")))
+    back <- utils::read.delim(gzfile(file.path(atlas_continent_dir("draft"), "continent.tsv.gz")))
+    expect_equal(nrow(back), nrow(table))
+    expect_setequal(names(back), c("taxon_id", "cell_id", "rank", "models", "rank_sd", "aoa"))
+  })
+})

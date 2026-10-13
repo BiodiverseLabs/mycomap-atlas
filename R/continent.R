@@ -13,6 +13,13 @@
 # beside it, so it needs both. Per 20 km cell, as the prior does: the mean
 # rank of its 5 km cells, and their mean index.
 #
+# Its columns follow the prior's where they mean the same (MycoMap Vision,
+# 2026-10-13): each taxon's map strength, and per cell how many of its
+# models rank it and how far apart their ranks are. A model with no usable
+# area-of-applicability threshold says nothing about whether a cell is
+# inside: where none of a taxon's models can say, aoa is empty (unknown),
+# never read as inside.
+#
 # Where it is built, and where it goes (never published):
 #   - when a release is finished, from the release's strong maps:
 #     private/atlas-continent/<release>/<grid>/ (R/finish.R files it);
@@ -23,6 +30,27 @@
 # why the maps hatch that ground; that is why this stays private.
 
 ATLAS_CONTINENT_FILES <- c("continent.parquet", "continent.tsv.gz", "taxa.tsv", "grid.json")
+
+#' Per cell over a taxon's models: their mean rank, how many rank the cell,
+#' the standard deviation of their ranks (NA with fewer than two), all as the
+#' prior computes them (atlas_prior_taxon_ranks), and the lowest of their
+#' index-over-threshold ratios (NA when none has one).
+atlas_continent_combine <- function(all) {
+  counts <- rowsum(rep(1, nrow(all)), all$cell)[, 1]
+  cells <- as.integer(names(counts))
+  sums <- rowsum(all$rank, all$cell)[, 1]
+  squares <- rowsum(all$rank^2, all$cell)[, 1]
+  variance <- ifelse(counts >= 2, (squares - sums^2 / counts) / (counts - 1), NA_real_)
+  lowest <- tapply(all$ratio, all$cell, function(x) if (any(is.finite(x))) min(x[is.finite(x)]) else NA_real_)
+  lowest <- as.numeric(lowest[as.character(cells)])
+  data.frame(
+    cell_id = cells,
+    rank = as.integer(round(sums / counts)),
+    models = as.integer(counts),
+    rank_sd = as.integer(round(sqrt(pmax(0, variance)))),
+    aoa = as.integer(pmin(255, round(100 * lowest)))
+  )
+}
 
 ATLAS_CONTINENT_PREFIX <- "private/atlas-continent"
 
@@ -101,20 +129,13 @@ atlas_build_continent <- function(grid = "draft", quiet = FALSE) {
         models$threshold[[i]]
       )
       threshold <- models$threshold[[i]]
-      cells$ratio <- if (is.finite(threshold) && threshold > 0) cells$dissimilarity / threshold else 0
+      # No usable threshold: this model cannot say whether a cell is inside.
+      cells$ratio <- if (is.finite(threshold) && threshold > 0) cells$dissimilarity / threshold else NA_real_
       cells
     })
     all <- do.call(rbind, parts)
     if (is.null(all) || !nrow(all)) next
-    counts <- rowsum(rep(1, nrow(all)), all$cell)[, 1]
-    lowest <- tapply(all$ratio, all$cell, function(x) if (any(is.finite(x))) min(x, na.rm = TRUE) else NA_real_)
-    cells <- as.integer(names(counts))
-    pieces[[k]] <- data.frame(
-      taxon_id = k, cell_id = cells,
-      rank = as.integer(round(rowsum(all$rank, all$cell)[, 1] / counts)),
-      aoa = as.integer(pmin(255, round(100 * ifelse(is.finite(lowest[as.character(cells)]),
-                                                    lowest[as.character(cells)], 2.55))))
-    )
+    pieces[[k]] <- cbind(taxon_id = k, atlas_continent_combine(all))
   }
   table <- do.call(rbind, pieces)
   if (is.null(table)) return(invisible(NULL))
@@ -123,6 +144,10 @@ atlas_build_continent <- function(grid = "draft", quiet = FALSE) {
   taxa <- data.frame(taxon_id = seq_along(names), name = names, grade = "strong",
                      models = vapply(names, function(n) sum(models$taxon == n), 0L),
                      algorithms = vapply(names, function(n) paste(models$algorithm[models$taxon == n], collapse = ","), ""),
+                     map_strength = vapply(names, function(n) {
+                       mine <- models$taxon == n
+                       atlas_taxon_map_strength(models$map_strength[mine], models$auc_mean[mine])
+                     }, numeric(1)),
                      stringsAsFactors = FALSE)
   rownames(taxa) <- NULL
 
@@ -132,12 +157,14 @@ atlas_build_continent <- function(grid = "draft", quiet = FALSE) {
       taxon_id = list("INT", bit_width = 16L, is_signed = FALSE),
       cell_id = "INT32",
       rank = list("INT", bit_width = 8L, is_signed = FALSE),
+      models = list("INT", bit_width = 8L, is_signed = FALSE),
+      rank_sd = list("INT", bit_width = 8L, is_signed = FALSE),
       aoa = list("INT", bit_width = 8L, is_signed = FALSE)
     )
     nanoparquet::write_parquet(table, file.path(dir, "continent.parquet"), schema = schema, compression = "zstd")
-  } else {
-    atlas_write_tsv_gz(table, file.path(dir, "continent.tsv.gz"))
   }
+  # Always, beside the parquet: a reader without one (Vision converts it).
+  atlas_write_tsv_gz(table, file.path(dir, "continent.tsv.gz"))
   utils::write.table(taxa, file.path(dir, "taxa.tsv"), sep = "\t", quote = FALSE, row.names = FALSE,
                      fileEncoding = "UTF-8")
   definition <- atlas_prior_grid()
@@ -148,13 +175,20 @@ atlas_build_continent <- function(grid = "draft", quiet = FALSE) {
       rank = paste("0-100: the mean over the taxon's strong models of the mean rank of the cell's 5 km cells,",
                    "each on its model's own scale (the one its map is coloured on): the map's rank where the",
                    "map ranks, elsewhere the suitability placed among the in-area values"),
+      models = paste("how many of the taxon's strong models rank the cell (as the prior's column; here every",
+                     "model ranks every cell its full view covers, inside its area of applicability or not)"),
+      rank_sd = "the standard deviation of those models' ranks, 0-100; empty with fewer than two",
       aoa = paste("the lowest over the taxon's models of the cell's mean area-of-applicability index over",
                   "that model's threshold, as a percentage (capped at 255): 100 or less is inside at least",
-                  "one model's area of applicability; above, the models are extrapolating")
+                  "one model's area of applicability; above, the models are extrapolating; empty when no",
+                  "model has a usable threshold there (unknown, not inside)")
     ),
     taxa = list(taxon_id = "1, 2, ... in name order", name = "the name Atlas maps it under",
-                grade = "strong", models = "strong models with a full view", algorithms = "which")
+                grade = "strong", models = "strong models with a full view", algorithms = "which",
+                map_strength = paste("0-1: its strong models' map strength, weighted as the combined map",
+                                     "weights them (the prior's column)"))
   )
+  definition$models_without_threshold <- sum(!(is.finite(models$threshold) & models$threshold > 0))
   definition$reading <- paste(
     "Continent-wide: every land cell of the grid has a row for every listed taxon. Beyond the area of",
     "applicability (aoa above 100) a rank is extrapolation: weigh it down or leave it out. Where a cell",

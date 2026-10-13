@@ -24,9 +24,13 @@
 # prior's trust signals (models per cell and their spread, map strength per
 # taxon, each model's area-of-applicability index and threshold), and the weak
 # maps' ranks, filed privately. 4: the continent export (R/continent.R), from
-# the strong maps' full-extent files, filed privately. Finishing again refits
-# nothing: it reads the release's maps and adds what it builds.
-ATLAS_FINISH_VERSION <- 4L
+# the strong maps' full-extent files, filed privately. 5: the continent
+# export gains the prior's map strength per taxon and models and rank spread
+# per cell, an unknown area of applicability where no model has a threshold
+# (it read as inside), and a .tsv.gz always beside its parquet (Vision,
+# 2026-10-13). Finishing again refits nothing: it reads the release's maps
+# and adds what it builds.
+ATLAS_FINISH_VERSION <- 5L
 
 #' Whether a release has been finished under the current rule.
 atlas_release_finished <- function(release) {
