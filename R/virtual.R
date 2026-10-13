@@ -192,8 +192,9 @@ atlas_virtual_signal <- function(habitat, signal = "strong", mean_h = NULL) {
 #' species is found at the same number of sites in expectation.
 atlas_virtual_collect <- function(habitat, records, target, seed = 1L, signal = "strong",
                                   mean_h = NULL) {
-  habitat[!is.finite(habitat)] <- 0
-  if (!any(habitat > 0)) {
+  # A site with no data stays at 0 under either signal: the signal is
+  # spread before missing habitat is set to 0, never after.
+  if (!any(habitat[is.finite(habitat)] > 0)) {
     stop("the habitat is empty at every survey site", call. = FALSE)
   }
   habitat <- atlas_virtual_signal(habitat, signal, mean_h)

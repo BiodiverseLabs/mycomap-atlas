@@ -52,15 +52,82 @@ spec_world <- function() {
   list(env = env, sites = sites)
 }
 
-test_that("a spec with nothing fixed is exactly what the generator always drew", {
-  world <- spec_world()
-  for (seed in 1:5) {
-    for (kind in c("habitat", "geography")) {
-      plain <- atlas_virtual_spec(kind, seed, world$env, world$sites)
-      fixed <- atlas_virtual_spec(kind, seed, world$env, world$sites, target = NULL, breadth = 1,
-                                  centres = NULL)
-      expect_identical(fixed, plain)
+# The generator as it was before the E1 knobs (main f46d493), frozen here so
+# the knobs can be shown to leave a spec and a collection exactly as they were.
+frozen_virtual_spec <- function(kind, seed, env, sites) {
+  set.seed(seed)
+  target <- sample(ATLAS_VIRTUAL_TARGETS, 1L)
+  spec <- list(kind = kind, target = target, seed = seed)
+  if (identical(kind, "geography")) {
+    n <- sample(1:2, 1L)
+    picked <- sample.int(nrow(sites), n, prob = sites$records)
+    spec$centres <- lapply(picked, function(i) {
+      list(x = sites$x[[i]], y = sites$y[[i]], radius_km = round(stats::runif(1, 150, 400)))
+    })
+    return(spec)
+  }
+  climate <- intersect(ATLAS_VIRTUAL_CLIMATE, names(env))
+  others <- setdiff(intersect(c(ATLAS_VIRTUAL_BELL, ATLAS_VIRTUAL_RISING), names(env)), climate)
+  extra <- min(length(others), sample(1:2, 1L))
+  drivers <- c(climate[sample.int(length(climate), 1L)], others[sample.int(length(others), extra)])
+  spec$responses <- lapply(drivers, function(v) {
+    values <- env[[v]][is.finite(env[[v]])]
+    spread <- stats::sd(values)
+    if (v %in% ATLAS_VIRTUAL_RISING) {
+      list(predictor = v, shape = "rising",
+           centre = unname(stats::quantile(values, stats::runif(1, 0.3, 0.8))),
+           scale = spread * stats::runif(1, 0.1, 0.4))
+    } else {
+      list(predictor = v, shape = "bell",
+           optimum = unname(stats::quantile(values, stats::runif(1, 0.1, 0.9))),
+           width = spread * stats::runif(1, 0.3, 1))
     }
+  })
+  spec
+}
+
+frozen_virtual_collect <- function(habitat, records, target, seed = 1L) {
+  habitat[!is.finite(habitat)] <- 0
+  expected <- function(rate) sum(1 - (1 - pmin(1, rate * habitat))^records)
+  ceiling_rate <- 1 / max(habitat)
+  rate <- if (expected(ceiling_rate) <= target) {
+    ceiling_rate
+  } else {
+    exp(stats::uniroot(function(r) expected(exp(r)) - target,
+                       c(log(1e-12), log(ceiling_rate)), tol = 1e-6)$root)
+  }
+  set.seed(seed)
+  own <- stats::rbinom(length(records), records, pmin(1, rate * habitat))
+  attr(own, "rate") <- rate
+  own
+}
+
+test_that("with nothing fixed, the generator draws exactly what it drew before the knobs", {
+  world <- spec_world()
+  for (seed in 1:8) {
+    for (kind in c("habitat", "geography")) {
+      expect_identical(atlas_virtual_spec(kind, seed, world$env, world$sites),
+                       frozen_virtual_spec(kind, seed, world$env, world$sites))
+    }
+  }
+  set.seed(6)
+  habitat <- c(stats::runif(400), NA, NA)
+  records <- stats::rpois(402, 3) + 1L
+  for (seed in 1:5) {
+    expect_identical(atlas_virtual_collect(habitat, records, 40, seed = seed),
+                     frozen_virtual_collect(habitat, records, 40, seed = seed))
+  }
+})
+
+test_that("a site with no data yields nothing under a weak signal either", {
+  set.seed(8)
+  habitat <- c(stats::runif(300), rep(NA, 50))
+  # The sites with no data are the busiest, so the flat half would find
+  # them first if it reached them.
+  records <- c(rep(2L, 300), rep(200L, 50))
+  for (seed in 1:10) {
+    own <- atlas_virtual_collect(habitat, records, 40, seed = seed, signal = "weak")
+    expect_equal(sum(own[301:350]), 0L)
   }
 })
 
