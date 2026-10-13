@@ -211,16 +211,61 @@ test_that("a distance study row carries no coordinate and writes only into its o
   expect_gt(sum(is.finite(terra::values(kernel))), 0)
 })
 
-test_that("a taxon whose rebuilt sites differ from the release's is refused, not fitted", {
+# The record a release keeps for the synthetic taxon, as production fits it.
+distance_record <- function(world) {
+  fit <- atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                         fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                         buffer_km = 300, predict = FALSE, write = FALSE, quiet = TRUE,
+                         nulls = 0, tune = FALSE, importance = FALSE)
+  view <- list(grid = "draft", entries = list(list(taxon = "Eastern fungus", algorithm = "esm"),
+                                              list(taxon = "Eastern fungus", algorithm = "maxnet")))
+  atlas_distance_record(view, "Eastern fungus", read_metrics = function(view, taxon, algorithm) {
+    if (identical(algorithm, "esm")) {
+      return(list(fingerprint = "f00dfeed", presences = fit$metrics$presences, seed = fit$metrics$seed,
+                  block_km = 100, folds = list()))
+    }
+    jsonlite::fromJSON(jsonlite::toJSON(fit$metrics, auto_unbox = TRUE, null = "null", na = "null"),
+                       simplifyVector = FALSE)
+  })
+}
+
+test_that("the kernel's rebuild is checked against the model whose folds it shares", {
   skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
   world <- synthetic_landscape()
+  record <- distance_record(world)
+  # Maxent's folds are the full design's, so Maxent is read before the ensemble.
+  expect_equal(record$algorithm, "maxnet")
+  expect_equal(record$design, "full")
+  inputs <- atlas_distance_inputs("Eastern fungus", world$points, world$stack,
+                                  fingerprint = "f00dfeed", n_background = 500, buffer_km = 300)
+  expect_length(atlas_distance_differences(inputs, record, "f00dfeed"), 0L)
+  expect_equal(atlas_distance_differences(inputs, record, "beefcafe"), "fingerprint")
+  expect_true("presences" %in% atlas_distance_differences(inputs, modifyList(record, list(presences = 999L)), "f00dfeed"))
+  expect_equal(atlas_distance_differences(inputs, modifyList(record, list(seed = 1L)), "f00dfeed"), "seed")
+  expect_equal(atlas_distance_differences(inputs, modifyList(record, list(block_km = 77)), "f00dfeed"), "block")
+  expect_equal(atlas_distance_differences(inputs, modifyList(record, list(design = "small")), "f00dfeed"), "design")
+  expect_equal(atlas_distance_differences(inputs, modifyList(record, list(fold_presences = rev(record$fold_presences + 1L))),
+                                          "f00dfeed"), "folds")
+})
+
+test_that("a taxon whose rebuild differs from the release's record is refused, not fitted", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  world <- synthetic_landscape()
+  record <- distance_record(world)
   out <- tempfile("distance-")
   dir.create(out)
   row <- atlas_distance_taxon("Eastern fungus", "f00dfeed", world$points, world$stack,
                               out_dir = out, bandwidths = 25, n_background = 500, buffer_km = 300,
-                              expected_presences = list("Eastern fungus" = 999L))
+                              records = list("Eastern fungus" = modifyList(record, list(block_km = 77))))
   expect_equal(row$status, "mismatch")
+  expect_equal(unlist(row$differs), "block")
   expect_length(list.files(out, recursive = TRUE), 0L)
+  ok <- atlas_distance_taxon("Eastern fungus", "f00dfeed", world$points, world$stack,
+                             out_dir = out, bandwidths = 25, n_background = 500, buffer_km = 300,
+                             records = list("Eastern fungus" = record))
+  expect_equal(ok$status, "scored")
 })
 
 test_that("shards split a study's taxa without overlap or gap", {

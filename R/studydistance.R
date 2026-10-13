@@ -205,14 +205,14 @@ atlas_distance_raster_path <- function(out_dir, name) {
 #' bandwidth, and write its kernel map. The row carries counts and scores,
 #' never a coordinate.
 #'
-#' expected_presences is the detection-site count the release recorded for
-#' the taxon; a rebuilt table that disagrees is refused as "mismatch", since
-#' the kernel would then be fitted on other data than the model it is
-#' compared with.
+#' records holds, by taxon, what the release recorded about the folds the
+#' taxon was scored on (atlas_distance_record). A rebuild that differs from
+#' it in any way (atlas_distance_differences) is refused as "mismatch", since
+#' the kernel would then be chosen on other data or other folds than the
+#' models it is compared with.
 atlas_distance_taxon <- function(name, fingerprint, points, stack, grid = "draft",
                                  out_dir, bandwidths = ATLAS_DISTANCE_BANDWIDTHS_KM,
-                                 n_background = 10000, buffer_km = 500,
-                                 expected_presences = NULL) {
+                                 n_background = 10000, buffer_km = 500, records = NULL) {
   started <- Sys.time()
   seconds <- function() round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   inputs <- atlas_distance_inputs(name, points, stack, fingerprint, grid = grid,
@@ -220,10 +220,12 @@ atlas_distance_taxon <- function(name, fingerprint, points, stack, grid = "draft
   row <- list(taxon = name, presences = inputs$presences,
               band = atlas_presence_band(inputs$presences, ATLAS_DISTANCE_BANDS),
               design = inputs$design, block_km = inputs$block_km, blocks = inputs$blocks)
-  expected <- expected_presences[[name]] %||% NA
-  if (length(expected) == 1L && is.finite(expected) && !identical(as.integer(expected), inputs$presences)) {
-    return(c(row, list(status = "mismatch", expected_presences = as.integer(expected),
-                       seconds = seconds())))
+  record <- records[[name]]
+  if (!is.null(record)) {
+    differs <- atlas_distance_differences(inputs, record, fingerprint)
+    if (length(differs)) {
+      return(c(row, list(status = "mismatch", differs = as.list(differs), seconds = seconds())))
+    }
   }
   if (is.null(inputs$folds)) {
     return(c(row, list(status = "refused", seconds = seconds())))
@@ -320,8 +322,8 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
   pull <- atlas_tracker_release_pull(store, view$manifest, grid, view$cache)
   points <- atlas_occurrence_points(pull, grid)
   fingerprints <- as.list(atlas_fingerprints_for(pull, taxa))
-  args <- list(grid = grid, out_dir = out$dir, bandwidths = bandwidths,
-               expected_presences = expected[taxa])
+  records <- lapply(stats::setNames(taxa, taxa), function(taxon) atlas_distance_record(view, taxon))
+  args <- list(grid = grid, out_dir = out$dir, bandwidths = bandwidths, records = records)
   settings <- list(release = release, shard = shard, bandwidths_km = bandwidths,
                    kernel = "sum of Gaussians over detection survey sites, log units",
                    folds = "production design: full models, else small-model ensembles")
@@ -354,4 +356,52 @@ atlas_distance_expected <- function(view) {
     counts[[entry$taxon]] <- max(n, counts[[entry$taxon]] %||% 0L)
   }
   counts
+}
+
+#' A model's metrics as a release recorded them, or NULL.
+atlas_distance_read_metrics <- function(view, taxon, algorithm) {
+  json <- atlas_tracker_file(view, atlas_model_relpaths(taxon, view$grid, algorithm, ".json")[[1]], ".json")
+  if (is.null(json)) NULL else jsonlite::fromJSON(json, simplifyVector = FALSE)
+}
+
+#' What the release recorded about the folds a taxon was scored on, from
+#' the model whose design set them: a full model (Maxent, the forest or
+#' boosted trees, which share one design) when the taxon has one, else the
+#' small-model ensemble. The fingerprint, detection sites, seed, block size
+#' and detection sites in each fold; NULL when the release holds none.
+atlas_distance_record <- function(view, taxon, read_metrics = atlas_distance_read_metrics) {
+  algorithms <- vapply(Filter(function(e) identical(e$taxon, taxon), view$entries),
+                       function(e) as.character(e$algorithm), "")
+  for (algorithm in intersect(c("maxnet", "rf", "xgboost", "esm"), algorithms)) {
+    metrics <- read_metrics(view, taxon, algorithm)
+    if (is.null(metrics)) next
+    return(list(
+      algorithm = algorithm, design = if (identical(algorithm, "esm")) "small" else "full",
+      fingerprint = as.character(metrics$fingerprint %||% NA),
+      presences = suppressWarnings(as.integer(metrics$presences %||% NA)),
+      seed = suppressWarnings(as.integer(metrics$seed %||% NA)),
+      block_km = suppressWarnings(as.numeric(metrics$block_km %||% NA)),
+      fold_presences = vapply(metrics$folds %||% list(), function(f) as.integer(f$presences %||% NA), 0L)
+    ))
+  }
+  NULL
+}
+
+#' Where a rebuilt taxon differs from the release's record, as short
+#' reasons; empty when it matches: the fingerprint, the detection sites, the
+#' design, the seed, the block size and the detection sites in each fold.
+atlas_distance_differences <- function(inputs, record, fingerprint) {
+  why <- character()
+  if (!identical(as.character(fingerprint), record$fingerprint)) why <- c(why, "fingerprint")
+  if (!identical(as.integer(inputs$presences), record$presences)) why <- c(why, "presences")
+  if (!identical(inputs$design, record$design)) return(c(why, "design"))
+  if (!identical(as.integer(inputs$seed), record$seed)) why <- c(why, "seed")
+  if (!isTRUE(all.equal(as.numeric(inputs$block_km), record$block_km))) why <- c(why, "block")
+  folds <- vapply(sort(unique(inputs$folds)), function(f) {
+    sum(inputs$training$presence[inputs$folds == f] == 1L)
+  }, 0L)
+  if (length(record$fold_presences) && !identical(as.integer(folds), as.integer(record$fold_presences))) {
+    why <- c(why, "folds")
+  }
+  why
 }

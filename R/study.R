@@ -133,11 +133,13 @@ atlas_study_check_key <- function(key) {
 atlas_study_out <- function(out, kind, grid, label) {
   stamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
   slug <- gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", as.character(label)))
-  prefix <- paste0(sub("-studies$", "", kind), "-", slug, "-", stamp)
+  # The results file is <prefix>-<stamp>.json (atlas_run_study adds the
+  # stamp); the run's other files go in the directory beside it.
+  prefix <- paste0(sub("-studies$", "", kind), "-", slug)
   key <- if (!is.null(out)) {
     atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   }
-  dir <- atlas_path(kind, grid, prefix)
+  dir <- atlas_path(kind, grid, paste0(prefix, "-", stamp))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   list(dir = dir, prefix = prefix, key = key)
 }
