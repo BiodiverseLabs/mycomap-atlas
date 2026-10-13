@@ -69,7 +69,34 @@ model, *Elaeagnus umbellata* (autumn olive; 3 sites, small-site ensemble),
 which was retired (job 20261013T133656Z-6a0564db, release
 20261013T133737Z-79fe85f3); nothing was refitted. After removal the frozen
 pull (x73b85b36, sha256 7d3c5d70…) holds 133,235 records and 16,252 taxa.
-[PENDING: the 51 names with record counts, as a table here or on Zenodo.]
+All 54 are iNaturalist records. By kingdom (full id-level list on Zenodo
+with the training-record table, under the same privacy rule):
+
+| Kingdom | Names | Records | Notes |
+|---|---|---|---|
+| Plants (incl. 3 mosses) | 45 | 47 | *Elaeagnus umbellata* 3 records, the only one with a model (retired); 44 others, 1 record each |
+| Animals | 5 | 5 | 3 bees (*Dieunomia heteropoda*, *Megachile latimanus*, *Protandrena labrosa*), a dragonfly (*Orthemis ferruginea*), a purple finch (*Haemorhous purpureus*: a *Phaeolus* record named by a contaminant sequence) |
+| Bacteria | 1 | 2 | *Bacillus mycoides*; one record is *Umbelopsis* sp. 'CA01' named by a contaminant sequence |
+| **Total** | **51** | **54** | |
+
+The 44 single-record plant names: *Achillea millefolium*, *Adiantum
+pedatum*, *Ambrosia artemisiifolia*, *Aquilegia canadensis*, *Brasenia
+schreberi*, *Cercis canadensis*, *Chimaphila maculata*, *Chrysogonum
+virginianum*, *Dicranum montanum*, *Fagus grandifolia*, *Fragaria
+virginiana*, *Geranium maculatum*, *Hamamelis virginiana*, *Hedera helix*,
+*Hepatica americana*, *Hieracium longipilum*, *Ilex opaca*, *Impatiens
+capensis*, *Krigia biflora*, *Laportea canadensis*, *Lespedeza procumbens*,
+*Leucobryum glaucum*, *Ostrya virginiana*, *Persicaria longiseta*,
+*Phalaris arundinacea*, *Podophyllum peltatum*, *Polytrichum formosum*,
+*Potentilla indica*, *Potentilla simplex*, *Prunus serotina*, *Quercus
+alba*, *Rosa multiflora*, *Rubus allegheniensis*, *Rubus phoenicolasius*,
+*Rudbeckia hirta*, *Sanguinaria canadensis*, *Schizachyrium scoparium*,
+*Symplocarpus foetidus*, *Thaspium trifoliatum*, *Trifolium repens*,
+*Trillium grandiflorum*, *Verbesina walteri*, *Viola pubescens*, *Zizia
+aurea*.
+
+The hindcast is planned from the frozen release, whose base job (the
+retirement job 20261013T133656Z-6a0564db) read this pull, x73b85b36.
 
 ## S2.4 What the removed records still touch
 
