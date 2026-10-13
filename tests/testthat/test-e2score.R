@@ -426,3 +426,64 @@ test_that("H2b never loses a resample for want of failed taxa, since each group 
   expect_true(h$H2b$tested)
   expect_equal(h$H2b$dropped, 0L)
 })
+
+# --- Looser map tiers (E24) ---------------------------------------------------------
+
+test_that("a model's tier follows the pre-specified rules, in order", {
+  tier <- atlas_map_tier(
+    p =     c(0.01, 0.15, 0.15, 0.30, 0.30, 0.15, 0.50, NA,   0.01),
+    nulls = c(99,   33,   20,   99,   99,   33,   10,   NA,   99),
+    auc =   c(0.8,  0.6,  0.6,  0.6,  0.45, 0.6,  0.6,  0.7,  0.8),
+    boyce = c(0.3,  0.2,  0.2,  0.1,  0.2,  -0.1, 0.1,  0.2,  -0.2)
+  )
+  expect_equal(tier, c("strong", "moderate", "indicative", "indicative", "failed", "failed",
+                       "indicative", "untested", "failed"))
+  # Production's grade decides strong when it is given.
+  expect_equal(atlas_map_tier(0.15, 33, 0.6, 0.2, strong = TRUE), "strong")
+})
+
+test_that("moderate-z is an effect size of one null spread, with Boyce above zero, for maps that are not strong", {
+  z <- atlas_map_tier_z(auc = c(0.70, 0.62, 0.70, 0.70, 0.70), null_mean = 0.6,
+                        null_sd = c(0.05, 0.05, 0.05, 0.05, NA), boyce = c(0.1, 0.1, -0.1, 0.1, 0.1),
+                        strong = c(FALSE, FALSE, FALSE, TRUE, FALSE))
+  expect_equal(z, c(TRUE, FALSE, FALSE, FALSE, NA))
+})
+
+test_that("a model's tier is read from its stored shift-test record and Boyce", {
+  metrics <- list(grade = "weak", boyce = 0.2,
+                  null = list(auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6, auc_sd = 0.03))
+  expect_equal(atlas_metrics_tier(metrics), list(tier = "moderate", moderate_z = TRUE))
+  metrics$grade <- "strong"
+  expect_equal(atlas_metrics_tier(metrics)$tier, "strong")
+  expect_false(atlas_metrics_tier(metrics)$moderate_z)
+})
+
+tier_rows <- function(n_taxa, per_taxon, rank_of, tier, seed = 1, prefix = "M", kind = "model", z = FALSE) {
+  rows <- taxon_rows(n_taxa, per_taxon, rank_of, grade = "weak", seed = seed, prefix = prefix, kind = kind)
+  rows$tier <- tier
+  rows$moderate_z <- z
+  rows
+}
+
+test_that("H2d-H2f read the tiers' per-model rows, and an untested tier says so", {
+  moderate <- tier_rows(40, 5, function(i, n) stats::runif(n, 0.5, 1), "moderate", z = TRUE)
+  indicative <- tier_rows(40, 5, function(i, n) stats::runif(n, 0, 1), "indicative", seed = 2, prefix = "I")
+  # A combined map that would make indicative maps look good if it counted.
+  combined <- tier_rows(40, 5, function(i, n) rep(1, n), "indicative", prefix = "I", kind = "combined")
+  h <- atlas_e2_tier_hypotheses(rbind(moderate, indicative, combined), reps = 500)
+  expect_true(h$H2d$holds)
+  expect_true(h$H2e$holds)
+  expect_false(h$H2f$holds)
+  expect_true(h$moderate_z$top_half$holds)
+  few <- atlas_e2_tier_hypotheses(rbind(moderate[1:20, ], indicative), reps = 200)
+  expect_false(few$H2d$tested)
+})
+
+test_that("a tier is paired with the kernel on the same places as strong maps are", {
+  models <- tier_rows(40, 5, function(i, n) stats::runif(n, 0.5, 1), "moderate")
+  kernel <- models
+  kernel$rank <- stats::runif(nrow(models), 0, 1)
+  result <- atlas_e2_paired(models, kernel, grade = "moderate", by = "tier", reps = 300)
+  expect_true(result$holds)
+  expect_equal(atlas_e2_paired(models, kernel, reps = 50)$tested, FALSE)
+})

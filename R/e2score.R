@@ -48,6 +48,50 @@ ATLAS_E2_MIN_PLACES <- 30L
 ATLAS_E2_MIN_TAXA <- 2L
 ATLAS_E2_BOOTSTRAP <- 10000L
 
+# Looser map tiers (paper E24, docs/experiments plan-map-tiers, 2026-10-13),
+# from what every graded model stores, no refit: the shift null test's p and
+# the nulls it scored, the observed (untuned) AUC, the nulls' AUC mean and
+# spread, and the pooled Boyce index.
+ATLAS_TIER_MODERATE_P <- 0.20
+ATLAS_TIER_MIN_NULLS <- 25L
+ATLAS_TIER_Z <- 1
+ATLAS_TIERS <- c("strong", "moderate", "indicative", "failed")
+
+#' A model's tier, by the rules in order: strong (p <= 0.05 and Boyce > 0,
+#' as production grades it), moderate (p <= 0.20 with 25 or more nulls
+#' scored, Boyce > 0, AUC > 0.5), indicative (AUC > 0.5, Boyce > 0), failed.
+#' Vectorised; a model with no null test (untested) is "untested".
+atlas_map_tier <- function(p, nulls, auc, boyce, strong = NULL) {
+  ok <- function(x) !is.na(x) & is.finite(x)
+  strong <- strong %||% (ok(p) & p <= 0.05 & ok(boyce) & boyce > 0)
+  signal <- ok(auc) & auc > 0.5 & ok(boyce) & boyce > 0
+  moderate <- ok(p) & p <= ATLAS_TIER_MODERATE_P & ok(nulls) & nulls >= ATLAS_TIER_MIN_NULLS & signal
+  ifelse(!ok(p) & !strong, "untested",
+         ifelse(strong, "strong", ifelse(moderate, "moderate", ifelse(signal, "indicative", "failed"))))
+}
+
+#' The continuous variant, scored beside the tiers: moderate-z when not
+#' strong, the observed AUC is at least one null spread above the nulls'
+#' mean, and Boyce > 0. TRUE or FALSE per model (NA without the numbers).
+atlas_map_tier_z <- function(auc, null_mean, null_sd, boyce, strong) {
+  z <- (auc - null_mean) / null_sd
+  out <- !strong & is.finite(z) & z >= ATLAS_TIER_Z & is.finite(boyce) & boyce > 0
+  out[!is.finite(z) & !strong] <- NA
+  out
+}
+
+#' A model's tier and moderate-z flag from its stored metrics (the shift
+#' test's record in metrics$null, the pooled Boyce, the grade).
+atlas_metrics_tier <- function(metrics) {
+  null <- metrics$null %||% list()
+  num <- function(x) suppressWarnings(as.numeric(x %||% NA))
+  strong <- identical(as.character(metrics$grade %||% ""), "strong")
+  list(tier = atlas_map_tier(num(null$auc_p), num(null$reps), num(null$observed_auc), num(metrics$boyce),
+                             strong = strong),
+       moderate_z = atlas_map_tier_z(num(null$observed_auc), num(null$auc_mean), num(null$auc_sd),
+                                     num(metrics$boyce), strong))
+}
+
 #' The distance band of a distance in km: "0-5", "5-25", "25-100",
 #' "100-500" or "500+".
 atlas_e2_band <- function(km) {
@@ -174,15 +218,16 @@ atlas_e2_places <- function(finds, training) {
 atlas_e2_score <- function(places, maps_for, known_names = NULL) {
   if (!nrow(places)) {
     return(structure(data.frame(places, map = character(), learner = character(), kind = character(),
-                                grade = character(), rank = numeric(), class = character(),
+                                grade = character(), tier = character(), moderate_z = logical(),
+                                rank = numeric(), class = character(),
                                 beats_effort = numeric(), stringsAsFactors = FALSE),
                      off_grid = attr(places, "off_grid") %||% 0L))
   }
   rows <- list()
   apart <- function(mine, class) {
     data.frame(mine, map = NA_character_, learner = NA_character_, kind = NA_character_,
-               grade = NA_character_, rank = NA_real_, class = class, beats_effort = NA_real_,
-               stringsAsFactors = FALSE)
+               grade = NA_character_, tier = NA_character_, moderate_z = NA, rank = NA_real_,
+               class = class, beats_effort = NA_real_, stringsAsFactors = FALSE)
   }
   for (taxon in unique(places$taxon)) {
     mine <- places[places$taxon == taxon, , drop = FALSE]
@@ -213,6 +258,7 @@ atlas_e2_score <- function(places, maps_for, known_names = NULL) {
       rows[[length(rows) + 1L]] <- data.frame(
         mine, map = id, learner = as.character(map$learner %||% id),
         kind = as.character(map$kind %||% "model"), grade = as.character(map$grade %||% NA),
+        tier = as.character(map$tier %||% NA), moderate_z = as.logical(map$moderate_z %||% NA),
         rank = hit$rank, class = hit$place, beats_effort = effort, stringsAsFactors = FALSE
       )
     }
@@ -342,15 +388,40 @@ atlas_e2_hypotheses <- function(scored, reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
   list(H2a = h2a, H2b = h2b, H2c = h2c, C2 = supported)
 }
 
+#' The secondary tier hypotheses (E2 pre-registration, added 2026-10-13):
+#' H2d moderate maps' top-half share and H2e their beats-effort share, and
+#' H2f indicative maps' top-half share, each by its bootstrap lower bound
+#' over 0.5; the same two for moderate-z, reported. Per-model rows only, as
+#' for H2a-c. They do not decide C2.
+atlas_e2_tier_hypotheses <- function(scored, reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
+  models <- scored[scored$kind %in% "model", , drop = FALSE]
+  enough <- function(rows) atlas_e2_place_count(rows[atlas_e2_ranked(rows), , drop = FALSE]) >= ATLAS_E2_MIN_PLACES
+  effort <- function(rows) {
+    e <- rows$beats_effort[atlas_e2_ranked(rows) & is.finite(rows$beats_effort)]
+    if (length(e)) mean(e) else NA_real_
+  }
+  test <- function(rows, stat) {
+    if (!enough(rows)) return(list(tested = FALSE, n_taxa = length(unique(rows$taxon))))
+    b <- atlas_e2_bootstrap(rows, stat, reps = reps, seed = seed)
+    c(b, list(tested = is.finite(b$low), holds = isTRUE(b$low > 0.5)))
+  }
+  moderate <- models[models$tier %in% "moderate", , drop = FALSE]
+  indicative <- models[models$tier %in% "indicative", , drop = FALSE]
+  moderate_z <- models[models$moderate_z %in% TRUE, , drop = FALSE]
+  list(H2d = test(moderate, atlas_e2_share), H2e = test(moderate, effort),
+       H2f = test(indicative, atlas_e2_share),
+       moderate_z = list(top_half = test(moderate_z, atlas_e2_share), beats_effort = test(moderate_z, effort)))
+}
+
 #' The pre-registered E6b test: strong models' top-half share minus the
 #' distance kernel's, on identical places. model_rows and kernel_rows are
 #' atlas_e2_score rows whose maps pair by taxon, map and place (the kernel
 #' ranked again on each model's own cells, atlas_distance_paired_layers);
 #' only places ranked on both enter, and the bound is the bootstrap's lower.
 atlas_e2_paired <- function(model_rows, kernel_rows, grade = "strong",
-                            reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
+                            reps = ATLAS_E2_BOOTSTRAP, seed = 1L, by = "grade") {
   key <- function(r) paste(r$taxon, r$map, r$place, sep = "\x1f")
-  models <- model_rows[model_rows$kind %in% "model" & model_rows$grade %in% grade, , drop = FALSE]
+  models <- model_rows[model_rows$kind %in% "model" & model_rows[[by]] %in% grade, , drop = FALSE]
   kernel <- kernel_rows[match(key(models), key(kernel_rows)), , drop = FALSE]
   if (anyNA(kernel$taxon)) stop("every model row needs its kernel row on the same place and map", call. = FALSE)
   both <- atlas_e2_ranked(models) & atlas_e2_ranked(kernel)

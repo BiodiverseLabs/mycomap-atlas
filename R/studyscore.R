@@ -32,7 +32,9 @@ atlas_score_model_maps <- function(view, taxon) {
   layers_of <- function(m) m[c("raster", "rank", "outside")]
   out <- lapply(stats::setNames(names(maps$models), names(maps$models)), function(algorithm) {
     m <- maps$models[[algorithm]]
-    list(layers = layers_of(m), grade = m$grade, learner = algorithm, kind = "model")
+    tier <- atlas_metrics_tier(m$metrics %||% list(grade = m$grade))
+    list(layers = layers_of(m), grade = m$grade, tier = tier$tier, moderate_z = tier$moderate_z,
+         learner = algorithm, kind = "model")
   })
   if (!is.null(maps$ensemble)) {
     out$combined <- list(layers = layers_of(maps$ensemble), known = maps$ensemble$known,
@@ -54,8 +56,8 @@ atlas_score_kernel_maps <- function(model_maps, kernel_path) {
   kernel <- terra::rast(kernel_path)
   models <- Filter(function(m) identical(m$kind, "model"), model_maps %||% list())
   paired <- lapply(models, function(m) {
-    list(layers = atlas_distance_paired_layers(kernel, m$layers), grade = m$grade,
-         learner = m$learner, kind = "model")
+    list(layers = atlas_distance_paired_layers(kernel, m$layers), grade = m$grade, tier = m$tier,
+         moderate_z = m$moderate_z, learner = m$learner, kind = "model")
   })
   c(paired, list(kernel = list(layers = atlas_tracker_layers(kernel), grade = "kernel",
                                learner = "kernel", kind = "baseline")))
@@ -87,6 +89,14 @@ atlas_score_by_grade <- function(rows) {
   lapply(stats::setNames(grades, grades), function(g) atlas_score_splits(rows[rows$grade %in% g, , drop = FALSE]))
 }
 
+#' The E2 metrics of rows by map tier (and moderate-z), each with its splits.
+atlas_score_by_tier <- function(rows) {
+  tiers <- intersect(c(ATLAS_TIERS, "untested"), unique(rows$tier))
+  out <- lapply(stats::setNames(tiers, tiers), function(t) atlas_score_splits(rows[rows$tier %in% t, , drop = FALSE]))
+  if (any(rows$moderate_z %in% TRUE)) out$moderate_z <- atlas_score_splits(rows[rows$moderate_z %in% TRUE, , drop = FALSE])
+  out
+}
+
 #' Score the models and baselines on the test places. Pure: the maps come
 #' through the functions given. Returns the aggregates written to the
 #' results file.
@@ -101,7 +111,9 @@ atlas_score_baselines_core <- function(places, model_maps_for, kernel_maps_for =
     # E2 itself: the pre-registered hypotheses on the per-model rows, and
     # the numbers by grade.
     hypotheses = atlas_e2_hypotheses(models, reps = reps, seed = seed),
-    models = list(by_grade = atlas_score_by_grade(per_model),
+    # Secondary: the looser map tiers (E24), H2d-H2f.
+    tier_hypotheses = atlas_e2_tier_hypotheses(models, reps = reps, seed = seed),
+    models = list(by_grade = atlas_score_by_grade(per_model), by_tier = atlas_score_by_tier(per_model),
                   combined = atlas_score_splits(models[models$kind %in% "combined", , drop = FALSE]))
   )
   if (is.function(kernel_maps_for)) {
@@ -115,6 +127,14 @@ atlas_score_baselines_core <- function(places, model_maps_for, kernel_maps_for =
       # Both sides on the taxa that have a kernel: the same places and cells.
       paired_by_grade = atlas_score_by_grade(paired[!is.na(paired$map), , drop = FALSE]),
       models_same_taxa = atlas_score_by_grade(same),
+      paired_by_tier = atlas_score_by_tier(paired[!is.na(paired$map), , drop = FALSE]),
+      models_same_taxa_by_tier = atlas_score_by_tier(same),
+      # Each tier against the kernel on the same places (reported).
+      tiers_vs_kernel = lapply(stats::setNames(nm = c("moderate", "indicative")), function(t) {
+        rows <- same[same$tier %in% t, , drop = FALSE]
+        if (nrow(rows)) atlas_e2_paired(rows, paired, grade = t, by = "tier", reps = reps, seed = seed) else
+          list(tested = FALSE)
+      }),
       own_reach = atlas_score_splits(kernel[kernel$kind %in% "baseline", , drop = FALSE]),
       H6b = if (nrow(strong)) atlas_e2_paired(strong, paired, reps = reps, seed = seed) else list(tested = FALSE),
       H6b_new = if (any(strong$new_place %in% TRUE)) {
