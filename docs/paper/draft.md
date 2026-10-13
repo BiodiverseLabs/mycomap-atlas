@@ -483,15 +483,15 @@ suitability to a relative 5e-7 and the index to an absolute 1e-6 (or a
 relative 5e-7 where larger), where a genuinely different model differs by
 1e-4 or more. Refitting the frozen release's 576 strong models for the
 full-view refresh met these tolerances for 573. The other three are tuned
-Maxent models whose chosen settings differed on refit (same records and
-background; *Gliophorus fumosus*, *Stropharia hardii*, *Russula* sp.
-'compacta-PA01'); the release keeps their original fits and lists both
-fits' settings and tuning scores. [CHECK: whether the cause is near-tied
-candidates or the glmnet pass cap stopping a non-converging path at a
-different point; to read from the per-candidate tuning scores in the
-release record. "Across machines", not "across processor families", until
-the original fits' processor is known per model.] Our refit checks enforce
-the tolerances and flag anything beyond them.
+Maxent models whose settings choice differed: one near-tie (*Russula* sp.
+'compacta-PA01'), and two (*Stropharia hardii*, *Gliophorus fumosus*) where
+the cross-validated scores of every candidate differed across machines,
+from the same records and background; the mechanism is under
+investigation (E12). The release keeps their original fits and lists both
+fits' settings and tuning scores. Because the refit check compares maps,
+not held-out scores, E12 measures how stable scores and grades are across
+reruns and machines [PENDING E12]. Our refit checks enforce the tolerances
+and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
 is hidden, obscured or of unknown privacy at the source are excluded from
@@ -944,7 +944,7 @@ data, command, result, release, commit).
 | E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. 230–300 CPU-h ($12–15), from the cost pilot (`2026-10-13-e6a-cost-pilot.md`) | P1 |
 | E6b | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
-| E12 | Reproducibility: rerun a random sample of taxa from the frozen pull; (a) byte identity on ONE pinned instance family (e.g. r7i, Intel), same family as the original fits; (b) a cross-family comparison (r7i vs r7a) reported separately against the stated tolerances (float32 storage precision: suitability relative 5e-7, AOA index absolute 1e-6 or relative 5e-7; a different model differs by ≥ 1e-4), including how often tuned Maxent's chosen setting differs and whether those cases are near-ties or convergence-cap stops (first evidence: 3 of 576 in the refresh); record the instance type per model; Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers, 20–50 taxa, both families | ~20 CPU-h, 1 day | P1 |
+| E12 | **Planned** (`docs/experiments/2026-10-13-plan-e12-grade-stability.md`). Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; then full graded refits of ~600–900 stratified models twice on one family (r7i) and once on another (r7a), measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | est. 30–60 CPU-h, a few dollars; ~2 days code | **P1, raised**: a grade that changes with the machine weakens C4 |
 | E17 | ODMAP protocol (`docs/paper/appendix-s1-odmap.md`) | all | **Draft 2026-10-13**; final check against the frozen release | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
@@ -1090,6 +1090,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.9 (2026-10-13).** Reproducibility: of the three changed Maxent
+  fits, one is a near-tie and two had every candidate's score move across
+  machines (mechanism unknown); E12 becomes a planned grade-stability test.
 - **0.9.8 (2026-10-13).** Reproducibility claim corrected: 573 of 576
   strong models refit within float32 tolerance; 3 tuned Maxent models chose
   different settings (originals kept); "across machines" until the
