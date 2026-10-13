@@ -208,13 +208,16 @@ atlas_rescan_summary <- function(rows, baseline = NULL) {
   out
 }
 
-#' Whether the rows may be read: the share of models whose rebuild differed
-#' from the release, against ATLAS_RESCAN_MAX_DROPPED.
+#' Whether the rows may be read: the share of sampled models with no
+#' verdict, against ATLAS_RESCAN_MAX_DROPPED. A model whose rebuild differed
+#' from the release and one whose run failed are both dropped: either way
+#' the sample lost it.
 atlas_rescan_health <- function(rows, max_dropped = ATLAS_RESCAN_MAX_DROPPED) {
   status <- vapply(rows, function(r) as.character(r$status %||% "unknown"), "")
-  dropped <- sum(status == "mismatch")
+  dropped <- sum(status != "scored")
   share <- if (length(status)) dropped / length(status) else 0
-  list(models = length(status), dropped = dropped, dropped_share = round(share, 4),
+  list(models = length(status), dropped = dropped, mismatched = sum(status == "mismatch"),
+       failed = sum(status == "failed"), dropped_share = round(share, 4),
        readable = share <= max_dropped)
 }
 

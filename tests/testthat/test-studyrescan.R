@@ -109,6 +109,13 @@ test_that("more than 2% of models failing to rebuild stops the reading", {
   expect_true(atlas_rescan_health(rows[-(98:99)])$readable)
 })
 
+test_that("a model whose run failed counts against the 2% as a mismatch does", {
+  rows <- c(rep(list(list(status = "scored")), 97), rep(list(list(status = "failed", error = "boom")), 3))
+  health <- atlas_rescan_health(rows)
+  expect_equal(c(health$dropped, health$failed, health$mismatched), c(3L, 3L, 0L))
+  expect_false(health$readable)
+})
+
 test_that("the summary counts maps the standard test passes that are not strong", {
   rows <- list(
     list(status = "scored", algorithm = "maxnet", grade = "strong", scatter = list(verdict = "passed")),
