@@ -7,20 +7,22 @@
 # the real survey sites with the real effort, then fitted and null-tested as
 # production fits and tests a taxon.
 #
-# The species come in cells, as pre-registered (atlas_calibration_layout):
+# The species come in cells, as pre-registered and amended before launch
+# (sizes doubled, 2026-10-13; atlas_calibration_layout):
 #
 #   full models (Maxent and random forest), bands 20-29 .. 200+
-#     habitat    2 breadths x 2 signal strengths x 30 per band   = 600
-#     geography  1 or 2 centres x 40 per band                    = 400
+#     habitat    2 breadths x 2 signal strengths x 60 per band   = 1,200
+#     geography  1 or 2 centres x 80 per band                    =   800
 #   small-model ensembles (ESM), bands 3-4, 5-9, 10-19
-#     habitat    2 signal strengths x 40 per band                = 240
-#     geography  60 per band                                     = 180
+#     habitat    2 signal strengths x 80 per band                =   480
+#     geography  120 per band                                    =   360
 #
 # A species belongs to the band of its realised detection sites. Its target
 # is drawn uniformly inside the band; when the realised count lands outside
 # (or the sites fall in too few blocks for its folds) it is drawn again from
 # the next seed, at most ATLAS_CALIBRATION_REDRAWS times, and the draws are
-# reported. Each learner then gets its own blocked scores, its own
+# reported; a cell that cannot be filled is reported with its count, never
+# padded. Each learner then gets its own blocked scores, its own
 # map-to-truth correlation, and its own verdict under scattered and shifted
 # nulls (99, stopping at 5), with production's pass rule (AUC p <= 0.05 and
 # the learner's pooled Boyce above 0). Full-model species also get Maxent's
@@ -53,8 +55,8 @@ atlas_calibration_band_label <- function(band) {
 #' The pre-registered cells, one row per species: its name, family (full or
 #' esm), kind, band, breadth, signal and centres (NA where the cell leaves
 #' it to the draw), and the cell it fills.
-atlas_calibration_layout <- function(habitat_full = 30L, geography_full = 40L,
-                                     habitat_esm = 40L, geography_esm = 60L) {
+atlas_calibration_layout <- function(habitat_full = 60L, geography_full = 80L,
+                                     habitat_esm = 80L, geography_esm = 120L) {
   rows <- list()
   add <- function(n, family, kind, band, breadth = NA_character_, signal = NA_character_,
                   centres = NA_integer_) {

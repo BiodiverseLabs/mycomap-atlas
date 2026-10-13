@@ -4,21 +4,21 @@
 
 # --- The cells ----------------------------------------------------------------
 
-test_that("the layout holds the pre-registered 600 + 400 + 420 species", {
+test_that("the layout holds the pre-registered cells, doubled before launch: 1,200 + 800 + 840 species", {
   layout <- atlas_calibration_layout()
-  expect_equal(nrow(layout), 1420L)
+  expect_equal(nrow(layout), 2840L)
   count <- function(family, kind) sum(layout$family == family & layout$kind == kind)
-  expect_equal(count("full", "habitat"), 600L)
-  expect_equal(count("full", "geography"), 400L)
-  expect_equal(count("esm", "habitat"), 240L)
-  expect_equal(count("esm", "geography"), 180L)
-  # 30 habitat species in every band x breadth x strength cell, 40 geography
-  # species per band and centre count, 40 and 60 per ESM cell.
+  expect_equal(count("full", "habitat"), 1200L)
+  expect_equal(count("full", "geography"), 800L)
+  expect_equal(count("esm", "habitat"), 480L)
+  expect_equal(count("esm", "geography"), 360L)
+  # 60 habitat species in every band x breadth x strength cell, 80 geography
+  # species per band and centre count, 80 and 120 per ESM cell.
   cells <- table(layout$cell)
-  expect_true(all(cells[grepl("^full/habitat/", names(cells))] == 30L))
-  expect_true(all(cells[grepl("^full/geography/", names(cells))] == 40L))
-  expect_true(all(cells[grepl("^esm/habitat/", names(cells))] == 40L))
-  expect_true(all(cells[grepl("^esm/geography/", names(cells))] == 60L))
+  expect_true(all(cells[grepl("^full/habitat/", names(cells))] == 60L))
+  expect_true(all(cells[grepl("^full/geography/", names(cells))] == 80L))
+  expect_true(all(cells[grepl("^esm/habitat/", names(cells))] == 80L))
+  expect_true(all(cells[grepl("^esm/geography/", names(cells))] == 120L))
   expect_setequal(unique(layout$band[layout$family == "full"]),
                   c("20-29", "30-49", "50-99", "100-199", "200+"))
   expect_setequal(unique(layout$band[layout$family == "esm"]), c("3-4", "5-9", "10-19"))
@@ -318,8 +318,8 @@ test_that("pass rates are reported with Wilson intervals by learner, design, kin
 
 test_that("a plan-only run sizes the layout and shards it", {
   plan <- atlas_calibration_study(plan_only = TRUE, quiet = TRUE)
-  expect_equal(plan$species, 1420L)
+  expect_equal(plan$species, 2840L)
   expect_gt(plan$cpu_hours, 100)
   half <- atlas_calibration_study(plan_only = TRUE, quiet = TRUE, shard = "2/2")
-  expect_equal(half$species, 710L)
+  expect_equal(half$species, 1420L)
 })
