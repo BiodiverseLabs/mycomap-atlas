@@ -216,6 +216,9 @@ atlas_plan_private_release <- function(store = atlas_store(), from_release, purp
     id = id, grid = grid, kind = "private-release", purpose = purpose,
     created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     from_release = from_release, from_job = main_job_id, validated_through = validated_through,
+    # The pull the release was fitted on, which this job's is made from: the
+    # paper shows the two read the same records.
+    from_pull = list(path = pull_entry$path, sha256 = pull_entry$sha256),
     algorithms = as.list(algorithms), shards = max(assignment),
     # The release's own settings, null tests and tuning included: the
     # grades are this job's.
@@ -239,6 +242,41 @@ atlas_plan_private_release <- function(store = atlas_store(), from_release, purp
       variant$counts$records_in_pull, " records; ", length(tasks), " models in ", job$shards, " shard",
       if (job$shards == 1L) "" else "s", "; about ", estimate$cpu_hours, " CPU-h")
   invisible(job)
+}
+
+#' What a job's workers were billed for, from its shard records: hours per
+#' instance type (each shard from its start to its record, so a worker's boot
+#' and image pull, and any worker lost before reporting, are not counted),
+#' and US dollars where a price per instance-hour is known
+#' (ATLAS_EC2_SPOT_PRICES, e.g. "r7a.8xlarge=0.80,r7i.8xlarge=0.85"). The
+#' workers are tagged atlas-job, so Cost Explorer can confirm the bill.
+atlas_job_billing <- function(records, job_ids, prices = Sys.getenv("ATLAS_EC2_SPOT_PRICES", unset = "")) {
+  price_of <- list()
+  for (pair in strsplit(prices, ",", fixed = TRUE)[[1]]) {
+    parts <- strsplit(trimws(pair), "=", fixed = TRUE)[[1]]
+    if (length(parts) == 2L && is.finite(suppressWarnings(as.numeric(parts[[2]])))) {
+      price_of[[parts[[1]]]] <- as.numeric(parts[[2]])
+    }
+  }
+  hours <- list()
+  for (r in records) {
+    if (is.null(r$started_at) || is.null(r$finished_at)) next
+    type <- r$machine$instance_type %||% "unknown"
+    h <- as.numeric(difftime(as.POSIXct(r$finished_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+                             as.POSIXct(r$started_at, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), units = "hours"))
+    if (is.finite(h)) hours[[type]] <- (hours[[type]] %||% 0) + h
+  }
+  priced <- length(hours) && all(names(hours) %in% names(price_of))
+  usd <- if (priced) sum(vapply(names(hours), function(t) hours[[t]] * price_of[[t]], numeric(1))) else NA_real_
+  list(
+    instance_hours = lapply(hours, round, 2),
+    usd = if (priced) round(usd, 2) else NULL,
+    priced = priced,
+    note = paste0(if (priced) "priced from ATLAS_EC2_SPOT_PRICES" else
+                    "no price per instance-hour for every type (ATLAS_EC2_SPOT_PRICES)",
+                  "; boot, image pull and lost workers not counted; Cost Explorer by tag atlas-job = ",
+                  paste(job_ids, collapse = ", "))
+  )
 }
 
 #' Every model's grade, strength and scores, from this data directory's
@@ -346,6 +384,8 @@ atlas_finish_private_release_work <- function(store = atlas_store(), id, grid = 
   summary <- Filter(Negate(is.null), list(
     job = id, grid = grid, kind = "private-release", purpose = job$purpose,
     from_release = job$from_release, validated_through = job$validated_through,
+    from_pull = job$from_pull,
+    pull = list(sha256 = (atlas_job_pull_entry(job) %||% list())$sha256),
     finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     filter = job$filter,
     models_planned = length(job$tasks),
@@ -359,6 +399,7 @@ atlas_finish_private_release_work <- function(store = atlas_store(), id, grid = 
     cpu_hours = round(seconds / 3600, 2),
     worker_hours = round(worker_hours, 2),
     cost_estimate_usd = round(worker_hours * vcpus_per_worker * usd_per_vcpu_hour, 2),
+    billing = atlas_job_billing(records, c(id, atlas_finish_id(id))),
     declared = job$declared
   ))
   atlas_store_json(store, key("summary.json"), summary)

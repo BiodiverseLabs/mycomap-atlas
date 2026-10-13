@@ -103,6 +103,12 @@ test_that("a private release is finished privately, with its own grades, and not
   models <- utils::read.delim(gzfile(models_file))
   expect_equal(unique(models$grade[models$taxon == "Taxon C"]), "strong")
   expect_equal(summary$grades$maxnet$strong, 2L)
+  # The pull it was made from is the release's, by hash; the bill by type.
+  main_pull <- atlas_job_pull_entry(atlas_read_job(setup$store, setup$main$job))
+  expect_identical(summary$from_pull$sha256, main_pull$sha256)
+  expect_equal(summary$from_release, setup$main$id)
+  expect_false(summary$billing$priced)
+  expect_true(length(summary$billing$instance_hours) > 0L)
   manifest <- atlas_store_text(setup$store, atlas_benchmark_key(job$id, "release.json"))
   expect_equal(manifest$kind, "private-release")
   expect_true(length(manifest$files) > 0L)
@@ -156,4 +162,19 @@ test_that("a dry run says what a private release would fit and cost, and writes 
   expect_equal(dry$filter$records_undated_left_out, 5L)
   expect_equal(dry$estimate$models, length(dry$tasks))
   expect_gt(dry$estimate$cpu_hours, 0)
+})
+
+test_that("a job's bill is its workers' hours by instance type, priced only when every type has a price", {
+  records <- list(
+    list(started_at = "2026-10-20T00:00:00Z", finished_at = "2026-10-20T02:00:00Z", machine = list(instance_type = "r7a.8xlarge")),
+    list(started_at = "2026-10-20T00:00:00Z", finished_at = "2026-10-20T01:30:00Z", machine = list(instance_type = "r7i.8xlarge"))
+  )
+  unpriced <- atlas_job_billing(records, "priv-1", prices = "r7a.8xlarge=0.8")
+  expect_false(unpriced$priced)
+  expect_null(unpriced$usd)
+  expect_equal(unpriced$instance_hours, list(r7a.8xlarge = 2, r7i.8xlarge = 1.5))
+  expect_match(unpriced$note, "atlas-job = priv-1")
+  priced <- atlas_job_billing(records, "priv-1", prices = "r7a.8xlarge=0.8, r7i.8xlarge=1")
+  expect_true(priced$priced)
+  expect_equal(priced$usd, 2 * 0.8 + 1.5 * 1)
 })
