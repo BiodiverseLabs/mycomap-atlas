@@ -17,11 +17,29 @@
 # up, because nothing in the current release changed.
 #
 # What the orchestrator may do is fixed in AWS as well as here: the IAM policy
-# in deploy/aws/orchestrator/ only allows tagged spot launches of the allowed
+# in deploy/aws/orchestrator/ only allows tagged launches of the allowed
 # types with the worker's profile, so a bug here fails closed.
+#
+# Workers are spot by default. ATLAS_EC2_MARKET=on-demand launches every
+# worker on demand instead, and ATLAS_EC2_FINISH_MARKET the finishing worker
+# alone (a release's finish, a prior-only or private release's): one long
+# worker whose reclaim costs hours, while shards stay cheap. An on-demand
+# worker is the same request without the spot options: same tags, types and
+# their order, shutdown timer and deadline.
 #
 # The EC2 client is replaceable, which is how the tests run whole jobs — spot
 # reclaims and all — without AWS.
+
+ATLAS_EC2_MARKETS <- c("spot", "on-demand")
+
+#' A market setting, refusing anything but spot or on-demand.
+atlas_ec2_market <- function(value, name = "ATLAS_EC2_MARKET") {
+  value <- tolower(trimws(as.character(value %||% "spot")))
+  if (!value %in% ATLAS_EC2_MARKETS) {
+    stop(name, " must be spot or on-demand, not '", value, "'", call. = FALSE)
+  }
+  value
+}
 
 ATLAS_EC2_REQUIRED <- c(
   "ATLAS_STORE", "ATLAS_EC2_REGION", "ATLAS_EC2_SUBNETS",
@@ -81,6 +99,11 @@ atlas_ec2_config <- function(env = function(name, unset = "") Sys.getenv(name, u
     security_group = env("ATLAS_EC2_SECURITY_GROUP"),
     instance_profile = env("ATLAS_EC2_INSTANCE_PROFILE"),
     instance_types = atlas_split_setting(env("ATLAS_EC2_INSTANCE_TYPES", "c7a.8xlarge,c7i.8xlarge,m7a.8xlarge")),
+    # Spot unless told otherwise; the finishing worker follows the shards
+    # unless it has a market of its own.
+    market = atlas_ec2_market(env("ATLAS_EC2_MARKET", "spot")),
+    finish_market = atlas_ec2_market(env("ATLAS_EC2_FINISH_MARKET", env("ATLAS_EC2_MARKET", "spot")),
+                                     "ATLAS_EC2_FINISH_MARKET"),
     image = image,
     max_workers = number("ATLAS_EC2_MAX_WORKERS", 4),
     max_hours = number("ATLAS_EC2_MAX_HOURS", 6),
@@ -145,9 +168,12 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
   ), collapse = "\n")
 }
 
-#' The RunInstances request for one worker in one subnet with one type.
+#' The RunInstances request for one worker in one subnet with one type. A
+#' spot request (the default) carries its market options; an on-demand one
+#' is the same request without them.
 atlas_worker_request <- function(config, job_id, shard, grid, attempt = 1L, subnet, instance_type,
-                                 minutes = config$max_hours * 60, command = NULL) {
+                                 minutes = config$max_hours * 60, command = NULL,
+                                 market = config$market %||% "spot") {
   tags <- list(
     list(Key = "Name", Value = sprintf("atlas-%s-shard-%d", job_id, as.integer(shard))),
     list(Key = "atlas", Value = "worker"),
@@ -156,7 +182,7 @@ atlas_worker_request <- function(config, job_id, shard, grid, attempt = 1L, subn
     list(Key = "atlas-attempt", Value = as.character(attempt))
   )
   user_data <- atlas_worker_user_data(job_id, shard, grid, config, minutes, command = command)
-  list(
+  request <- list(
     ImageId = config$ami,
     InstanceType = instance_type,
     MinCount = 1, MaxCount = 1,
@@ -181,6 +207,8 @@ atlas_worker_request <- function(config, job_id, shard, grid, attempt = 1L, subn
       list(ResourceType = "volume", Tags = tags)
     )
   )
+  if (identical(atlas_ec2_market(market), "on-demand")) request$InstanceMarketOptions <- NULL
+  request
 }
 
 #' Which of the given AWS error codes an error carries, or NA.
@@ -191,7 +219,7 @@ atlas_ec2_error_code <- function(error, codes = ATLAS_EC2_RETRY_ERRORS) {
 }
 
 #' Launch one worker for one shard, trying each instance type in each subnet
-#' while spot capacity refuses. Returns the instance id, or NULL when every
+#' while capacity refuses (spot, or on-demand with market = "on-demand"). Returns the instance id, or NULL when every
 #' option refused for a reason worth retrying later. Any other error stops.
 #'
 #' Each attempt starts one type further down the list: a worker taken back
@@ -199,7 +227,7 @@ atlas_ec2_error_code <- function(error, codes = ATLAS_EC2_RETRY_ERRORS) {
 #' a type that has not.
 atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
                                 minutes = config$max_hours * 60, say = function(...) NULL,
-                                command = NULL) {
+                                command = NULL, market = config$market %||% "spot") {
   refusals <- character()
   types <- config$instance_types
   turn <- (as.integer(attempt) - 1L) %% length(types)
@@ -207,7 +235,7 @@ atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
   for (instance_type in types) {
     for (subnet in config$subnets) {
       request <- atlas_worker_request(config, job_id, shard, grid, attempt, subnet, instance_type, minutes,
-                                      command = command)
+                                      command = command, market = market)
       result <- tryCatch(do.call(ec2$run_instances, request), error = function(e) e)
       if (!inherits(result, "error")) return(result$Instances[[1]]$InstanceId)
       code <- atlas_ec2_error_code(result)
@@ -220,7 +248,7 @@ atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
       }
     }
   }
-  say("shard ", shard, ": no spot capacity (", paste(refusals, collapse = "; "), "); will try again")
+  say("shard ", shard, ": no ", market, " capacity (", paste(refusals, collapse = "; "), "); will try again")
   NULL
 }
 
