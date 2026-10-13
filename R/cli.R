@@ -112,6 +112,11 @@ atlas_usage <- function() {
   message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
   message("                                refit a release's strong models on its pull without the records")
   message("                                validated after the date, for Vision's benchmark: never a release")
+  message("      --hindcast --from-release=ID --validated-through=YYYY-MM-DD [--dry-run]")
+  message("                                fit every taxon afresh, graded, on the records first validated by the")
+  message("                                date, as a private release (Atlas E2, Vision's R_train): never public")
+  message("      --record-names --from-release=ID [--dry-run]")
+  message("                                the same, with records under their own .org names (Atlas E9)")
   message("      --full-refresh --from-release=ID [--dry-run]")
   message("                                refit a release's strong models for their full views alone and")
   message("                                publish them in a new release (--dry-run: say what and how much)")
@@ -120,6 +125,7 @@ atlas_usage <- function() {
   message("      --workers=N               fits at once on this machine (default 1)")
   message("  job-status         which shards of a job have reported")
   message("  finish-prior-only  build a prior-only job's private prior, trained ids and summary (--job=ID)")
+  message("  finish-private-release  finish a hindcast or record-names job privately (--job=ID)")
   message("  finish-full-refresh  publish a full-view refresh whose refits match its release (--job=ID)")
   message("  pull-privacy       make the private list of records whose place their source hides (read-only),")
   message("                     which the published collection cells leave out")
@@ -526,6 +532,15 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
           atlas_flag_store(flags), from_release = as.character(flags$from_release), grid = atlas_flag_grid(flags),
           shards = as.integer(atlas_flag_number(flags, "shards", 4)), dry_run = isTRUE(flags$dry_run)
         )
+      } else if (isTRUE(flags$hindcast) || isTRUE(flags$record_names)) {
+        if (is.null(flags$from_release)) stop("a private release needs --from-release=ID", call. = FALSE)
+        atlas_plan_private_release(
+          atlas_flag_store(flags), from_release = as.character(flags$from_release),
+          purpose = if (isTRUE(flags$hindcast)) "hindcast" else "record-names",
+          validated_through = if (!is.null(flags$validated_through)) as.character(flags$validated_through),
+          grid = atlas_flag_grid(flags), algorithms = flags$algorithms %||% "all",
+          shards = as.integer(atlas_flag_number(flags, "shards", 4)), dry_run = isTRUE(flags$dry_run)
+        )
       } else if (isTRUE(flags$prior_only)) {
         if (is.null(flags$from_release) || is.null(flags$validated_through)) {
           stop("plan-job --prior-only needs --from-release=ID and --validated-through=YYYY-MM-DD", call. = FALSE)
@@ -612,6 +627,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       if (is.null(flags$job)) stop("finish-full-refresh needs --job=ID", call. = FALSE)
       atlas_finish_full_refresh(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
                                 promote = !isTRUE(flags$no_promote))
+      invisible(0L)
+    },
+    "finish-private-release" = {
+      if (is.null(flags$job)) stop("finish-private-release needs --job=ID", call. = FALSE)
+      atlas_finish_private_release_work(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
+                                        usd_per_vcpu_hour = atlas_flag_number(flags, "usd_per_vcpu_hour", 0.025),
+                                        defer = isTRUE(flags$defer))
       invisible(0L)
     },
     "finish-prior-only" = {
