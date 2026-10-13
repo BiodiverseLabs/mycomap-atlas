@@ -113,14 +113,18 @@ atlas_study_shard <- function(names, shard = "1/1") {
 
 # Store prefixes a study may write under. A study never writes a release,
 # the current pointer or anything public.
-ATLAS_STUDY_PREFIXES <- c("study/", "private/")
+# private/study/ only: production reads other private/ prefixes (the
+# tracker's ledger, trained ids, private releases), and a study must never
+# overwrite them.
+ATLAS_STUDY_PREFIXES <- c("study/", "private/study/")
 
-#' Refuse a store key outside the study prefixes, or one that climbs out of
-#' them.
+#' Refuse a store key outside the study prefixes, or one that could climb out
+#' of them: any "..", and any backslash (a local store on Windows would read
+#' study/..\releases as a way out).
 atlas_study_check_key <- function(key) {
   key <- as.character(key)
-  if (length(key) != 1L || !nzchar(key) || grepl("(^|/)[.][.](/|$)", key) ||
-      !any(startsWith(key, ATLAS_STUDY_PREFIXES))) {
+  if (length(key) != 1L || is.na(key) || !nzchar(key) || grepl("..", key, fixed = TRUE) ||
+      grepl("\\", key, fixed = TRUE) || !any(startsWith(key, ATLAS_STUDY_PREFIXES))) {
     stop("a study writes only under ", paste(ATLAS_STUDY_PREFIXES, collapse = " or "),
          ", not '", key, "'", call. = FALSE)
   }

@@ -220,12 +220,12 @@ atlas_distance_taxon <- function(name, fingerprint, points, stack, grid = "draft
   row <- list(taxon = name, presences = inputs$presences,
               band = atlas_presence_band(inputs$presences, ATLAS_DISTANCE_BANDS),
               design = inputs$design, block_km = inputs$block_km, blocks = inputs$blocks)
+  # Without a record there is nothing to say the folds are production's, so
+  # a taxon the release holds no record for is a mismatch too.
   record <- records[[name]]
-  if (!is.null(record)) {
-    differs <- atlas_distance_differences(inputs, record, fingerprint)
-    if (length(differs)) {
-      return(c(row, list(status = "mismatch", differs = as.list(differs), seconds = seconds())))
-    }
+  differs <- if (is.null(record)) "no record" else atlas_distance_differences(inputs, record, fingerprint)
+  if (length(differs)) {
+    return(c(row, list(status = "mismatch", differs = as.list(differs), seconds = seconds())))
   }
   if (is.null(inputs$folds)) {
     return(c(row, list(status = "refused", seconds = seconds())))
@@ -326,7 +326,14 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
   args <- list(grid = grid, out_dir = out$dir, bandwidths = bandwidths, records = records)
   settings <- list(release = release, shard = shard, bandwidths_km = bandwidths,
                    kernel = "sum of Gaussians over detection survey sites, log units",
-                   folds = "production design: full models, else small-model ensembles")
+                   folds = "production design: full models, else small-model ensembles",
+                   # For the write-up (method lane review): the kernel's own AUC
+                   # is the best of the bandwidths on the same folds, so it reads
+                   # optimistic beside a nested AUC; and a taxon of 20-49 sites
+                   # takes its bandwidth from the full models' folds even where
+                   # the kernel is paired with its ensemble.
+                   notes = c("kernel AUC is the best of the candidate bandwidths on one set of folds, not nested",
+                             "20-49 sites: bandwidth from the full-model folds, also when paired with the ensemble"))
   result <- atlas_run_study(
     kind = "distance-studies", file_prefix = out$prefix, taxon_fn = "atlas_distance_taxon",
     sample = data.frame(scientific_name = taxa, stringsAsFactors = FALSE),
@@ -400,7 +407,9 @@ atlas_distance_differences <- function(inputs, record, fingerprint) {
   folds <- vapply(sort(unique(inputs$folds)), function(f) {
     sum(inputs$training$presence[inputs$folds == f] == 1L)
   }, 0L)
-  if (length(record$fold_presences) && !identical(as.integer(folds), as.integer(record$fold_presences))) {
+  if (!length(record$fold_presences)) {
+    why <- c(why, "no folds recorded")
+  } else if (!identical(as.integer(folds), as.integer(record$fold_presences))) {
     why <- c(why, "folds")
   }
   why

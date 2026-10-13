@@ -82,18 +82,23 @@ test_that("bandwidths that score alike go to the smaller one", {
 })
 
 test_that("a bandwidth is chosen from the training sites alone", {
-  # The kernel the folds score is fitted on the training folds' detections:
-  # held-out detections are never its sites.
+  # Every kernel atlas_distance_choose fits sees only its training folds'
+  # rows: a held-out site is never one of its sites.
   training <- regional_training()
   folds <- atlas_spatial_folds(training$x, training$y, k = 5, block_km = 100, seed = 1,
                                presence = training$presence)
-  seen <- list()
-  fit <- atlas_distance_fit
-  table <- atlas_distance_table(training)
-  for (fold in sort(unique(folds))) {
-    model <- fit(table[folds != fold, , drop = FALSE], 25)
-    held <- training[folds == fold & training$presence == 1L, , drop = FALSE]
-    expect_false(any(paste(model$x, model$y) %in% paste(held$x, held$y)))
+  fitted_on <- list()
+  real_fit <- atlas_distance_fit
+  local_mocked_bindings(atlas_distance_fit = function(train, bandwidth_km) {
+    fitted_on[[length(fitted_on) + 1L]] <<- train$cell
+    real_fit(train, bandwidth_km)
+  })
+  atlas_distance_choose(training, folds, bandwidths = c(10, 50))
+  expect_length(fitted_on, 2L * length(unique(folds)))
+  for (cells in fitted_on) {
+    fold <- setdiff(unique(folds), unique(folds[training$cell %in% cells]))
+    expect_length(fold, 1L)
+    expect_false(any(training$cell[folds == fold] %in% cells))
   }
 })
 
@@ -192,25 +197,6 @@ test_that("a kernel on another grid is refused rather than resampled", {
 
 # --- Running it ---------------------------------------------------------------
 
-test_that("a distance study row carries no coordinate and writes only into its own directory", {
-  skip_if_not_installed("terra")
-  world <- synthetic_landscape()
-  out <- tempfile("distance-")
-  dir.create(out)
-  row <- atlas_distance_taxon("Eastern fungus", "f00dfeed", world$points, world$stack,
-                              out_dir = out, bandwidths = c(25, 100), n_background = 500,
-                              buffer_km = 300)
-  expect_equal(row$status, "scored")
-  expect_true(row$bandwidth_km %in% c(25, 100))
-  written <- list.files(out, recursive = TRUE)
-  expect_equal(written, "kernels/eastern-fungus.tif")
-  coordinate_names <- c("x", "y", "lat", "lng", "latitude", "longitude")
-  names_in <- function(x) if (is.list(x)) c(names(x), unlist(lapply(x, names_in))) else character()
-  expect_length(intersect(names_in(row), coordinate_names), 0L)
-  kernel <- terra::rast(file.path(out, written))
-  expect_gt(sum(is.finite(terra::values(kernel))), 0)
-})
-
 # The record a release keeps for the synthetic taxon, as production fits it.
 distance_record <- function(world) {
   fit <- atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
@@ -228,6 +214,26 @@ distance_record <- function(world) {
                        simplifyVector = FALSE)
   })
 }
+
+test_that("a distance study row carries no coordinate and writes only into its own directory", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  world <- synthetic_landscape()
+  out <- tempfile("distance-")
+  dir.create(out)
+  row <- atlas_distance_taxon("Eastern fungus", "f00dfeed", world$points, world$stack,
+                              out_dir = out, bandwidths = c(25, 100), n_background = 500,
+                              buffer_km = 300, records = list("Eastern fungus" = distance_record(world)))
+  expect_equal(row$status, "scored")
+  expect_true(row$bandwidth_km %in% c(25, 100))
+  written <- list.files(out, recursive = TRUE)
+  expect_equal(written, "kernels/eastern-fungus.tif")
+  coordinate_names <- c("x", "y", "lat", "lng", "latitude", "longitude")
+  names_in <- function(x) if (is.list(x)) c(names(x), unlist(lapply(x, names_in))) else character()
+  expect_length(intersect(names_in(row), coordinate_names), 0L)
+  kernel <- terra::rast(file.path(out, written))
+  expect_gt(sum(is.finite(terra::values(kernel))), 0)
+})
 
 test_that("the kernel's rebuild is checked against the model whose folds it shares", {
   skip_if_not_installed("terra")
@@ -247,6 +253,9 @@ test_that("the kernel's rebuild is checked against the model whose folds it shar
   expect_equal(atlas_distance_differences(inputs, modifyList(record, list(design = "small")), "f00dfeed"), "design")
   expect_equal(atlas_distance_differences(inputs, modifyList(record, list(fold_presences = rev(record$fold_presences + 1L))),
                                           "f00dfeed"), "folds")
+  # A record that keeps no folds cannot vouch for them.
+  expect_equal(atlas_distance_differences(inputs, modifyList(record, list(fold_presences = integer())), "f00dfeed"),
+               "no folds recorded")
 })
 
 test_that("a taxon whose rebuild differs from the release's record is refused, not fitted", {
@@ -266,6 +275,12 @@ test_that("a taxon whose rebuild differs from the release's record is refused, n
                              out_dir = out, bandwidths = 25, n_background = 500, buffer_km = 300,
                              records = list("Eastern fungus" = record))
   expect_equal(ok$status, "scored")
+  # A taxon the release holds no record for is not fitted either.
+  none <- atlas_distance_taxon("Eastern fungus", "f00dfeed", world$points, world$stack,
+                               out_dir = tempfile(), bandwidths = 25, n_background = 500, buffer_km = 300,
+                               records = list())
+  expect_equal(none$status, "mismatch")
+  expect_equal(unlist(none$differs), "no record")
 })
 
 test_that("shards split a study's taxa without overlap or gap", {
@@ -279,13 +294,30 @@ test_that("shards split a study's taxa without overlap or gap", {
   expect_error(atlas_study_shard(names, "two"), "shard")
 })
 
-test_that("a study writes only under study/ or private/, never a release or the current pointer", {
+test_that("a study writes only under study/ or private/study/, never a release, the pointer or production's private files", {
   for (key in c("releases/draft/x.json", "current", "public/x", "study/../releases/x",
-                "objects/ab/cd", "")) {
+                "study/..\\releases\\x", "study\\x", "study/e6b\\x.tif", "objects/ab/cd", "",
+                "private/tracker/draft/ledger.tsv.gz", "private/vision-benchmark/r1/release.json",
+                "private/trained-ids/x", "private/e6b/a.json")) {
     expect_error(atlas_study_check_key(key), "only under")
   }
   expect_equal(atlas_study_check_key("study/e6b/kernels/a.tif"), "study/e6b/kernels/a.tif")
-  expect_equal(atlas_study_check_key("private/e6b/a.json"), "private/e6b/a.json")
+  expect_equal(atlas_study_check_key("private/study/e6b/a.json"), "private/study/e6b/a.json")
+})
+
+test_that("a bad --out is refused before anything is read or computed", {
+  touched <- FALSE
+  store <- list(get = function(...) {
+    touched <<- TRUE
+    stop("touched")
+  })
+  view <- list(grid = "draft", modelled = "A", entries = list(list(taxon = "A", algorithm = "esm", presences = 4)),
+               manifest = list(job = "j"), cache = tempfile())
+  with_data_dir({
+    expect_error(atlas_distance_study(store, "hindcast-test", view = view, out = "private/tracker/", quiet = TRUE),
+                 "only under")
+  })
+  expect_false(touched)
 })
 
 test_that("a study published to a bad prefix writes nothing at all", {
