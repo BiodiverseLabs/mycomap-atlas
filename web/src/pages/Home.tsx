@@ -434,7 +434,8 @@ export default function Home() {
               </p>
               <p className="mt-3 text-white/85 leading-relaxed">
                 One thing stays private: exactly where a collection was made. Collections are shown
-                only as 0.1° cells, and nothing published is finer than 1 km.
+                only as 0.1° cells, nothing published is finer than 1 km, and a collection whose
+                source hides its place is not shown at all.
               </p>
             </div>
             <div className="flex flex-col justify-center gap-3">
