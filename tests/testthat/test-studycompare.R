@@ -153,3 +153,72 @@ test_that("the record-name job's summary is read from the private release's pref
   expect_equal(atlas_e9_summary(store, "rn1")$filter$models_unchanged, 812L)
   expect_null(atlas_e9_summary(store, "other"))
 })
+
+# --- End to end, on a private record-names release -------------------------------
+
+# The hindcast fixture's pull, with two of Taxon A's records under another
+# name of their own, so Taxon A's record set changes and it is refitted;
+# Taxon B's records are named only to genus (lost) and Taxon C's are
+# "Taxon Cee" under record names (lost, and a new name).
+e9_setup <- function() {
+  occ <- hindcast_occurrences()
+  a <- which(occ$scientific_name == "Taxon A")
+  occ$record_name[a[1:2]] <- "Taxon Zed"
+  store <- fresh_store()
+  boss <- machine()
+  on_machine(boss, orchestrator_data(occ))
+  main <- full_cycle(store, boss, fit = map_fit(list("Taxon A" = "strong", "Taxon B" = "strong", "Taxon C" = "weak")))
+  list(store = store, boss = boss, main = main)
+}
+
+# The tracker's reader reads a private release only from feat/hindcast
+# 1031a9d on; until that is on main, this test says so and skips.
+private_releases_readable <- function() {
+  any(grepl("vision-benchmark|ATLAS_BENCHMARK_PREFIX|benchmark_key",
+            deparse(atlas_tracker_manifest), fixed = FALSE))
+}
+
+test_that("E9 compares a finished record-names release with the frozen release end to end", {
+  skip_if_not_installed("terra")
+  skip_if_not(private_releases_readable(),
+              "the tracker cannot read a private release until feat/hindcast 1031a9d is merged")
+  setup <- e9_setup()
+  job <- on_machine(setup$boss, atlas_plan_private_release(setup$store, setup$main$id, "record-names",
+                                                           shards = 1L, quiet = TRUE))
+  on_machine(machine(), atlas_run_shard(setup$store, job$id, 1L, quiet = TRUE,
+                                        fit = map_fit(list("Taxon A" = "weak", "Taxon Cee" = "strong"))))
+  on_machine(machine(), atlas_finish_private_release_work(
+    worker_store(setup$store), job$id, quiet = TRUE, count = function(...) 0L,
+    ensembles = function(...) NULL, build = stub_finish_build, defer = TRUE))
+  record <- atlas_store_text(setup$store, atlas_shard_key(atlas_finish_id(job$id), 1L))
+  atlas_place_deferred(setup$store, record$deferred)
+
+  with_data_dir({
+    result <- atlas_e9_study(setup$store, frozen = setup$main$id, record = job$id, quiet = TRUE)
+    expect_true(file.exists(result$path))
+    expect_match(result$path, "compare-studies")
+    models <- result$models
+    # Every frozen model is accounted for.
+    expect_equal(models$unaccounted, 0L)
+    expect_gt(models$refitted, 0L)
+    expect_gt(models$lost, 0L)
+    expect_gt(models$new, 0L)
+    maps <- result$maps
+    # Taxon A's learners in both releases are paired; a learner fitted only
+    # under record names is a new model with no frozen side.
+    a <- maps[maps$taxon == "Taxon A" & !is.na(maps$grade_dna), , drop = FALSE]
+    expect_gt(nrow(a), 0L)
+    unpaired <- maps[is.na(maps$grade_dna), , drop = FALSE]
+    expect_equal(nrow(unpaired), models$new)
+    expect_true(all(unpaired$cells == 0L & is.na(unpaired$spearman)))
+    expect_true(all(a$grade_dna == "strong" & a$grade_record == "weak"))
+    # The stand-in fits draw one map, so the pairs agree exactly.
+    expect_true(all(a$spearman == 1 & a$schoener_d == 1))
+    expect_true(all(is.na(maps$grade_dna[maps$taxon == "Taxon Cee"])))
+    labels <- result$labels
+    expect_gt(sum(labels$records[labels$change == "no_taxon"]), 0L)
+    expect_gt(sum(labels$records[labels$change == "species"]), 0L)
+    # Nothing is written to a release or the current pointer.
+    expect_false(any(grepl(job$id, setup$store$list("releases/"))))
+  })
+})
