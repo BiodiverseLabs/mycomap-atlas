@@ -579,6 +579,18 @@ matched shift (2/49 false, 13/50 power). → **Figure 2**; every cell in S5.
 
 ### 3.3 What the atlas contains (E16)
 
+*Provisional facts (2026-10-13; re-read from the frozen release before
+submission).* Lineage: rebuild release R_main 20261013T061352Z-78dd82de
+(job 20261013T022520Z-2cb67f32, image 0a9dde4) → cleaned release (targeted
+refit job 20261013T062143Z-2ffed182: *Clitocybe deceptiva* × 4 learners,
+*Agaricus bitorquis* × 3, same image and settings) → full-view refresh =
+the frozen release. Rebuild: 9,534 models planned, 9,042 fitted, 492
+refused (too little evidence after site thinning or blocking), 0 failed;
+797 old models retired; 118,657 training records; 4 spot reclaims, all
+resumed. Cleaned pull occurrences-20261012T051017Z-x2dd5cb30: 133,289
+records, 16,303 taxa (the original 133,311 / 16,321 minus 22 rows and 18
+names; the original kept untouched).
+
 [PENDING: models, maps and taxa by grade × learner × site band, with the
 strong share stated up front (C4); strong maps by guild and region; how many
 taxa have a strong map; combined maps; share of reach inside AOA; and the
@@ -1049,6 +1061,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.3 (2026-10-13).** Provisional rebuild facts and release lineage
+  (3.3, costs.md).
 - **0.9.2 (2026-10-13).** Steve: no refit for background exposure; shares
   stated openly (18 taxa above 1%, 71 above 0.5%, all small-site).
 - **0.9.1 (2026-10-13).** Limitation quantified: 19 of 8,803 survey sites;

@@ -40,7 +40,8 @@ they are replaced by billed figures where AWS can still provide them.
 | 2026-10-06 | Virtual-species null study (development) | virtual-20261006T091510Z | local PC | 99 species × 3 designs | [PENDING from results file] | ≈ 2 days (shared PC) | 0 (local) | — | basis of E1b |
 | 2026-10-12 | Rebuild pilot (development) | 20261012T135059Z-fd7c13c5 | EC2 spot, 4 × m7i.8xlarge | 281 planned, 211 timed | [PENDING job-timing] | 2 h (cap) | ≈ 6.5 | — | one shard stalled on one taxon (fixed before the full run) |
 | 2026-10-13 | October rebuild, first launch | 20261013T001819Z-2cb67f32 | EC2 spot, ≤ 4 workers | 9,534 planned | [PENDING] | [PENDING] | [PENDING] (cap ≈ 32) | ≈ 16 GB per release with rasters [CHECK] | relaunched as below |
-| 2026-10-13 | October rebuild (full job) | 20261013T022520Z-2cb67f32 | EC2 spot | [PENDING] | [PENDING] | [PENDING] | [PENDING] | [PENDING] | |
+| 2026-10-13 | October rebuild (full job) → R_main 20261013T061352Z-78dd82de | 20261013T022520Z-2cb67f32 | EC2 spot, image 0a9dde4 | 9,534 planned; 9,042 fitted, 492 refused, 0 failed; 797 retired | [PENDING job-timing] | [PENDING] | [PENDING billing] | [PENDING] | 4 spot reclaims, all resumed; 118,657 training records |
+| 2026-10-13 | Targeted refit (cleaned release; 22 records removed) | 20261013T062143Z-2ffed182 | EC2 spot, image 0a9dde4 | 7 (2 taxa) | [PENDING] | [PENDING] | [PENDING billing] | [PENDING] | |
 | — | Full-view refresh → frozen release | [PENDING] | EC2 spot | strong models | [PENDING] | | | | |
 | — | Hindcast (E2) | [PENDING] | EC2 spot | | | | est. 10–25 | | |
 | 2026-10-13 | E1 cost pilot (development; `2026-10-13-e1-cost-pilot.md`) | — | local PC, 2 processes × 1 core | 4 virtual species, Maxent + RF + ESM, scatter and shift ×99 per learner | 0.56 | 29 min | 0 (local) | 0 | per null CV: Maxent ≈ 5.2 s, RF ≈ 2.2 s, ESM ≈ 4.4 s; no species at 200+ sites |
