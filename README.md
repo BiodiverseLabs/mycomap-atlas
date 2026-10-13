@@ -775,7 +775,9 @@ from weeks ago is scored exactly as it was drawn:
 - **Small counts** are withheld: pooled shares below 30 ranked places, Boyce
   below 50, per-taxon tallies below 5 ("fewer than 5").
 - **Retractions:** a find the newest pull drops, or holds under another name,
-  is marked retracted and left out of the counts; it is never re-scored.
+  is marked retracted and left out of the counts; it is never re-scored. A
+  find whose coordinates were corrected into another cell is retracted as
+  moved and scored again where it is now, against the same day's release.
 - **Channels:** a pull that carries a private `channel` column (how each
   verdict came about, from .org's validation_priority_events: `organic`,
   `triage`, `priority_sort` or `auto`; empty until .org records it) has

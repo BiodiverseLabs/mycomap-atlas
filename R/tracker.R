@@ -566,9 +566,11 @@ atlas_tracker_score_release <- function(finds, view, promoted_at, scored_at, pul
 }
 
 #' Mark finds the newest pull no longer holds, or holds under another name,
-#' as retracted; a find that comes back is restored. Retracted finds are
-#' left out of every count but one.
-atlas_tracker_retract <- function(ledger, occurrences, today) {
+#' as retracted; a find that comes back is restored. A find whose place was
+#' corrected into another cell is retracted as moved, and scored again where
+#' it is now (atlas_tracker_done leaves it out of what is done). Retracted
+#' finds are left out of every count but one.
+atlas_tracker_retract <- function(ledger, occurrences, today, grid = "draft") {
   if (!nrow(ledger)) return(ledger)
   key <- paste(occurrences$source, occurrences$observation_id, sep = ":")
   naming_now <- if ("record_name" %in% names(occurrences)) "sequence" else "record"
@@ -581,7 +583,9 @@ atlas_tracker_retract <- function(ledger, occurrences, today) {
   comparable <- !gone & (ledger$pulled_naming == naming_now | ledger$pulled_naming == "record")
   renamed <- comparable & !is.na(current) &
     atlas_name_key(current) != atlas_name_key(ledger$pulled_name)
-  why <- ifelse(gone, "no longer in the pull", ifelse(renamed, "renamed", NA_character_))
+  cell_now <- atlas_tracker_place(occurrences$latitude[now], occurrences$longitude[now], grid)$cell
+  moved <- !gone & !is.na(ledger$cell) & !is.na(cell_now) & cell_now != ledger$cell
+  why <- ifelse(gone, "no longer in the pull", ifelse(renamed, "renamed", ifelse(moved, "moved", NA_character_)))
   newly <- !is.na(why) & is.na(ledger$retracted_on)
   ledger$retracted_on[newly] <- as.character(today)
   ledger$retracted_why[!is.na(why)] <- why[!is.na(why)]
@@ -589,6 +593,13 @@ atlas_tracker_retract <- function(ledger, occurrences, today) {
   ledger$retracted_on[back] <- NA_character_
   ledger$retracted_why[back] <- NA_character_
   ledger
+}
+
+#' The finds the ledger is done with: every key it holds, except one whose
+#' rows were all retracted as moved, which is scored again at its new place.
+atlas_tracker_done <- function(ledger) {
+  moved <- !is.na(ledger$retracted_why) & ledger$retracted_why == "moved"
+  unique(ledger$key[!moved])
 }
 
 # ---- the effort-corrected baseline -----------------------------------------
@@ -920,7 +931,9 @@ atlas_track_new_finds <- function(store = NULL, grid = "draft", since = ATLAS_TR
     views[[id]]
   }
 
-  finds <- atlas_tracker_finds(occurrences, since, ledger$key)
+  # Retractions first, so a find that moved is scored again in this run.
+  ledger <- atlas_tracker_retract(ledger, occurrences, today, grid)
+  finds <- atlas_tracker_finds(occurrences, since, atlas_tracker_done(ledger))
   pulled_naming <- if ("record_name" %in% names(occurrences)) "sequence" else "record"
   say(sprintf("%d new finds first green since %s", nrow(finds), since))
   added <- list()
@@ -951,7 +964,6 @@ atlas_track_new_finds <- function(store = NULL, grid = "draft", since = ATLAS_TR
     }
   }
   if (length(added)) ledger <- rbind(ledger, do.call(rbind, added))
-  ledger <- atlas_tracker_retract(ledger, occurrences, today)
 
   current <- if (!is.null(current_pointer$release)) view_of(current_pointer$release)
   tg <- atlas_tracker_target_group(ledger, view_of, grid)
