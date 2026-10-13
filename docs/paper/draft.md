@@ -296,18 +296,23 @@ Everything is modelled on a North America Albers Equal Area Conic grid with
 5 km cells (3.7 million cells); the frozen release is on this grid. The
 pipeline also defines a nested 1 km grid, which no release used here.
 
-Seventy-five predictors in eight groups (Table 2): 19 WorldClim 2.1
+Sixty-nine predictor bands in eight layers (Table 2): 19 WorldClim 2.1
 bioclimatic variables (1970–2000) and elevation (Fick & Hijmans 2017); slope
 and roughness derived on the grid; topsoil (0–5 cm) pH, organic carbon, total
 nitrogen, clay, sand and cation exchange capacity from SoilGrids 2.0 (Poggio
-et al. 2021); land-cover fractions from ESA WorldCover (Zanaga et al. 2021);
-the share of a cell's trees in each of 35 host genera, from BIGMAP (United
-States) and the Canadian National Forest Inventory kNN maps (Beaudoin et al.
-2014), with a flag where neither inventory reaches (Alaska, Hawaii, Puerto
-Rico, Mexico); and needleleaf, broadleaf and mixed forest shares from NALCMS,
-filled from Copernicus Global Land Cover on Hawaii and the Caribbean.
-[CHECK: the BIGMAP citation, NALCMS and Copernicus citations, and the final
-predictor count in the frozen layer manifest.]
+et al. 2021); six land-cover fractions from ESA WorldCover (Zanaga et al.
+2021); the share of a cell's trees in each of 29 host genera (19 mainly
+mycorrhizal hosts plus the conifer share, and 10 genera hosting decay and
+parasitic fungi: maple, ash, elm, juniper, cedar, tulip tree, cherry,
+sweetgum, sycamore, black locust), from BIGMAP in the United States (USDA
+Forest Service FIA, n.d.; Wilson et al. 2018) and the Canadian National
+Forest Inventory kNN maps (Beaudoin et al. 2014), with a flag where neither
+inventory reaches (Alaska, Hawaii, Puerto Rico, Mexico); and needleleaf,
+broadleaf and mixed forest shares from NALCMS (CEC 2023), filled from
+Copernicus Global Land Cover (Buchhorn et al. 2020) on Hawaii and the
+Caribbean, with a flag. The tree models also take log collecting effort;
+Maxent does not. [CHECK: the frozen release's layer manifest (sha256) once
+the rebuild finishes; the count above is from the rebuild lane's copy.]
 
 Sources are cropped, reprojected and averaged onto the grid (never
 interpolated); land cells left empty are filled from neighbours within
@@ -948,6 +953,10 @@ revised (Path).
 
 ## Changelog
 
+- **0.7.5 (2026-10-13).** Predictors corrected to the production layer
+  manifest: 69 bands, 29 host genera + conifer share (the public Methods
+  page says 75 and 16 further genera); background cap 10,000 non-detection
+  sites; no external name authority (ODMAP).
 - **0.7.4 (2026-10-13).** Verified reference list (`references.md`, 44
   entries, two datasets without DOI); Introduction cites the fungal SDM review
   and the Red List gap.

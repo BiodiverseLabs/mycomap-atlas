@@ -33,7 +33,7 @@ final version is checked against the frozen release's settings record.*
 | Element | Entry |
 |---|---|
 | Taxon names | The approved sequence name of each record (formal or provisional); spelling, punctuation, author and rank-word variants merged; a model belongs to its record set (fingerprint), not its name |
-| Taxonomic reference | The names approved in MycoMap validation projects [CHECK: name authority, e.g. Index Fungorum/MycoBank, for formal names] |
+| Taxonomic reference | No external authority: each record takes its approved sequence's name as curated on mycomap.org. Spellings that differ only in punctuation (quote marks, spaces, "sp-X" vs sp. 'X'), letter case or an author citation are merged under the majority spelling; letters and digits are never changed (IN1 ≠ IN01); renames are detected between consecutive pulls. No MycoBank, Index Fungorum or GBIF lookup. |
 | Ecological level | Species and provisional species-level lineages |
 | Data sources | iNaturalist, Mushroom Observer, MyCoPortal, GenBank and MycoMap sequence records held on mycomap.org; [PENDING E16: counts by source] |
 | Sampling design | Opportunistic community-science collecting with sequencing; no designed survey |
@@ -42,7 +42,7 @@ final version is checked against the frozen release's settings record.*
 | Scaling | Records thinned to survey sites: greedy 5 km distance thinning, busiest place first; every record joins its nearest site |
 | Cleaning | Validated in ≥ 1 project; coordinates present, not obscured, accuracy ≤ 1 km where recorded; Mushroom Observer: visible GPS or a named place whose half-diagonal ≤ 5 km (coordinate from the source's own answer); MyCoPortal: own coordinates ≤ 5 km or a non-centroid locality; one approved species-level sequence name; [PENDING E16: records dropped per rule] |
 | Absence data | None; non-detection survey sites stand in (target group) |
-| Background data | All survey sites in the accessible area where the taxon was not recorded (Phillips et al. 2009) [CHECK: any cap on the number of non-detection sites] |
+| Background data | Every other survey site in the accessible area (500 km around the detection sites), each counted once (Phillips et al. 2009); up to 10,000 per taxon, above that a simple random sample without replacement seeded from the record fingerprint, so a refit draws the same sites. Effort is a predictor for the tree models, never a weight. |
 | Errors and biases | Spatially clustered effort (six states/provinces 61% of records); identification errors limited by DNA validation (E7b sensitivity); coordinate error handled by the 1 km / 5 km rules (E7c) |
 
 ### Data partitioning
@@ -57,7 +57,7 @@ final version is checked against the frozen release's settings record.*
 
 | Element | Entry |
 |---|---|
-| Names | 75: bio1–19, elevation, slope, roughness, soil pH/organic carbon/nitrogen/clay/sand/CEC (0–5 cm), six land-cover fractions, 35 host-genus shares + conifer share, three forest-type shares, two source flags [CHECK: exact list from the frozen layer manifest] |
+| Names | 69 bands in 8 layers: bioclim bio1–19 (19); elevation (1); terrain: slope, roughness (2); soil 0–5 cm: pH, SOC, N, clay, sand, CEC (6); land cover: trees, shrubs, grassland, wetland, water, built (6); forest type: needleleaf, broadleaf, mixed, known (4); hosts: conifer share + 19 genera + host_known (21); decay hosts: Acer, Fraxinus, Ulmus, Juniperus, Thuja, Liriodendron, Prunus, Liquidambar, Platanus, Robinia (10). Plus log effort for the tree models. [CHECK: the frozen layer manifest's sha256] |
 | Sources | WorldClim 2.1; SoilGrids 2.0; ESA WorldCover; BIGMAP (US) and Canadian NFI kNN; NALCMS 2020, Copernicus Global Land Cover 2019 (Hawaii, Caribbean) |
 | Spatial extent and resolution | North America on the 5 km grid; sources cropped, reprojected and averaged (never interpolated); gaps filled from neighbours within 10 km |
 | Projection | North America Albers Equal Area Conic |
