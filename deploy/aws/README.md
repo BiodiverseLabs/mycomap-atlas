@@ -22,7 +22,7 @@ policies and how to set them up.
 | Identity | May | May not |
 |---|---|---|
 | **atlas-worker** (instance role; no keys) | list and read the bucket; write `objects/*`, `jobs/*/shards/*`, `jobs/*/logs/*` | write `releases/`, `current/`, `layers/` or a job's plan; delete anything |
-| **atlas-orchestrator** (IAM user, the box) | launch spot instances tagged `atlas=worker`, with IMDSv2, the worker's instance profile, an allowed instance type, a disk of at most 200 GB, in the given subnets and security group, from an Amazon image; terminate only `atlas=worker` instances; pass only the worker role, only to EC2; list, read and write the bucket | on-demand or GPU instances, untagged instances, any IAM action, deleting from the bucket, any other bucket |
+| **atlas-orchestrator** (IAM user, the box) | launch spot or on-demand instances tagged `atlas=worker`, with IMDSv2, the worker's instance profile, an allowed instance type, a disk of at most 200 GB, in the given subnets and security group, from an Amazon image; terminate only `atlas=worker` instances; pass only the worker role, only to EC2; list, read and write the bucket | GPU instances, untagged instances, any IAM action, deleting from the bucket, any other bucket |
 
 So a worker cannot change which release is live, and a bug in the
 orchestrator cannot start an expensive or unrelated machine: AWS refuses it.
@@ -139,6 +139,8 @@ The nightly job reads these from the environment:
 | `ATLAS_EC2_MAX_HOURS` | `6` | the job's deadline; a worker's shutdown timer is the time left |
 | `ATLAS_EC2_MAX_ATTEMPTS` | `3` | launches per shard before the job fails |
 | `ATLAS_EC2_VOLUME_GB` | `60` | a worker's disk; the policy allows up to 200 |
+| `ATLAS_EC2_MARKET` | `spot` | `on-demand` launches every worker on demand: the same request without spot options |
+| `ATLAS_EC2_FINISH_MARKET` | (as `ATLAS_EC2_MARKET`) | the finishing worker alone; `on-demand` keeps a reclaim from costing hours of finishing while shards stay spot |
 
 Workers run `ghcr.io/biodiverselabs/mycomap-atlas:<commit>`, the image CI
 publishes for every commit on main, so they always run the code that planned

@@ -241,8 +241,11 @@ atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL,
       }
     }
     if (is.na(instance)) {
+      # A finishing worker runs on its own market (ATLAS_EC2_FINISH_MARKET):
+      # on demand, a reclaim cannot cost hours of finishing.
       launched <- atlas_launch_worker(ec2, config, id, 1L, grid, attempts + 1L,
-                                      minutes = minutes_left(), say = say, command = command)
+                                      minutes = minutes_left(), say = say, command = command,
+                                      market = config$finish_market %||% config$market %||% "spot")
       if (!is.null(launched)) {
         attempts <- attempts + 1L
         instance <- launched

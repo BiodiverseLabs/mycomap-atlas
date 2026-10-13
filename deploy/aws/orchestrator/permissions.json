@@ -2,14 +2,14 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "LaunchOnlyTaggedSpotWorkers",
+      "Sid": "LaunchOnlyTaggedWorkers",
       "Effect": "Allow",
       "Action": "ec2:RunInstances",
       "Resource": "arn:aws:ec2:${REGION}:${ACCOUNT_ID}:instance/*",
       "Condition": {
         "StringEquals": {
           "aws:RequestTag/atlas": "worker",
-          "ec2:InstanceMarketType": "spot",
+          "ec2:InstanceMarketType": ["spot", "on-demand"],
           "ec2:MetadataHttpTokens": "required",
           "ec2:InstanceProfile": "arn:aws:iam::${ACCOUNT_ID}:instance-profile/atlas-worker"
         },

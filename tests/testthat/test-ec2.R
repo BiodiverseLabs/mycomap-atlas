@@ -453,6 +453,82 @@ test_that("a worker is spot, IMDSv2-only, tagged, and terminates when it shuts d
   expect_setequal(vapply(request$TagSpecifications, function(s) s$ResourceType, ""), c("instance", "volume"))
 })
 
+# The JSON of today's spot request for this config, hashed on main (cce4f78)
+# before the market setting existed: the default must not move a byte. The
+# boot script is left out of the hash, because shQuote quotes differently on
+# Windows and Linux; it is checked whole against the script builder instead,
+# which this change does not touch.
+SPOT_REQUEST_SHA256 <- "84b35886ff823fe615f5f380f08b0d75c86d79a14b59e0f30f1f05d40f3e721c"
+request_sha <- function(request) {
+  request$UserData <- NULL
+  digest::digest(as.character(jsonlite::toJSON(request, auto_unbox = TRUE, digits = NA)),
+                 algo = "sha256", serialize = FALSE)
+}
+
+test_that("by default a worker's request is today's spot request, byte for byte", {
+  config <- test_config("s3://bucket")
+  request <- atlas_worker_request(config, "job1", 2L, "draft", 1L, "subnet-a", "c7a.8xlarge", minutes = 90)
+  expect_equal(request_sha(request), SPOT_REQUEST_SHA256)
+  expect_identical(user_data(request), atlas_worker_user_data("job1", 2L, "draft", config, 90))
+  spot <- atlas_worker_request(test_config("s3://bucket", ATLAS_EC2_MARKET = "spot"), "job1", 2L, "draft", 1L,
+                               "subnet-a", "c7a.8xlarge", minutes = 90)
+  expect_identical(spot, request)
+})
+
+test_that("an on-demand worker is the spot request without its market options, and nothing else changed", {
+  spot <- atlas_worker_request(test_config("s3://bucket"), "job1", 2L, "draft", 3L, "subnet-b", "m7a.8xlarge",
+                               minutes = 90)
+  on_demand <- atlas_worker_request(test_config("s3://bucket", ATLAS_EC2_MARKET = "on-demand"), "job1", 2L,
+                                    "draft", 3L, "subnet-b", "m7a.8xlarge", minutes = 90)
+  expect_null(on_demand$InstanceMarketOptions)
+  expected <- spot
+  expected$InstanceMarketOptions <- NULL
+  expect_identical(on_demand, expected)
+  # The same tags, shutdown timer and termination on shutdown.
+  expect_equal(tag_values(on_demand$TagSpecifications[[1]]$Tags)[["atlas-attempt"]], "3")
+  expect_equal(on_demand$InstanceInitiatedShutdownBehavior, "terminate")
+  expect_match(user_data(on_demand), "shutdown -h +90", fixed = TRUE)
+})
+
+test_that("a market is spot or on-demand, and the finishing worker follows the shards unless told", {
+  expect_error(test_config("s3://bucket", ATLAS_EC2_MARKET = "reserved"), "ATLAS_EC2_MARKET must be spot or on-demand")
+  expect_error(test_config("s3://bucket", ATLAS_EC2_FINISH_MARKET = "cheap"), "ATLAS_EC2_FINISH_MARKET")
+  expect_equal(test_config("s3://bucket")[c("market", "finish_market")], list(market = "spot", finish_market = "spot"))
+  expect_equal(test_config("s3://bucket", ATLAS_EC2_MARKET = "on-demand")$finish_market, "on-demand")
+  expect_equal(test_config("s3://bucket", ATLAS_EC2_FINISH_MARKET = "On-Demand")[c("market", "finish_market")],
+               list(market = "spot", finish_market = "on-demand"))
+})
+
+test_that("with a finishing market of on-demand, shards launch spot and the finishing worker on demand", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  job <- on_machine(setup$boss, atlas_plan_full_refresh(setup$store, setup$main$id, shards = 2L, quiet = TRUE))
+  ec2 <- fake_ec2(setup$store, fit = map_fit())
+  config <- test_config(setup$store$uri, ATLAS_EC2_FINISH_MARKET = "on-demand")
+  run_on(list(store = setup$store, boss = setup$boss, job = job), ec2, config = config)
+  scripts <- vapply(ec2$state$requests, user_data, "")
+  spot <- vapply(ec2$state$requests, function(r) identical(r$InstanceMarketOptions$MarketType, "spot"), logical(1))
+  expect_true(all(spot[grepl("run-shard", scripts, fixed = TRUE)]))
+  expect_equal(sum(grepl("finish-release", scripts, fixed = TRUE)), 1L)
+  expect_false(any(spot[grepl("finish-release", scripts, fixed = TRUE)]))
+  expect_true(atlas_release_finished(atlas_current_release(setup$store)))
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("an on-demand launch refused for capacity tries the next zone and type, in the same order as spot", {
+  skip_if_not_installed("terra")
+  setup <- planned(shards = 1L)
+  ec2 <- fake_ec2(setup$store, refuse = function(request, call) {
+    if (call <= 2L) "InsufficientInstanceCapacity (HTTP 500). We currently do not have sufficient capacity" else NULL
+  })
+  run_on(setup, ec2, config = test_config(setup$store$uri, ATLAS_EC2_MARKET = "on-demand"))
+  launched <- ec2$state$requests[[1]]
+  expect_equal(launched$InstanceType, "m7a.8xlarge")
+  expect_equal(launched$SubnetId, "subnet-a")
+  expect_null(launched$InstanceMarketOptions)
+  expect_length(still_running(ec2), 0L)
+})
+
 test_that("a worker's boot script carries no credentials, uploads its log, and always shuts down", {
   config <- test_config("s3://bucket")
   script <- atlas_worker_user_data("job1", 3L, "draft", config)
@@ -659,15 +735,18 @@ glob_matches <- function(patterns, value) {
 
 test_that("every launch the orchestrator makes is one its IAM policy allows", {
   policy <- aws_policy("orchestrator/permissions.json")
-  launch <- statement(policy, "LaunchOnlyTaggedSpotWorkers")$Condition
+  launch <- statement(policy, "LaunchOnlyTaggedWorkers")$Condition
   disks <- statement(policy, "WorkerDisksTaggedAndCapped")$Condition
   # The default types, as a box that sets no ATLAS_EC2_INSTANCE_TYPES uses them.
   config <- test_config(types = NULL)
   expect_true(length(config$instance_types) >= 2)
-  for (type in config$instance_types) {
-    request <- atlas_worker_request(config, "job1", 1L, "draft", 1L, config$subnets[[1]], type)
+  # Spot and on-demand both; a request without spot options is on-demand.
+  expect_setequal(unlist(launch$StringEquals$`ec2:InstanceMarketType`), ATLAS_EC2_MARKETS)
+  for (type in config$instance_types) for (market in ATLAS_EC2_MARKETS) {
+    request <- atlas_worker_request(config, "job1", 1L, "draft", 1L, config$subnets[[1]], type, market = market)
     expect_true(glob_matches(launch$StringLike$`ec2:InstanceType`, request$InstanceType))
-    expect_equal(request$InstanceMarketOptions$MarketType, launch$StringEquals$`ec2:InstanceMarketType`)
+    expect_true((request$InstanceMarketOptions$MarketType %||% "on-demand") %in%
+                  unlist(launch$StringEquals$`ec2:InstanceMarketType`))
     expect_equal(request$MetadataOptions$HttpTokens, launch$StringEquals$`ec2:MetadataHttpTokens`)
     expect_equal(sub(".*instance-profile/", "", launch$StringEquals$`ec2:InstanceProfile`),
                  request$IamInstanceProfile$Name)
