@@ -71,6 +71,15 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft")
   if (!ATLAS_FIRST_GREEN_FIELD %in% names(pull)) {
     stop("the pull has no ", ATLAS_FIRST_GREEN_FIELD, " column", call. = FALSE)
   }
+  if (!all(c("source", "observation_id") %in% names(pull))) {
+    stop("the pull has no source and observation_id to key its records by", call. = FALSE)
+  }
+  # Dates compare as text, so "2026-8-17" would sort wrongly: refuse it, as
+  # the job that made the hindcast does.
+  if (!is.character(cutoff) || length(cutoff) != 1L || !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", cutoff) ||
+      is.na(as.Date(cutoff, format = "%Y-%m-%d"))) {
+    stop("the cutoff must be a date, YYYY-MM-DD", call. = FALSE)
+  }
   green <- as.character(pull[[ATLAS_FIRST_GREEN_FIELD]])
   dated <- !is.na(green) & nzchar(green)
   cutoff <- as.character(cutoff)
@@ -82,17 +91,21 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft")
   reason <- ifelse(!dated, "undated", ifelse(!located, "off_grid", NA_character_))
   if (isTRUE(observed_after)) reason[is.na(reason) & after & !seen_after] <- "observed_before"
   keep <- after | !dated
-  finds <- data.frame(taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
+  key <- paste(pull$source, pull$observation_id, sep = ":")
+  finds <- data.frame(key = key, taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
                       first_green_on = green, observed_after = seen_after, kept_apart = reason,
                       stringsAsFactors = FALSE)[keep, , drop = FALSE]
   finds <- finds[order(finds$first_green_on, na.last = TRUE), , drop = FALSE]
-  training <- data.frame(taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
+  training <- data.frame(key = key, taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
                          stringsAsFactors = FALSE)[dated & !after & located, , drop = FALSE]
   rownames(finds) <- NULL
   rownames(training) <- NULL
   counts <- as.list(table(factor(finds$kept_apart[!is.na(finds$kept_apart)],
                                  levels = c("undated", "off_grid", "observed_before"))))
-  list(finds = structure(finds, kept_apart = counts), training = training)
+  # Every record the split trains on, located or not: what a hindcast fitted
+  # at this cutoff holds (its pull), for the caller to check against.
+  list(finds = structure(finds, kept_apart = counts), training = training,
+       training_keys = sort(unique(key[dated & !after])))
 }
 
 #' The 5 km square a point falls in, as a key.
@@ -351,5 +364,13 @@ atlas_e2_paired <- function(model_rows, kernel_rows, grade = "strong",
                   data.frame(kernel[, columns], arm = "kernel", stringsAsFactors = FALSE))
   stat <- atlas_e2_difference(function(r) r$arm == "model", function(r) r$arm == "kernel")
   b <- atlas_e2_bootstrap(paired, stat, reps = reps, seed = seed)
-  c(b, list(tested = is.finite(b$low), holds = isTRUE(b$low > 0), places = atlas_e2_place_count(models)))
+  # Also pre-registered: the mean rank difference on the same places.
+  rank_gap <- function(rows) {
+    m <- rows$rank[rows$arm == "model"]
+    k <- rows$rank[rows$arm == "kernel"]
+    if (!length(m)) NA_real_ else mean(m) - mean(k)
+  }
+  gap <- atlas_e2_bootstrap(paired, rank_gap, reps = reps, seed = seed)
+  c(b, list(tested = is.finite(b$low), holds = isTRUE(b$low > 0), places = atlas_e2_place_count(models),
+            mean_rank_difference = gap[c("estimate", "low", "high")]))
 }
