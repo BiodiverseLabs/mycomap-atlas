@@ -132,3 +132,13 @@ test_that("a plan-only run takes taxa with 20+ sites and sizes the work", {
   expect_equal(plan$by_classes, list(lqh = 1L, lqph = 1L))
   expect_gt(plan$cpu_hours, 0)
 })
+
+test_that("the results say how many predictors each taxon's fit left out, median and most", {
+  rows <- list(list(status = "scored", constant_predictors = 0L),
+               list(status = "scored", constant_predictors = 3L),
+               list(status = "scored", constant_predictors = 7L),
+               list(status = "refused"))
+  summary <- atlas_default_constant_summary(rows)
+  expect_equal(summary$taxa, 3L)
+  expect_equal(c(summary$median, summary$max, summary$taxa_with_any), c(3, 7, 2))
+})

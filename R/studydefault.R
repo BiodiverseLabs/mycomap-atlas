@@ -203,6 +203,18 @@ atlas_default_taxon <- function(name, fingerprint, points, stack, grid = "draft"
               seconds = seconds()))
 }
 
+#' How much "default" was trimmed: per taxon, the predictors left out of
+#' its final fit for having one value over its points; their median and
+#' largest count over taxa.
+atlas_default_constant_summary <- function(rows) {
+  scored <- Filter(function(r) identical(r$status, "scored"), rows)
+  counts <- vapply(scored, function(r) as.integer(r$constant_predictors %||% NA), 0L)
+  counts <- counts[!is.na(counts)]
+  if (!length(counts)) return(list(taxa = 0L))
+  list(taxa = length(counts), median = stats::median(counts), max = max(counts),
+       taxa_with_any = sum(counts > 0L))
+}
+
 #' Pass rate and own-CV AUC by site band.
 atlas_default_summary <- function(rows, baseline = NULL) {
   scored <- Filter(function(r) identical(r$status, "scored"), rows)
@@ -270,7 +282,8 @@ atlas_default_study <- function(store = atlas_store(), release, grid = "draft",
     fingerprints = fingerprints, args = list(grid = grid, out_dir = out$dir, min_sites = min_sites),
     settings = settings, baseline = "default-maxent", grid = grid, workers = workers,
     points = points, quiet = quiet, summarise = atlas_default_summary,
-    extra = function(rows) list(counts = atlas_study_counts(rows)),
+    extra = function(rows) list(counts = atlas_study_counts(rows),
+                                constant_predictors = atlas_default_constant_summary(rows)),
     detail = function(arm) sprintf("cv=%s train=%s p=%s %s", arm$auc, arm$train_auc, arm$p, arm$verdict),
     opening = paste0(length(taxa), " taxa of release ", release, " with ", min_sites,
                      "+ sites, shard ", shard, ": maxnet defaults, random background and folds, ",
