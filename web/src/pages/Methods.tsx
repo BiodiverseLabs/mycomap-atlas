@@ -459,7 +459,9 @@ export default function Methods() {
                   The count is capped at about <B>one predictor per four detection sites</B>.
                 </li>
                 <li>
-                  Effort is never pruned or counted against the cap; every model gets it.
+                  Effort is not a Maxent predictor; the two tree models get it, never pruned and
+                  never counted against the cap. Effort also decides where the null tests place
+                  their simulated detections, at busier sites more often, for every model.
                 </li>
               </ol>
               <p>
