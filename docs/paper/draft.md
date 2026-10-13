@@ -313,10 +313,12 @@ later section proposing the new-find tracker, not an edit to the analysis.
 - **Confirmation.** Settings are chosen on validation-set cross-validation
   (observer folds); the direction is then checked once on v1-test, a census
   of North American records first validated after 2026-10-12 13:17 UTC
-  (≥ 3,000 records; frozen ~30 October 2026). The Atlas release used for that
-  check must hold no v1-test record: the hindcast release qualifies, and so
-  does any release whose pull predates 2026-10-12 13:17 UTC; nightly releases
-  after that do not.
+  (≥ 3,000 records; frozen ~30 October 2026). Which Atlas release each step
+  may use: validation-set results use the hindcast release only (any later
+  pull contains the validation records); the v1-test check may use the
+  hindcast release or the October 2026 rebuild release (pull 2026-10-12
+  05:10 UTC, before v1-test opened); no nightly release pulled after
+  2026-10-12 13:17 UTC is used for either.
 - **Primary arm (P2c).** Each strong map's continent-wide projection, ranked
   on its in-area scale, enters as log f(rank) × trust, replacing the distance
   kernel for mapped taxa; trust = map strength × agreement among the taxon's
