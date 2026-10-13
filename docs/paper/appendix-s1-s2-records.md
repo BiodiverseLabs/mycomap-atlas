@@ -67,7 +67,9 @@ each entering as a non-detection at the lowest effort (one record). Of the
 5,666 small-site taxa (3–19 sites, ensembles of small models), 5,150 have at
 least one in their background: a median of 3 such sites (at most 15), a
 median 0.11% of their background sites but up to 5.2% for the most affected
-taxon, whose 500 km area is sparsely surveyed. None is
+taxon (*Oudemansiella* sp. 'TX01', 3 sites), whose 500 km area is sparsely
+surveyed; 18 taxa exceed 1% and 71 exceed 0.5%, all small-site models.
+These taxa were not refitted (Steve, 2026-10-13). None is
 a detection site of any modelled taxon: the two fungi involved are refitted
 on the cleaned pull, and the 18 other names are not modelled. The exclusion list is versioned: each
 pull's manifest records its SHA-256 and the number of rows removed (Atlas

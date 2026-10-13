@@ -745,12 +745,14 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
    records. They formed 16 survey sites of their own and fell in 3 others
    (19 of 8,803 sites); they made up a median 0.13% (at most 0.45%) of the
    non-detection sites behind any full model's background, and a median
-   0.11% (at most 5.2%) for small-site models, each at the lowest effort,
-   and no detection site of any modelled taxon [PENDING: whether taxa above
-   1% are refitted on the cleaned pull, so that no model exceeds 1%] [PENDING: exact
+   0.11% for small-site models, with a tail of sparsely surveyed southern
+   taxa up to 5.2% (*Oudemansiella* sp. 'TX01', 3 sites); 18 taxa exceed 1%
+   and 71 exceed 0.5%, all small-site models. Each such site enters at the
+   lowest effort, and none is a detection site of any modelled taxon [PENDING: exact
    figures on the frozen pull; these are from the 2026-10-06 pull, which
    holds the same 22 records]. A full refit on the cleaned pull would remove
-   this; we judged the effect negligible.
+   this; we did not refit, judging 22 records among more than 130,000 too few
+   to matter, and report the shares instead.
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -1047,6 +1049,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.2 (2026-10-13).** Steve: no refit for background exposure; shares
+  stated openly (18 taxa above 1%, 71 above 0.5%, all small-site).
 - **0.9.1 (2026-10-13).** Limitation quantified: 19 of 8,803 survey sites;
   median 0.13% (max 0.45%) of a model's background sites.
 - **0.9 (2026-10-13).** Lean main text, detail to the appendix (Steve):
