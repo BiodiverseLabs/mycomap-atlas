@@ -94,8 +94,10 @@ test_that("a refresh is never finished as a job is, nor published over a release
   out <- run_refresh(setup, publish = FALSE)
   expect_error(on_machine(setup$boss, atlas_finish_job(setup$store, out$job$id, quiet = TRUE)),
                "full-view refresh")
-  # Another release made current after the plan.
-  other <- atlas_write_release(setup$store, "draft", setup$main$files, setup$main$index,
+  # Another release made current after the plan. Its files differ from
+  # R_main's: a release id is the second it was made and its files' hash, so
+  # the same files in the same second would be R_main itself, not another.
+  other <- atlas_write_release(setup$store, "draft", setup$main$files[-1], setup$main$index,
                                previous = setup$main$id, note = "another", quiet = TRUE,
                                extra = list(job = setup$main$job, moved = TRUE))
   expect_error(on_machine(setup$boss, atlas_finish_full_refresh(setup$store, out$job$id, quiet = TRUE)),
