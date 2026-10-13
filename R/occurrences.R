@@ -336,6 +336,10 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   rownames(occurrences) <- NULL
   atlas_check_occurrences(occurrences)
   occurrences <- atlas_canonicalise_occurrences(occurrences)
+  # The box's drop list (R/exclude.R): rows Atlas leaves out of every pull,
+  # before anything is fingerprinted, merged or written.
+  excluded <- atlas_apply_exclusions(occurrences)
+  occurrences <- excluded$kept
   atlas_write_json(atlas_name_merges(occurrences), atlas_name_merges_path())
   # Only a full pull can say a name is gone; read before this pull replaces
   # the previous one.
@@ -357,6 +361,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
                  by_status = stats::setNames(as.list(audit$by_status$records),
                                              audit$by_status$status)),
     fingerprint = atlas_fingerprint(occurrences),
+    # The drop list applied: its hash and how many rows it removed.
+    exclusions = excluded$info,
     file = basename(combined),
     # Private, like the rest of this manifest: atlas_release_pull_summary
     # publishes none of it.
