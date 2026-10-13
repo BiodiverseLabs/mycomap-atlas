@@ -174,6 +174,15 @@ atlas_usage <- function() {
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               models at once (default 1)")
   message("      --pool=a.json,b.json      read a run's shards together: the 2% rule over all")
+  message("  study-calibration  paper E1: the pre-registered virtual-species cells (600 habitat +")
+  message("                     400 geography full-model species, 420 ESM species), scattered and")
+  message("                     shifted nulls per learner, on the pull and layers on this machine")
+  message("      --seed=N                  which species (default 1)")
+  message("      --nulls=N                 nulls per design, stopping at 5 (default 99)")
+  message("      --plan-only               print the species and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               species at once (default 1)")
   invisible(NULL)
 }
 
@@ -727,6 +736,19 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         out = if (is.null(flags$out)) NULL else as.character(flags$out),
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-calibration" = {
+      out <- if (is.null(flags$out)) NULL else as.character(flags$out)
+      atlas_calibration_study(
+        grid = atlas_flag_grid(flags),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1)),
+        nulls = as.integer(atlas_flag_number(flags, "nulls", ATLAS_CALIBRATION_NULLS)),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        out = out, store = if (!is.null(out)) atlas_flag_store(flags),
         plan_only = isTRUE(flags$plan_only)
       )
       invisible(0L)

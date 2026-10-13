@@ -96,12 +96,20 @@ atlas_virtual_rising <- function(value, centre, scale) {
 #' records; a habitat's optimum is drawn from the conditions where people
 #' actually collect, so the species can be found at all. A geography
 #' species' centres are drawn among sites in proportion to their records.
-atlas_virtual_spec <- function(kind, seed, env, sites) {
+#'
+#' A study can fix what is otherwise drawn: target (detection sites in
+#' expectation), centres (1 or 2, geography) and breadth, which multiplies
+#' every bell-shaped response's width (0.5 narrow, 2 wide; rising responses
+#' are left alone). Everything is still drawn in the same order, so a spec
+#' with none of them fixed is exactly what it always was.
+atlas_virtual_spec <- function(kind, seed, env, sites, target = NULL, breadth = 1,
+                               centres = NULL) {
   set.seed(seed)
-  target <- sample(ATLAS_VIRTUAL_TARGETS, 1L)
-  spec <- list(kind = kind, target = target, seed = seed)
+  drawn_target <- sample(ATLAS_VIRTUAL_TARGETS, 1L)
+  spec <- list(kind = kind, target = target %||% drawn_target, seed = seed)
   if (identical(kind, "geography")) {
     n <- sample(1:2, 1L)
+    n <- as.integer(centres %||% n)
     picked <- sample.int(nrow(sites), n, prob = sites$records)
     spec$centres <- lapply(picked, function(i) {
       list(x = sites$x[[i]], y = sites$y[[i]], radius_km = round(stats::runif(1, 150, 400)))
@@ -126,9 +134,10 @@ atlas_virtual_spec <- function(kind, seed, env, sites) {
     } else {
       list(predictor = v, shape = "bell",
            optimum = unname(stats::quantile(values, stats::runif(1, 0.1, 0.9))),
-           width = spread * stats::runif(1, 0.3, 1))
+           width = spread * stats::runif(1, 0.3, 1) * breadth)
     }
   })
+  if (!identical(breadth, 1)) spec$breadth <- breadth
   spec
 }
 
@@ -153,17 +162,41 @@ atlas_virtual_habitat <- function(spec, data) {
   if (is.matrix(parts)) apply(parts, 1, prod) else prod(parts)
 }
 
+#' How strongly detections follow the habitat. "strong": a record's chance
+#' is proportional to the habitat. "weak": half of it follows the habitat
+#' and half is the same at every site, rate * (0.5 * h / mean_h + 0.5), with
+#' mean_h the mean habitat over the survey sites where it is above 0 (E1
+#' pre-registration, amended 2026-10-13). A site with no data stays at 0.
+atlas_virtual_signal <- function(habitat, signal = "strong", mean_h = NULL) {
+  known <- is.finite(habitat)
+  habitat[!known] <- 0
+  switch(
+    as.character(signal),
+    strong = habitat,
+    weak = {
+      mean_h <- mean_h %||% mean(habitat[habitat > 0])
+      if (!is.finite(mean_h) || mean_h <= 0) stop("no habitat to scale a weak signal by", call. = FALSE)
+      ifelse(known, 0.5 * habitat / mean_h + 0.5, 0)
+    },
+    stop("unknown signal strength '", signal, "': use strong or weak", call. = FALSE)
+  )
+}
+
 #' Collect a virtual species: at each site, how many of its records are it.
 #'
 #' Each record at a site is the species with chance rate * habitat, and rate
 #' is set so the expected number of sites with at least one is target. A site
 #' with no habitat (or no data) yields nothing. The rate is kept as
-#' attr(, "rate").
-atlas_virtual_collect <- function(habitat, records, target, seed = 1L) {
+#' attr(, "rate"). With signal "weak", the habitat is first spread as
+#' atlas_virtual_signal says, and the rate is solved the same way, so a weak
+#' species is found at the same number of sites in expectation.
+atlas_virtual_collect <- function(habitat, records, target, seed = 1L, signal = "strong",
+                                  mean_h = NULL) {
   habitat[!is.finite(habitat)] <- 0
   if (!any(habitat > 0)) {
     stop("the habitat is empty at every survey site", call. = FALSE)
   }
+  habitat <- atlas_virtual_signal(habitat, signal, mean_h)
   expected <- function(rate) sum(1 - (1 - pmin(1, rate * habitat))^records)
   ceiling_rate <- 1 / max(habitat)
   rate <- if (expected(ceiling_rate) <= target) {
@@ -267,6 +300,13 @@ atlas_virtual_learner <- function(arm, seed = 1L) {
     rf = list(columns = "all",
               fit = function(train) atlas_fit_rf(train, seed = seed, num_trees = ATLAS_RF_TUNE_TREES),
               score = atlas_rf_suitability),
+    # The small-model ensemble on the predictors it chooses for itself.
+    esm = list(columns = "esm",
+               fit = function(train) {
+                 atlas_fit_esm(train, predictors = setdiff(atlas_predictor_columns(train), ATLAS_EFFORT_COLUMN),
+                               seed = seed)
+               },
+               score = atlas_esm_suitability),
     stop("unknown arm '", arm, "'", call. = FALSE)
   )
 }
