@@ -1,15 +1,15 @@
 # MycoMap Atlas: habitat-suitability maps with a calibrated trust grade for thousands of DNA-defined North American fungi
 
-*Working title. Living draft, version 0.1 (2026-10-13). Skeleton: headings,
+*Working title. Living draft, version 0.2 (2026-10-13). Skeleton: headings,
 the claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
 
 | | |
 |---|---|
-| Authors | Stephen D. Russell (corresponding) [PENDING: authorship, see Open decisions] |
-| Target venue | [PENDING: Methods in Ecology and Evolution recommended (Appendix B); Steve decides] |
-| Paper type | [PENDING: methods + resource (recommended) or data paper] |
+| Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
+| Target venue | [PENDING: top five being checked (Appendix B); Steve decides] |
+| Paper type | One combined methods and data paper (Steve, 2026-10-13) |
 | Frozen release | [PENDING: the first complete release after the October 2026 rebuild; id, Zenodo DOI, code commit] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
@@ -357,7 +357,52 @@ number of new records.] → Supplement S4 or main text if striking.
 
 ---
 
-## 4. Discussion
+## 4. The data resource
+
+*A combined paper carries what a data descriptor would: what is deposited,
+how it was checked, and how to use it. Technical validation is Results 3.2–3.5
+plus E12.*
+
+### 4.1 Data records (E12, E19)
+
+[PENDING: one table of every deposited file of the frozen release, with
+Zenodo DOI, format, size and licence:]
+
+- **Layers series** (Zenodo): the predictor rasters on the grid, with their
+  sources. CC BY-SA 4.0 (WorldClim is share-alike).
+- **Models series** (Zenodo, one version per archived release): per model the
+  suitability raster, AOA dissimilarity raster, map image and metrics JSON
+  (scores, null test, grade, importance, settings); combined maps and
+  disagreement layers; full-extent rasters for strong models; per-taxon
+  counts; record cells at 0.1°; state verdicts; the location prior.
+  CC BY-SA 4.0.
+- **Training records** (new; Steve, 2026-10-13): the ids of every record that
+  trained the frozen release, with source (iNaturalist, Mushroom Observer,
+  MyCoPortal, GenBank, MycoMap sequence), the DNA name used, the sequence it
+  came from, the taxon fingerprint and survey-site membership, but no
+  coordinates. Each id resolves to its public source page, which shows what
+  the source itself shows (obscured iNaturalist records are not used).
+  [CHECK: licence of this table, CC0 proposed.]
+- **Code**: the repository at the release commit, with a Zenodo software
+  DOI, and the container image digest.
+
+### 4.2 Versions
+
+The paper cites one frozen release by id and DOI. The live atlas keeps
+rebuilding nightly; every release stays in the content-addressed store, and
+archived ones keep their Zenodo DOIs, so later maps never overwrite the
+paper's.
+
+### 4.3 Usage notes
+
+[PENDING: how to read a grade; use strong maps only for claims; suitability
+is not occurrence; AOA hatching; ranks are within-taxon; the API (best-map,
+maps/best, prior; rate limits); citing a release; reusing CC BY-SA maps; how
+to report a problem.]
+
+---
+
+## 5. Discussion
 
 [PENDING. Paragraph plan:]
 
@@ -376,27 +421,32 @@ number of new records.] → Supplement S4 or main text if striking.
 4. Limits: suitability, not occurrence; no true absences (until E4); host
    layers stop at national inventories; 1970–2000 climate; provisional names
    can be re-clustered; the maps can only be as good as where people collect
-   and sequence.
+   and sequence. Hindcast fairness (E2): the hindcast uses today's
+   validation state, names and coordinates for pre-cutoff records, and the
+   design (layers, tuning grid, null design) was chosen on data that include
+   post-cutoff records [PENDING: the rebuild lane's list of such items].
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
 ---
 
-## 5. Data, code and AI-use statements
+## 6. Data, code and AI-use statements
 
-- **Data availability.** [PENDING decision: what is deposited. Today: maps,
-  rasters (1 km or coarser), scores, per-taxon counts, 0.1° record cells and
-  layers on Zenodo under CC BY-SA 4.0; exact coordinates and the list of
-  training records are private. Most journals ask for the data needed to
-  reproduce the results; see Open decisions.]
+- **Data availability.** Layers, models and the training-record ids of the
+  frozen release on Zenodo (section 4.1, DOIs pending). Exact coordinates
+  are not redistributed; each record's public coordinates are at its source.
+  [CHECK: wording against the chosen journal's policy; GEB, Ecography and
+  Scientific Data restrict data licences to CC BY or CC0, Appendix B.]
 - **Code availability.** GitHub repository (GPL-3.0-or-later) and a Zenodo
   software DOI for the commit of the frozen release [PENDING].
 - **Generative AI.** [PENDING: the declaration the chosen journal requires.
   Much of the pipeline's code and this draft were written with an AI
   assistant (Claude, Anthropic) under the author's direction and review; AI is
   not an author. Wording to match the venue's policy.]
-- **Author contributions** (CRediT) and **Acknowledgements** (collectors,
-  validators, the sequencing network, data providers) [PENDING].
+- **Author contributions** (CRediT): sole author. **Acknowledgements**
+  (collectors, validators, the sequencing network, data providers)
+  [PENDING: whether a contributor list or consortium acknowledgement is
+  wanted; to raise with Steve, not to add unasked].
 
 ---
 
@@ -430,7 +480,9 @@ expect, what exists, and what is to run. Priority: **P1** a core claim
 depends on it, or reviewers will certainly ask; **P2** strengthens a claim or
 answers a likely question; **P3** supplementary. Costs are estimates to be
 confirmed by the rebuild lane; EC2 spot runs at roughly $0.05 per CPU-hour.
-Every analysis runs on the frozen release and its pull, and gets an entry in
+Steve set the compute budget on 2026-10-13: run each analysis at the size
+its claim needs, not the cheapest. Every analysis runs on the frozen release
+and its pull, and gets an entry in
 the experiment registry (`docs/experiments/`, one file per run: question,
 data, command, result, release, commit).
 
@@ -438,11 +490,11 @@ data, command, result, release, commit).
 |---|---|---|---|---|---|---|
 | E16 | Records, taxa, sites, provisional share, sampling bias, validation lag | C3, C4 | Partly (counts in memory and Methods page) | Frozen pull + release index; read-only | 1–2 days, no compute | P1 |
 | E1b | Re-read the existing null study by site band | C1 | **Done 2026-10-13** (`docs/experiments/2026-10-13-null-calibration-by-band.md`): see 3.2 | 2026-10-06 virtual-species results file | read-only | P1 |
-| E1 | Null calibration rerun: false pass and power by design × site band × habitat breadth × learner (Maxent, RF, ESM); map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers, ~400 species (half geography), stratified by site band and habitat breadth, 99 nulls, stop at 5; Wilson CIs | ~300–800 CPU-h ($15–40), 1–2 days wall | P1 |
-| E2 | Hindcast: full graded job on records first validated ≤ cutoff; score later finds by grade | C2 | No. The planned prior-only run for Vision keeps strong models only, skips nulls and inherits grades from the full release, which saw the test records, so it cannot test the grade | One full job with nulls (could double as Vision's training run); tracker scoring code | ~300–500 CPU-h ($20–30), 6–9 h wall, 1–2 days analysis | P1 |
+| E1 | Null calibration rerun: false pass and power by design × site band × habitat breadth × learner (Maxent, RF, ESM); map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: 5 site bands × 2 habitat-breadth strata × 2 kinds × 40 species = 800 species, Maxent and RF, scatter and shift nulls ×99, stop at 5. ESM: 3 bands (3–4, 5–9, 10–19) × 2 kinds × 60 = 360 species. Effort arms (E14) on the same species. Wilson CIs ≈ ±8–11 points per band | est. 1,000–1,500 CPU-h ($50–75), ~12 h wall on 4 workers | P1 |
+| E2 | Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
-| E9 | Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Paired job over affected taxa; map Spearman and Schoener's D, grade changes, E2/E3 skill | ~100–200 CPU-h ($5–10), 2–3 days | P1 |
-| E6a | Default-practice Maxent (random NA background, random CV, default settings) | C1, C2 | No | New study arm; score on E2/E3 finds and on its own CV | ~50–100 CPU-h, ~3 days incl. code | P1 |
+| E9 | Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
+| E6a | Default-practice Maxent (random background over the accessible area, random 5-fold CV, default maxnet settings, 19 scattered nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. ~200 CPU-h ($10), ~3 days code | P1 |
 | E6b | Spatial-only baseline (distance to known sites) | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the same sites; E2/E3 finds | small compute, ~2 days | P1 |
 | E12 | Reproducibility: rerun a random sample of taxa from the frozen pull, compare metrics and raster hashes; Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, Zenodo sandbox tested); demo no; layers deposit held | Fresh worker, 20–50 taxa | ~10 CPU-h, 1 day | P1 |
 | E17 | ODMAP protocol | all | No | Writing from Methods + code | 1–2 days | P1 |
@@ -459,11 +511,16 @@ data, command, result, release, commit).
 | E6d | biomod2-style default ensemble | C2 | No | Same sites | ~1 week | P3 |
 | E13 | Block-size check (kNNDM-style distance matching) | methods | Pre-freeze, 153 taxa | Rerun `study-blocks` | ~10 CPU-h | P3 |
 
-**Order to request (through the Atlas coordinator, after the cutover and the
-frozen-release decision):** E1b and E16 (read-only, now) → E2 (the largest
-spend; ask whether it can be the same job as Vision's training run) → E1 →
-E9 → E6a/b (need a new study arm in R) → E12 → E7, E6c, E4 full. E3 needs
-nothing but time from the cutover.
+**Order (set with the Atlas coordinator, 2026-10-13):** nothing before the
+cutover → the full-view refresh → E2 (hindcast code, then the run) → E1 →
+E9 → E6a/b (new study arms, queued with the rebuild lane after the hindcast
+code) → E12 → E7, E6c, E4 full. Each launch gets Steve's direct go. E1b is
+done; E16 is read-only; E3 needs only time from the cutover.
+
+| ID | Also needed for a combined paper | Priority |
+|---|---|---|
+| E19 | Training-record table for the frozen release (ids, source, DNA name, sequence, fingerprint; no coordinates) and its Zenodo record | P1 |
+| E20 | Data-records table and usage notes (section 4) | P1 |
 
 ---
 
@@ -517,22 +574,24 @@ cites MycoMap Vision.
 
 ## Open decisions
 
-1. **Scope of the first paper:** methods (C1–C2 central, C3–C4 supporting;
-   recommended), or a data paper first.
-2. **Authorship:** sole author, named co-authors, or a "MycoMap contributors"
-   group author.
-3. **Venue:** MEE recommended (Appendix B).
-4. **Data availability:** whether a reviewer-only or public list of training
-   record ids (which resolve to their public iNaturalist and Mushroom Observer
-   coordinates) can be deposited, or whether 0.1° cells and the private-pull
-   statement suffice.
-5. **Frozen release:** which release; whether to wait for a refit of strong
-   models over the full extent.
+Settled 2026-10-13 (Steve): one combined methods and data paper; sole
+author, Russell, Stephen D.; training-record ids public; compute at the size
+the claims need.
+
+1. **Venue:** top five being checked (Appendix B).
+2. **Frozen release:** the rebuild's release, or its successor if the
+   strong-only full-view refresh runs (default maps, grades and ranks
+   byte-identical; only full-extent files change). The coordinator confirms.
+3. **Acknowledgements:** whether to list contributors and collectors.
 
 ---
 
 ## Changelog
 
+- **0.2 (2026-10-13).** Steve's decisions: combined methods and data paper
+  (new section 4, the data resource), sole author, public training-record
+  ids, budget at the size the claims need (E1, E6a, E9 resized). E2 approved
+  as the full graded hindcast. Hindcast fairness noted in Discussion.
 - **0.1.1 (2026-10-13).** Appendix B venue facts and recommendation; E1b
   results in 3.2; null-model debate references in the Introduction.
 - **0.1 (2026-10-13).** Skeleton: core claims, outline, figure and table
