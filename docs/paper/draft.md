@@ -394,7 +394,15 @@ through one of them. Suitability values agree to a relative 1e-9, and the
 index to an absolute 1e-6 on a scale whose thresholds lie between about 0.3
 and 1. Grades, ranks and every published product built from them are
 unchanged. Our refit checks enforce exactly these tolerances and refuse
-anything beyond them. Each shard's record names its instance type,
+anything beyond them.
+
+Published records follow their source's privacy: a record hidden or
+obscured at its source, or of unknown privacy there, stays so in every
+published dataset. [PENDING: the rebuild lane's check of the 0.1° record
+cells and other published layers for such records, and whether the frozen
+release applies it at finishing.]
+
+Each shard's record names its instance type,
 processor and BLAS. [PENDING E12: the numbers from the rerun.]
 
 ### 2.12 Pre-declared question Q1: a place signal for photo identification (E21, E22)
@@ -550,11 +558,20 @@ Zenodo DOI, format, size and licence:]
   nightly pipeline keeps stay private. The ids of every record that
   trained the frozen release, with source (iNaturalist, Mushroom Observer,
   MyCoPortal, GenBank, MycoMap sequence), the DNA name used, the sequence it
-  came from and the taxon fingerprint, but no coordinates. [HOLD: a
-  survey-site membership column, until Steve decides; the rebuild lane is
-  checking whether any hidden-GPS record trains a model.] Each id resolves to its public source page, which shows what
-  the source itself shows (obscured iNaturalist records are not used).
-  [CHECK: licence of this table, CC0 proposed.]
+  came from, the taxon fingerprint and the survey site it joined, but no
+  coordinates. Each id resolves to its public source page, which shows what
+  the source itself shows. **Privacy rule (Steve, 2026-10-13):** a record
+  hidden or obscured at its source stays hidden or obscured in every
+  published dataset. Records whose location is hidden or obscured at the
+  source, or whose privacy at the source is unknown (about 800 records in
+  the rebuild's pull [CHECK: count in the frozen pull]), are listed with
+  their id but **no survey-site membership**. Obscured iNaturalist
+  coordinates never train a model. [CHECK: licence of this table, CC0
+  proposed.]
+- **Pending check (asked of the rebuild lane):** whether the 0.1° record
+  cells and any other published layer need the same treatment for hidden,
+  obscured and unknown-privacy records, and whether that can be applied when
+  the frozen release is finished.
 - **Code**: the repository at the release commit, with a Zenodo software
   DOI, and the container image digest.
 
@@ -616,21 +633,44 @@ to report a problem.]
   model of the frozen release (suitability and area-of-applicability rasters,
   metrics, grades), and the table of training records with their
   iNaturalist, Mushroom Observer, MyCoPortal and GenBank identifiers. Record
-  coordinates are those published by each source." [PENDING: DOIs; data
+  coordinates are those published by each source; records hidden or
+  obscured at their source, or of unknown privacy there, stay so in every
+  published dataset and carry no survey-site membership." [PENDING: DOIs; data
   citations for WorldClim, SoilGrids, ESA WorldCover, BIGMAP, the Canadian
   NFI, NALCMS, Copernicus and FungalTraits; query details for the
   mycomap.org pull, Appendix S1: Section S6.]
 - **Acknowledgments** (one paragraph): collectors, validators, the
-  sequencing network, data providers [PENDING: whether to name contributors;
-  to raise with Steve, not to add unasked], and the AI disclosure: "Much of
+  sequencing network, data providers [PENDING: Steve to choose; proposal
+  below, after community-science practice], and the AI disclosure: "Much of
   the pipeline's code and the first drafts of this manuscript were written
   with an AI assistant (Claude, Anthropic; model versions in Appendix S1)
   under the author's direction; the author reviewed all code and text and is
   responsible for them." The same disclosure goes in Methods 2.11 and on the
   submission form.
 - **Author Contributions:** sole author.
-- **Conflict of Interest statement** (required): [PENDING: Steve's wording,
-  e.g. "The author directs MycoMap, which publishes MycoMap Atlas" or none].
+- **Conflict of Interest statement** (required): "The author declares no
+  conflict of interest." (Steve, 2026-10-13.)
+
+**Crediting contributors (proposal, for Steve).** The journal does not allow
+group authors, so contributors are credited three ways, as large
+community-science papers do:
+
+1. *Acknowledgments*, collectively: the collectors and observers on
+   iNaturalist, Mushroom Observer and MyCoPortal's herbaria; MycoMap's
+   validators; the sequencing network's labs. Name individually only the few
+   people who did substantial work beyond contributing records (for example
+   project leaders, lab leads, the most active validators), with their
+   permission.
+2. *Every collector credited in the data*: a contributor table on Zenodo
+   beside the training-record table (observer name or username as given at
+   the source, and record counts), derived from the record ids. Names are
+   already public at each source; the source-privacy rule still applies to
+   locations.
+3. *Source citations*: iNaturalist, Mushroom Observer, MyCoPortal and
+   GenBank as data sources in the References; and, if practical, a GBIF
+   derived-dataset DOI for the iNaturalist and Mushroom Observer records used,
+   so their GBIF datasets count this paper as a use (iNaturalist asks large
+   studies to cite a GBIF DOI).
 
 ---
 
@@ -671,7 +711,10 @@ depends on it, or reviewers will certainly ask; **P2** strengthens a claim or
 answers a likely question; **P3** supplementary. Costs are estimates to be
 confirmed by the rebuild lane; EC2 spot runs at roughly $0.05 per CPU-hour.
 Steve set the compute budget on 2026-10-13: run each analysis at the size
-its claim needs, not the cheapest. Every analysis runs on the frozen release
+its claim needs, not the cheapest ("$100 is no problem" for E1, E6 and E9).
+A separate experiments session builds the study code (E1 knobs, E1c rescan,
+E6b, E9 arm, E6a) from the pre-registrations and plans in
+`docs/experiments/`, reviewed by the rebuild lane. Every analysis runs on the frozen release
 and its pull, and gets an entry in
 the experiment registry (`docs/experiments/`, one file per run: question,
 data, command, result, release, commit).
@@ -706,7 +749,7 @@ data, command, result, release, commit).
 
 | ID | Also needed for a combined paper | Priority |
 |---|---|---|
-| E19 | Training-record table for the frozen release (ids, source, DNA name, sequence, fingerprint; no coordinates) and its Zenodo record; survey-site membership column HELD for Steve | P1 |
+| E19 | Training-record table for the frozen release (ids, source, DNA name, sequence, fingerprint, survey site; no coordinates) and its Zenodo record; no site membership for records hidden, obscured or of unknown privacy at source (Steve, 2026-10-13) | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
 
 | ID | Pre-declared question Q1 | Exists? | Data / method | Cost / time | Priority |
@@ -810,21 +853,32 @@ revised (Path).
 
 1. **Licence:** whether the frozen release can also be issued CC BY
    (asked via the coordinator).
-2. **Steve item: conflict-of-interest statement** (required by the journal).
+2. **Conflict of interest:** "The author declares no conflict of
+   interest." (Steve, 2026-10-13.)
 3. **Frozen release:** decided by the coordinator 2026-10-13: the
    full-view refresh's finished release. Waiting for it to run, then for its
    id and Zenodo DOIs.
-4. **Steve item: acknowledgements wording**, including whether to list
-   contributors and collectors.
-5. **Steve item: publish the Zenodo layers archive** (draft held since
-   2026-09-29), or discard and re-archive, once the frozen release exists.
-6. **Survey-site membership column** in the training-record table: held
-   until the rebuild lane's count of hidden-GPS records that train a model.
+4. **Steve item: crediting contributors.** Proposal in section 6
+   (collective acknowledgment, a few named with permission, a contributor
+   table on Zenodo, source citations and a GBIF derived-dataset DOI).
+5. **Zenodo layers archive:** Steve, 2026-10-13: "probably" discard the
+   draft held since 2026-09-29 and re-archive the frozen release's layers,
+   once that release exists (operations lane, Steve's go).
+6. **Privacy of other published layers:** whether the 0.1° record cells
+   and other layers need the source-privacy rule, and whether the frozen
+   release can apply it at finishing (asked of the rebuild lane).
 
 ---
 
 ## Changelog
 
+- **0.6.3 (2026-10-13).** Conflict of interest: none (Steve). Contributor
+  credit proposal. Zenodo layers: discard and re-archive at the frozen
+  release.
+- **0.6.2 (2026-10-13).** Source-privacy rule (Steve): hidden, obscured
+  and unknown-privacy records keep that status in every published dataset
+  and get no survey-site membership; site membership otherwise un-held;
+  pending check on the 0.1° cells. Budget confirmed; experiments session.
 - **0.6.1 (2026-10-13).** Reproducibility claim in 2.11 from the rebuild
   lane (byte-identical within a processor family; stated tolerances across
   families); E12 design split accordingly.
