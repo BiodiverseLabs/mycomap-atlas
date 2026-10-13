@@ -295,6 +295,7 @@ atlas_calibration_long <- function(rows) {
           realised_breadth = as.numeric(r$realised_breadth %||% NA),
           learner = sub(":.*$", "", a$arm), design = n$design, p = as.numeric(n$p %||% NA),
           drawn = as.integer(n$drawn %||% NA), nulls = as.integer(n$reps %||% NA),
+          auc = as.numeric(a$auc %||% NA),
           observed_auc = as.numeric(n$observed_auc %||% NA), null_mean = as.numeric(n$auc_mean %||% NA),
           null_sd = as.numeric(n$auc_sd %||% NA), boyce = as.numeric(a$boyce %||% NA),
           passed = identical(n$verdict, "passed"),
@@ -309,8 +310,9 @@ atlas_calibration_long <- function(rows) {
                       passed = logical(), stringsAsFactors = FALSE)
   } else {
     # The looser map tiers (E24) under each design's null test: a pass of a
-    # geography species in a tier is a false pass for that tier.
-    out$tier <- atlas_map_tier(out$p, out$nulls, out$observed_auc, out$boyce, strong = out$passed)
+    # geography species in a tier is a false pass for that tier. The signal
+    # line reads the learner's held-out AUC; the shift rows are the headline.
+    out$tier <- atlas_map_tier(out$p, out$nulls, out$auc, out$boyce, strong = out$passed)
     out$moderate_z <- atlas_map_tier_z(out$observed_auc, out$null_mean, out$null_sd, out$boyce, out$passed)
   }
   out

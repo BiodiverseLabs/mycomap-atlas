@@ -368,8 +368,9 @@ test_that("a later find under a name the release spells otherwise is scored unde
 test_that("each model map carries its tier from its stored metrics, and the results report by tier", {
   skip_if_not_installed("terra")
   layers <- layers_from(east())
-  moderate <- list(grade = "weak", boyce = 0.2,
-                   null = list(auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6, auc_sd = 0.03))
+  moderate <- list(grade = "weak", boyce = 0.2, auc_mean = 0.66,
+                   null = list(design = "shift", auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6,
+                               auc_sd = 0.03))
   local_mocked_bindings(atlas_tracker_maps = function(view, taxon) {
     list(none = FALSE, models = list(maxnet = c(layers, list(grade = "weak", metrics = moderate, aoa = TRUE))),
          grade = "weak", choice = NULL, ensemble = NULL)

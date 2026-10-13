@@ -345,14 +345,25 @@ test_that("a smoke run takes one species from every registered cell", {
 test_that("the calibration rows keep what the tiers need, and give each test its tier", {
   row <- list(status = "scored", taxon = "virtual-geography-0001", family = "full", kind = "geography",
               band = "50-99", presences = 60L,
-              arms = list(list(arm = "maxnet:none", boyce = 0.2, truth_rho = 0.1,
+              arms = list(list(arm = "maxnet:none", auc = 0.64, boyce = 0.2, truth_rho = 0.1,
                                nulls = list(shift = list(design = "shift", p = 0.125, reps = 40, drawn = 40,
                                                          observed_auc = 0.66, auc_mean = 0.6, auc_sd = 0.03,
                                                          verdict = "failed")))))
   long <- atlas_calibration_long(list(row))
   expect_equal(long$nulls, 40L)
-  expect_equal(c(long$observed_auc, long$null_mean, long$null_sd, long$boyce), c(0.66, 0.6, 0.03, 0.2))
+  expect_equal(c(long$auc, long$observed_auc, long$null_mean, long$null_sd, long$boyce),
+               c(0.64, 0.66, 0.6, 0.03, 0.2))
   # A geography species passed by the moderate tier: a false pass for it.
   expect_equal(long$tier, "moderate")
   expect_true(long$moderate_z)
+})
+
+test_that("a calibration test's signal line reads the learner's held-out AUC", {
+  row <- list(status = "scored", taxon = "virtual-habitat-0001", family = "full", kind = "habitat",
+              band = "50-99", presences = 60L,
+              arms = list(list(arm = "maxnet:none", auc = 0.6, boyce = 0.2, truth_rho = 0.3,
+                               nulls = list(shift = list(design = "shift", p = 0.6, reps = 9, drawn = 9,
+                                                         observed_auc = 0.45, auc_mean = 0.5, auc_sd = 0.05,
+                                                         verdict = "failed")))))
+  expect_equal(atlas_calibration_long(list(row))$tier, "indicative")
 })

@@ -450,8 +450,9 @@ test_that("moderate-z is an effect size of one null spread, with Boyce above zer
 })
 
 test_that("a model's tier is read from its stored shift-test record and Boyce", {
-  metrics <- list(grade = "weak", boyce = 0.2,
-                  null = list(auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6, auc_sd = 0.03))
+  metrics <- list(grade = "weak", boyce = 0.2, auc_mean = 0.66,
+                  null = list(design = "shift", auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6,
+                              auc_sd = 0.03))
   expect_equal(atlas_metrics_tier(metrics), list(tier = "moderate", moderate_z = TRUE))
   metrics$grade <- "strong"
   expect_equal(atlas_metrics_tier(metrics)$tier, "strong")
@@ -486,4 +487,18 @@ test_that("a tier is paired with the kernel on the same places as strong maps ar
   result <- atlas_e2_paired(models, kernel, grade = "moderate", by = "tier", reps = 300)
   expect_true(result$holds)
   expect_equal(atlas_e2_paired(models, kernel, reps = 50)$tested, FALSE)
+})
+
+test_that("the signal line reads the held-out AUC, and moderate needs a shift test", {
+  # Held-out AUC 0.6 but the null test's untuned AUC 0.45: production calls
+  # it weak, not failed, so its tier is indicative.
+  weak <- list(grade = "weak", boyce = 0.2, auc_mean = 0.6,
+               null = list(design = "shift", auc_p = 0.6, reps = 9, observed_auc = 0.45, auc_mean = 0.5, auc_sd = 0.05))
+  expect_equal(atlas_metrics_tier(weak)$tier, "indicative")
+  # The same numbers as a moderate shift model, but graded against
+  # scattered nulls: indicative at most, and never moderate-z.
+  scattered <- list(grade = "weak", boyce = 0.2, auc_mean = 0.66,
+                    null = list(design = "scatter", auc_p = 0.125, reps = 40, observed_auc = 0.66, auc_mean = 0.6,
+                                auc_sd = 0.03))
+  expect_equal(atlas_metrics_tier(scattered), list(tier = "indicative", moderate_z = FALSE))
 })

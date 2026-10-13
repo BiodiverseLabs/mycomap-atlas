@@ -60,6 +60,7 @@ ATLAS_TIERS <- c("strong", "moderate", "indicative", "failed")
 #' A model's tier, by the rules in order: strong (p <= 0.05 and Boyce > 0,
 #' as production grades it), moderate (p <= 0.20 with 25 or more nulls
 #' scored, Boyce > 0, AUC > 0.5), indicative (AUC > 0.5, Boyce > 0), failed.
+#' auc is the held-out AUC, as production's weak/failed line uses it.
 #' Vectorised; a model with no null test (untested) is "untested".
 atlas_map_tier <- function(p, nulls, auc, boyce, strong = NULL) {
   ok <- function(x) !is.na(x) & is.finite(x)
@@ -80,16 +81,25 @@ atlas_map_tier_z <- function(auc, null_mean, null_sd, boyce, strong) {
   out
 }
 
-#' A model's tier and moderate-z flag from its stored metrics (the shift
-#' test's record in metrics$null, the pooled Boyce, the grade).
+#' A model's tier and moderate-z flag from its stored metrics: the null
+#' test's record in metrics$null, the held-out AUC (auc_mean) and pooled
+#' Boyce, and the grade. The signal line ("AUC > 0.5") reads the held-out
+#' AUC, as production's weak/failed split does; moderate-z compares the
+#' null test's own untuned AUC with its untuned nulls. Moderate and
+#' moderate-z need a shift test: a model graded against scattered nulls
+#' reaches indicative at most.
 atlas_metrics_tier <- function(metrics) {
   null <- metrics$null %||% list()
   num <- function(x) suppressWarnings(as.numeric(x %||% NA))
   strong <- identical(as.character(metrics$grade %||% ""), "strong")
-  list(tier = atlas_map_tier(num(null$auc_p), num(null$reps), num(null$observed_auc), num(metrics$boyce),
-                             strong = strong),
-       moderate_z = atlas_map_tier_z(num(null$observed_auc), num(null$auc_mean), num(null$auc_sd),
-                                     num(metrics$boyce), strong))
+  tier <- atlas_map_tier(num(null$auc_p), num(null$reps), num(metrics$auc_mean), num(metrics$boyce),
+                         strong = strong)
+  z <- atlas_map_tier_z(num(null$observed_auc), num(null$auc_mean), num(null$auc_sd), num(metrics$boyce), strong)
+  if (!identical(as.character(null$design %||% ""), "shift")) {
+    if (identical(tier, "moderate")) tier <- "indicative"
+    if (isTRUE(z)) z <- FALSE
+  }
+  list(tier = tier, moderate_z = z)
 }
 
 #' The distance band of a distance in km: "0-5", "5-25", "25-100",
