@@ -111,6 +111,18 @@ grade.
     scatter and shift verdicts are computed per learner, and H1e is tested
     per learner.
 
+- 2026-10-13 (counts only, before launch; hypotheses and criteria
+  unchanged): the local calibration pilot priced the study at about 270–460
+  CPU-h, about a fifth of the estimate, so species per cell are doubled to
+  tighten the intervals, above all H1a's ≤ 5% false-pass bound. Habitat
+  species 30 → 60 per band × breadth × strength cell (1,200); geography
+  species 40 → 80 per band × centre-count cell (800); ESM habitat 40 → 80 per
+  band × strength and geography 60 → 120 per band (840). With 160 geography
+  species per band, zero passes give a Wilson upper bound of 2.3%, and the
+  ≤ 5% point estimate allows up to 8 passes per band. Cells the generator
+  cannot fill within its redraw limit (most likely narrow habitats at 200+
+  sites) are reported with their counts, not padded.
+
 ## Deviations
 
 None yet.
