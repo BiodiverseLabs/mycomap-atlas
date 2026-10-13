@@ -256,6 +256,23 @@ atlas_rescan_pool <- function(paths) {
        summary = atlas_rescan_summary(rows), strata = results[[1]]$strata, rows = rows)
 }
 
+#' A study job's rescan shards, read from the store: every results file
+#' under prefix (study/<id>/) is fetched and the shards pooled.
+atlas_rescan_pool_from <- function(store, prefix) {
+  prefix <- atlas_study_check_key(paste0(sub("/*$", "/", as.character(prefix))))
+  keys <- store$list(prefix)
+  keys <- keys[grepl("/rescan-[^/]*[.]json$", keys)]
+  if (!length(keys)) stop("no rescan results under ", prefix, call. = FALSE)
+  dir <- tempfile("rescan-pool-")
+  dir.create(dir)
+  paths <- vapply(keys, function(k) {
+    path <- file.path(dir, basename(k))
+    store$get(k, path)
+    path
+  }, "")
+  atlas_rescan_pool(unname(paths))
+}
+
 #' Rough CPU-hours for a sample.
 atlas_rescan_plan <- function(sample, seconds = ATLAS_RESCAN_PLAN_SECONDS) {
   per <- seconds[sample$algorithm]

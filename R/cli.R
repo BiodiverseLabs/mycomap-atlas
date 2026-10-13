@@ -174,11 +174,14 @@ atlas_usage <- function() {
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               models at once (default 1)")
   message("      --pool=a.json,b.json      read a run's shards together: the 2% rule over all")
+  message("      --pool-from=study/<id>/   the same, for a study job's shards in the store")
   message("  study-calibration  paper E1: the pre-registered virtual-species cells (1,200 habitat +")
   message("                     800 geography full-model species, 840 ESM species), scattered and")
   message("                     shifted nulls per learner, on the pull and layers on this machine")
   message("      --seed=N                  which species (default 1)")
   message("      --nulls=N                 nulls per design, stopping at 5 (default 99)")
+  message("      --per-cell=K              K species in every cell instead of the registered counts")
+  message("                                (a smoke run: K=1 is one species per cell, 39 in all)")
   message("      --plan-only               print the species and CPU-hours, do nothing")
   message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
@@ -738,8 +741,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "study-rescan" = {
-      if (!is.null(flags$pool)) {
-        pooled <- atlas_rescan_pool(trimws(strsplit(as.character(flags$pool), ",", fixed = TRUE)[[1]]))
+      if (!is.null(flags$pool) || !is.null(flags$pool_from)) {
+        pooled <- if (!is.null(flags$pool_from)) {
+          atlas_rescan_pool_from(atlas_flag_store(flags), as.character(flags$pool_from))
+        } else {
+          atlas_rescan_pool(trimws(strsplit(as.character(flags$pool), ",", fixed = TRUE)[[1]]))
+        }
         message(pooled$models, " of ", pooled$sampled, " sampled models over ", length(pooled$shards),
                 " shards; ", pooled$health$dropped, " without a verdict; readable: ", pooled$readable)
         print(pooled$summary, row.names = FALSE)
@@ -760,8 +767,14 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "study-calibration" = {
       out <- if (is.null(flags$out)) NULL else as.character(flags$out)
+      per_cell <- if (is.null(flags$per_cell)) NULL else as.integer(atlas_flag_number(flags, "per_cell", 1))
+      if (!is.null(per_cell) && (is.na(per_cell) || per_cell < 1L)) {
+        stop("--per-cell must be a whole number, 1 or more", call. = FALSE)
+      }
       atlas_calibration_study(
         grid = atlas_flag_grid(flags),
+        layout = if (is.null(per_cell)) atlas_calibration_layout() else
+          atlas_calibration_layout(per_cell, per_cell, per_cell, per_cell),
         seed = as.integer(atlas_flag_number(flags, "seed", 1)),
         nulls = as.integer(atlas_flag_number(flags, "nulls", ATLAS_CALIBRATION_NULLS)),
         shard = as.character(flags$shard %||% "1/1"),

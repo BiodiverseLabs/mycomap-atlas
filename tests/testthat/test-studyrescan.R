@@ -222,3 +222,27 @@ test_that("a rescan model whose record keeps no folds is not trusted", {
   expect_equal(atlas_rescan_differences(inputs, modifyList(record, list(fold_presences = integer())), "f00dfeed"),
                "no folds recorded")
 })
+
+test_that("a study job's rescan shards are pooled from the store, and only from a study prefix", {
+  dir <- tempfile("store-")
+  prefix <- "study/study-abc/"
+  write_shard <- function(i) {
+    key <- sprintf("%srescan-r1-20261020T01010%dZ.json", prefix, i)
+    dir.create(file.path(dir, dirname(key)), recursive = TRUE, showWarnings = FALSE)
+    jsonlite::write_json(list(settings = list(release = "r1", seed = 1, per_cell = 50, nulls = 19, shard = paste0(i, "/2")),
+                              strata = list(sampled = list(a = 2L)),
+                              taxa = list(list(taxon = paste0("maxnet|T", i), status = "scored", algorithm = "maxnet",
+                                               grade = "strong", scatter = list(verdict = "passed")))),
+                         file.path(dir, key), auto_unbox = TRUE)
+    key
+  }
+  keys <- c(write_shard(1), write_shard(2), paste0(prefix, "rescan-r1-x.log"))
+  store <- list(list = function(p) keys[startsWith(keys, p)],
+                get = function(k, dest) file.copy(file.path(dir, k), dest, overwrite = TRUE))
+  pooled <- atlas_rescan_pool_from(store, prefix)
+  expect_equal(pooled$models, 2L)
+  expect_true(pooled$complete)
+  expect_true(pooled$readable)
+  expect_error(atlas_rescan_pool_from(store, "releases/draft/"), "only under")
+  expect_error(atlas_rescan_pool_from(store, "study/none/"), "no rescan results")
+})

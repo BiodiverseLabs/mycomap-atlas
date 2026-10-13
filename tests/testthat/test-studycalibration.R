@@ -324,3 +324,12 @@ test_that("a plan-only run sizes the layout and shards it", {
   half <- atlas_calibration_study(plan_only = TRUE, quiet = TRUE, shard = "2/2")
   expect_equal(half$species, 1420L)
 })
+
+test_that("a smoke run takes one species from every registered cell", {
+  smoke <- atlas_calibration_layout(1L, 1L, 1L, 1L)
+  expect_equal(nrow(smoke), 39L)
+  expect_setequal(smoke$cell, unique(atlas_calibration_layout()$cell))
+  out <- capture.output(atlas_main(c("study-calibration", "--per-cell=1", "--plan-only")), type = "message")
+  expect_true(any(grepl("39 virtual species", out)))
+  expect_error(atlas_main(c("study-calibration", "--per-cell=0", "--plan-only")), "whole number")
+})
