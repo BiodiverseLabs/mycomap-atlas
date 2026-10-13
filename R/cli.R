@@ -126,6 +126,9 @@ atlas_usage <- function() {
   message("  job-status         which shards of a job have reported")
   message("  finish-prior-only  build a prior-only job's private prior, trained ids and summary (--job=ID)")
   message("  finish-private-release  finish a hindcast or record-names job privately (--job=ID)")
+  message("  plan-study         run a study command on EC2 workers, one shard each (--command=study-...,")
+  message("                     --shards=N, [--from-release=ID for its inputs], [--args=\"...\"]); results under study/<id>/")
+  message("  run-study          one shard of a study job (--job=ID --shard=N), as a worker runs it")
   message("  finish-full-refresh  publish a full-view refresh whose refits match its release (--job=ID)")
   message("  pull-privacy       make the private list of records whose place their source hides (read-only),")
   message("                     which the published collection cells leave out")
@@ -264,6 +267,21 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
 
   switch(
     command,
+    "plan-study" = {
+      if (is.null(flags$command)) stop("plan-study needs --command=study-...", call. = FALSE)
+      args <- if (is.null(flags$args)) character() else strsplit(trimws(as.character(flags$args)), "[[:space:]]+")[[1]]
+      atlas_plan_study_job(atlas_flag_store(flags), command = as.character(flags$command), args = args,
+                           shards = as.integer(atlas_flag_number(flags, "shards", 4)),
+                           from_release = if (!is.null(flags$from_release)) as.character(flags$from_release),
+                           grid = atlas_flag_grid(flags))
+      invisible(0L)
+    },
+    "run-study" = {
+      if (is.null(flags$job) || is.null(flags$shard)) stop("run-study needs --job=ID and --shard=N", call. = FALSE)
+      record <- atlas_run_study_shard(atlas_flag_store(flags), as.character(flags$job),
+                                      as.integer(atlas_flag_number(flags, "shard", NA)), atlas_flag_grid(flags))
+      invisible(if (identical(record$status, "succeeded")) 0L else 1L)
+    },
     "pull-privacy" = {
       # Read-only: the private list of records whose place their source
       # hides, for the published collection cells (R/privacy.R).

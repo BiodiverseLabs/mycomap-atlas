@@ -67,6 +67,12 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
           }
         ))
         worker$state <- "terminated"
+      } else if (worker$behaviour == "work" && startsWith(worker$job, "study-")) {
+        # A study job's worker (R/studyjob.R), its study command stubbed.
+        expect_match(user_data(state$requests[[length(state$requests)]]), "run-study --grid=draft", fixed = TRUE)
+        on_machine(machine(), atlas_run_study_shard(worker_store(store), worker$job, worker$shard, quiet = TRUE,
+                                                    main = fake_study_main(store)))
+        worker$state <- "terminated"
       } else if (worker$behaviour == "work") {
         on_machine(machine(), atlas_run_shard(store, worker$job, worker$shard, quiet = TRUE, fit = fit))
         worker$state <- "terminated"
@@ -188,6 +194,23 @@ test_that("run-job-ec2 fits a private release's shards, then finishes it private
   expect_true(setup$store$exists(atlas_benchmark_key(job$id, "release.json")))
   expect_identical(setup$store$list("releases/"), releases)
   expect_identical(atlas_current_release(setup$store)$id, setup$main$id)
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("run-job-ec2 runs a study job's shards, one worker each, and builds no release", {
+  store <- fresh_store()
+  boss <- machine()
+  job <- atlas_plan_study_job(store, "study-rescan", args = "--sample=200", shards = 3L,
+                              commands = "study-rescan", quiet = TRUE)
+  ec2 <- fake_ec2(store)
+  outcome <- run_on(list(store = store, boss = boss, job = job), ec2)
+  expect_equal(outcome$job, job$id)
+  scripts <- vapply(ec2$state$requests, user_data, "")
+  expect_equal(sum(grepl("run-study --grid=draft", scripts, fixed = TRUE)), 3L)
+  expect_false(any(grepl("run-shard|finish-", scripts)))
+  for (n in 1:3) expect_true(store$exists(paste0(job$out, "result-", n, ".json")))
+  expect_length(store$list("releases/"), 0L)
+  expect_null(atlas_current_release(store))
   expect_length(still_running(ec2), 0L)
 })
 
@@ -668,8 +691,11 @@ test_that("a worker may write its results, shard record and log, and nothing tha
   expect_true(may_write("jobs/draft/job1/logs/1.log"))
   # A finishing worker reports the same way, under its own job.
   expect_true(may_write(atlas_shard_key(atlas_finish_id("20261006T082050Z-d5bb064c"), 1L, "draft")))
+  # A study job's results (R/studyjob.R), which production never reads.
+  expect_true(may_write("study/study-20261013T120000Z-abcdef12/rescan-1.json"))
   for (key in c("current/draft.json", "releases/draft/r1.json", "layers/draft/current.json",
-                "jobs/draft/job1/job.json", "jobs/draft/job1/finished.json")) {
+                "jobs/draft/job1/job.json", "jobs/draft/job1/finished.json",
+                "private/trained-ids/draft/releases/r1.tsv.gz", "promotions/draft/x.json")) {
     expect_false(may_write(key), info = key)
   }
   expect_false(any(grepl("Delete", unlist(lapply(policy$Statement, function(s) s$Action)))))
