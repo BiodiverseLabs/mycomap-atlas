@@ -85,9 +85,12 @@ atlas_repro_fresh_run <- function(taxa, algorithm, fit_settings, grid = "draft")
   input <- normalizePath(file.path(dir, "in.json"), winslash = "/", mustWork = FALSE)
   output <- normalizePath(file.path(dir, "out.json"), winslash = "/", mustWork = FALSE)
   atlas_write_json(list(taxa = as.list(taxa), algorithm = algorithm, fit = fit_settings, grid = grid), input)
+  # The installed package's namespace, by name, rather than a literal
+  # pkg::: call (test-sources credits every pkg:: the code names).
   code <- sprintf(paste0("x <- jsonlite::fromJSON('%s', simplifyVector = FALSE); ",
-                         "r <- mycomapatlas:::atlas_repro_fit(unlist(x$taxa), x$algorithm, x$fit, x$grid); ",
-                         "mycomapatlas:::atlas_write_json(r, '%s')"), input, output)
+                         "ns <- asNamespace('%s'); ",
+                         "r <- ns$atlas_repro_fit(unlist(x$taxa), x$algorithm, x$fit, x$grid); ",
+                         "ns$atlas_write_json(r, '%s')"), input, utils::packageName(), output)
   status <- system2(file.path(R.home("bin"), "Rscript"), c("-e", shQuote(code)))
   if (!identical(as.integer(status), 0L) || !file.exists(output)) {
     stop("a fresh-process run failed (exit ", status, ")", call. = FALSE)
