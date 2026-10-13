@@ -99,7 +99,10 @@ revise the paper plan and let's continue".)
    point.
 4. **C4. An automated, nightly, open pipeline can do this at continental
    scale, and says which maps to trust.** [N] taxa, [M] maps, of which [S]
-   ([S/M]%) are strong. The strong share is stated plainly: most maps are
+   ([S/M]%) are strong. (Provisional, from the refresh's dry run: 576 strong
+   models across 470 taxa, about 7% of ~6,811 modelled taxa, out of 9,042
+   fitted models; by learner Maxent 121, random forest 85, boosted trees 5,
+   ensembles of small models 365.) The strong share is stated plainly: most maps are
    weak or failed, and they are still published, drawn faint with their
    grade, because the grade is the contribution, not the map count. Every map
    is versioned, citable and reproducible from a pinned container and
@@ -721,7 +724,13 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
 
 [PENDING. Paragraph plan:]
 
-1. What a grade means and does not: strong = beats its own collecting pattern
+1. The cost of an honest grade: about 7% of modelled taxa have a strong
+   map [provisional: 470 of ~6,811]. Under the old scattered-null test the
+   October 7 release had 1,835 taxa with a passing map, but data, naming
+   rules and design all changed between the two releases; the like-for-like
+   figure is E1c (the standard test rerun on the frozen release's own
+   models), which is the number to quote.
+   What a grade means and does not: strong = beats its own collecting pattern
    on held-out ground; weak and failed maps are not shown to be wrong; low
    power (C1) means many real signals are left unclaimed; that is the price
    of an honest claim. Engage the Beale–Araújo–Peterson debate directly: our
@@ -1069,6 +1078,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.5 (2026-10-13).** Provisional strong-map count (576 models, 470
+  taxa, ~7%) in C4 and the Discussion; the like-for-like old-test
+  comparison is E1c.
 - **0.9.4 (2026-10-13).** Limitation: set-aside ("trash") sequences used
   for naming in the frozen pull (≈ 380 records named by them, 2,023 left
   out), fixed from the next pull.
