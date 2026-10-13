@@ -112,11 +112,15 @@ atlas_usage <- function() {
   message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
   message("                                refit a release's strong models on its pull without the records")
   message("                                validated after the date, for Vision's benchmark: never a release")
+  message("      --full-refresh --from-release=ID [--dry-run]")
+  message("                                refit a release's strong models for their full views alone and")
+  message("                                publish them in a new release (--dry-run: say what and how much)")
   message("  run-shard          fit one shard of a job and upload the results")
   message("      --job=ID --shard=N        which (both required)")
   message("      --workers=N               fits at once on this machine (default 1)")
   message("  job-status         which shards of a job have reported")
   message("  finish-prior-only  build a prior-only job's private prior, trained ids and summary (--job=ID)")
+  message("  finish-full-refresh  publish a full-view refresh whose refits match its release (--job=ID)")
   message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
   message("      --fits-at-once=N          fits running together on EC2 (default 84)")
   message("  trained-ids        PRIVATE: which records trained a release (--out=FILE or --link [--hours=N],")
@@ -508,7 +512,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "plan-job" = {
-      if (isTRUE(flags$prior_only)) {
+      if (isTRUE(flags$full_refresh)) {
+        if (is.null(flags$from_release)) stop("plan-job --full-refresh needs --from-release=ID", call. = FALSE)
+        atlas_plan_full_refresh(
+          atlas_flag_store(flags), from_release = as.character(flags$from_release), grid = atlas_flag_grid(flags),
+          shards = as.integer(atlas_flag_number(flags, "shards", 4)), dry_run = isTRUE(flags$dry_run)
+        )
+      } else if (isTRUE(flags$prior_only)) {
         if (is.null(flags$from_release) || is.null(flags$validated_through)) {
           stop("plan-job --prior-only needs --from-release=ID and --validated-through=YYYY-MM-DD", call. = FALSE)
         }
@@ -588,6 +598,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         store = atlas_flag_store(flags), grid = atlas_flag_grid(flags),
         since = as.character(flags$since %||% ATLAS_TRACKER_SINCE), dry_run = isTRUE(flags$dry_run)
       )
+      invisible(0L)
+    },
+    "finish-full-refresh" = {
+      if (is.null(flags$job)) stop("finish-full-refresh needs --job=ID", call. = FALSE)
+      atlas_finish_full_refresh(atlas_flag_store(flags), as.character(flags$job), atlas_flag_grid(flags),
+                                promote = !isTRUE(flags$no_promote))
       invisible(0L)
     },
     "finish-prior-only" = {

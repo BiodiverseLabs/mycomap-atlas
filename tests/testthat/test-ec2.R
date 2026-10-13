@@ -29,7 +29,7 @@ tag_values <- function(tags) {
 # "vanish". `refuse(request, call)` may return an error
 # message for a run_instances call.
 fake_ec2 <- function(store, script = function(shard, attempt) "work",
-                     refuse = function(request, call) NULL) {
+                     refuse = function(request, call) NULL, fit = fake_fit) {
   state <- new.env()
   state$instances <- list()
   state$requests <- list()
@@ -60,7 +60,7 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
         ))
         worker$state <- "terminated"
       } else if (worker$behaviour == "work") {
-        on_machine(machine(), atlas_run_shard(store, worker$job, worker$shard, quiet = TRUE, fit = fake_fit))
+        on_machine(machine(), atlas_run_shard(store, worker$job, worker$shard, quiet = TRUE, fit = fit))
         worker$state <- "terminated"
       } else if (worker$behaviour == "partial") {
         # Fits one more model, saves it, and is taken back.
@@ -162,6 +162,38 @@ test_that("run-job-ec2 fits a prior-only job's shards, then builds its prior on 
   expect_identical(atlas_current_release(base$store), current)
   expect_true(base$store$exists(atlas_benchmark_key(job$id, "summary.json")))
   expect_length(still_running(ec2), 0L)
+})
+
+test_that("run-job-ec2 fits a full-view refresh's shards, publishes it, then finishes it like any release", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  job <- on_machine(setup$boss, atlas_plan_full_refresh(setup$store, setup$main$id, shards = 2L, quiet = TRUE))
+  ec2 <- fake_ec2(setup$store, fit = map_fit())
+  finished <- run_on(list(store = setup$store, boss = setup$boss, job = job), ec2)
+  scripts <- vapply(ec2$state$requests, user_data, "")
+  expect_equal(sum(grepl("run-shard", scripts, fixed = TRUE)), job$shards)
+  expect_equal(sum(grepl("finish-release", scripts, fixed = TRUE)), 1L)
+  # Refreshed from R_main, then finished from that: the finished one is current.
+  current <- atlas_current_release(setup$store)
+  expect_equal(current$id, finished$id)
+  expect_true(atlas_release_finished(current))
+  refreshed <- atlas_store_text(setup$store, paste0("releases/draft/", current$finished$from, ".json"))
+  expect_equal(refreshed$full_refresh$from, setup$main$id)
+  expect_identical(current$index, setup$main$index)
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("a full-view refresh past its deadline publishes nothing, not even what its workers saved", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  job <- on_machine(setup$boss, atlas_plan_full_refresh(setup$store, setup$main$id, shards = 1L, quiet = TRUE))
+  ec2 <- fake_ec2(setup$store, script = function(shard, attempt) if (attempt == 1L) "partial" else "hang",
+                  fit = map_fit())
+  expect_error(run_on(list(store = setup$store, boss = setup$boss, job = job), ec2,
+                      config = test_config(setup$store$uri, ATLAS_EC2_MAX_HOURS = "1")),
+               "full-view refresh is never published in part")
+  expect_length(still_running(ec2), 0L)
+  expect_equal(atlas_current_release(setup$store)$id, setup$main$id)
 })
 
 # ---- whole jobs --------------------------------------------------------------

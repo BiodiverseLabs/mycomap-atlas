@@ -130,7 +130,11 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
     "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 3 ))",
     "[ \"$WORKERS\" -gt \"$(nproc)\" ] && WORKERS=$(nproc)",
     "[ \"$WORKERS\" -lt 1 ] && WORKERS=1",
-    sprintf("docker run --rm -v /data:/data -e ATLAS_STORE=%s -e AWS_REGION=%s %s %s",
+    "# The instance type, for the shard's record (IMDSv2).",
+    paste("TYPE=$(curl -s -m 5 -H \"X-aws-ec2-metadata-token: $(curl -s -m 5 -X PUT",
+          "-H 'X-aws-ec2-metadata-token-ttl-seconds: 300' http://169.254.169.254/latest/api/token)\"",
+          "http://169.254.169.254/latest/meta-data/instance-type || true)"),
+    sprintf("docker run --rm -v /data:/data -e ATLAS_STORE=%s -e AWS_REGION=%s -e ATLAS_INSTANCE_TYPE=\"$TYPE\" %s %s",
             shQuote(store), shQuote(config$region), config$image, command),
     "STATUS=$?",
     if (!is.null(logs)) {
@@ -293,6 +297,8 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   # once its shards report, one worker builds its private prior instead.
   prior_only <- atlas_is_prior_only(job)
   if (prior_only) finish <- FALSE
+  # A full-view refresh is published whole or not at all (R/fullrefresh.R).
+  refresh <- atlas_is_full_refresh(job)
   # finish = FALSE runs the shards and stops there: no release is built or
   # promoted (a pilot, run to measure cost; atlas_job_timing reads it).
   # Nothing to fit: only retirements or refreshed public files.
@@ -364,7 +370,7 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
       saved <- sum(vapply(missing, function(n) atlas_shard_saved_count(store, job$id, n, grid), 0L))
       reported <- length(missing) < job$shards
       # Nothing saved and nothing reported: there is nothing to publish.
-      partial <- if (isTRUE(finish) && (saved || reported)) {
+      partial <- if (isTRUE(finish) && !refresh && (saved || reported)) {
         tryCatch(atlas_finish_job(store, job$id, grid, quiet = quiet, partial = TRUE),
                  error = function(e) e)
       }
@@ -373,6 +379,8 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
            " unreported; its workers were terminated",
            if (prior_only) {
              "; a prior-only job is never published, in part or whole: plan it again"
+           } else if (refresh) {
+             "; a full-view refresh is never published in part: run it again"
            } else if (is.null(partial)) {
              ", having saved nothing"
            } else if (inherits(partial, "error")) {
@@ -424,6 +432,16 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     terminate_all()
     say("not finished: no release built (--no-finish)")
     return(invisible(NULL))
+  }
+  if (refresh) {
+    finished <- TRUE
+    terminate_all()
+    # Published only if every refit matches its release, then finished as any
+    # release is: that builds the continent export from the new full views.
+    release <- atlas_finish_full_refresh(store, job$id, grid, quiet = quiet)
+    finished_release <- atlas_finish_on_ec2(store, grid, ec2 = ec2, config = config, poll_seconds = poll_seconds,
+                                            wait = wait, quiet = quiet, clock = clock, image_exists = image_exists)
+    return(invisible(finished_release %||% release))
   }
   release <- atlas_finish_job(store, job$id, grid, quiet = quiet)
   finished <- TRUE
