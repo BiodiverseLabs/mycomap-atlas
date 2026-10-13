@@ -360,6 +360,13 @@ atlas_finish_private_release_work <- function(store = atlas_store(), id, grid = 
     paths <- paths[!startsWith(paths, "public/") & !startsWith(paths, "occurrences/")]
     entries <- atlas_file_entries(paths)
     atlas_upload_objects(store, entries)
+    # The renames the release it was made from carries (how names moved
+    # between pulls), so a reader matches a later find under an old name to
+    # its model as the tracker does for a release. Already in the store.
+    base <- tryCatch(atlas_store_text(store, paste0("releases/", grid, "/", job$from_release, ".json")),
+                     error = function(e) NULL)
+    renames <- Filter(function(f) identical(f$path, "occurrences/renames.json"), base$files %||% list())
+    entries <- c(entries, renames)
     list(counted = counted, models = models, entries = entries)
   })
   manifest_file <- tempfile(fileext = ".json")

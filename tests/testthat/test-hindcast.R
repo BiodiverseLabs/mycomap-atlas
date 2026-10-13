@@ -120,6 +120,12 @@ test_that("a private release is finished privately, with its own grades, and not
   view <- atlas_tracker_view(setup$store, job$id, "draft", cache)
   expect_equal(nrow(view$pull), nrow(job_pull(setup$store, job)))
   expect_equal(atlas_tracker_maps(view, "Taxon C")$grade, "strong")
+  # The release it was made from carries renames; so does the private one.
+  main_renames <- Filter(function(f) identical(f$path, "occurrences/renames.json"), setup$main$files)
+  private_renames <- Filter(function(f) identical(f$path, "occurrences/renames.json"), manifest$files)
+  expect_length(main_renames, 1L)
+  expect_identical(private_renames, main_renames)
+  expect_equal(view$renames$to[view$renames$from == "Taxon Old"], "Taxon A")
   expect_false(atlas_tracker_maps(view, "Taxon A")$none)
 })
 
