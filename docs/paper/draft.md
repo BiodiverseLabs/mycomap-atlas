@@ -194,16 +194,34 @@ MycoMap's reference database (MycoBLAST) and NCBI GenBank. A record is
 validated either by hand, by a project member (project leaders,
 contributors, lab contributors or approved members) who reviews the record's
 sequences, BLAST results and name, or automatically, by the platform's
-analysis of the BLAST results, which assigns a confidence and validates or
-rejects; a person starts every automatic run, and any member can confirm or
-overturn its verdict. Each verdict records who made it, when, and whether it
-was manual or automatic. Records that one project validates and another
-rejects count as validated, because the validating project settled the
-name. [CHECK: the confidence rule for automatic validation and the share of
-training records validated each way, from the frozen pull; cite the
-mycomap.org Handbook.] E7b measures what the validation level does to the
-maps: validated in at least two projects, manual verdicts only, and no
-rejection anywhere, each against the production rule. Records come from iNaturalist, Mushroom
+analysis of the BLAST results; a person starts every automatic run, and
+any member can confirm or overturn its verdict. Automatic validation applies
+only when the DNA evidence is decisive: every target sequence (contaminant
+and non-target sequences excluded) has a finished BLAST analysis, all name
+the same species, and at least one reaches ≥ 70% analysis confidence and was
+assembled from at least three reads; the record is then marked correct under
+that species, and the name is written back to iNaturalist or Mushroom
+Observer with an explanatory comment. Anything short of that goes to a
+person. Each verdict records who made it and when. Only a project's own
+"Validated" counts; an echo of another project's verdict does not. Records
+that one project validates and another rejects count as validated, because
+the validating project settled the name. [CHECK: cite the mycomap.org
+Handbook and the eligibility code.]
+
+Of an approximation of the training set (145,256 eligible records rebuilt
+read-only from production on 2026-10-13, against the rebuild pull's 138,410
+eligible and 133,311 kept), 83.6% carry a person's verdict, 5.3% an
+automatic verdict later confirmed by a person, and 11.1% an automatic
+verdict only; automatic validation touched iNaturalist records almost
+exclusively (MyCoPortal and GenBank records are all manual). 27.9% are
+validated in two or more projects. "Manual" here means no automatic-
+validation log entry, and that log begins on 2026-03-17, so earlier
+automatic verdicts count as manual. [PENDING E16: the same figures for the
+frozen pull's records, if provenance can be joined to them.] E7b measures
+what the validation level does to the maps, each arm against the
+production rule: automatic-only verdicts excluded; manual verdicts only;
+validated in at least two projects; no rejection anywhere. Records come from
+iNaturalist, Mushroom
 Observer, MyCoPortal and MycoMap's own sequence and GenBank imports, all held
 on mycomap.org.
 
@@ -734,7 +752,7 @@ data, command, result, release, commit).
 | E17 | ODMAP protocol | all | No | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
-| E7 | Sensitivity: (a) site count (thinning study), (b) validation level (≥ 2 projects; manual verdicts only; no rejection anywhere), (c) coordinate precision (1 vs 5 km; MO/MyCoPortal rules), (d) pre-1980 records | C2, C4 | (a) pre-freeze, 118 taxa, old nulls; (b–d) no | Paired arms on a stratified ~150-taxon panel; skill, map correlation, grade changes | ~20–40 CPU-h per arm, ~1 week | P2 |
+| E7 | Sensitivity: (a) site count (thinning study), (b) validation level (automatic-only verdicts excluded, −11%; manual verdicts only; ≥ 2 projects; no rejection anywhere; needs per-record validation provenance joined to the frozen pull), (c) coordinate precision (1 vs 5 km; MO/MyCoPortal rules), (d) pre-1980 records | C2, C4 | (a) pre-freeze, 118 taxa, old nulls; (b–d) no | Paired arms on a stratified ~150-taxon panel; skill, map correlation, grade changes | ~20–40 CPU-h per arm, ~1 week | P2 |
 | E8 | Variable and layer importance by guild | secondary | Yes in every model's metrics; layer sweeps pre-freeze | Aggregate over strong maps from the release | ~1 day, read-only | P2 |
 | E10 | AOA and extrapolation: share of reach inside AOA; finds inside vs outside | C2 | Partly (per-model applicability; tracker counts outside-AOA finds) | Release + E2/E3 | ~1 day | P2 |
 | E11 | Stability across nightly releases | C4 | No; releases are kept indefinitely | Per-taxon rank correlation and grade flips vs new records | ~2 days code, ≥4 weeks of nightlies | P2 |
@@ -872,6 +890,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.6.5 (2026-10-13).** Validation paragraph filled from the data
+  inputs lane: the automatic-validation rule and approximate manual/automatic
+  shares; E7b gains the "automatic-only excluded" arm.
 - **0.6.4 (2026-10-13).** Design questions from the experiments lane
   settled before code: E1 amended (realised-count bands, weak-signal
   matching, bell-only breadth, absolute realised breadth, RF nulls kept);
