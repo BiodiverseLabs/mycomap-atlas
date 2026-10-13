@@ -270,6 +270,8 @@ test_that("each sampled model is traced to the job that fitted it, and gets that
   expect_equal(unname(lineage$job_of), c("targeted", "main", NA))
   expect_equal(lineage$unresolved, 1L)
   expect_equal(lineage$models_per_job, list(main = 1L, targeted = 1L))
+  # Each job's pull, by hash, for the results' provenance.
+  expect_equal(lineage$pull_of_job, list(targeted = "c1", main = "p1"))
 })
 
 test_that("a model is rebuilt from its own job's pull, and one with no traced job is not rebuilt", {

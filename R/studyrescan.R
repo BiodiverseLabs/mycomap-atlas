@@ -187,17 +187,16 @@ atlas_rescan_lineage <- function(store, manifest, entries, ids, grid = "draft",
          fingerprint = as.character(e$fingerprint %||% ""))
   })
   sources <- atlas_refresh_sources(store, manifest, tasks, grid)
-  files <- lapply(sources$jobs, function(job) {
-    entry <- atlas_job_pull_entry(job)
-    if (is.null(entry)) NA_character_ else fetch(entry$sha256)
-  })
+  shas <- lapply(sources$jobs, function(job) (atlas_job_pull_entry(job) %||% list())$sha256 %||% NA_character_)
+  files <- lapply(shas, function(sha) if (is.na(sha)) NA_character_ else fetch(sha))
   job_of <- vapply(ids, function(id) {
     m <- atlas_rescan_parse(id)
     as.character(sources$source[[paste(m$algorithm, m$taxon)]] %||% NA_character_)
   }, "")
   pull_of <- vapply(job_of, function(j) if (is.na(j)) NA_character_ else as.character(files[[j]] %||% NA), "")
   list(pull_of = stats::setNames(pull_of, ids), job_of = stats::setNames(job_of, ids),
-       models_per_job = as.list(table(job_of[!is.na(job_of)])), unresolved = sum(is.na(job_of)))
+       models_per_job = as.list(table(job_of[!is.na(job_of)])), unresolved = sum(is.na(job_of)),
+       pull_of_job = shas)
 }
 
 #' One model of the study: rebuild it from its own pull, check it, run the
@@ -386,7 +385,10 @@ atlas_rescan_study <- function(store = atlas_store(), release, grid = "draft",
   settings <- list(release = release, shard = shard, seed = seed, per_cell = per_cell,
                    nulls = reps, design = "scatter", test = "atlas_null_test, untuned, own folds",
                    bands = ATLAS_RESCAN_BANDS, max_dropped = ATLAS_RESCAN_MAX_DROPPED,
-                   lineage = list(models_per_job = lineage$models_per_job, unresolved = lineage$unresolved))
+                   # Which job fitted how many of the models, and the pull (by
+                   # hash) each job fitted them on: the run's provenance.
+                   lineage = list(models_per_job = lineage$models_per_job, pull_of_job = lineage$pull_of_job,
+                                  unresolved = lineage$unresolved))
   result <- atlas_run_study(
     kind = "rescan-studies", file_prefix = out$prefix, taxon_fn = "atlas_rescan_model",
     sample = data.frame(scientific_name = ids, stringsAsFactors = FALSE),
