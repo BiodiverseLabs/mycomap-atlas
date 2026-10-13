@@ -797,7 +797,7 @@ data, command, result, release, commit).
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. ~200 CPU-h ($10), ~3 days code | P1 |
 | E6b | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
 | E12 | Reproducibility: rerun a random sample of taxa from the frozen pull; (a) byte identity on ONE pinned instance family (e.g. r7i, Intel); (b) a cross-family comparison reported separately against the stated tolerances (suitability relative 1e-9, AOA index absolute 1e-6; grades and ranks identical); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers, 20–50 taxa, both families | ~20 CPU-h, 1 day | P1 |
-| E17 | ODMAP protocol | all | No | Writing from Methods + code | 1–2 days | P1 |
+| E17 | ODMAP protocol (`docs/paper/appendix-s1-odmap.md`) | all | **Draft 2026-10-13**; final check against the frozen release | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
 | E7 | Sensitivity: (a) site count (thinning study), (b) validation level (automatic-only verdicts excluded, −11%; manual verdicts only; ≥ 2 projects; no rejection anywhere; needs per-record validation provenance joined to the frozen pull), (c) coordinate precision (1 vs 5 km; MO/MyCoPortal rules), (d) pre-1980 records | C2, C4 | (a) pre-freeze, 118 taxa, old nulls; (b–d) no | Paired arms on a stratified ~150-taxon panel; skill, map correlation, grade changes | ~20–40 CPU-h per arm, ~1 week | P2 |
@@ -939,6 +939,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.7.1 (2026-10-13).** ODMAP protocol drafted (Appendix S1, Section S1).
 - **0.7 (2026-10-13).** Introduction drafted as prose (~1,000 words);
   contributor table shape and opt-out in 4.1.
 - **0.6.6 (2026-10-13).** Contributor credit plan adopted; licence stays
