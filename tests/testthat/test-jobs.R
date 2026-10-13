@@ -314,6 +314,28 @@ test_that("a shard whose worker is lost resumes from its saved models and fits n
   })
 })
 
+test_that("each model's result names the machine that fitted it, across a lost worker's attempts", {
+  skip_if_not_installed("terra")
+  s <- lost_job()
+  old <- Sys.getenv("ATLAS_INSTANCE_TYPE", unset = NA)
+  on.exit(if (is.na(old)) Sys.unsetenv("ATLAS_INSTANCE_TYPE") else Sys.setenv(ATLAS_INSTANCE_TYPE = old), add = TRUE)
+  first <- counting_fit()
+  Sys.setenv(ATLAS_INSTANCE_TYPE = "r7a.8xlarge")
+  run_until_lost(s$store, s$job, 1L, lost_after(2L, first$fit), save_seconds = 0)
+  second <- counting_fit()
+  Sys.setenv(ATLAS_INSTANCE_TYPE = "r7i.8xlarge")
+  on_machine(machine(), atlas_run_shard(s$store, s$job$id, 1L, quiet = TRUE, fit = second$fit))
+  record <- atlas_store_text(s$store, atlas_shard_key(s$job$id, 1L))
+  # The shard's record names the last attempt's machine ...
+  expect_equal(record$machine$instance_type, "r7i.8xlarge")
+  # ... and each model the one that fitted it.
+  fitted_on <- stats::setNames(vapply(record$results, function(r) r$machine$instance_type %||% NA_character_, ""),
+                               vapply(record$results, function(r) r$taxon, ""))
+  expect_setequal(names(fitted_on), c(first$taxa(), second$taxa()))
+  expect_true(all(fitted_on[first$taxa()] == "r7a.8xlarge"))
+  expect_true(all(fitted_on[second$taxa()] == "r7i.8xlarge"))
+})
+
 test_that("a lost worker's models are kept only as far as its last save", {
   skip_if_not_installed("terra")
   s <- lost_job()

@@ -74,6 +74,81 @@ test_that("a refit that does not reproduce its model's default map stops the ref
   expect_length(refused$problems, 1L)
 })
 
+test_that("with --allow-mismatch a refit that is another model keeps the release's own files, listed with why, and the rest are replaced", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  main <- setup$main
+  fit <- map_fit()
+  # Taxon A's Maxent refit chose other settings (a tuning flip); Taxon B's
+  # kept its settings but drew another map.
+  drifted <- function(name, fingerprint, grid = "draft", algorithm = "maxnet", ...) {
+    out <- fit(name, fingerprint, grid = grid, algorithm = algorithm, ...)
+    if (identical(algorithm, "maxnet") && name %in% c("Taxon A", "Taxon B")) {
+      r <- terra::rast(atlas_model_path(name, grid, ".tif", algorithm))
+      terra::writeRaster(r * 2, atlas_model_path(name, grid, ".tif", algorithm), overwrite = TRUE)
+    }
+    if (identical(algorithm, "maxnet") && identical(name, "Taxon A")) {
+      json <- atlas_model_path(name, grid, ".json", algorithm)
+      metrics <- jsonlite::fromJSON(json, simplifyVector = FALSE)
+      metrics$params <- list(classes = "lq", regmult = 4)
+      atlas_write_json(metrics, json)
+    }
+    out
+  }
+  out <- run_refresh(setup, fit = drifted, publish = FALSE)
+  # Refused first, as always: the flag is for after a person has read why.
+  expect_error(on_machine(setup$boss, atlas_finish_full_refresh(setup$store, out$job$id, quiet = TRUE)),
+               "allow-mismatch")
+  refreshed <- on_machine(setup$boss, atlas_finish_full_refresh(setup$store, out$job$id, quiet = TRUE,
+                                                                allow_mismatch = TRUE))
+  expect_equal(atlas_current_release(setup$store)$id, refreshed$id)
+  expect_setequal(release_paths(refreshed), release_paths(main))
+  # The mismatched models: every file the release's own, default, full and metrics.
+  for (taxon in c("Taxon A", "Taxon B")) {
+    paths <- atlas_model_relpaths(taxon, "draft", "maxnet", c(ATLAS_REFRESH_SAME, ATLAS_FULL_EXTS, ".json"))
+    expect_true(all(atlas_model_relpaths(taxon, "draft", "maxnet", c(".tif", ATLAS_FULL_EXTS, ".json")) %in% release_paths(main)))
+    for (path in intersect(paths, release_paths(main))) {
+      expect_identical(release_hash(refreshed, path), release_hash(main, path), info = path)
+    }
+  }
+  # The others: their full views replaced, as without the flag.
+  for (t in out$job$tasks) {
+    if (identical(t$algorithm, "maxnet")) next
+    png <- atlas_model_relpaths(t$taxon, "draft", t$algorithm, ".full.png")
+    expect_false(identical(release_hash(refreshed, png), release_hash(main, png)), info = png)
+  }
+  # And the release says which it kept, and why.
+  expect_equal(refreshed$full_refresh$replaced, length(out$job$tasks) - 2L)
+  kept <- refreshed$full_refresh$kept
+  expect_length(kept, 2L)
+  by_taxon <- stats::setNames(kept, vapply(kept, function(k) k$taxon, ""))
+  a <- by_taxon[["Taxon A"]]
+  expect_equal(a$algorithm, "maxnet")
+  expect_equal(a$reason, "tuning flip")
+  expect_equal(a$settings$refit, "classes=lq regmult=4")
+  expect_false(identical(a$settings$release, a$settings$refit))
+  expect_gt(as.numeric(a$largest_difference[[".tif"]]), 0)
+  expect_match(a$problems[[1]], "taxon-a[.]tif differs")
+  expect_equal(by_taxon[["Taxon B"]]$reason, "values differ")
+})
+
+test_that("--allow-mismatch never publishes a refresh in which no refit matches", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  fit <- map_fit()
+  drifted <- function(name, fingerprint, grid = "draft", algorithm = "maxnet", ...) {
+    out <- fit(name, fingerprint, grid = grid, algorithm = algorithm, ...)
+    r <- terra::rast(atlas_model_path(name, grid, ".tif", algorithm))
+    terra::writeRaster(r * 2, atlas_model_path(name, grid, ".tif", algorithm), overwrite = TRUE)
+    out
+  }
+  out <- run_refresh(setup, fit = drifted, publish = FALSE)
+  expect_error(on_machine(setup$boss, atlas_finish_full_refresh(setup$store, out$job$id, quiet = TRUE,
+                                                                allow_mismatch = TRUE)),
+               "none of its 4 models matches")
+  expect_equal(atlas_current_release(setup$store)$id, setup$main$id)
+})
+
 test_that("a model that was not refitted stops the refresh: it is published whole or not at all", {
   skip_if_not_installed("terra")
   setup <- refresh_setup()

@@ -301,7 +301,9 @@ atlas_refresh_compare <- function(before, after, kind, tolerance) {
 #' records alone: every planned model refitted, the same model as the
 #' base's (its default files' bytes, or the worker's verdict on their
 #' values), and a full view of its own. Returns the problems (empty when
-#' there are none) and the refitted files by path.
+#' there are none), the models they concern (by "algorithm taxon": each
+#' one's taxon, algorithm, problems and the largest difference its worker
+#' found in each default raster) and the refitted files by path.
 atlas_refresh_check <- function(store, job, base, grid = "draft") {
   published <- stats::setNames(vapply(base$files, function(f) f$sha256, ""),
                                vapply(base$files, function(f) f$path, ""))
@@ -313,12 +315,16 @@ atlas_refresh_check <- function(store, job, base, grid = "draft") {
   files <- list()
   for (f in unlist(lapply(records, function(x) x$files), recursive = FALSE)) files[[f$path]] <- f
   problems <- character()
+  failed <- list()
   for (t in job$tasks) {
     label <- paste(t$algorithm, t$taxon)
+    before_problems <- length(problems)
     r <- results[[label]]
     if (is.null(r) || !identical(r$status, "fitted")) {
       problems <- c(problems, paste0(label, ": not refitted (", r$status %||% "no result",
                                      if (!is.null(r$error)) paste0(": ", r$error), ")"))
+      failed[[label]] <- list(taxon = t$taxon, algorithm = t$algorithm, refitted = FALSE,
+                              problems = utils::tail(problems, 1L))
       next
     }
     same_bytes <- TRUE
@@ -346,8 +352,15 @@ atlas_refresh_check <- function(store, job, base, grid = "draft") {
     lacking <- atlas_model_relpaths(t$taxon, grid, t$algorithm, ATLAS_FULL_EXTS)
     lacking <- lacking[!lacking %in% names(files)]
     if (length(lacking)) problems <- c(problems, paste0(label, ": no ", paste(basename(lacking), collapse = ", ")))
+    if (length(problems) > before_problems) {
+      largest <- lapply(r$identity[intersect(names(r$identity %||% list()), c(".tif", ".di.tif"))],
+                        function(v) as.numeric(v$largest %||% NA))
+      failed[[label]] <- list(taxon = t$taxon, algorithm = t$algorithm, refitted = TRUE,
+                              problems = problems[seq.int(before_problems + 1L, length(problems))],
+                              largest = largest)
+    }
   }
-  list(problems = problems, files = files)
+  list(problems = problems, failed = failed, files = files)
 }
 
 #' The base release's metrics for a model with only its full view's
@@ -391,11 +404,58 @@ atlas_refresh_public_cells <- function(store, base, grid = "draft") {
        records_left_out = sum(paste(occurrences$source, occurrences$observation_id, sep = ":") %in% hidden))
 }
 
+#' A model a refresh kept as its base release had it (allow_mismatch), as
+#' the release lists it: why, the largest difference in its default
+#' rasters, and, where both fits' metrics are at hand, the settings each
+#' chose and what tuning scored them. "tuning flip": the refit chose other
+#' settings, so it is another model; "values differ": the same settings and
+#' still another map.
+atlas_refresh_kept_entry <- function(store, failure, base_json, refit_json) {
+  read <- function(entry) {
+    if (is.null(entry)) return(NULL)
+    tryCatch({
+      file <- tempfile(fileext = ".json")
+      on.exit(unlink(file), add = TRUE)
+      store$get(atlas_object_key(entry$sha256), file)
+      jsonlite::fromJSON(file, simplifyVector = FALSE)
+    }, error = function(e) NULL)
+  }
+  before <- if (isTRUE(failure$refitted)) read(base_json)
+  after <- if (isTRUE(failure$refitted)) read(refit_json)
+  settings <- function(m) if (!is.null(m)) atlas_params_label(m$params)
+  reason <- if (!isTRUE(failure$refitted)) {
+    "not refitted"
+  } else if (!is.null(before) && !is.null(after) && !identical(settings(before), settings(after))) {
+    "tuning flip"
+  } else if (any(grepl("differs", failure$problems))) {
+    "values differ"
+  } else {
+    "no full view"
+  }
+  Filter(Negate(is.null), list(
+    taxon = failure$taxon, algorithm = failure$algorithm, reason = reason,
+    largest_difference = failure$largest,
+    settings = if (!is.null(before) && !is.null(after)) list(release = settings(before), refit = settings(after)),
+    tuning = if (!is.null(before) && !is.null(after)) list(release = before$tuning, refit = after$tuning),
+    problems = as.list(failure$problems)
+  ))
+}
+
 #' On the box: publish a refresh's release from its shards, once every one
 #' has reported and every refit checks out against the release it refreshes.
 #' Refuses, publishing nothing, if any does not, or if another release became
 #' current after the job was planned.
-atlas_finish_full_refresh <- function(store = atlas_store(), id, grid = "draft", promote = TRUE, quiet = FALSE) {
+#'
+#' allow_mismatch: publish anyway, after a person has read the refusal. A
+#' model whose refit does not check out keeps the release's own files, the
+#' default and full views and metrics, untouched, and the release lists it
+#' (full_refresh$kept, atlas_refresh_kept_entry). A differing default map
+#' is never published either way: a refresh publishes only full views. Tuned Maxent can choose another setting on another
+#' processor family (2026-10-13: three of 576 models), and that refit is
+#' another model, so its full view must not stand beside the release's
+#' default map. Every other model's full view is replaced as usual.
+atlas_finish_full_refresh <- function(store = atlas_store(), id, grid = "draft", promote = TRUE, quiet = FALSE,
+                                      allow_mismatch = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   job <- atlas_read_job(store, id, grid)
   if (!atlas_is_full_refresh(job)) stop("job ", id, " is not a full-view refresh", call. = FALSE)
@@ -412,7 +472,7 @@ atlas_finish_full_refresh <- function(store = atlas_store(), id, grid = "draft",
   }
   base <- current
   checked <- atlas_refresh_check(store, job, base, grid)
-  if (length(checked$problems)) {
+  if (length(checked$problems) && !isTRUE(allow_mismatch)) {
     atlas_store_json(store, paste0("jobs/", grid, "/", id, "/refused.json"),
                      list(job = id, from_release = job$from_release, problems = as.list(checked$problems),
                           at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")))
@@ -420,12 +480,19 @@ atlas_finish_full_refresh <- function(store = atlas_store(), id, grid = "draft",
          if (length(checked$problems) > 1L) "s do" else " does", " not match ", job$from_release, ": ",
          paste(utils::head(checked$problems, 10), collapse = "; "),
          if (length(checked$problems) > 10L) "; ..." else "",
-         " (all of them in jobs/", grid, "/", id, "/refused.json)", call. = FALSE)
+         " (all of them in jobs/", grid, "/", id, "/refused.json; --allow-mismatch publishes the rest and keeps ",
+         "the release's own full views for these)", call. = FALSE)
+  }
+  kept <- names(checked$failed)
+  if (length(kept) == length(job$tasks)) {
+    stop("full-view refresh ", id, " is not published: none of its ", length(kept),
+         " models matches ", job$from_release, call. = FALSE)
   }
 
   files <- list()
   for (f in base$files) files[[f$path]] <- f
   for (t in job$tasks) {
+    if (paste(t$algorithm, t$taxon) %in% kept) next
     for (p in atlas_model_relpaths(t$taxon, grid, t$algorithm, ATLAS_FULL_EXTS)) files[[p]] <- checked$files[[p]]
     json <- atlas_model_relpaths(t$taxon, grid, t$algorithm, ".json")
     if (!is.null(files[[json]]) && !is.null(checked$files[[json]])) {
@@ -434,19 +501,26 @@ atlas_finish_full_refresh <- function(store = atlas_store(), id, grid = "draft",
   }
   public <- atlas_refresh_public_cells(store, base, grid)
   if (!is.null(public$entry)) files[[public$entry$path]] <- public$entry
-  kept <- base[intersect(names(base), c("job", "job_results", "retired", "partial", "unreported_shards"))]
+  carried <- base[intersect(names(base), c("job", "job_results", "retired", "partial", "unreported_shards"))]
+  reasons <- lapply(checked$failed, function(failure) {
+    json <- atlas_model_relpaths(failure$taxon, grid, failure$algorithm, ".json")
+    atlas_refresh_kept_entry(store, failure, files[[json]], checked$files[[json]])
+  })
   release <- atlas_write_release(
     store, grid, unname(files), base$index,
     previous = base$id, note = paste("full views refreshed for", base$id, "by job", id),
     pull = base$pull, layers_key = base$layers_key, promote = promote, quiet = quiet,
-    extra = c(kept, list(full_refresh = list(job = id, from = base$id, models = length(job$tasks),
-                                             public_cells = public[setdiff(names(public), "entry")])))
+    extra = c(carried, list(full_refresh = list(job = id, from = base$id, models = length(job$tasks),
+                                                replaced = length(job$tasks) - length(kept), kept = unname(reasons),
+                                                public_cells = public[setdiff(names(public), "entry")])))
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/finished.json"),
                    list(release = release$id, finished_at = release$created_at))
   # A refresh trains nothing new: its release was trained on what its base was.
   atlas_trained_ids_quietly(atlas_copy_trained_ids(store, grid, base$id, release$id), release$id)
-  say("full-view refresh ", id, ": ", length(job$tasks), " models' full views replaced in release ",
-      release$id, " (from ", base$id, ")")
+  say("full-view refresh ", id, ": ", length(job$tasks) - length(kept), " models' full views replaced in release ",
+      release$id, " (from ", base$id, ")",
+      if (length(kept)) paste0("; ", length(kept), " kept the release's own, their refits not matching: ",
+                               paste(kept, collapse = "; ")))
   invisible(release)
 }
