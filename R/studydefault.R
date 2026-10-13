@@ -234,8 +234,11 @@ atlas_default_summary <- function(rows, baseline = NULL) {
 }
 
 # Planning figures, seconds per maxnet fit on one core at 10,000 background
-# points, by the feature classes it uses (a first guess; the pilot sets them).
-ATLAS_DEFAULT_PLAN_FIT_SECONDS <- c(l = 1, lq = 2, lqh = 15, lqph = 60)
+# points and 69 predictors, by the feature classes it uses: measured on the
+# development layers 2026-10-13 (lqh at 31 sites about 30 s a fit and 41 s a
+# null; lqph at 102 sites about 63 s and 68 s); l and lq are guesses, and no
+# taxon of 20+ sites uses them.
+ATLAS_DEFAULT_PLAN_FIT_SECONDS <- c(l = 5, lq = 10, lqh = 35, lqph = 65)
 
 #' Rough CPU-hours: per taxon, the folds, the final fit and the nulls.
 atlas_default_plan <- function(presences, folds = ATLAS_DEFAULT_FOLDS, nulls = ATLAS_DEFAULT_NULLS,
