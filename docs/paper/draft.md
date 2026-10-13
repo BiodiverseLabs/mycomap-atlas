@@ -3,7 +3,7 @@
 *Working title (118 characters; the journal allows 120, sentence case, one
 colon, no uncommon acronyms). Alternative: "Which habitat maps can be
 trusted? Calibrated null tests for thousands of DNA-defined North American
-fungi". Living draft, version 0.8 (2026-10-13). Skeleton: headings, the
+fungi". Living draft, version 0.9 (2026-10-13). Skeleton: headings, the
 claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -299,7 +299,7 @@ observation of a striped skunk, labelled by its fungal sequence: the
 pipeline did exactly what it was built to do with a wrong link, which is
 why the paper reports data errors as well as model errors. The 75 ids are
 excluded from the frozen release; the two fungi are refitted and the 18
-names dropped. The full list is in Appendix S1: Section S6. The exclusion
+names dropped. The full list is in Appendix S1: Section S2. The exclusion
 list of 75 mycomap.org record ids is applied to the frozen pull and to
 every later pull; each pull's manifest records the list's SHA-256 and the
 number of rows removed (Atlas commit 643b444).
@@ -612,7 +612,7 @@ guilds, strong maps only; layer-sweep results in S3.] → **Figure 8**.
 ### 3.8 Stability across nightly releases (E11)
 
 [PENDING: map rank correlation and grade changes between releases against the
-number of new records.] → Appendix S1: Section S4, or main text if striking.
+number of new records.] → Appendix S1: Section S10.
 
 ### 3.9 Q1: maps as a place signal for photo identification (E21, E22)
 
@@ -766,7 +766,7 @@ sites, so that other groups can plan an atlas of their own.] → **Table 5**.
   published record-level layers." [PENDING: DOIs; data
   citations for WorldClim, SoilGrids, ESA WorldCover, BIGMAP, the Canadian
   NFI, NALCMS, Copernicus and FungalTraits; query details for the
-  mycomap.org pull, Appendix S1: Section S6.]
+  mycomap.org pull, Appendix S1: Section S2.]
 - **Acknowledgments** (one paragraph): collectors, validators, the
   sequencing network, data providers [PENDING: Steve to choose; proposal
   below, after community-science practice], and the AI disclosure: "Much of
@@ -803,32 +803,67 @@ community-science papers do:
 
 ---
 
-## Figures and tables
+## Main text and supplement (Steve, 2026-10-13)
+
+The main text stays short and carries only the claims and the evidence that
+decides them; everything else goes to one Appendix S1 with sections (the
+journal's preference). Data tables go to Zenodo, never the appendix.
+
+**Budget for the main text:** about 5,500 words (abstract ≤ 350;
+Introduction ~800; Methods ~1,800; Results ~1,400; data and reuse ~300;
+Discussion ~900), about 55 references, four figures and two tables. In the
+journal's layout (double-spaced, 12 pt, references, tables, captions and
+figures all counted) that is about 41 pages, just over the Method type's
+40-page minimum; if it falls short, a fifth figure comes back from the
+appendix rather than words being added.
+
+| Section | Stays in the main text | Moves to Appendix S1 |
+|---|---|---|
+| 1 Introduction | the problem, the gap, C1–C4 and Q1 in a paragraph | — |
+| 2.1 Records | DNA-defined taxa, validation in two sentences, the eligibility rule in one paragraph | S2: validation provenance, every rule with counts, the data errors and exclusion list, query details, contributors |
+| 2.2–2.5 Predictors, sites, models | one paragraph each: layers by group, target-group survey sites, the learners and nested spatial CV | S3: the 69 predictors, pruning and host allowance, layer sweeps, importance (E8); S4: model settings, tuning grids, small-site ensembles, thresholds |
+| 2.6–2.7 Null test and calibration | in full: the shift null, the grade, the virtual-species design | S5: generator details, every cell, effort arms (E14), the earlier study (E1b) |
+| 2.8 Applicability and maps | two sentences | S4 |
+| 2.9–2.10 Independent tests and baselines | in full but brief: hindcast, tracker, scores, baselines | S6: every split; S7: baseline details |
+| 2.11 Releases and reproducibility | three sentences | S10: release format, tolerances, rerun (E12), stability (E11), cost and time (E23) |
+| 2.12 / 3.9 Q1 | one paragraph each | S9: the registered design, every arm, projection validity |
+| 3 Results | calibration (C1), the atlas by grade (C4), independent tests against baselines (C2), sequence names (C3, one paragraph) | S5–S10 |
+| 4 Data and reuse | one paragraph: what is deposited, the frozen release, licences, one line of cost | S11: the deposit table and usage notes; S10: the cost table |
+| 5 Discussion | grades and power, implications for automated SDM, fungi, limits | — |
+
+**Main display items**
 
 | # | Content | Claim | Source |
 |---|---|---|---|
-| Fig 1 | Pipeline: records → DNA names → survey sites → models → nulls → grade → AOA → release | all | schematic |
-| Fig 2 | Records as 0.1° cells; sites per taxon; provisional share | C3, C4 | E16 |
-| Fig 3 | False-pass rate and power by null design × site band (virtual species), with an inset of scatter vs shift nulls | C1 | E1 |
-| Fig 4 | Example maps: strong ECM, strong saprotroph, weak, small-site ESM; AOA hatching; disagreement layer | C2, C4 | release |
-| Fig 5 | Independent finds by grade: rank distributions, top half/top tenth, beats-effort, new sites | C2 | E2, E3 |
-| Fig 6 | Self-reported vs independent skill for Atlas and baselines | C1, C2 | E6 |
-| Fig 7 | Sequence-name vs record-name maps and skill | C3 | E9 |
-| Fig 8 | Predictor-group importance by guild | secondary | E8 |
-| Fig 9 | Q1: photo identification with Atlas as the place signal: top-1 by distance band and arm; projection validity beyond 500 km | Q1 | E21, E22 |
-| Table 1 | Records and taxa by source and rule | C4 | E16 |
-| Table 2 | Predictors and sources | methods | layer manifest |
-| Table 3 | Models and maps by grade × learner × site band | C2, C4 | release |
-| Table 4 | Evidence summary: each claim, its tests, the result | all | |
-| Table 5 | Cost and time: per rebuild, per nightly run, per analysis, standing monthly; CPU seconds per model by learner and site band | C4 | E23 (`costs.md`) |
+| Figure 1 | How a map is graded: pipeline in one strip, with scattered vs shifted nulls drawn on one species | C1, C4 | schematic |
+| Figure 2 | Null calibration: false-pass rate and power by design and number of sites (power curve by breadth and signal strength as small panels); inset: the share of real maps a standard test calls good that are not strong (E1c) | C1 | E1, E1c |
+| Figure 3 | Independent tests: where later finds fall on strong, weak and failed maps, against the distance-only and default-Maxent baselines; new vs known places | C2 | E2, E3, E6a/b |
+| Figure 4 | Example maps across grades (strong ectomycorrhizal, strong saprotroph, weak, small-site), with applicability hatching | C2, C4 | frozen release |
+| Table 1 | The atlas at a glance: records, taxa (share provisional), maps by grade and learner, cost and wall time of one rebuild and per month | C3, C4 | E16, E23 |
+| Table 2 | Each claim, its test, its criterion and the result | all | — |
 
-Supporting information: one Appendix S1 with sections, as the journal
-prefers. Section S1 ODMAP protocol (Zurell et al. 2020); S2 virtual-species
-design; S3 layer and predictor sweeps; S4 sensitivity analyses (E7) and
-stability (E11); S5 small-site maps; S6 reproducibility and data query
-details (E12). Tables of records or results go to Zenodo, not the appendix.
-Maps in figures need latitude and longitude, a north arrow, a scale bar and
-a border.
+**Appendix S1 sections**
+
+| Section | Content | Evidence |
+|---|---|---|
+| S1 | ODMAP protocol | E17 |
+| S2 | Records and data quality: eligibility with counts, validation provenance, coordinate rules, data errors and the exclusion list, query details, contributor table | E16, E19 |
+| S3 | Predictors, selection, layer sweeps, variable importance by guild | E8 |
+| S4 | Models: settings, tuning, small-site ensembles, area of applicability, thresholds and verdicts | E18 |
+| S5 | Null-test calibration in full; effort handling; the earlier study; the standard test on real models | E1, E1b, E1c, E14 |
+| S6 | Independent tests in full: every split (distance, applicability, learner, site band), combined maps, the tracker | E2, E3, E10, E15 |
+| S7 | Baselines: default-practice Maxent, distance-only, morphology-named models | E6a, E6b, E6c |
+| S8 | Sequence names vs record names; sensitivity to sites, validation level, coordinate precision, old records | E9, E7 |
+| S9 | Q1: MycoMap Vision's place signal, the registered design and every arm | E21, E22 |
+| S10 | Releases, reproducibility, stability across nightly releases, cost and time | E11, E12, E23 |
+| S11 | Data records and usage notes | E19, E20 |
+
+Moved out of the main text from the earlier plan: the records map and
+site-count figure, the predictor table, the sequence-name figure, the
+drivers figure, the Q1 figure, the models-by-grade table (folded into
+Table 1) and the cost table (a line in Table 1, full in S10). Maps in
+figures need latitude and longitude, a north arrow, a scale bar and a
+border.
 
 ---
 
@@ -1006,6 +1041,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.9 (2026-10-13).** Lean main text, detail to the appendix (Steve):
+  a word budget (~5,500), four figures and two tables in the main text, and
+  Appendix S1 reorganised into sections S1–S11.
 - **0.8.3 (2026-10-13).** Limitations paragraph and exclusion-list note on
   the targeted fix, from the rebuild lane.
 - **0.8.2 (2026-10-13).** How the mislabelled rows were found: Vision's

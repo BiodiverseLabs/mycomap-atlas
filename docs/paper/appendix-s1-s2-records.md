@@ -1,15 +1,15 @@
-# Appendix S1, Section S6: data query details and data corrections (draft)
+# Appendix S1, Section S2: records and data quality (draft)
 
 *Draft of 2026-10-13. Query details for the mycomap.org pull are still to
 write (from `R/occurrences.R` at the frozen release's commit).*
 
-## S6.1 How the records were pulled
+## S2.1 How the records were pulled
 
 [PENDING: the eligibility rules as executed; the read-only route; the pull's
 date, record count and fingerprint; the side queries (first validation date,
 validation provenance, observer names) and how they join; what is private.]
 
-## S6.2 Records removed before the frozen release
+## S2.2 Records removed before the frozen release
 
 Seventy-five mycomap.org rows had a wrong iNaturalist id. Sequencing sheets
 had labelled Mushroom Observer specimens "iNat<n>", so the records pointed at
