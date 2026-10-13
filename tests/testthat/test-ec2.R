@@ -454,20 +454,25 @@ test_that("a worker is spot, IMDSv2-only, tagged, and terminates when it shuts d
 })
 
 # The JSON of today's spot request for this config, hashed on main (cce4f78)
-# before the market setting existed: the default must not move a byte.
-SPOT_REQUEST_SHA256 <- "630260c2efaa30d95e5675b9ba2d05b79988b334fb21cccd6248c9748dee5525"
+# before the market setting existed: the default must not move a byte. The
+# boot script is left out of the hash, because shQuote quotes differently on
+# Windows and Linux; it is checked whole against the script builder instead,
+# which this change does not touch.
+SPOT_REQUEST_SHA256 <- "84b35886ff823fe615f5f380f08b0d75c86d79a14b59e0f30f1f05d40f3e721c"
 request_sha <- function(request) {
+  request$UserData <- NULL
   digest::digest(as.character(jsonlite::toJSON(request, auto_unbox = TRUE, digits = NA)),
                  algo = "sha256", serialize = FALSE)
 }
 
 test_that("by default a worker's request is today's spot request, byte for byte", {
-  request <- atlas_worker_request(test_config("s3://bucket"), "job1", 2L, "draft", 1L, "subnet-a", "c7a.8xlarge",
-                                  minutes = 90)
+  config <- test_config("s3://bucket")
+  request <- atlas_worker_request(config, "job1", 2L, "draft", 1L, "subnet-a", "c7a.8xlarge", minutes = 90)
   expect_equal(request_sha(request), SPOT_REQUEST_SHA256)
+  expect_identical(user_data(request), atlas_worker_user_data("job1", 2L, "draft", config, 90))
   spot <- atlas_worker_request(test_config("s3://bucket", ATLAS_EC2_MARKET = "spot"), "job1", 2L, "draft", 1L,
                                "subnet-a", "c7a.8xlarge", minutes = 90)
-  expect_equal(request_sha(spot), SPOT_REQUEST_SHA256)
+  expect_identical(spot, request)
 })
 
 test_that("an on-demand worker is the spot request without its market options, and nothing else changed", {
