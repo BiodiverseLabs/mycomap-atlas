@@ -477,9 +477,13 @@ Maxent models whose settings choice differed: one near-tie (*Russula* sp.
 the cross-validated scores of every candidate differed across machines,
 from the same records and background; the mechanism is under
 investigation (E12). The release keeps their original fits and lists both
-fits' settings and tuning scores. Because the refit check compares maps,
-not held-out scores, E12 measures how stable scores and grades are across
-reruns and machines [PENDING E12]. Our refit checks enforce the tolerances
+fits' settings and tuning scores. The other 573 models' chosen settings,
+tuning scores, blocked AUC, pooled Boyce and per-fold AUC were identical to
+four decimals, so no score drift sits behind matching maps; the changes
+are confined to 3 of 121 tuned Maxent models and none of 455 other models.
+On one machine, repeated fits in fresh processes and different orders were
+bit-identical. E12 measures how often grades differ across processor
+families [PENDING E12]. Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
@@ -1052,6 +1056,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.10.1 (2026-10-13).** Reproducibility: scores of the other 573
+  refreshed models identical; same-machine refits bit-identical.
 - **0.10 (2026-10-13).** Second cleaning recorded (54 non-fungal records;
   76 removed in all; 129-id list); data-error and limitation passages cut
   to a few sentences with the detail in Appendix S1: Section S2.
