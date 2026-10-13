@@ -728,7 +728,9 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
 
 1. The cost of an honest grade: about 7% of modelled taxa have a strong
    map [provisional: 470 of ~6,811]. Under the old scattered-null test the
-   October 7 release had 1,835 taxa with a passing map, but data, naming
+   October 7 release (20261007T085351Z-89ef2317) had 3,043 passing models of
+   8,908 (Maxent 674, random forest 765, boosted trees 225, small-model
+   ensembles 1,379) across 1,835 of 6,498 taxa, but data, naming
    rules and design all changed between the two releases; the like-for-like
    figure is E1c (the standard test rerun on the frozen release's own
    models), which is the number to quote.
