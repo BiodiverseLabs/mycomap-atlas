@@ -21,7 +21,7 @@
   then BLAS-path effects, then the machine alone. The refresh check compares
   maps, not held-out scores, so a model can keep its map within tolerance
   while its AUC and Boyce shift.
-- **Reproducibility.** frozen: release candidate 20261013T191324Z-fa1b4198
+- **Reproducibility.** frozen: release 20261013T191324Z-fa1b4198
   (its model index equals 026d3a26's and 79fe85f3's; recorded fit times
   come from R_main's fitting job, which every later release names as its
   base).

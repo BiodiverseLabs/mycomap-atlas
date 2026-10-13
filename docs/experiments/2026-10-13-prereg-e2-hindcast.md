@@ -105,7 +105,8 @@ these items; they go into the Discussion's limitations.
 ## Implementation (not a design change)
 
 Code: Atlas feat/hindcast ba03e73, awaiting Steve's review.
-`plan-job --hindcast --from-release=<frozen release> --validated-through=2026-08-17`,
+`plan-job --hindcast --from-release=20261013T191324Z-fa1b4198 --validated-through=2026-08-17`
+(the frozen release),
 then `run-job-ec2` and `finish-private-release`. Checked against this file
 on 2026-10-13: the filter keeps first_green_on ≤ cutoff and never uses the
 observation date; undated records are left out and counted; the plan and

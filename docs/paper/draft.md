@@ -13,7 +13,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | The finished release of the full-view refresh of the *cleaned* October 2026 release: the rebuild, then two removal-only cleanings (76 erroneous records; 2 fungi refitted, 1 model retired, 69 non-fungal names dropped), then the full-view refresh (release 20261013T155140Z-026d3a26) and its finishing step, whose finished release is the frozen one: candidate **20261013T191324Z-fa1b4198** (finish v5; same model index as 026d3a26 and 79fe85f3) [PENDING: the coordinator's confirmation; Zenodo DOIs; code commit]. Zenodo archiving waits for it. |
+| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa. Lineage in section 3.3. [PENDING: Zenodo DOIs; code commit] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -435,19 +435,15 @@ matched shift (2/49 false, 13/50 power). → **Figure 2**; every cell in S5.
 ### 3.3 What the atlas contains (E16)
 
 *Provisional facts (2026-10-13; re-read from the frozen release before
-submission).* Lineage: rebuild release R_main 20261013T061352Z-78dd82de
-(job 20261013T022520Z-2cb67f32, image 0a9dde4) → cleaned release (targeted
-refit job 20261013T062143Z-2ffed182: *Clitocybe deceptiva* × 4 learners,
-*Agaricus bitorquis* × 3, same image and settings) → full-view refresh
-(release 20261013T155140Z-026d3a26) → its FINISHED release (continent
-export, prior, clean cells) = the frozen release, candidate
-20261013T191324Z-fa1b4198 [PENDING: confirmation]. Rebuild: 9,534 models planned, 9,042 fitted, 492
-refused (too little evidence after site thinning or blocking), 0 failed;
-797 old models retired; 118,657 training records; 4 spot reclaims, all
-resumed. Frozen pull occurrences-20261012T051017Z-x73b85b36 (sha256
-7d3c5d70…): 133,235 records, 16,252 taxa, after two removal-only cleanings
-of the original 133,311 / 16,321 (kept untouched): −22 records / −18 names
-(x2dd5cb30), then −54 records / −51 names.
+submission).* Lineage: R_main 20261013T061352Z-78dd82de (job 20261013T022520Z-2cb67f32,
+image 0a9dde4) → targeted refit 20261013T063926Z-375d779c (job
+20261013T062143Z-2ffed182: *Clitocybe deceptiva* × 4 learners, *Agaricus
+bitorquis* × 3, same image and settings) → *Elaeagnus umbellata* retired
+20261013T133737Z-79fe85f3 (job 20261013T133656Z-6a0564db) → full-view
+refresh 20261013T155140Z-026d3a26 (job full-20261013T140649Z-5cf5b864, image
+8b8566f; 573 full views replaced, 3 Maxent models kept, listed in the
+release record) → finished (v5) **20261013T191324Z-fa1b4198** = the frozen
+release (continent export, prior, privacy-filtered cells: 130,466 records).
 
 [PENDING: models, maps and taxa by grade × learner × site band, with the
 strong share stated up front (C4); strong maps by guild and region; how many
@@ -552,8 +548,8 @@ Zenodo DOI, format, size and licence:]
 
 The paper cites one frozen release by id and DOI: the finished release of
 the full-view refresh of the cleaned October 2026 release (section 2.1:
-76 erroneous records removed in two cleanings), after its finishing step
-(candidate 20261013T191324Z-fa1b4198) [PENDING: confirmation, DOIs]. The live atlas keeps
+76 erroneous records removed in two cleanings), after its finishing step:
+**20261013T191324Z-fa1b4198** [PENDING: DOIs]. The live atlas keeps
 rebuilding nightly; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
@@ -898,7 +894,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | # | Item | Gate | Target |
 |---|---|---|---|
 | 0 | Rebuild cutover; nightly tracking (E3) starts | Steve's go | October 2026 |
-| 1 | Full-view refresh → **frozen release** (id, then Zenodo layers, models, training records) | rebuild-lane code; Steve's go | October 2026 |
+| 1 | Full-view refresh → **frozen release**: **done**, 20261013T191324Z-fa1b4198 (2026-10-13); then the Zenodo re-archive (layers, models, training records, contributors) | Steve's go, after the cutover | October 2026 |
 | 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | code pushed early (feat/hindcast ba03e73: `plan-job --hindcast --validated-through=2026-08-17`), awaiting Steve's review; E2 scoring code (experiments lane); Steve's go | can launch soon after the cutover, well before ~25 October 2026 (Vision freezes its test set ~30 October) |
 | 2b | **E12 first step**: read-only scores of all 576 refreshed models, and a same-machine double run of *Stropharia hardii* and *Gliophorus fumosus* | Steve's go | right after the hindcast. Same-machine differences = a bug: the queue stops until fixed. Machine dependence only = E12's full run moves before E1 |
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
@@ -929,10 +925,11 @@ revised (Path).
    Data stay closed.
 2. **Conflict of interest:** "The author declares no conflict of
    interest." (Steve, 2026-10-13.)
-3. **Frozen release:** the full-view refresh of the cleaned release
-   after its finishing step (two removal-only cleanings, 76 records; pull
-   x73b85b36). The hindcast reads the same cleaned pull. Waiting for the
-   finished release's id, then the Zenodo DOIs.
+3. **Frozen release: settled.** 20261013T191324Z-fa1b4198 (finished
+   2026-10-13 19:13 UTC). The hindcast plans from it. Steve item after the
+   cutover: the Zenodo re-archive from it (layers, models, training-record
+   ids, contributor table), discarding the layers draft held since
+   2026-09-29.
 3b. **Map tiers (Steve, 2026-10-13):** looser tiers below "strong" so most
    species get some form of map; rules and the evidence thresholds fixed
    before E1 and E2 (E24). Steve chooses which tiers feed which products
@@ -953,6 +950,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.15 (2026-10-13).** Frozen release pinned: 20261013T191324Z-fa1b4198,
+  with its full lineage.
 - **0.14 (2026-10-13).** Abstract skeleton (under 350 words) with
   placeholders.
 - **0.13 (2026-10-13).** Discussion drafted as prose (~900 words) with

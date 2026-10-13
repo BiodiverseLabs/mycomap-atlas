@@ -8,8 +8,7 @@
 - **Question.** Is there a looser grade than "strong" that still carries a
   real habitat signal, often enough to show more species' maps, and how
   often does it pass maps that know nothing?
-- **Release.** Scored on the frozen release, candidate
-  20261013T191324Z-fa1b4198.
+- **Release.** Scored on the frozen release 20261013T191324Z-fa1b4198.
 - **Why.** In the frozen release (provisional) 576 of 9,042 models, across
   470 of ~6,811 modelled taxa, are strong. On simulated species, the strong
   test passed 2% of habitat-free species but only 26% of real-habitat ones,
