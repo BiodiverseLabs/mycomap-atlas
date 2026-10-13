@@ -625,11 +625,15 @@ Zenodo DOI, format, size and licence:]
 - **Training records** (new; Steve, 2026-10-13): published for the paper's
   frozen release(s) only; the per-release lists of trained records that the
   nightly pipeline keeps stay private. The ids of every record that
-  trained the frozen release: source (iNaturalist, Mushroom Observer,
-  MyCoPortal, GenBank, MycoMap sequence), source id and taxon (the DNA name
-  used), and no coordinates. [CHECK with the coordinator: whether the
-  sequence, fingerprint and survey-site columns proposed earlier are in; the
-  rebuild lane describes the table as source, source id and taxon only.]
+  trained the frozen release, one row each: source (iNaturalist, Mushroom
+  Observer, MyCoPortal, GenBank, MycoMap sequence); source id; taxon (the
+  DNA name used); the approved sequence id where that sequence is public at
+  source (its mycomap.org sequence page or GenBank accession); the taxon
+  fingerprint; and the survey-site id, blank for records hidden, obscured or
+  of unknown privacy at source. No coordinates and no cells: the fingerprint
+  and site id let a reader check each taxon's record set and site grouping
+  without any location. (The pipeline's private per-release lists of trained
+  records are a separate, unpublished file.)
   Each id resolves to its public source page, which shows what the source
   itself shows. **Privacy rule (Steve, 2026-10-13):** records whose
   location is hidden, obscured or of unknown privacy at the source are
@@ -828,7 +832,7 @@ data, command, result, release, commit).
 
 | ID | Also needed for a combined paper | Priority |
 |---|---|---|
-| E19 | Training-record table for the frozen release (ids, source, DNA name, sequence, fingerprint, survey site; no coordinates) and its Zenodo record; no site membership for records hidden, obscured or of unknown privacy at source (Steve, 2026-10-13) | P1 |
+| E19 | Training-record table for the frozen release (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
 
 | ID | Pre-declared question Q1 | Exists? | Data / method | Cost / time | Priority |
@@ -944,15 +948,16 @@ revised (Path).
 5. **Zenodo layers archive:** Steve, 2026-10-13: "probably" discard the
    draft held since 2026-09-29 and re-archive the frozen release's layers,
    once that release exists (operations lane, Steve's go).
-6. **Training-record table columns:** source, source id and taxon as the
-   rebuild lane describes it, or also sequence, fingerprint and survey site
-   as first proposed (asked of the coordinator). The 0.1° cells question is
-   settled: unknown-privacy records are dropped from the cells file.
+6. **Training-record table columns:** settled 2026-10-13 (section 4.1):
+   source, source id, taxon, public sequence id, fingerprint, survey-site id
+   (blank where the source hides the location). Built as E19 after the frozen
+   release. The 0.1° cells question is settled too.
 
 ---
 
 ## Changelog
 
+- **0.7.6 (2026-10-13).** Training-record table columns settled (E19).
 - **0.7.5 (2026-10-13).** Predictors corrected to the production layer
   manifest: 69 bands, 29 host genera + conifer share (the public Methods
   page says 75 and 16 further genera); background cap 10,000 non-detection
