@@ -159,6 +159,14 @@ atlas_map_view_extension <- function(value) {
   switch(as.character(value)[[1]], accessible = ".png", full = ".full.png", NULL)
 }
 
+#' Whether this site publishes full-extent views: ATLAS_FULL_VIEW=on in the
+#' box's settings (Steve, 2026-10-13: off until the full views have no gaps).
+#' Off, the API leaves full_map out of a model and refuses view=full, so the
+#' taxon page shows no toggle; on, both appear, with no code change.
+atlas_full_view_on <- function() {
+  tolower(trimws(Sys.getenv("ATLAS_FULL_VIEW", unset = ""))) %in% c("1", "true", "yes", "on")
+}
+
 #' The newest results file of a study (benchmarks, sweeps), or NULL.
 #'
 #' Files are named <prefix>-<UTC stamp>.json, so the newest sorts last. A

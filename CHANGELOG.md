@@ -17,10 +17,12 @@ changed and what it means for you.
   the taxon's known sites and hatches the rest. It shows potential, not
   range: the model cannot tell ground nobody surveyed from ground searched
   without a find. 404 for a model without one (weak and failed maps make no
-  claim beyond their reach); 400 for an unknown view. Added parameter.
+  claim beyond their reach), and for every model until the site publishes full
+  views; 400 for an unknown view. Added parameter.
 - **`GET /api/taxa/{name}/model`** gains `full_map` on strong models: the
   full view's bounds, its cells and how many lie beyond reach. Absent for weak
-  and failed models and for fits from before the 2026-10 rebuild. Added field.
+  and failed models, for fits from before the 2026-10 rebuild, and while the
+  site does not publish full views. Added field.
 - **`GET /api/tracker`** is new: how the maps stood up to records validated
   after them. Each record first validated by DNA on a day is scored on the
   release that was live when the day began, at its own cell: its rank on the

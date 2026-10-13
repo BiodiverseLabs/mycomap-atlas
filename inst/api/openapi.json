@@ -1037,7 +1037,7 @@
             "name": "view",
             "in": "query",
             "required": false,
-            "description": "accessible (default): the map within 500 km of the taxon's records. full: a strong map's full-extent view; 404 for a model without one (weak and failed maps make no claim beyond their reach).",
+            "description": "accessible (default): the map within 500 km of the taxon's records. full: a strong map's full-extent view, when this site publishes full views; 404 for a model without one (weak and failed maps make no claim beyond their reach), and 404 for every model while the site does not publish them.",
             "schema": {
               "type": "string",
               "enum": [
@@ -2804,7 +2804,7 @@
           },
           "full_map": {
             "type": "object",
-            "description": "A strong model's full-extent view (map.png?view=full): absent for weak and failed models, and for models fitted before 2026-10. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
+            "description": "A strong model's full-extent view (map.png?view=full): absent for weak and failed models, for models fitted before 2026-10, and for every model while this site does not publish full views. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
             "properties": {
               "raster": {
                 "type": "string",
