@@ -13,7 +13,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | The finished release of the full-view refresh of the *cleaned* October 2026 release: the rebuild, then a targeted release that removes 75 mislabelled record ids (2 fungi refitted, 18 non-fungal names dropped), then the full-view refresh (default maps, grades and ranks unchanged; full-extent rasters without border gaps) [PENDING: ids, Zenodo DOIs, code commit]. Zenodo archiving waits for it. |
+| Frozen release | The finished release of the full-view refresh of the *cleaned* October 2026 release: the rebuild, then two removal-only cleanings (76 erroneous records; 2 fungi refitted, 1 model retired, 69 non-fungal names dropped), then the full-view refresh (release 20261013T155140Z-026d3a26) and its finishing step, whose finished release is the frozen one [PENDING: id, Zenodo DOIs, code commit]. Zenodo archiving waits for it. |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -695,8 +695,8 @@ Zenodo DOI, format, size and licence:]
 
 The paper cites one frozen release by id and DOI: the finished release of
 the full-view refresh of the cleaned October 2026 release (section 2.1:
-75 mislabelled ids removed, two fungi refitted, 18 non-fungal names dropped),
-whose full-extent rasters have no border gaps [PENDING: ids, DOIs]. The live atlas keeps
+76 erroneous records removed in two cleanings), after its finishing step
+[PENDING: id, DOIs]. The live atlas keeps
 rebuilding nightly; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
@@ -1033,9 +1033,9 @@ revised (Path).
 2. **Conflict of interest:** "The author declares no conflict of
    interest." (Steve, 2026-10-13.)
 3. **Frozen release:** the full-view refresh of the cleaned release
-   (Steve's targeted fix, 2026-10-13: 75 mislabelled ids removed, 2 fungi
-   refitted, 18 names dropped). The hindcast reads the cleaned pull. Waiting
-   for both releases, then for ids and Zenodo DOIs.
+   after its finishing step (two removal-only cleanings, 76 records; pull
+   x73b85b36). The hindcast reads the same cleaned pull. Waiting for the
+   finished release's id, then the Zenodo DOIs.
 4. **Crediting contributors:** the full plan in section 6 adopted (Steve,
    2026-10-13). No individuals named for now (Steve, 2026-10-13); revisit
    before submission. Data item: observer name or username per training record for the
