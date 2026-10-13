@@ -13,7 +13,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | The finished release of the full-view refresh of the *cleaned* October 2026 release: the rebuild, then two removal-only cleanings (76 erroneous records; 2 fungi refitted, 1 model retired, 69 non-fungal names dropped), then the full-view refresh (release 20261013T155140Z-026d3a26) and its finishing step, whose finished release is the frozen one [PENDING: id, Zenodo DOIs, code commit]. Zenodo archiving waits for it. |
+| Frozen release | The finished release of the full-view refresh of the *cleaned* October 2026 release: the rebuild, then two removal-only cleanings (76 erroneous records; 2 fungi refitted, 1 model retired, 69 non-fungal names dropped), then the full-view refresh (release 20261013T155140Z-026d3a26) and its finishing step, whose finished release is the frozen one: candidate **20261013T191324Z-fa1b4198** (finish v5; same model index as 026d3a26 and 79fe85f3) [PENDING: the coordinator's confirmation; Zenodo DOIs; code commit]. Zenodo archiving waits for it. |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -440,7 +440,8 @@ submission).* Lineage: rebuild release R_main 20261013T061352Z-78dd82de
 refit job 20261013T062143Z-2ffed182: *Clitocybe deceptiva* × 4 learners,
 *Agaricus bitorquis* × 3, same image and settings) → full-view refresh
 (release 20261013T155140Z-026d3a26) → its FINISHED release (continent
-export, prior, clean cells) = the frozen release [PENDING: id]. Rebuild: 9,534 models planned, 9,042 fitted, 492
+export, prior, clean cells) = the frozen release, candidate
+20261013T191324Z-fa1b4198 [PENDING: confirmation]. Rebuild: 9,534 models planned, 9,042 fitted, 492
 refused (too little evidence after site thinning or blocking), 0 failed;
 797 old models retired; 118,657 training records; 4 spot reclaims, all
 resumed. Frozen pull occurrences-20261012T051017Z-x73b85b36 (sha256
@@ -552,7 +553,7 @@ Zenodo DOI, format, size and licence:]
 The paper cites one frozen release by id and DOI: the finished release of
 the full-view refresh of the cleaned October 2026 release (section 2.1:
 76 erroneous records removed in two cleanings), after its finishing step
-[PENDING: id, DOIs]. The live atlas keeps
+(candidate 20261013T191324Z-fa1b4198) [PENDING: confirmation, DOIs]. The live atlas keeps
 rebuilding nightly; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
