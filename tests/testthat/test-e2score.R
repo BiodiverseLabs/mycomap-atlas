@@ -368,13 +368,22 @@ test_that("the pull splits into dated training records and later finds, with eve
   # The cutoff day itself trains.
   expect_equal(nrow(split$training), 2L)
   expect_equal(nrow(split$finds), 3L)
-  expect_equal(attr(split$finds, "kept_apart"), list(undated = 1L, off_grid = 1L))
+  expect_equal(attr(split$finds, "kept_apart"), list(undated = 1L, off_grid = 1L, observed_before = 0L))
   places <- atlas_e2_places(split$finds, split$training)
   # Only the dated, located find becomes a place; the others stay counted.
   expect_equal(nrow(places), 1L)
   expect_equal(attr(places, "off_grid"), 2L)
+  # Each find says whether it was also observed after the cutoff, and its
+  # place carries that.
+  expect_equal(split$finds$observed_after[split$finds$first_green_on %in% "2026-09-01"], TRUE)
+  expect_true(places$observed_after)
+  # Asking for new collections only keeps the rest apart, counted.
   observed <- atlas_e2_split(pull, "2026-08-17", observed_after = TRUE)
   expect_equal(sum(is.na(observed$finds$kept_apart)), 1L)
+  pull$observed_on[2] <- "2026-08-01"
+  before <- atlas_e2_split(pull, "2026-08-17", observed_after = TRUE)
+  expect_equal(attr(before$finds, "kept_apart")$observed_before, 1L)
+  expect_equal(nrow(atlas_e2_places(before$finds, before$training)), 0L)
   expect_error(atlas_e2_split(pull[, setdiff(names(pull), "first_green_on")], "2026-08-17"), "first_green_on")
 })
 

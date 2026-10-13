@@ -57,14 +57,16 @@ atlas_e2_band <- function(km) {
   ifelse(is.na(km), NA_character_, labels[index])
 }
 
-#' The test finds in a pull: records first validated after the cutoff (with
-#' observed_after, also observed after it), each with the taxon it is
-#' modelled under, its point on the model grid, and a reason when it is kept
-#' apart: "undated" (no first-validation date, so on neither side of the
-#' cutoff) or "off_grid" (no usable coordinate). Training records are the
-#' rest that are dated: first validated on or before the cutoff. Counts of
-#' every reason are kept in attr(finds, "kept_apart"); nothing is dropped
-#' silently.
+#' The test finds in a pull: records first validated after the cutoff, each
+#' with the taxon it is modelled under, its point on the model grid, whether
+#' it was also observed after the cutoff (observed_after), and a reason when
+#' it is kept apart: "undated" (no first-validation date, so on neither side
+#' of the cutoff), "off_grid" (no usable coordinate) or, when observed_after
+#' is asked for (the secondary set of new collections), "observed_before"
+#' (validated after the cutoff but collected before it). Training records
+#' are the rest that are dated: first validated on or before the cutoff.
+#' Counts of every reason are kept in attr(finds, "kept_apart"); nothing is
+#' dropped silently.
 atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft") {
   if (!ATLAS_FIRST_GREEN_FIELD %in% names(pull)) {
     stop("the pull has no ", ATLAS_FIRST_GREEN_FIELD, " column", call. = FALSE)
@@ -75,15 +77,13 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft")
   placed <- atlas_tracker_place(pull$latitude, pull$longitude, grid)
   located <- is.finite(placed$x) & is.finite(placed$y)
   after <- dated & green > cutoff
-  test <- after
-  if (isTRUE(observed_after)) {
-    observed <- substr(as.character(pull$observed_on), 1, 10)
-    test <- after & !is.na(observed) & observed > cutoff
-  }
+  observed <- substr(as.character(pull$observed_on %||% rep(NA_character_, nrow(pull))), 1, 10)
+  seen_after <- !is.na(observed) & observed > cutoff
   reason <- ifelse(!dated, "undated", ifelse(!located, "off_grid", NA_character_))
-  keep <- test | !dated
+  if (isTRUE(observed_after)) reason[is.na(reason) & after & !seen_after] <- "observed_before"
+  keep <- after | !dated
   finds <- data.frame(taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
-                      first_green_on = green, kept_apart = reason,
+                      first_green_on = green, observed_after = seen_after, kept_apart = reason,
                       stringsAsFactors = FALSE)[keep, , drop = FALSE]
   finds <- finds[order(finds$first_green_on, na.last = TRUE), , drop = FALSE]
   training <- data.frame(taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
@@ -91,7 +91,7 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft")
   rownames(finds) <- NULL
   rownames(training) <- NULL
   counts <- as.list(table(factor(finds$kept_apart[!is.na(finds$kept_apart)],
-                                 levels = c("undated", "off_grid"))))
+                                 levels = c("undated", "off_grid", "observed_before"))))
   list(finds = structure(finds, kept_apart = counts), training = training)
 }
 
