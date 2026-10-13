@@ -46,15 +46,20 @@ atlas_job_pull_entry <- function(job) {
 }
 
 #' Keep the records a model may train on for a benchmark with this cutoff:
-#' first green on or before it, or none. Returns the kept records and counts.
-atlas_filter_validated_through <- function(occurrences, validated_through) {
+#' first green on or before it. A record with no first green date is kept
+#' (undated = "keep", the prior-only job's rule, as Vision's) or left out
+#' ("exclude", a hindcast's: nothing says it was known by the cutoff). The
+#' date is always the first validation, never the observation. Returns the
+#' kept records and counts.
+atlas_filter_validated_through <- function(occurrences, validated_through, undated = c("keep", "exclude")) {
+  undated <- match.arg(undated)
   if (!ATLAS_FIRST_GREEN_FIELD %in% names(occurrences)) {
     stop("this pull carries no first green dates: it was made before they were kept, ",
          "so it cannot be filtered by validation date", call. = FALSE)
   }
   first <- occurrences[[ATLAS_FIRST_GREEN_FIELD]]
   first[!is.na(first) & !nzchar(first)] <- NA_character_
-  keep <- is.na(first) | first <= validated_through
+  keep <- (is.na(first) & identical(undated, "keep")) | (!is.na(first) & first <= validated_through)
   kept <- occurrences[keep, , drop = FALSE]
   rownames(kept) <- NULL
   kept_first <- first[keep]
@@ -66,6 +71,7 @@ atlas_filter_validated_through <- function(occurrences, validated_through) {
       records_kept = nrow(kept),
       records_kept_dated = sum(!is.na(kept_first)),
       records_kept_undated = sum(is.na(kept_first)),
+      records_undated_left_out = sum(is.na(first) & !keep),
       # Must be 0: checked here and again before the summary is written.
       records_after_cutoff_kept = sum(!is.na(kept_first) & kept_first > validated_through)
     )

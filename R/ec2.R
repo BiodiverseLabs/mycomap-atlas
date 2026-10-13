@@ -296,7 +296,10 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   # A prior-only job never becomes a release, not even in part at a deadline:
   # once its shards report, one worker builds its private prior instead.
   prior_only <- atlas_is_prior_only(job)
-  if (prior_only) finish <- FALSE
+  # A private release (R/hindcast.R) likewise: never published, finished
+  # privately on one worker once its shards report.
+  private <- atlas_is_private_release(job)
+  if (prior_only || private) finish <- FALSE
   # A full-view refresh is published whole or not at all (R/fullrefresh.R).
   refresh <- atlas_is_full_refresh(job)
   # finish = FALSE runs the shards and stops there: no release is built or
@@ -379,6 +382,8 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
            " unreported; its workers were terminated",
            if (prior_only) {
              "; a prior-only job is never published, in part or whole: plan it again"
+           } else if (private) {
+             "; a private release is never finished in part: plan it again"
            } else if (refresh) {
              "; a full-view refresh is never published in part: run it again"
            } else if (is.null(partial)) {
@@ -426,6 +431,13 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     return(atlas_finish_prior_only_on_ec2(store, job, grid, ec2 = ec2, config = config,
                                           poll_seconds = poll_seconds, wait = wait, quiet = quiet,
                                           clock = clock, image_exists = image_exists))
+  }
+  if (private) {
+    finished <- TRUE
+    terminate_all()
+    return(atlas_finish_private_release_on_ec2(store, job, grid, ec2 = ec2, config = config,
+                                               poll_seconds = poll_seconds, wait = wait, quiet = quiet,
+                                               clock = clock, image_exists = image_exists))
   }
   if (!isTRUE(finish)) {
     finished <- TRUE

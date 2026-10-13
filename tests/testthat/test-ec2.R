@@ -48,6 +48,14 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
           worker_store(store), sub("^finish-", "", worker$job), quiet = TRUE, build = stub_prior_build,
           build_continent = stub_continent_build, defer = TRUE))
         worker$state <- "terminated"
+      } else if (startsWith(worker$job, "finish-priv-")) {
+        # Finishing a private release (R/hindcast.R), its builders stubbed,
+        # with the worker's IAM limits: it defers what goes under private/.
+        expect_match(user_data(state$requests[[length(state$requests)]]), "finish-private-release", fixed = TRUE)
+        on_machine(machine(), atlas_finish_private_release_work(
+          worker_store(store), sub("^finish-", "", worker$job), quiet = TRUE, count = function(...) 0L,
+          ensembles = function(...) NULL, build = stub_finish_build, defer = TRUE))
+        worker$state <- "terminated"
       } else if (startsWith(worker$job, "finish-")) {
         # A finishing worker (R/finish.R, tested in test-finish.R), with its
         # counting and index stubbed.
@@ -161,6 +169,39 @@ test_that("run-job-ec2 fits a prior-only job's shards, then builds its prior on 
   expect_false(any(grepl("finish-release", scripts, fixed = TRUE)))
   expect_identical(atlas_current_release(base$store), current)
   expect_true(base$store$exists(atlas_benchmark_key(job$id, "summary.json")))
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("run-job-ec2 fits a private release's shards, then finishes it privately on one worker, never a release", {
+  skip_if_not_installed("terra")
+  setup <- hindcast_setup()
+  job <- on_machine(setup$boss, atlas_plan_private_release(setup$store, setup$main$id, "hindcast",
+                                                           HINDCAST_CUTOFF, shards = 2L, quiet = TRUE))
+  releases <- setup$store$list("releases/")
+  ec2 <- fake_ec2(setup$store, fit = map_fit())
+  summary <- run_on(list(store = setup$store, boss = setup$boss, job = job), ec2)
+  expect_equal(summary$job, job$id)
+  scripts <- vapply(ec2$state$requests, user_data, "")
+  expect_equal(sum(grepl("run-shard", scripts, fixed = TRUE)), job$shards)
+  expect_equal(sum(grepl(paste0("finish-private-release --grid=draft --job=", job$id), scripts, fixed = TRUE)), 1L)
+  expect_false(any(grepl("finish-release", scripts, fixed = TRUE)))
+  expect_true(setup$store$exists(atlas_benchmark_key(job$id, "release.json")))
+  expect_identical(setup$store$list("releases/"), releases)
+  expect_identical(atlas_current_release(setup$store)$id, setup$main$id)
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("a private release past its deadline is never finished in part", {
+  skip_if_not_installed("terra")
+  setup <- hindcast_setup()
+  job <- on_machine(setup$boss, atlas_plan_private_release(setup$store, setup$main$id, "hindcast",
+                                                           HINDCAST_CUTOFF, shards = 1L, quiet = TRUE))
+  ec2 <- fake_ec2(setup$store, script = function(shard, attempt) if (attempt == 1L) "partial" else "hang",
+                  fit = map_fit())
+  expect_error(run_on(list(store = setup$store, boss = setup$boss, job = job), ec2,
+                      config = test_config(setup$store$uri, ATLAS_EC2_MAX_HOURS = "1")),
+               "private release is never finished in part")
+  expect_false(setup$store$exists(atlas_benchmark_key(job$id, "summary.json")))
   expect_length(still_running(ec2), 0L)
 })
 
