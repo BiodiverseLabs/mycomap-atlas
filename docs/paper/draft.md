@@ -301,12 +301,22 @@ adds a place term. Its current place term is a distance kernel over DNA
 records, which ranks down true species found far from known records. The
 Atlas arms replace that kernel with habitat. The design was fixed on
 2026-10-12, before any result, and is public in the Vision repository
-(`docs/atlas-environment.md`) [CHECK: cite the commit]:
+(`docs/atlas-environment.md`, file version b78609d). The analysis plan was
+approved in commit 5c9a4b6 and is unchanged since; b78609d only added a
+later section proposing the new-find tracker, not an edit to the analysis.
 
 - **Data.** Vision dataset release v1: training records first validated on or
   before 2026-08-17 (155,781 records), validation records after it (13,354).
-  Atlas is refitted on records validated on or before the same date (the
-  hindcast release, E2), so no validation record trained a map.
+  Atlas is refitted on records first validated on or before the same date
+  (the hindcast release, E2), so no validation record trained a map. The
+  cutoff is on the first-validation date, not the observation date.
+- **Confirmation.** Settings are chosen on validation-set cross-validation
+  (observer folds); the direction is then checked once on v1-test, a census
+  of North American records first validated after 2026-10-12 13:17 UTC
+  (≥ 3,000 records; frozen ~30 October 2026). The Atlas release used for that
+  check must hold no v1-test record: the hindcast release qualifies, and so
+  does any release whose pull predates 2026-10-12 13:17 UTC; nightly releases
+  after that do not.
 - **Primary arm (P2c).** Each strong map's continent-wide projection, ranked
   on its in-area scale, enters as log f(rank) × trust, replacing the distance
   kernel for mapped taxa; trust = map strength × agreement among the taxon's
@@ -525,8 +535,9 @@ stability (E11); S5 small-site maps; S6 reproducibility (E12).
 
 ## Appendix A. Evidence plan
 
-What a reviewer in species distribution modelling and in mycology will
-expect, what exists, and what is to run. Priority: **P1** a core claim
+IDs here are the Atlas paper's; cite them elsewhere as "Atlas E<n>" (the
+Vision paper has its own E-numbers). What a reviewer in species distribution
+modelling and in mycology will expect, what exists, and what is to run. Priority: **P1** a core claim
 depends on it, or reviewers will certainly ask; **P2** strengthens a claim or
 answers a likely question; **P3** supplementary. Costs are estimates to be
 confirmed by the rebuild lane; EC2 spot runs at roughly $0.05 per CPU-hour.
@@ -643,6 +654,9 @@ the claims need.
 
 ## Changelog
 
+- **0.3.1 (2026-10-13).** Pre-declaration cited as b78609d (plan approved
+  5c9a4b6, unchanged); v1-test confirmation and its leakage rule; "Atlas
+  E<n>" citation note.
 - **0.3 (2026-10-13).** C5 added: Atlas maps as Vision's place signal
   (pre-declared arms moved here from the Vision paper, Steve), with methods
   2.12, results 3.9, Figure 9, E21–E22.
