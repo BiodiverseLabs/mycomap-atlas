@@ -261,9 +261,12 @@ atlas_refresh_verdict <- function(store, published, name, grid, algorithm, toler
       next
     }
     file <- tempfile(fileext = ".tif")
-    store$get(atlas_object_key(before), file)
-    out[[ext]] <- atlas_refresh_compare(terra::rast(file), terra::rast(local), kinds[[ext]],
-                                        tolerance[[kinds[[ext]]]])
+    # A raster that cannot be read is not the release's model: say so, and
+    # let the box refuse it, rather than stop the shard.
+    out[[ext]] <- tryCatch({
+      store$get(atlas_object_key(before), file)
+      atlas_refresh_compare(terra::rast(file), terra::rast(local), kinds[[ext]], tolerance[[kinds[[ext]]]])
+    }, error = function(e) list(status = "differs", why = paste("unreadable:", conditionMessage(e))))
     unlink(file)
   }
   out
