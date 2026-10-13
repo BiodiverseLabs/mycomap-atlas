@@ -209,7 +209,10 @@ atlas_calibration_learner <- function(arm, table, folds, seed, cells, truth, nul
       tryCatch({
         null <- atlas_null_test_sequential(table, folds, algo, reps = nulls, seed = seed,
                                            design = design, stop_after = stop_after)
+        # The null AUCs' mean and spread as well as p: the looser map tiers
+        # (plan-map-tiers, E24) are scored on them as a secondary analysis.
         list(design = design, p = null$auc_p, observed_auc = null$observed_auc,
+             auc_mean = null$auc_mean, auc_sd = null$auc_sd, observed_boyce = null$observed_boyce,
              drawn = null$drawn, reps = null$reps, stopped_early = null$stopped_early,
              best_effort = null$best_effort, far_share = null$far_share,
              verdict = atlas_skill(null, boyce))

@@ -278,7 +278,14 @@ test_that("each learner gets its own scores, map-to-truth and verdict under each
     for (a in habitat$arms[1:2]) {
       expect_true(is.finite(as.numeric(a$truth_rho)))
       expect_setequal(names(a$nulls), c("scatter", "shift"))
-      for (n in a$nulls) expect_true(n$verdict %in% c("passed", "failed"))
+      for (n in a$nulls) {
+        expect_true(n$verdict %in% c("passed", "failed"))
+        # What the looser tiers (E24) are scored on, without refitting:
+        # p, nulls scored and drawn, and the null AUCs' mean and spread.
+        expect_true(all(c("p", "reps", "drawn", "stopped_early", "observed_auc", "auc_mean", "auc_sd",
+                          "observed_boyce") %in% names(n)))
+        expect_true(is.finite(as.numeric(n$auc_mean)))
+      }
     }
     # The effort arms run without nulls.
     for (a in habitat$arms[3:5]) expect_null(a$nulls)
