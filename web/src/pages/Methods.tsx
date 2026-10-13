@@ -7,7 +7,8 @@ import { GithubMark } from "@/components/Common";
 import { PageHeader } from "@/components/Layout";
 import { GITHUB_URL, SOURCES } from "@/lib/contract";
 import { usePageMeta } from "@/lib/usePageMeta";
-import { getTracker } from "@/lib/api";
+import { formatNumber } from "@/lib/utils";
+import { getStatus, getTracker } from "@/lib/api";
 import {
   SUBSETS_DISTANCE,
   SUBSETS_MAIN,
@@ -160,6 +161,24 @@ function DatasetLink({ id }: { id: string }) {
 const Sci = ({ children }: { children: ReactNode }) => <span className="sci">{children}</span>;
 const B = ({ children }: { children: ReactNode }) => <strong className="text-[#4a3728]">{children}</strong>;
 
+// The records behind the release this site serves, from /api/status, so the
+// count stays current as releases change.
+function ReleaseRecords() {
+  const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
+  const release = status.data?.release;
+  if (!release?.records || !release.taxa) return null;
+  const pulled = release.dataPulledAt ? longDate(release.dataPulledAt.slice(0, 10)) : null;
+  return (
+    <>
+      The release this site serves was built from{" "}
+      <B>
+        {formatNumber(release.records)} records across {formatNumber(release.taxa)} taxa
+      </B>
+      {pulled ? `, pulled on ${pulled}` : ""}.{" "}
+    </>
+  );
+}
+
 export default function Methods() {
   usePageMeta({
     title: "Methods",
@@ -202,7 +221,7 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 69 environmental predictors, including which trees grow there and what kind of forest it is.</li>
+                <li>Describe every cell of North America (5 km) with 69 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor for the trees, held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
@@ -243,11 +262,15 @@ export default function Methods() {
                 </li>
               </ul>
               <p>
-                On production on 6 October 2026 that left <B>130,309 records across 17,415 taxa</B>.
+                <ReleaseRecords />
                 A record that one project marks green and another red still counts (since 30
                 September 2026): the green project settled the name. Each taxon page says which
                 years its records come from, and how many were collected before the climate period
                 the maps use.
+              </p>
+              <p>
+                On 13 October 2026, 76 records were left out before fitting as errors in their
+                source data, most of them with sequence names that are not fungi.
               </p>
               <p>
                 Provisional names such as <Sci>Mycena</Sci> sp. &lsquo;IN10&rsquo; are DNA clusters
@@ -260,7 +283,9 @@ export default function Methods() {
               <p>
                 Exact coordinates never leave the machines that fit the models. Anything drawn on
                 this site is aggregated to 0.1° cells, and anything published is 1 km or coarser.
-                That floor is the same for every taxon: none is hidden or drawn coarser.
+                That floor is the same for every taxon: none is hidden or drawn coarser. A record
+                whose source hides, obscures or may hide its place is left out of the published
+                collection cells.
               </p>
             </Section>
 
@@ -274,8 +299,8 @@ export default function Methods() {
               <Table
                 head={["Grid", "Cell", "Cells", "Used for"]}
                 rows={[
-                  ["draft", "5 km", "3.7 million", "the maps on this site today"],
-                  ["production", "1 km", "94 million", "published releases"],
+                  ["draft", "5 km", "3.7 million", "every map and release on this site"],
+                  ["production", "1 km", "94 million", "defined, not yet used"],
                 ]}
               />
             </Section>
