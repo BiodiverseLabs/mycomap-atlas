@@ -164,6 +164,15 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               taxa at once (default 1)")
+  message("  study-rescan       paper E1c: the standard test (19 scattered nulls) on a stratified")
+  message("                     sample of a release's models, beside their shift grades")
+  message("      --release=ID              the (frozen) release whose models and pull it uses")
+  message("      --per-cell=N              models per learner x band x grade (default 50)")
+  message("      --seed=N                  which sample (default 1)")
+  message("      --plan-only               print the sample size and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th model from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               models at once (default 1)")
   invisible(NULL)
 }
 
@@ -693,6 +702,20 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       atlas_distance_study(
         atlas_flag_store(flags), release = as.character(flags$release),
         grid = atlas_flag_grid(flags),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-rescan" = {
+      if (is.null(flags$release)) stop("study-rescan needs --release=ID", call. = FALSE)
+      atlas_rescan_study(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        per_cell = as.integer(atlas_flag_number(flags, "per_cell", ATLAS_RESCAN_PER_CELL)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1)),
         out = if (is.null(flags$out)) NULL else as.character(flags$out),
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
