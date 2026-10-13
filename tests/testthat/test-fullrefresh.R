@@ -224,3 +224,19 @@ test_that("tracing models back through releases ends, even at a release that nam
   sources <- atlas_refresh_sources(setup$store, looped, tasks)
   expect_equal(sources$unresolved, paste(tasks[[1]]$algorithm, tasks[[1]]$taxon))
 })
+
+test_that("a refit whose raster cannot be read is refused, not a crashed shard", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  fit <- map_fit()
+  broken <- function(name, fingerprint, grid = "draft", algorithm = "maxnet", ...) {
+    out <- fit(name, fingerprint, grid = grid, algorithm = algorithm, ...)
+    if (identical(name, "Taxon A") && identical(algorithm, "rf")) {
+      writeLines("not a raster", atlas_model_path(name, grid, ".tif", algorithm))
+    }
+    out
+  }
+  out <- run_refresh(setup, fit = broken, publish = FALSE)
+  expect_error(on_machine(setup$boss, atlas_finish_full_refresh(setup$store, out$job$id, quiet = TRUE)),
+               "rf Taxon A: taxon-a[.]tif differs from the release's [(]unreadable")
+})
