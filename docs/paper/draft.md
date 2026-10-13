@@ -1,6 +1,6 @@
 # MycoMap Atlas: habitat-suitability maps with a calibrated trust grade for thousands of DNA-defined North American fungi
 
-*Working title. Living draft, version 0.2 (2026-10-13). Skeleton: headings,
+*Working title. Living draft, version 0.3 (2026-10-13). Skeleton: headings,
 the claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -18,7 +18,8 @@ frozen release.*
 
 ## Core claims
 
-The paper makes four claims. Every figure and table below serves one of them.
+The paper makes four claims and one application test. Every figure and table
+below serves one of them.
 
 1. **C1. Standard null tests cannot tell habitat from clustered collecting;
    spatially structured nulls can.** On virtual species collected at
@@ -39,6 +40,15 @@ The paper makes four claims. Every figure and table below serves one of them.
    scale.** N taxa, M maps, of which S are strong; every map versioned,
    citable and reproducible from a pinned container and archived data.
    [PENDING E16, E12]
+
+5. **C5. The maps carry habitat information another system can use.** Used
+   as the place signal for MycoMap Vision's photo identifications, a
+   continent-wide projection of strong maps, weighted by trust, improves
+   species top-1 over no place signal without losing the far finds (300–
+   1,500 km from the nearest DNA record). The test was pre-declared before any
+   result (Vision repository, `docs/atlas-environment.md`). [PENDING E21, E22;
+   Steve, 2026-10-13: these arms belong to the Atlas paper, not the Vision
+   paper.]
 
 Secondary: ensembles of small models give maps from 3 sites with labels that
 say how little such a map can claim (E7a, E18); host trees and soil pH matter
@@ -284,6 +294,38 @@ published is 1 km or coarser, and records are drawn as 0.1° cells, the same
 for every taxon. [PENDING E12: rerun a sample of taxa from the frozen pull
 and compare hashes.]
 
+### 2.12 Application: a place signal for photo identification (E21, E22)
+
+MycoMap Vision identifies fungi from photos by nearest reference images and
+adds a place term. Its current place term is a distance kernel over DNA
+records, which ranks down true species found far from known records. The
+Atlas arms replace that kernel with habitat. The design was fixed on
+2026-10-12, before any result, and is public in the Vision repository
+(`docs/atlas-environment.md`) [CHECK: cite the commit]:
+
+- **Data.** Vision dataset release v1: training records first validated on or
+  before 2026-08-17 (155,781 records), validation records after it (13,354).
+  Atlas is refitted on records validated on or before the same date (the
+  hindcast release, E2), so no validation record trained a map.
+- **Primary arm (P2c).** Each strong map's continent-wide projection, ranked
+  on its in-area scale, enters as log f(rank) × trust, replacing the distance
+  kernel for mapped taxa; trust = map strength × agreement among the taxon's
+  strong models × applicability (cut or graded outside the AOA).
+  Unmapped taxa keep the served kernel.
+- **Tests.** Intersection-union: species top-1 better than no place term
+  (one-sided McNemar, p < 0.05) **and** non-inferior in the 300–1,500 km band
+  at a 2% margin (paired bootstrap, 10,000 resamples). Secondary arms (P2c
+  without trust; in-area only; the accessible area as a range; combined with
+  the kernel; a low-capacity environment head on Atlas layers, P4, with a
+  coordinates-only control, P6) are Holm-adjusted and exploratory. Effects are
+  reported within reference-depth bands so map quality is not confused with
+  commonness.
+- **Projection validity (H, E22).** For validation records of mapped taxa
+  500 km or more from any training DNA record, the Boyce index of the true
+  species' projected rank, and the share in cells ranked ≥ 50 with a binomial
+  CI, inside and outside the AOA. This is also an independent test of the
+  full-extent maps (C2).
+
 ---
 
 ## 3. Results
@@ -354,6 +396,13 @@ guilds, strong maps only; layer-sweep results in S3.] → **Figure 8**.
 
 [PENDING: map rank correlation and grade changes between releases against the
 number of new records.] → Supplement S4 or main text if striking.
+
+### 3.9 Maps as a place signal for photo identification (E21, E22)
+
+[PENDING: primary test (P2c vs no place term: overall McNemar; 300–1,500 km
+band lower bound vs −2%); P2c vs the served kernel; trust weighting (P2c vs
+P2c-u); depth-matched effects; P4 vs P6; projection validity H. Confirmed on
+the fresh v1-test set when it exists.] → **Figure 9**.
 
 ---
 
@@ -462,6 +511,7 @@ to report a problem.]
 | Fig 6 | Self-reported vs independent skill for Atlas and baselines | C1, C2 | E6 |
 | Fig 7 | Sequence-name vs record-name maps and skill | C3 | E9 |
 | Fig 8 | Predictor-group importance by guild | secondary | E8 |
+| Fig 9 | Photo identification with Atlas as the place signal: top-1 by distance band and arm; projection validity beyond 500 km | C5 | E21, E22 |
 | Table 1 | Records and taxa by source and rule | C4 | E16 |
 | Table 2 | Predictors and sources | methods | layer manifest |
 | Table 3 | Models and maps by grade × learner × site band | C2, C4 | release |
@@ -521,6 +571,11 @@ done; E16 is read-only; E3 needs only time from the cutover.
 |---|---|---|
 | E19 | Training-record table for the frozen release (ids, source, DNA name, sequence, fingerprint; no coordinates) and its Zenodo record | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
+
+| ID | Application (C5) | Exists? | Data / method | Cost / time | Priority |
+|---|---|---|---|---|---|
+| E21 | Vision place-signal arms: P2c primary; P2c-u, P2a/b, P2d, P3, P4, P5 secondary; P6 control | Design pre-declared 2026-10-12; Vision v1 cut 2026-10-12; needs the hindcast release (E2), its continent-wide projection of strong maps and the trust signals | Vision v1 val; run on the Vision side (Vision coordinator) | Atlas side inside E2; Vision side CPU hours | P1 (Steve, 2026-10-13) |
+| E22 | Projection validity (H): Boyce and share ≥ 50 for val finds 500+ km from training records, inside/outside AOA | Pre-declared | Same run | inside E21 | P1 |
 
 ---
 
@@ -588,6 +643,9 @@ the claims need.
 
 ## Changelog
 
+- **0.3 (2026-10-13).** C5 added: Atlas maps as Vision's place signal
+  (pre-declared arms moved here from the Vision paper, Steve), with methods
+  2.12, results 3.9, Figure 9, E21–E22.
 - **0.2 (2026-10-13).** Steve's decisions: combined methods and data paper
   (new section 4, the data resource), sole author, public training-record
   ids, budget at the size the claims need (E1, E6a, E9 resized). E2 approved
