@@ -593,12 +593,14 @@ matched shift (2/49 false, 13/50 power). → **Figure 2**; every cell in S5.
 submission).* Lineage: rebuild release R_main 20261013T061352Z-78dd82de
 (job 20261013T022520Z-2cb67f32, image 0a9dde4) → cleaned release (targeted
 refit job 20261013T062143Z-2ffed182: *Clitocybe deceptiva* × 4 learners,
-*Agaricus bitorquis* × 3, same image and settings) → full-view refresh =
-the frozen release. Rebuild: 9,534 models planned, 9,042 fitted, 492
+*Agaricus bitorquis* × 3, same image and settings) → full-view refresh
+(release 20261013T155140Z-026d3a26) → its FINISHED release (continent
+export, prior, clean cells) = the frozen release [PENDING: id]. Rebuild: 9,534 models planned, 9,042 fitted, 492
 refused (too little evidence after site thinning or blocking), 0 failed;
 797 old models retired; 118,657 training records; 4 spot reclaims, all
-resumed. Cleaned pull occurrences-20261012T051017Z-x2dd5cb30: 133,289
-records, 16,303 taxa (the original 133,311 / 16,321 minus 22 rows and 18
+resumed. Cleaned pull occurrences-20261012T051017Z-x73b85b36 (sha256
+7d3c5d70…) [CHECK: an earlier message gave -x2dd5cb30; confirm which]:
+133,289 records, 16,303 taxa (the original 133,311 / 16,321 minus 22 rows and 18
 names; the original kept untouched).
 
 [PENDING: models, maps and taxa by grade × learner × site band, with the
@@ -1042,6 +1044,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 0 | Rebuild cutover; nightly tracking (E3) starts | Steve's go | October 2026 |
 | 1 | Full-view refresh → **frozen release** (id, then Zenodo layers, models, training records) | rebuild-lane code; Steve's go | October 2026 |
 | 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | code pushed early (feat/hindcast ba03e73: `plan-job --hindcast --validated-through=2026-08-17`), awaiting Steve's review; E2 scoring code (experiments lane); Steve's go | can launch soon after the cutover, well before ~25 October 2026 (Vision freezes its test set ~30 October) |
+| 2b | **E12 first step**: read-only scores of all 576 refreshed models, and a same-machine double run of *Stropharia hardii* and *Gliophorus fumosus* | Steve's go | right after the hindcast. Same-machine differences = a bug: the queue stops until fixed. Machine dependence only = E12's full run moves before E1 |
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
@@ -1090,6 +1093,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.10 (2026-10-13).** Frozen release = the refresh's finished release
+  (id pending); E12 first step placed right after the hindcast, with its
+  stop rule.
 - **0.9.9 (2026-10-13).** Reproducibility: of the three changed Maxent
   fits, one is a near-tie and two had every candidate's score move across
   machines (mechanism unknown); E12 becomes a planned grade-stability test.
