@@ -385,6 +385,10 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   mine <- Filter(function(t) identical(as.integer(t$shard), shard), job$tasks)
   if (!length(mine)) stop("shard ", shard, " of job ", id, " has no tasks", call. = FALSE)
   started <- Sys.time()
+  # Which machine fits this attempt's models. The shard's record names the
+  # last attempt's machine only; a model saved by an earlier attempt, before
+  # its worker was reclaimed, keeps the one that fitted it.
+  here <- atlas_machine_info()
 
   # A full-view refresh gives each shard the inputs of the job that fitted
   # its models (R/fullrefresh.R).
@@ -435,6 +439,7 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   }
   finish_task <- function(name, algorithm, row, fingerprint, settings_key) {
     result <- atlas_shard_result(name, algorithm, row, fingerprint, settings_key)
+    if (length(here)) result$machine <- here
     if (!is.null(refresh) && identical(row$status, "fitted")) {
       result$identity <- atlas_refresh_verdict(store, refresh, name, grid, algorithm,
                                                job$tolerance %||% ATLAS_REFRESH_TOLERANCE)
