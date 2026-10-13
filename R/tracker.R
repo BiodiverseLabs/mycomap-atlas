@@ -180,7 +180,7 @@ atlas_tracker_save <- function(store, grid, file, table) {
 
 #' Every promotion known, oldest first: release, promoted_at. From the frozen
 #' history (inst/tracker), the write-once promotion records the store keeps
-#' from the rebuild on, the live pointer, and what each run of the tracker saw.
+#' from the rebuild on (atlas_promotion_history), the live pointer, and what each run of the tracker saw.
 atlas_tracker_promotions <- function(store = NULL, grid = "draft", runs = NULL,
                                      frozen = atlas_tracker_promotions_file(grid)) {
   rows <- list()
@@ -194,11 +194,9 @@ atlas_tracker_promotions <- function(store = NULL, grid = "draft", runs = NULL,
     if (is.data.frame(known)) add(known$release, known$promoted_at)
   }
   if (!is.null(store)) {
-    keys <- store$list(paste0("releases/", grid, "/promotions/"))
-    for (key in keys[grepl("[.]json$", keys)]) {
-      record <- tryCatch(atlas_store_text(store, key), error = function(e) NULL)
-      if (is.list(record)) add(as.character(record$release %||% NA), as.character(record$promoted_at %||% NA))
-    }
+    # The write-once record every promotion leaves (atlas_promote_release).
+    history <- tryCatch(atlas_promotion_history(store, grid), error = function(e) NULL)
+    if (is.data.frame(history) && nrow(history)) add(history$release, history$promoted_at)
     pointer <- paste0("current/", grid, ".json")
     if (store$exists(pointer)) {
       record <- atlas_store_text(store, pointer)
