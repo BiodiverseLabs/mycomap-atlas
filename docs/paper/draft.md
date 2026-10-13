@@ -3,7 +3,7 @@
 *Working title (118 characters; the journal allows 120, sentence case, one
 colon, no uncommon acronyms). Alternative: "Which habitat maps can be
 trusted? Calibrated null tests for thousands of DNA-defined North American
-fungi". Living draft, version 0.5 (2026-10-13). Skeleton: headings, the
+fungi". Living draft, version 0.6 (2026-10-13). Skeleton: headings, the
 claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -71,8 +71,9 @@ Read on the journal's author guidelines and ESA's Open Research Policy pages,
 
 ## Core claims
 
-The paper makes four claims and one application test. Every figure and table
-below serves one of them.
+The paper makes four claims and asks one pre-declared question. Every figure
+and table below serves one of them. (Plan revised 2026-10-13, Steve: "fully
+revise the paper plan and let's continue".)
 
 1. **C1. The usual null test cannot tell habitat from clustered collecting;
    a structure-keeping null restricted to surveyed sites can, and we measure
@@ -83,30 +84,36 @@ below serves one of them.
    together, snapped to surveyed sites) passed 2.0%, at 26% power. Structure-
    keeping nulls are not new (Beale et al. 2008; Osborne et al. 2022; Ridder
    et al. 2024); what is new is their calibration against known truth in a
-   target-group design, by sample size, and their use to grade thousands of
-   automatically built maps. [pre-freeze; E1, E1b]
+   target-group design, by sample size, habitat breadth and signal strength,
+   and their use to grade thousands of automatically built maps. On the
+   atlas's real models, [X]% of the maps a standard test (19 scattered nulls)
+   calls good are not shown to beat collecting. [pre-freeze; E1, E1b, E1c]
 2. **C2. The grade predicts how a map does on data it never saw.** Records
    validated after the training cut, and after each release, fall on
    higher-ranked ground on strong maps than on weak or failed ones, and strong
    maps beat a collecting-effort baseline. [PENDING E2, E3, E6]
-3. **C3. Naming taxa by DNA changes the maps.** Labelling by the approved
-   sequence rather than the record's own name moves several thousand records
-   between taxa, about half the modellable taxa have no formal name, and maps
-   from morphology-named records differ from DNA-defined ones on the same
-   independent test. [PENDING E9, E6c, E16]
+3. **C3. Labelling by the approved sequence rather than the record's own
+   name changes the maps, and about half the modellable taxa have no formal
+   name.** [PENDING E9, E16] A comparison with morphology-named records
+   (GBIF, E6c, P2) is not part of this claim; if it runs, it is a Discussion
+   point.
 4. **C4. An automated, nightly, open pipeline can do this at continental
-   scale.** N taxa, M maps, of which S are strong; every map versioned,
-   citable and reproducible from a pinned container and archived data.
-   [PENDING E16, E12]
+   scale, and says which maps to trust.** [N] taxa, [M] maps, of which [S]
+   ([S/M]%) are strong. The strong share is stated plainly: most maps are
+   weak or failed, and they are still published, drawn faint with their
+   grade, because the grade is the contribution, not the map count. Every map
+   is versioned, citable and reproducible from a pinned container and
+   archived data. [PENDING E16, E12]
 
-5. **C5. The maps carry habitat information another system can use.** Used
-   as the place signal for MycoMap Vision's photo identifications, a
-   continent-wide projection of strong maps, weighted by trust, improves
-   species top-1 over no place signal without losing the far finds (300–
-   1,500 km from the nearest DNA record). The test was pre-declared before any
-   result (Vision repository, `docs/atlas-environment.md`). [PENDING E21, E22;
-   Steve, 2026-10-13: these arms belong to the Atlas paper, not the Vision
-   paper.]
+**Q1 (pre-declared question, not a claim). Do the maps carry habitat
+information another system can use?** The registered test: used as the place
+signal for MycoMap Vision's photo identifications, a continent-wide
+projection of strong maps, weighted by trust, against no place signal
+(species top-1 better overall, and not worse by more than 2% for finds
+300–1,500 km from the nearest DNA record). Pre-declared before any result
+(Vision repository, `docs/atlas-environment.md`). The outcome is reported
+either way, a null result included. Q1 is the first section cut if the
+monograph runs long. [PENDING E21, E22]
 
 Secondary: ensembles of small models give maps from 3 sites with labels that
 say how little such a map can claim (E7a, E18); host trees and soil pH matter
@@ -177,11 +184,26 @@ before submission. ODMAP protocol in Appendix S1: Section S1 (E17).*
 ### 2.1 Records and DNA-defined taxa
 
 A record trains a model only when its name is confirmed by DNA: it is marked
-correct in at least one MycoMap validation project after its sequence was
-compared with reference data, whatever another project said [CHECK: describe
-the validation workflow and who validates, briefly, with a reference to
-mycomap.org documentation]. Photo identifications, herbarium names and
-unassessed records are excluded. Records come from iNaturalist, Mushroom
+correct ("Validated") in at least one MycoMap validation project, whatever
+another project said. Photo identifications, herbarium names and unassessed
+records are excluded.
+
+*Validation.* A validation project is a list of records, each with one or
+more sequences (ITS in most cases). Each sequence is searched against
+MycoMap's reference database (MycoBLAST) and NCBI GenBank. A record is
+validated either by hand, by a project member (project leaders,
+contributors, lab contributors or approved members) who reviews the record's
+sequences, BLAST results and name, or automatically, by the platform's
+analysis of the BLAST results, which assigns a confidence and validates or
+rejects; a person starts every automatic run, and any member can confirm or
+overturn its verdict. Each verdict records who made it, when, and whether it
+was manual or automatic. Records that one project validates and another
+rejects count as validated, because the validating project settled the
+name. [CHECK: the confidence rule for automatic validation and the share of
+training records validated each way, from the frozen pull; cite the
+mycomap.org Handbook.] E7b measures what the validation level does to the
+maps: validated in at least two projects, manual verdicts only, and no
+rejection anywhere, each against the production rule. Records come from iNaturalist, Mushroom
 Observer, MyCoPortal and MycoMap's own sequence and GenBank imports, all held
 on mycomap.org.
 
@@ -211,9 +233,9 @@ are (0.1° cells) and how they cluster.]
 
 ### 2.2 Study region, grid and predictors
 
-Everything is modelled on a North America Albers Equal Area Conic grid at
-5 km (draft) and 1 km (production), with nesting cells. [CHECK: which grid
-the frozen release uses; at the time of writing releases are 5 km.]
+Everything is modelled on a North America Albers Equal Area Conic grid with
+5 km cells (3.7 million cells); the frozen release is on this grid. The
+pipeline also defines a nested 1 km grid, which no release used here.
 
 Seventy-five predictors in eight groups (Table 2): 19 WorldClim 2.1
 bioclimatic variables (1970–2000) and elevation (Fick & Hijmans 2017); slope
@@ -365,7 +387,7 @@ applicability index can differ in its last bits between Intel and AMD
 workers, so "byte-identical" must be scoped; wording to come from the
 rebuild lane.]
 
-### 2.12 Application: a place signal for photo identification (E21, E22)
+### 2.12 Pre-declared question Q1: a place signal for photo identification (E21, E22)
 
 MycoMap Vision identifies fungi from photos by nearest reference images and
 adds a place term. Its current place term is a distance kernel over DNA
@@ -449,9 +471,11 @@ matched shift (2/49 false, 13/50 power). → **Figure 3**.
 
 ### 3.3 What the atlas contains (E16)
 
-[PENDING: models, maps and taxa by grade × learner × site band; strong maps
-by guild and region; how many taxa have a strong map; combined maps; share
-of reach inside AOA.] → **Table 3**, **Figure 4** (example maps across grades).
+[PENDING: models, maps and taxa by grade × learner × site band, with the
+strong share stated up front (C4); strong maps by guild and region; how many
+taxa have a strong map; combined maps; share of reach inside AOA; and the
+standard test on real models (E1c): the share of maps 19 scattered nulls call
+good that are not shown to beat collecting.] → **Table 3**, **Figure 4** (example maps across grades).
 
 ### 3.4 How the maps did on records they never saw (E2, E3, E15)
 
@@ -464,11 +488,13 @@ inside vs outside AOA; combined vs single maps.] → **Figure 5**.
 [PENDING: self-reported CV score vs independent-test score for each
 approach.] → **Figure 6**.
 
-### 3.6 What DNA names change (E9, E6c)
+### 3.6 What sequence names change (E9, E16)
 
 [PENDING: records whose sequence name differs from the record name (species,
 genus) by source; for affected taxa, map rank correlation, grade changes and
-independent-test skill under each labelling.] → **Figure 7**.
+independent-test skill under each labelling; the share of modellable taxa
+with no formal name.] → **Figure 7**. (E6c, morphology-named GBIF models, if
+run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
 
@@ -480,12 +506,13 @@ guilds, strong maps only; layer-sweep results in S3.] → **Figure 8**.
 [PENDING: map rank correlation and grade changes between releases against the
 number of new records.] → Appendix S1: Section S4, or main text if striking.
 
-### 3.9 Maps as a place signal for photo identification (E21, E22)
+### 3.9 Q1: maps as a place signal for photo identification (E21, E22)
 
 [PENDING: primary test (P2c vs no place term: overall McNemar; 300–1,500 km
 band lower bound vs −2%); P2c vs the served kernel; trust weighting (P2c vs
 P2c-u); depth-matched effects; P4 vs P6; projection validity H. Confirmed on
-the fresh v1-test set when it exists.] → **Figure 9**.
+the fresh v1-test set when it exists. Reported whatever the result.]
+→ **Figure 9** (cut first if the monograph runs long).
 
 ---
 
@@ -508,7 +535,9 @@ Zenodo DOI, format, size and licence:]
   disagreement layers; full-extent rasters for strong models; per-taxon
   counts; record cells at 0.1°; state verdicts; the location prior.
   CC BY-SA 4.0.
-- **Training records** (new; Steve, 2026-10-13): the ids of every record that
+- **Training records** (new; Steve, 2026-10-13): published for the paper's
+  frozen release(s) only; the per-release lists of trained records that the
+  nightly pipeline keeps stay private. The ids of every record that
   trained the frozen release, with source (iNaturalist, Mushroom Observer,
   MyCoPortal, GenBank, MycoMap sequence), the DNA name used, the sequence it
   came from and the taxon fingerprint, but no coordinates. [HOLD: a
@@ -607,7 +636,7 @@ to report a problem.]
 | Fig 6 | Self-reported vs independent skill for Atlas and baselines | C1, C2 | E6 |
 | Fig 7 | Sequence-name vs record-name maps and skill | C3 | E9 |
 | Fig 8 | Predictor-group importance by guild | secondary | E8 |
-| Fig 9 | Photo identification with Atlas as the place signal: top-1 by distance band and arm; projection validity beyond 500 km | C5 | E21, E22 |
+| Fig 9 | Q1: photo identification with Atlas as the place signal: top-1 by distance band and arm; projection validity beyond 500 km | Q1 | E21, E22 |
 | Table 1 | Records and taxa by source and rule | C4 | E16 |
 | Table 2 | Predictors and sources | methods | layer manifest |
 | Table 3 | Models and maps by grade × learner × site band | C2, C4 | release |
@@ -641,17 +670,18 @@ data, command, result, release, commit).
 |---|---|---|---|---|---|---|
 | E16 | Records, taxa, sites, provisional share, sampling bias, validation lag | C3, C4 | Partly (counts in memory and Methods page) | Frozen pull + release index; read-only | 1–2 days, no compute | P1 |
 | E1b | Re-read the existing null study by site band | C1 | **Done 2026-10-13** (`docs/experiments/2026-10-13-null-calibration-by-band.md`): see 3.2 | 2026-10-06 virtual-species results file | read-only | P1 |
-| E1 | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e1-null-calibration.md`). Null calibration rerun: false pass and power by design × site band × habitat breadth × learner (Maxent, RF, ESM); map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: 5 site bands × 2 habitat-breadth strata × 2 kinds × 40 species = 800 species, Maxent and RF, scatter and shift nulls ×99, stop at 5. ESM: 3 bands (3–4, 5–9, 10–19) × 2 kinds × 60 = 360 species. Effort arms (E14) on the same species. Wilson CIs ≈ ±8–11 points per band | est. 1,000–1,500 CPU-h ($50–75), ~12 h wall on 4 workers | P1 |
+| E1 | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e1-null-calibration.md`, amended 2026-10-13 before launch). Null calibration rerun: false pass and power by design × site band × habitat breadth × signal strength × learner (Maxent, RF, ESM), so power is a curve; map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: habitat 5 site bands × 2 breadths × 2 signal strengths × 30 = 600, geography 5 bands × 2 centre counts × 40 = 400; Maxent and RF; scatter and shift ×99, stop at 5. ESM: 3 bands × (habitat 2 strengths × 40 + geography 60) = 420. Effort arms (E14) on the same species | est. 1,400–2,000 CPU-h ($70–100), ~15–20 h wall on 4 workers | P1 |
+| E1c | **Planned** (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
 | E2 | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e2-hindcast.md`). Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
 | E9 | Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | Default-practice Maxent (random background over the accessible area, random 5-fold CV, default maxnet settings, 19 scattered nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. ~200 CPU-h ($10), ~3 days code | P1 |
-| E6b | Spatial-only baseline (distance to known sites) | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the same sites; E2/E3 finds | small compute, ~2 days | P1 |
+| E6b | Spatial-only baseline (distance to known sites). **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
 | E12 | Reproducibility: rerun a random sample of taxa from the frozen pull, compare metrics and raster hashes; Zenodo DOIs for layers, models, code [CHECK: scope the claim; the AOA index can differ in its last bits between Intel and AMD] | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, Zenodo sandbox tested); demo no; layers deposit held | Fresh worker, 20–50 taxa | ~10 CPU-h, 1 day | P1 |
 | E17 | ODMAP protocol | all | No | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
-| E7 | Sensitivity: (a) site count (thinning study), (b) validation level (≥1 vs ≥2 projects; contested records), (c) coordinate precision (1 vs 5 km; MO/MyCoPortal rules), (d) pre-1980 records | C2, C4 | (a) pre-freeze, 118 taxa, old nulls; (b–d) no | Paired arms on a stratified ~150-taxon panel; skill, map correlation, grade changes | ~20–40 CPU-h per arm, ~1 week | P2 |
+| E7 | Sensitivity: (a) site count (thinning study), (b) validation level (≥ 2 projects; manual verdicts only; no rejection anywhere), (c) coordinate precision (1 vs 5 km; MO/MyCoPortal rules), (d) pre-1980 records | C2, C4 | (a) pre-freeze, 118 taxa, old nulls; (b–d) no | Paired arms on a stratified ~150-taxon panel; skill, map correlation, grade changes | ~20–40 CPU-h per arm, ~1 week | P2 |
 | E8 | Variable and layer importance by guild | secondary | Yes in every model's metrics; layer sweeps pre-freeze | Aggregate over strong maps from the release | ~1 day, read-only | P2 |
 | E10 | AOA and extrapolation: share of reach inside AOA; finds inside vs outside | C2 | Partly (per-model applicability; tracker counts outside-AOA finds) | Release + E2/E3 | ~1 day | P2 |
 | E11 | Stability across nightly releases | C4 | No; releases are kept indefinitely | Per-taxon rank correlation and grade flips vs new records | ~2 days code, ≥4 weeks of nightlies | P2 |
@@ -662,18 +692,14 @@ data, command, result, release, commit).
 | E6d | biomod2-style default ensemble | C2 | No | Same sites | ~1 week | P3 |
 | E13 | Block-size check (kNNDM-style distance matching) | methods | Pre-freeze, 153 taxa | Rerun `study-blocks` | ~10 CPU-h | P3 |
 
-**Order (set with the Atlas coordinator, 2026-10-13):** nothing before the
-cutover → the full-view refresh → E2 (hindcast code, then the run) → E1 →
-E9 → E6a/b (new study arms, queued with the rebuild lane after the hindcast
-code) → E12 → E7, E6c, E4 full. Each launch gets Steve's direct go. E1b is
-done; E16 is read-only; E3 needs only time from the cutover.
+**Order:** see the Path section below.
 
 | ID | Also needed for a combined paper | Priority |
 |---|---|---|
 | E19 | Training-record table for the frozen release (ids, source, DNA name, sequence, fingerprint; no coordinates) and its Zenodo record; survey-site membership column HELD for Steve | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
 
-| ID | Application (C5) | Exists? | Data / method | Cost / time | Priority |
+| ID | Pre-declared question Q1 | Exists? | Data / method | Cost / time | Priority |
 |---|---|---|---|---|---|
 | E21 | Vision place-signal arms: P2c primary; P2c-u, P2a/b, P2d, P3, P4, P5 secondary; P6 control | Design pre-declared 2026-10-12; Vision v1 cut 2026-10-12; needs the hindcast release (E2), its continent-wide projection of strong maps and the trust signals | Vision v1 val; run on the Vision side (Vision coordinator) | Atlas side inside E2; Vision side CPU hours | P1 (Steve, 2026-10-13) |
 | E22 | Projection validity (H): Boyce and share ≥ 50 for val finds 500+ km from training records, inside/outside AOA | Pre-declared | Same run | inside E21 | P1 |
@@ -700,7 +726,7 @@ Data.
   ~7,000–9,000 words, 9 figures and 4 tables, so it needs a journal without a
   tight cap.
 - **(b) A methods paper plus a companion data descriptor.** Methods in MEE
-  (C1, C2, C5); the descriptor cites the same frozen release. The usual
+  (C1, C2, Q1); the descriptor cites the same frozen release. The usual
   descriptor journals require CC0 or CC BY data (Scientific Data, with an
   exception for share-alike forced by inputs; GigaScience CC0), which
   conflicts with the CC BY-SA maps. Two reviews, two fees, more total work.
@@ -723,7 +749,7 @@ if the presubmission inquiry is declined.
 
 One-line reasons: (1) fits the whole paper and has published the closest
 benchmark; (2) the core methods audience and the shift-&-rotate paper's home,
-but the cap forces most of the data and C3–C5 into supplements; (3) has a
+but the cap forces most of the data, C3, C4 and Q1 into supplements; (3) has a
 data-paper type and no licence rule, but adds a conservation section; (4)
 room and an applied angle, slowest first decision; (5) mycology readers and
 high JIF, weak SDM fit.
@@ -738,25 +764,64 @@ limit found, AI declaration required, OA $3,940.
 
 ---
 
+## Path
+
+Set 2026-10-13 with the Atlas coordinator after Steve's revision. Every launch
+gets Steve's direct go through the operations lane; every run gets a
+`docs/experiments` entry, pre-registered where there is a hypothesis.
+
+| # | Item | Gate | Target |
+|---|---|---|---|
+| 0 | Rebuild cutover; nightly tracking (E3) starts | Steve's go | October 2026 |
+| 1 | Full-view refresh → **frozen release** (id, then Zenodo layers, models, training records) | rebuild-lane code; Steve's go | October 2026 |
+| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | hindcast code (~1–1.5 days); the refresh; Steve's go | run by ~25 October 2026 (Vision freezes its test set ~30 October) |
+| 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
+| 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
+| 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
+| 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; Steve's go | November 2026 |
+| 7 | **E9** sequence vs record names | record-name arm; Steve's go | November 2026 |
+| 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
+| 9 | **E12** reproducibility rerun; E16 descriptives; E17 ODMAP | the frozen release; rebuild-lane tolerance wording | December 2026 |
+| 10 | Q1 arms (E21, E22) | Vision side, after E2 | November 2026 |
+| 11 | P2 items as time allows: E4 full, E6c, E7, E8, E10, E11, E15 | each its own go | December 2026 – January 2027 |
+| 12 | **Submission**, once E1, E2, E6a/b, E9, E12, E16 and E17 are done, with whatever E3 has accumulated; more E3 added at revision | Steve | **aim January 2027** |
+
+E4 feasibility (P1) runs whenever a slot is free; it is read-only work.
+
+---
+
 ## Open decisions
 
 Settled 2026-10-13 (Steve): one combined methods and data paper; sole
-author, Russell, Stephen D.; training-record ids public; compute at the size
-the claims need.
+author, Russell, Stephen D.; training-record ids public for the frozen
+release(s) only; compute at the size the claims need; Ecological Monographs
+(Method) for now; C5 made a pre-declared question (Q1); C3 narrowed; plan
+revised (Path).
 
-1. **Venue:** Ecological Monographs, Method (decided "for now"); send the
-   presubmission inquiry once E1 and E2 have results. Whether the frozen
-   release can also be CC BY is open (asked via the coordinator).
-2. **Conflict of interest wording.**
+1. **Licence:** whether the frozen release can also be issued CC BY
+   (asked via the coordinator).
+2. **Steve item: conflict-of-interest statement** (required by the journal).
 3. **Frozen release:** decided by the coordinator 2026-10-13: the
    full-view refresh's finished release. Waiting for it to run, then for its
    id and Zenodo DOIs.
-4. **Acknowledgements:** whether to list contributors and collectors.
+4. **Steve item: acknowledgements wording**, including whether to list
+   contributors and collectors.
+5. **Steve item: publish the Zenodo layers archive** (draft held since
+   2026-09-29), or discard and re-archive, once the frozen release exists.
+6. **Survey-site membership column** in the training-record table: held
+   until the rebuild lane's count of hidden-GPS records that train a model.
 
 ---
 
 ## Changelog
 
+- **0.6 (2026-10-13).** Plan revised (Steve via the coordinator): C5 became
+  pre-declared question Q1; C3 narrowed to what E9 and E16 support; C4 states
+  the strong share and what weak and failed maps are for; E1 gains a
+  signal-strength axis; new E1c (standard test on real models); E6b runs
+  first after E2; validation paragraph in 2.1; the frozen release is 5 km;
+  training-record ids public for frozen releases only; a Path section with
+  gates and a January 2027 submission aim.
 - **0.5.1 (2026-10-13).** Frozen release = the full-view refresh's
   finished release; E1 and E2 pre-registered; reproducibility claim marked
   [CHECK]; survey-site membership column held.

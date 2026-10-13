@@ -1,7 +1,8 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-*Draft. Send to the editorial office once the null-calibration rerun (E1) and
-the hindcast (E2) have results; the bracketed numbers come from them. Limit:
+*Draft. Send to the editorial office once the hindcast (E2) has its first
+numbers (plan of 2026-10-13); the C1 numbers are the earlier study's until E1
+reruns, and are labelled so. Limit:
 300 words, 5–10 references, optionally 1–2 figures (Figure 3 and Figure 5 of
 the draft).*
 
