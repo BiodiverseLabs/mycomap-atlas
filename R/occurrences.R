@@ -376,6 +376,11 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   tryCatch(atlas_pull_unvalidated(host = host, quiet = quiet), error = function(e) {
     warning("not-yet-validated counts not refreshed: ", conditionMessage(e), call. = FALSE)
   })
+  # Likewise the private list of records whose place their source hides
+  # (R/privacy.R): kept out of the published collection cells.
+  tryCatch(atlas_pull_privacy(host = host, quiet = quiet), error = function(e) {
+    warning("hidden-place list not refreshed: ", conditionMessage(e), call. = FALSE)
+  })
 
   if (!quiet) {
     message(sprintf("pulled %d records across %d taxa -> %s",

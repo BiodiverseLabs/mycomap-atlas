@@ -121,6 +121,8 @@ atlas_usage <- function() {
   message("  job-status         which shards of a job have reported")
   message("  finish-prior-only  build a prior-only job's private prior, trained ids and summary (--job=ID)")
   message("  finish-full-refresh  publish a full-view refresh whose refits match its release (--job=ID)")
+  message("  pull-privacy       make the private list of records whose place their source hides (read-only),")
+  message("                     which the published collection cells leave out")
   message("  job-timing         what a job's fits cost, and a full job would (--job=ID)")
   message("      --fits-at-once=N          fits running together on EC2 (default 84)")
   message("  trained-ids        PRIVATE: which records trained a release (--out=FILE or --link [--hours=N],")
@@ -256,6 +258,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
 
   switch(
     command,
+    "pull-privacy" = {
+      # Read-only: the private list of records whose place their source
+      # hides, for the published collection cells (R/privacy.R).
+      atlas_pull_privacy()
+      invisible(0L)
+    },
     "pull-occurrences" = {
       atlas_pull_occurrences(
         since = flags$since,

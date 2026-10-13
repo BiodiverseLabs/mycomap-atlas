@@ -142,7 +142,13 @@ atlas_sha256 <- function(file) digest::digest(file = file, algo = "sha256")
 #' The only form in which collection locations enter a release: cell centres
 #' of ATLAS_PUBLIC_DEGREES, with a count. The same numbers the API already
 #' serves one taxon at a time.
-atlas_public_cells_table <- function(occurrences, degrees = ATLAS_PUBLIC_DEGREES) {
+atlas_public_cells_table <- function(occurrences, degrees = ATLAS_PUBLIC_DEGREES, hidden = NULL) {
+  # The records whose place their source hides or may hide (R/privacy.R)
+  # stay out of what is published.
+  if (length(hidden)) {
+    occurrences <- occurrences[!paste(occurrences$source, occurrences$observation_id, sep = ":") %in% hidden, ,
+                               drop = FALSE]
+  }
   keys <- atlas_locality_key(occurrences$latitude, occurrences$longitude, degrees = degrees)
   counts <- stats::aggregate(
     list(records = rep(1L, nrow(occurrences))),
@@ -408,7 +414,8 @@ atlas_refresh_public_files <- function() {
   manifest <- atlas_read_manifest()
   occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
   if (!is.null(occurrences)) {
-    atlas_write_tsv_gz(atlas_public_cells_table(occurrences), atlas_public_cells_path())
+    atlas_write_tsv_gz(atlas_public_cells_table(occurrences, hidden = atlas_read_privacy()),
+                       atlas_public_cells_path())
     atlas_write_tsv_gz(atlas_region_table(occurrences), atlas_public_regions_path())
     # Not-yet-validated counts, folded onto this pull's taxa (R/unvalidated.R).
     raw_path <- atlas_unvalidated_raw_path()
