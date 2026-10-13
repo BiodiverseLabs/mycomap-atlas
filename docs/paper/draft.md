@@ -126,11 +126,36 @@ most for ectomycorrhizal fungi, climate for the rest (E8).
 
 ## Abstract
 
-[PENDING: write last. ~250–350 words depending on venue. Shape: problem
-(fungal names unreliable, records clustered, automated SDMs give no honest
-trust measure) → what we built (DNA-defined taxa, target-group survey sites,
-four learners, nested spatial CV, structured nulls, AOA) → C1 numbers → C2
-numbers → C3 numbers → resource (N taxa, S strong, nightly, open, DOI).]
+*Draft skeleton, 2026-10-13 (≤ 350 words, no citations or URLs, as the
+journal requires). Final wording once the numbers are in.*
+
+Automated pipelines now fit distribution models for thousands of species,
+but they report each map's skill with scores that clustered collecting
+inflates, and the usual null test does not correct for it. Fungi add a
+second problem: morphological names often hide several lineages. We built
+MycoMap Atlas, which maps every North American fungus defined by an
+approved DNA sequence with at least three survey sites, from [133,235]
+validated community-science records of [16,252] taxa, rebuilt nightly.
+Records are compared with the other places people collected and
+sequenced; Maxent, random forests, boosted trees and ensembles of small
+models are tuned and scored on spatially blocked folds; and each map is
+graded against null species that keep its own clustering. On simulated
+species collected at the real survey sites, the usual scattered null test
+passed [73]% of species with no habitat signal, and every such species
+with 100 or more sites, while the clustering-preserving test passed
+[2]%, at a power of [26]% [PENDING E1: final figures with intervals]. Of
+the atlas's [9,042] models, [576] across [470] taxa were graded strong; the
+standard test would have called [X]% of the rest good [PENDING E1c]. Maps
+graded strong placed records validated after the training cutoff in their
+top half [Y]% of the time, against [Z]% for failed maps and [W]% for a
+model of distance to known records [PENDING E2, E6b]. Naming records by
+their sequences rather than their own names changed the maps of [N] taxa,
+and about half the modelled taxa have no formal name [PENDING E9, E16]. A
+pre-registered test asked whether the maps help a photo-identification
+model place its answers [PENDING Q1]. The grade, not the number of maps, is
+the contribution: it tells users which maps to trust. Maps, models,
+layers, code and the identifiers of every training record are archived
+with DOIs for reuse.
 
 ---
 
@@ -927,6 +952,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.14 (2026-10-13).** Abstract skeleton (under 350 words) with
+  placeholders.
 - **0.13 (2026-10-13).** Discussion drafted as prose (~900 words) with
   placeholders for results.
 - **0.12 (2026-10-13).** Methods cut to the lean budget (~1,700 words);
