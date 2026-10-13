@@ -246,3 +246,75 @@ test_that("a study job's rescan shards are pooled from the store, and only from 
   expect_error(atlas_rescan_pool_from(store, "releases/draft/"), "only under")
   expect_error(atlas_rescan_pool_from(store, "study/none/"), "no rescan results")
 })
+
+# --- Each model from the pull its own job fitted it on ----------------------------
+
+test_that("each sampled model is traced to the job that fitted it, and gets that job's pull", {
+  entries <- list(list(taxon = "A", algorithm = "maxnet", fingerprint = "fa"),
+                  list(taxon = "B", algorithm = "rf", fingerprint = "fb"),
+                  list(taxon = "C", algorithm = "esm", fingerprint = "fc"))
+  ids <- atlas_rescan_id(c("A", "B", "C"), c("maxnet", "rf", "esm"))
+  asked <- NULL
+  local_mocked_bindings(atlas_refresh_sources = function(store, base, tasks, grid = "draft") {
+    asked <<- tasks
+    list(source = list("maxnet A" = "targeted", "rf B" = "main"),
+         jobs = list(targeted = list(inputs = list(list(path = "occurrences/occurrences-clean.tsv.gz", sha256 = "c1"))),
+                     main = list(inputs = list(list(path = "occurrences/occurrences-pre.tsv.gz", sha256 = "p1")))),
+         unresolved = "esm C")
+  })
+  lineage <- atlas_rescan_lineage(store = NULL, manifest = list(id = "frozen"), entries = entries, ids = ids,
+                                  fetch = function(sha) paste0("/pulls/", sha, ".tsv.gz"))
+  # The tasks carry each model's own fingerprint from the release's index.
+  expect_equal(vapply(asked, function(t) t$fingerprint, ""), c("fa", "fb", "fc"))
+  expect_equal(unname(lineage$pull_of), c("/pulls/c1.tsv.gz", "/pulls/p1.tsv.gz", NA))
+  expect_equal(unname(lineage$job_of), c("targeted", "main", NA))
+  expect_equal(lineage$unresolved, 1L)
+  expect_equal(lineage$models_per_job, list(main = 1L, targeted = 1L))
+  # Each job's pull, by hash, for the results' provenance.
+  expect_equal(lineage$pull_of_job, list(targeted = "c1", main = "p1"))
+})
+
+test_that("a model is rebuilt from its own job's pull, and one with no traced job is not rebuilt", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  world <- synthetic_landscape()
+  record <- atlas_rescan_record(fitted_record(world))
+  id <- atlas_rescan_id("Eastern fungus", "maxnet")
+  read <- character()
+  local_mocked_bindings(atlas_rescan_points = function(path, grid = "draft") {
+    read <<- c(read, path)
+    world$points
+  })
+  # Handed some other pull as points, it still rebuilds from its own.
+  other <- world$points[0, ]
+  row <- atlas_rescan_model(id, "f00dfeed", other, world$stack, records = stats::setNames(list(record), id),
+                            reps = 3, n_background = 500, buffer_km = 300,
+                            pull_files = stats::setNames(list("/pulls/its-own.tsv.gz"), id))
+  expect_equal(read, "/pulls/its-own.tsv.gz")
+  expect_equal(row$status, "scored")
+  none <- atlas_rescan_model(id, "f00dfeed", world$points, world$stack, records = stats::setNames(list(record), id),
+                             reps = 3, n_background = 500, buffer_km = 300,
+                             pull_files = stats::setNames(list(NA_character_), id))
+  expect_equal(none$status, "mismatch")
+  expect_equal(unlist(none$differs), "no fitting job traced")
+})
+
+test_that("shards' files of one name in different folders are pooled, not overwritten", {
+  dir <- tempfile("store-")
+  shard <- function(i, sub) {
+    key <- sprintf("study/study-abc/%s/rescan-r1-20261020T010101Z.json", sub)
+    dir.create(file.path(dir, dirname(key)), recursive = TRUE, showWarnings = FALSE)
+    jsonlite::write_json(list(settings = list(release = "r1", seed = 1, per_cell = 50, nulls = 19, shard = paste0(i, "/2")),
+                              strata = list(sampled = list(a = 2L)),
+                              taxa = list(list(taxon = paste0("maxnet|T", i), status = "scored", algorithm = "maxnet",
+                                               grade = "strong", scatter = list(verdict = "passed")))),
+                         file.path(dir, key), auto_unbox = TRUE)
+    key
+  }
+  keys <- c(shard(1, "a"), shard(2, "b"))
+  store <- list(list = function(p) keys[startsWith(keys, p)],
+                get = function(k, dest) file.copy(file.path(dir, k), dest, overwrite = TRUE))
+  pooled <- atlas_rescan_pool_from(store, "study/study-abc/")
+  expect_equal(pooled$models, 2L)
+  expect_true(pooled$complete)
+})
