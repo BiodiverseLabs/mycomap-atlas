@@ -33,6 +33,11 @@
 #     replaced, since the web map places the picture by it. Nothing else in
 #     its metrics changes: the grade stays R_main's. Promoted as any release
 #     is, with its own promotion record;
+#   - rebuild its collection cells (public/cells.tsv.gz) without the records
+#     whose place their source hides or may hide (R/privacy.R), when the box
+#     holds the release's own pull and a hidden-place list (pull-privacy):
+#     the only published file built record by record. Otherwise the base's
+#     stays, and the release says why;
 #   - finish it as any release is finished (R/finish.R): counts, the
 #     combined maps, the index and the prior come out as R_main's, from the
 #     same default maps, and the continent export for Vision is built afresh
@@ -361,6 +366,28 @@ atlas_refresh_metrics <- function(store, base_entry, refit_entry, path) {
   list(path = path, sha256 = sha, bytes = file.info(file)$size)
 }
 
+#' On the box: the release's collection cells without the records whose
+#' place their source hides (R/privacy.R), built from the release's own pull
+#' when this machine holds it and a hidden-place list. Returns rebuilt (and
+#' the file's entry, and how many records it leaves out), or the reason not.
+atlas_refresh_public_cells <- function(store, base, grid = "draft") {
+  hidden <- atlas_read_privacy()
+  if (is.null(hidden)) return(list(rebuilt = FALSE, reason = "no hidden-place list on the box (pull-privacy)"))
+  job <- tryCatch(atlas_read_job(store, atlas_json_string(base$job), grid), error = function(e) NULL)
+  pull <- if (!is.null(job)) atlas_job_pull_entry(job)
+  manifest <- tryCatch(atlas_read_manifest(), error = function(e) NULL)
+  local <- if (!is.null(manifest$file)) file.path(atlas_data_dir(), "occurrences", manifest$file)
+  if (is.null(pull) || is.null(local) || !file.exists(local) || !identical(atlas_sha256(local), pull$sha256)) {
+    return(list(rebuilt = FALSE, reason = "the box's pull is not the one the release was fitted on"))
+  }
+  occurrences <- atlas_read_occurrences(local)
+  atlas_write_tsv_gz(atlas_public_cells_table(occurrences, hidden = hidden), atlas_public_cells_path())
+  entry <- atlas_file_entries("public/cells.tsv.gz")
+  atlas_upload_objects(store, entry)
+  list(rebuilt = TRUE, entry = entry[[1]],
+       records_left_out = sum(paste(occurrences$source, occurrences$observation_id, sep = ":") %in% hidden))
+}
+
 #' On the box: publish a refresh's release from its shards, once every one
 #' has reported and every refit checks out against the release it refreshes.
 #' Refuses, publishing nothing, if any does not, or if another release became
@@ -402,12 +429,15 @@ atlas_finish_full_refresh <- function(store = atlas_store(), id, grid = "draft",
       files[[json]] <- atlas_refresh_metrics(store, files[[json]], checked$files[[json]], json)
     }
   }
+  public <- atlas_refresh_public_cells(store, base, grid)
+  if (!is.null(public$entry)) files[[public$entry$path]] <- public$entry
   kept <- base[intersect(names(base), c("job", "job_results", "retired", "partial", "unreported_shards"))]
   release <- atlas_write_release(
     store, grid, unname(files), base$index,
     previous = base$id, note = paste("full views refreshed for", base$id, "by job", id),
     pull = base$pull, layers_key = base$layers_key, promote = promote, quiet = quiet,
-    extra = c(kept, list(full_refresh = list(job = id, from = base$id, models = length(job$tasks))))
+    extra = c(kept, list(full_refresh = list(job = id, from = base$id, models = length(job$tasks),
+                                             public_cells = public[setdiff(names(public), "entry")])))
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/finished.json"),
                    list(release = release$id, finished_at = release$created_at))
