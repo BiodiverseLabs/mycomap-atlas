@@ -1,5 +1,14 @@
 # Appendix S1, Section S9: the pre-declared question on MycoMap Vision's place signal (draft)
 
+**Coverage (measured 2026-10-13 on the frozen release 20261013T191324Z-fa1b4198,
+470 taxa with a strong map):** the true taxon has a strong map for 8.6% of
+Vision's v1 validation records (1,152 of 13,354) and 8.9% of its training
+records, against 17.8% estimated when the test was designed (before the
+shift-null rebuild). The overall effect can therefore come from about one
+validation record in twelve; the depth-matched tables of mapped and
+unmapped records carry the reading. Out-of-area records for the projection
+test (500 km or more from any training record) are fewer still.
+
 *Moved from the main text on 2026-10-13 (lean main text); edited only for the move.*
 
 MycoMap Vision identifies fungi from photos by nearest reference images and

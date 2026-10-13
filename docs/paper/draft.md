@@ -485,7 +485,10 @@ number of new records.] → Appendix S1: Section S10.
 [PENDING: primary test (P2c vs no place term: overall McNemar; 300–1,500 km
 band lower bound vs −2%); P2c vs the served kernel; trust weighting (P2c vs
 P2c-u); depth-matched effects; P4 vs P6; projection validity H. Confirmed on
-the fresh v1-test set when it exists. Reported whatever the result.]
+the fresh v1-test set when it exists. Reported whatever the result. Only
+8.6% of validation records have a strongly mapped true taxon (1,152 of
+13,354), so expect a small overall effect; report the mapped subset beside
+it.]
 → one paragraph; the design and every arm in S9.
 
 ---
