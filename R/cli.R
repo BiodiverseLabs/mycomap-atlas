@@ -183,6 +183,13 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
+  message("  study-default      paper E6a: \"default practice\" Maxent (maxnet defaults, random")
+  message("                     background and folds, 19 uniform nulls) on a release's 20+ site taxa")
+  message("      --release=ID              the (hindcast) release whose pull and taxa it uses")
+  message("      --plan-only               print the taxa and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               taxa at once (default 1)")
   invisible(NULL)
 }
 
@@ -749,6 +756,18 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         out = out, store = if (!is.null(out)) atlas_flag_store(flags),
+        plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-default" = {
+      if (is.null(flags$release)) stop("study-default needs --release=ID", call. = FALSE)
+      atlas_default_study(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         plan_only = isTRUE(flags$plan_only)
       )
       invisible(0L)
