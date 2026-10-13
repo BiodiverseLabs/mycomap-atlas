@@ -381,11 +381,21 @@ builds and pull fingerprint. Seeds come from the fingerprint. Releases are
 archived on Zenodo (layers and models series, CC BY-SA 4.0). Exact
 coordinates never leave Atlas's private compute and storage; everything
 published is 1 km or coarser, and records are drawn as 0.1° cells, the same
-for every taxon. [PENDING E12: rerun a sample of taxa from the frozen pull
-and compare hashes.] [CHECK: the exact reproducibility claim. The area-of-
-applicability index can differ in its last bits between Intel and AMD
-workers, so "byte-identical" must be scoped; wording to come from the
-rebuild lane.]
+for every taxon.
+
+Atlas is reproducible from its pinned container (base image by digest, R
+packages from a dated Posit snapshot, the store's content-addressed inputs).
+On one processor family a rerun reproduces every map byte for byte; we
+verified this for Maxent, random forests and boosted trees, tuned and
+untuned, with and without null tests. Across processor families, results
+agree to floating-point precision rather than bitwise: OpenBLAS selects its
+matrix kernels by processor, and the area-of-applicability index is computed
+through one of them. Suitability values agree to a relative 1e-9, and the
+index to an absolute 1e-6 on a scale whose thresholds lie between about 0.3
+and 1. Grades, ranks and every published product built from them are
+unchanged. Our refit checks enforce exactly these tolerances and refuse
+anything beyond them. Each shard's record names its instance type,
+processor and BLAS. [PENDING E12: the numbers from the rerun.]
 
 ### 2.12 Pre-declared question Q1: a place signal for photo identification (E21, E22)
 
@@ -677,7 +687,7 @@ data, command, result, release, commit).
 | E9 | Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | Default-practice Maxent (random background over the accessible area, random 5-fold CV, default maxnet settings, 19 scattered nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. ~200 CPU-h ($10), ~3 days code | P1 |
 | E6b | Spatial-only baseline (distance to known sites). **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
-| E12 | Reproducibility: rerun a random sample of taxa from the frozen pull, compare metrics and raster hashes; Zenodo DOIs for layers, models, code [CHECK: scope the claim; the AOA index can differ in its last bits between Intel and AMD] | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, Zenodo sandbox tested); demo no; layers deposit held | Fresh worker, 20–50 taxa | ~10 CPU-h, 1 day | P1 |
+| E12 | Reproducibility: rerun a random sample of taxa from the frozen pull; (a) byte identity on ONE pinned instance family (e.g. r7i, Intel); (b) a cross-family comparison reported separately against the stated tolerances (suitability relative 1e-9, AOA index absolute 1e-6; grades and ranks identical); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers, 20–50 taxa, both families | ~20 CPU-h, 1 day | P1 |
 | E17 | ODMAP protocol | all | No | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
@@ -815,6 +825,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.6.1 (2026-10-13).** Reproducibility claim in 2.11 from the rebuild
+  lane (byte-identical within a processor family; stated tolerances across
+  families); E12 design split accordingly.
 - **0.6 (2026-10-13).** Plan revised (Steve via the coordinator): C5 became
   pre-declared question Q1; C3 narrowed to what E9 and E16 support; C4 states
   the strong share and what weak and failed maps are for; E1 gains a
