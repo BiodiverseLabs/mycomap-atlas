@@ -114,6 +114,13 @@ test_that("a private release is finished privately, with its own grades, and not
   expect_true(length(manifest$files) > 0L)
   expect_identical(setup$store$list("releases/"), releases_before)
   expect_identical(atlas_current_release(setup$store)$id, current_before)
+  # The tracker's reader reads it as it reads a release: its own pull, maps
+  # and grades (what Atlas E2 and E9 score with).
+  cache <- file.path(tempdir(), paste0("tracker-cache-", as.integer(stats::runif(1, 1, 1e9))))
+  view <- atlas_tracker_view(setup$store, job$id, "draft", cache)
+  expect_equal(nrow(view$pull), nrow(job_pull(setup$store, job)))
+  expect_equal(atlas_tracker_maps(view, "Taxon C")$grade, "strong")
+  expect_false(atlas_tracker_maps(view, "Taxon A")$none)
 })
 
 test_that("a private release is never finished in part, nor as a job", {
