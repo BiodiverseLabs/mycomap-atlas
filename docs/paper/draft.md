@@ -669,7 +669,7 @@ to report a problem.]
 - **Conflict of Interest statement** (required): "The author declares no
   conflict of interest." (Steve, 2026-10-13.)
 
-**Crediting contributors (proposal, for Steve).** The journal does not allow
+**Crediting contributors (adopted, Steve 2026-10-13).** The journal does not allow
 group authors, so contributors are credited three ways, as large
 community-science papers do:
 
@@ -782,9 +782,8 @@ data, command, result, release, commit).
 Facts read on each journal's own pages on 2026-10-12 and 2026-10-13
 (metrics: each journal's metrics page, 2025 figures). "nc" = not confirmed.
 **Decided 2026-10-13 (Steve): Ecological Monographs, Method, "for now".**
-Fallback: (b) below. Open with the coordinator: whether the frozen release
-could also be issued CC BY, which would reopen Ecography, GEB and Scientific
-Data.
+Fallback: (b) below. Licence stays CC BY-SA 4.0 (Steve), so Ecography, GEB
+and Scientific Data stay closed.
 
 ### Scope, two ways
 
@@ -869,16 +868,18 @@ release(s) only; compute at the size the claims need; Ecological Monographs
 (Method) for now; C5 made a pre-declared question (Q1); C3 narrowed; plan
 revised (Path).
 
-1. **Licence:** whether the frozen release can also be issued CC BY
-   (asked via the coordinator).
+1. **Licence:** maps and rasters stay CC BY-SA 4.0 (Steve, 2026-10-13);
+   Ecological Monographs sets no data licence. Ecography, GEB and Scientific
+   Data stay closed.
 2. **Conflict of interest:** "The author declares no conflict of
    interest." (Steve, 2026-10-13.)
 3. **Frozen release:** decided by the coordinator 2026-10-13: the
    full-view refresh's finished release. Waiting for it to run, then for its
    id and Zenodo DOIs.
-4. **Steve item: crediting contributors.** Proposal in section 6
-   (collective acknowledgment, a few named with permission, a contributor
-   table on Zenodo, source citations and a GBIF derived-dataset DOI).
+4. **Crediting contributors:** the full plan in section 6 adopted (Steve,
+   2026-10-13). Steve item: the few people to thank by name (each asked
+   first). Data item: observer name or username per training record for the
+   Zenodo contributor table (asked of the coordinator).
 5. **Zenodo layers archive:** Steve, 2026-10-13: "probably" discard the
    draft held since 2026-09-29 and re-archive the frozen release's layers,
    once that release exists (operations lane, Steve's go).
@@ -890,6 +891,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.6.6 (2026-10-13).** Contributor credit plan adopted; licence stays
+  CC BY-SA (Steve).
 - **0.6.5 (2026-10-13).** Validation paragraph filled from the data
   inputs lane: the automatic-validation rule and approximate manual/automatic
   shares; E7b gains the "automatic-only excluded" arm.
