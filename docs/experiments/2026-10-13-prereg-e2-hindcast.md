@@ -99,6 +99,10 @@ reach are rebuilt from the filtered pull; outputs go only to private store
 prefixes. Scoring (`score-hindcast`) uses the experiments lane's E2 scoring
 code.
 
+Data (2026-10-13, before any run; not a design change): the hindcast reads
+the *cleaned* pull, which leaves out 75 mislabelled iNaturalist ids (22 of
+them in the October 2026 pull) removed by Steve's targeted fix.
+
 ## Deviations
 
 None yet.

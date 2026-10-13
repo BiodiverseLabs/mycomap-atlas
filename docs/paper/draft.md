@@ -3,7 +3,7 @@
 *Working title (118 characters; the journal allows 120, sentence case, one
 colon, no uncommon acronyms). Alternative: "Which habitat maps can be
 trusted? Calibrated null tests for thousands of DNA-defined North American
-fungi". Living draft, version 0.7 (2026-10-13). Skeleton: headings, the
+fungi". Living draft, version 0.8 (2026-10-13). Skeleton: headings, the
 claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -13,7 +13,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | The finished release of the full-view refresh that follows the October 2026 rebuild (same pull, default maps, grades and ranks as the rebuild; full-extent rasters without the border gaps) [PENDING: id, Zenodo DOIs, code commit]. Zenodo archiving waits for it. |
+| Frozen release | The finished release of the full-view refresh of the *cleaned* October 2026 release: the rebuild, then a targeted release that removes 75 mislabelled record ids (2 fungi refitted, 18 non-fungal names dropped), then the full-view refresh (default maps, grades and ranks unchanged; full-extent rasters without border gaps) [PENDING: ids, Zenodo DOIs, code commit]. Zenodo archiving waits for it. |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -282,6 +282,19 @@ observer shows, or a named location whose centre is within 5 km of all of
 it; MyCoPortal records need MyCoPortal's own coordinates accurate to 5 km, or
 a locality that is not a shared county or state centroid. [PENDING E16: the
 records kept and dropped by each rule, by source.]
+
+*Data errors found and removed.* Checking the October 2026 pull found 75
+mycomap.org rows whose iNaturalist id was wrong: sequencing sheets had
+labelled Mushroom Observer specimens "iNat<n>", so the records pointed at
+unrelated iNaturalist observations, mostly of animals and plants. Twenty-two
+were in the pull. Two gave a fungus one false site each (*Clitocybe
+deceptiva*, 1 of 53 sites; *Agaricus bitorquis*, 1 of 25); the rest put 18
+non-fungal names, a mammal among them, into the taxa list with one or two
+sites each, too few for a model. The pipeline had faithfully labelled each
+by its approved sequence, which shows why the paper reports data errors as
+well as model errors. The 75 ids are excluded from the frozen release; the
+two fungi are refitted and the 18 names dropped. [CHECK: how the rows were
+found, and the exact taxa, from the rebuild lane.]
 
 Each taxon's record set is hashed into a fingerprint. A model belongs to its
 record set, not its name: it is refitted when the fingerprint changes, and a
@@ -660,9 +673,9 @@ Zenodo DOI, format, size and licence:]
 ### 4.2 Versions
 
 The paper cites one frozen release by id and DOI: the finished release of
-the full-view refresh, whose default maps, grades and ranks equal the
-October 2026 rebuild's and whose full-extent rasters have no border gaps
-[PENDING: id, DOIs]. The live atlas keeps
+the full-view refresh of the cleaned October 2026 release (section 2.1:
+75 mislabelled ids removed, two fungi refitted, 18 non-fungal names dropped),
+whose full-extent rasters have no border gaps [PENDING: ids, DOIs]. The live atlas keeps
 rebuilding nightly; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
@@ -707,6 +720,10 @@ sites, so that other groups can plan an atlas of their own.] → **Table 5**.
    validation state, names and coordinates for pre-cutoff records, and the
    design (layers, tuning grid, null design) was chosen on data that include
    post-cutoff records [PENDING: the rebuild lane's list of such items].
+   The targeted removal of 22 mislabelled records refitted only the two
+   fungi they touched; other models' survey sites, effort and background
+   still include those 22 of about 133,000 records [PENDING: the rebuild
+   lane's exact wording].
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -948,9 +965,10 @@ revised (Path).
    Data stay closed.
 2. **Conflict of interest:** "The author declares no conflict of
    interest." (Steve, 2026-10-13.)
-3. **Frozen release:** decided by the coordinator 2026-10-13: the
-   full-view refresh's finished release. Waiting for it to run, then for its
-   id and Zenodo DOIs.
+3. **Frozen release:** the full-view refresh of the cleaned release
+   (Steve's targeted fix, 2026-10-13: 75 mislabelled ids removed, 2 fungi
+   refitted, 18 names dropped). The hindcast reads the cleaned pull. Waiting
+   for both releases, then for ids and Zenodo DOIs.
 4. **Crediting contributors:** the full plan in section 6 adopted (Steve,
    2026-10-13). Steve item: the few people to thank by name (each asked
    first). Data item: observer name or username per training record for the
@@ -967,6 +985,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.8 (2026-10-13).** Data errors found and removed (75 mislabelled
+  iNaturalist ids; 22 in the pull): the frozen release is the refresh of a
+  cleaned release, and the hindcast reads the cleaned pull.
 - **0.7.9 (2026-10-13).** E1 species per cell doubled (counts only) after
   the calibration pilot priced the study at about a fifth of the estimate.
 - **0.7.8 (2026-10-13).** Hindcast code pushed early (feat/hindcast
