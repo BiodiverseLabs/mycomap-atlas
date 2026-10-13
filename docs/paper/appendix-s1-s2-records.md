@@ -89,5 +89,10 @@ rule that drops records whose sequences disagree. That is about 0.3% of the
 inputs lane, read-only on production, consistent with a check on one id
 range (records 180,000–230,000: 162 such records among 43,946). The
 category is excluded from the next pull on (Atlas commit 31709fa); the
-frozen release keeps it (Steve). [PENDING E16: taxa whose record sets would
-change.]
+frozen release keeps it (Steve). [PENDING E16: a read-only script, run on
+the Atlas server with the bogus-record counts, labels every record first
+validated by 2026-10-12 with and without set-aside sequences and reports
+records joining, leaving and renamed; taxa whose record sets change; taxa
+crossing 3 and 20 sites either way; and, for taxa with 20+ sites, the median
+and maximum share of detection sites changed. Worded as "as of the frozen
+pull's records, with the sequence mirror of <run date>".]
