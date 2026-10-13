@@ -222,6 +222,10 @@ atlas_usage <- function() {
   message("      --observed-after          only finds also observed after the cutoff")
   message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("  study-compare      paper E9: the record-name release against the frozen one, per taxon")
+  message("                     and learner: grades, map Spearman and Schoener's D, label changes")
+  message("      --frozen=ID               the frozen (DNA-named) release")
+  message("      --record=ID               the private release built with --record-names")
   invisible(NULL)
 }
 
@@ -886,6 +890,14 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         plan_only = isTRUE(flags$plan_only)
       )
+      invisible(0L)
+    },
+    "study-compare" = {
+      if (is.null(flags$frozen) || is.null(flags$record)) {
+        stop("study-compare needs --frozen=ID and --record=ID", call. = FALSE)
+      }
+      atlas_e9_study(atlas_flag_store(flags), frozen = as.character(flags$frozen),
+                     record = as.character(flags$record), grid = atlas_flag_grid(flags))
       invisible(0L)
     },
     {
