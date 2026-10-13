@@ -44,7 +44,8 @@ they are replaced by billed figures where AWS can still provide them.
 | — | Full-view refresh → frozen release | [PENDING] | EC2 spot | strong models | [PENDING] | | | | |
 | — | Hindcast (E2) | [PENDING] | EC2 spot | | | | est. 10–25 | | |
 | 2026-10-13 | E1 cost pilot (development; `2026-10-13-e1-cost-pilot.md`) | — | local PC, 2 processes × 1 core | 4 virtual species, Maxent + RF + ESM, scatter and shift ×99 per learner | 0.56 | 29 min | 0 (local) | 0 | per null CV: Maxent ≈ 5.2 s, RF ≈ 2.2 s, ESM ≈ 4.4 s; no species at 200+ sites |
-| — | E6b, E1c, E1, E9, E6a | [PENDING] | | | | | est. E1 30–50 (doubled sizes); E1c 5–10; E9 8–15; E6a ≈ 10 | | estimates from Appendix A |
+| 2026-10-13 | E6a cost pilot (development; `2026-10-13-e6a-cost-pilot.md`) | — | local PC, 1 core | 2 taxa, default maxnet, 5-fold CV + 3 nulls each | 0.25 | 16 min | 0 (local) | 0 | lqh at 31 sites ≈ 16 min per taxon with 19 nulls; lqph at 102 sites ≈ 28 min |
+| — | E6b, E1c, E1, E9, E6a | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
 
