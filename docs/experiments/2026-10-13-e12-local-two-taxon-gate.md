@@ -29,7 +29,9 @@
   family, 3 taxa × 2 fresh runs, compared with each other and with the
   release; branch study/refit-repro d5ee4ef, awaiting Steve's go). Caveat:
   this machine used reference BLAS, production uses OpenBLAS.
-- **Cost.** Local PC, one core; compute USD 0; storage added 0.
-  [PENDING: CPU-hours and wall time from the rebuild lane.]
+- **Cost.** Local PC, one core: fit time per run 49, 44, 47 and 86 s (the
+  fourth fitted four taxa) and about 45 s for each study-path run, plus
+  20–40 s per process to load the pull and layers; about 10 min wall,
+  ≈ 0.15 CPU-h; compute USD 0; storage added 0.
 - **Decision.** The same-machine gate passes on this machine; E12 proceeds
   to the cross-family gate.

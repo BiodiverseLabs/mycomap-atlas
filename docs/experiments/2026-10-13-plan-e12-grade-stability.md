@@ -46,8 +46,15 @@
 - **Sample (fixed 2026-10-13, before any cost or result was seen).** Strata
   = learner (Maxent, RF, boosted trees, ESM) × site band (3–4, 5–19, 20–49,
   50+) × grade (strong, weak, failed) in the frozen release, empty cells
-  skipped. Within each cell, models in a random order from seed 1; take the
-  first 25 (all, if fewer). Cost rule, applied once from step 0's recorded
+  skipped; models graded "untested" (no null test, so no grade to compare)
+  are left out and counted. Bands use each model's detection sites in the
+  release index. Within each cell, sort taxa by name, then
+  `set.seed(1)` afresh for that cell (Mersenne-Twister, Rejection sampling)
+  and order by `sample.int(n)`; take the first 25 (all, if fewer). A cell's
+  draw never depends on the others. Implemented as `study-e12-draw`
+  (branch study/refit-repro 72166b0), which also writes each drawn model's
+  recorded fit seconds (from the job that fitted it; a missing time takes
+  its cell's median and is flagged). Cost rule, applied once from step 0's recorded
   seconds: if the 50+ site Maxent cells together exceed half the estimated
   cost, keep only the first 10 of each of those cells in the same seeded
   order. Analyses weight each cell back to its share of the release.
