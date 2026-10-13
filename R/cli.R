@@ -173,6 +173,55 @@ atlas_usage <- function() {
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
+  message("Paper studies (private; results under study/ or this machine only). Run them")
+  message("locally until the study EC2 job kind is merged; --out copies results to the store.")
+  message("  study-distance     paper E6b: a distance-only kernel map per taxon of a release,")
+  message("                     bandwidth by the taxon's production folds; scored by the E2 scorer")
+  message("      --release=ID              the (hindcast) release whose pull and taxa it uses")
+  message("      --plan-only               print the work and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               taxa at once (default 1)")
+  message("  study-rescan       paper E1c: the standard test (19 scattered nulls) on a stratified")
+  message("                     sample of a release's models, beside their shift grades")
+  message("      --release=ID              the (frozen) release whose models and pull it uses")
+  message("      --per-cell=N              models per learner x band x grade (default 50)")
+  message("      --seed=N                  which sample (default 1)")
+  message("      --plan-only               print the sample size and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th model from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               models at once (default 1)")
+  message("      --pool=a.json,b.json      read a run's shards together: the 2% rule over all")
+  message("      --pool-from=study/<id>/   the same, for a study job's shards in the store")
+  message("  study-calibration  paper E1: the pre-registered virtual-species cells (1,200 habitat +")
+  message("                     800 geography full-model species, 840 ESM species), scattered and")
+  message("                     shifted nulls per learner, on the pull and layers on this machine")
+  message("      --seed=N                  which species (default 1)")
+  message("      --nulls=N                 nulls per design, stopping at 5 (default 99)")
+  message("      --per-cell=K              K species in every cell instead of the registered counts")
+  message("                                (a smoke run: K=1 is one species per cell, 39 in all)")
+  message("      --plan-only               print the species and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               species at once (default 1)")
+  message("  study-default      paper E6a: \"default practice\" Maxent (maxnet defaults, random")
+  message("                     background and folds, 19 uniform nulls) on a release's 20+ site taxa")
+  message("      --release=ID              the (hindcast) release whose pull and taxa it uses")
+  message("      --plan-only               print the taxa and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               taxa at once (default 1)")
+  message("  study-score        paper E2, E6b and E6a: score the hindcast's models and the baselines on")
+  message("                     its later finds, all on the same places")
+  message("      --hindcast=ID             the hindcast's private release (its cutoff and source release")
+  message("                                are read from it)")
+  message("      --from-release=ID         optional: refused unless it is the hindcast's source release")
+  message("      --cutoff=YYYY-MM-DD       optional: refused unless it is the hindcast's cutoff")
+  message("      --kernels=a.json,...      every shard's results file of one E6b run on this hindcast")
+  message("      --defaults=a.json,...     every shard's results file of one E6a run on this hindcast")
+  message("      --observed-after          only finds also observed after the cutoff")
+  message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
   invisible(NULL)
 }
 
@@ -754,6 +803,89 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "help" = {
       atlas_usage()
+      invisible(0L)
+    },
+    # Paper studies.
+    "study-distance" = {
+      if (is.null(flags$release)) stop("study-distance needs --release=ID", call. = FALSE)
+      atlas_distance_study(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-rescan" = {
+      if (!is.null(flags$pool) || !is.null(flags$pool_from)) {
+        pooled <- if (!is.null(flags$pool_from)) {
+          atlas_rescan_pool_from(atlas_flag_store(flags), as.character(flags$pool_from))
+        } else {
+          atlas_rescan_pool(trimws(strsplit(as.character(flags$pool), ",", fixed = TRUE)[[1]]))
+        }
+        message(pooled$models, " of ", pooled$sampled, " sampled models over ", length(pooled$shards),
+                " shards; ", pooled$health$dropped, " without a verdict; readable: ", pooled$readable)
+        print(pooled$summary, row.names = FALSE)
+        return(invisible(if (isTRUE(pooled$readable)) 0L else 1L))
+      }
+      if (is.null(flags$release)) stop("study-rescan needs --release=ID", call. = FALSE)
+      atlas_rescan_study(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        per_cell = as.integer(atlas_flag_number(flags, "per_cell", ATLAS_RESCAN_PER_CELL)),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1)),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-calibration" = {
+      out <- if (is.null(flags$out)) NULL else as.character(flags$out)
+      per_cell <- if (is.null(flags$per_cell)) NULL else as.integer(atlas_flag_number(flags, "per_cell", 1))
+      if (!is.null(per_cell) && (is.na(per_cell) || per_cell < 1L)) {
+        stop("--per-cell must be a whole number, 1 or more", call. = FALSE)
+      }
+      atlas_calibration_study(
+        grid = atlas_flag_grid(flags),
+        layout = if (is.null(per_cell)) atlas_calibration_layout() else
+          atlas_calibration_layout(per_cell, per_cell, per_cell, per_cell),
+        seed = as.integer(atlas_flag_number(flags, "seed", 1)),
+        nulls = as.integer(atlas_flag_number(flags, "nulls", ATLAS_CALIBRATION_NULLS)),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        out = out, store = if (!is.null(out)) atlas_flag_store(flags),
+        plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-score" = {
+      if (is.null(flags$hindcast)) stop("study-score needs --hindcast=ID", call. = FALSE)
+      files <- function(value) if (is.null(value)) NULL else trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
+      atlas_score_study(
+        atlas_flag_store(flags), hindcast = as.character(flags$hindcast),
+        from_release = if (is.null(flags$from_release)) NULL else as.character(flags$from_release),
+        cutoff = if (is.null(flags$cutoff)) NULL else as.character(flags$cutoff),
+        grid = atlas_flag_grid(flags), kernels = files(flags$kernels), defaults = files(flags$defaults),
+        observed_after = isTRUE(flags$observed_after),
+        reps = atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out)
+      )
+      invisible(0L)
+    },
+    "study-default" = {
+      if (is.null(flags$release)) stop("study-default needs --release=ID", call. = FALSE)
+      atlas_default_study(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        plan_only = isTRUE(flags$plan_only)
+      )
       invisible(0L)
     },
     {

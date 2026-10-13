@@ -100,6 +100,72 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   invisible(list(summary = summary, taxa = rows, path = path))
 }
 
+#' One shard of a study's names: "i/n" takes every n-th name from the i-th,
+#' so n machines given 1/n .. n/n split the names without overlap or gap.
+atlas_study_shard <- function(names, shard = "1/1") {
+  parts <- suppressWarnings(as.integer(strsplit(as.character(shard %||% "1/1"), "/", fixed = TRUE)[[1]]))
+  if (length(parts) != 2L || anyNA(parts) || parts[[2]] < 1L || parts[[1]] < 1L ||
+      parts[[1]] > parts[[2]]) {
+    stop("a shard is i/n with 1 <= i <= n, not '", shard, "'", call. = FALSE)
+  }
+  names[(seq_along(names) - 1L) %% parts[[2]] == parts[[1]] - 1L]
+}
+
+# Store prefixes a study may write under. A study never writes a release,
+# the current pointer or anything public.
+# private/study/ only: production reads other private/ prefixes (the
+# tracker's ledger, trained ids, private releases), and a study must never
+# overwrite them.
+ATLAS_STUDY_PREFIXES <- c("study/", "private/study/")
+
+#' Refuse a store key outside the study prefixes, or one that could climb out
+#' of them: any "..", and any backslash (a local store on Windows would read
+#' study/..\releases as a way out).
+atlas_study_check_key <- function(key) {
+  key <- as.character(key)
+  if (length(key) != 1L || is.na(key) || !nzchar(key) || grepl("..", key, fixed = TRUE) ||
+      grepl("\\", key, fixed = TRUE) || !any(startsWith(key, ATLAS_STUDY_PREFIXES))) {
+    stop("a study writes only under ", paste(ATLAS_STUDY_PREFIXES, collapse = " or "),
+         ", not '", key, "'", call. = FALSE)
+  }
+  key
+}
+
+#' Where a study run writes: a local directory, and the store prefix it is
+#' copied to afterwards (atlas_study_publish). out is a store prefix under
+#' study/ or private/study/, or NULL for data/<kind>/<grid>/ on this machine
+#' only.
+atlas_study_out <- function(out, kind, grid, label) {
+  stamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
+  slug <- gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", as.character(label)))
+  # The results file is <prefix>-<stamp>.json (atlas_run_study adds the
+  # stamp); the run's other files go in the directory beside it.
+  prefix <- paste0(sub("-studies$", "", kind), "-", slug)
+  key <- if (!is.null(out)) {
+    atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
+  }
+  dir <- atlas_path(kind, grid, paste0(prefix, "-", stamp))
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  list(dir = dir, prefix = prefix, key = key)
+}
+
+#' Copy a study's local files to its store prefix, every key checked first,
+#' so a bad prefix writes nothing at all.
+atlas_study_publish <- function(store, files, prefix, root) {
+  keys <- vapply(files, function(f) {
+    rel <- substring(normalizePath(f, winslash = "/"), nchar(normalizePath(root, winslash = "/")) + 2L)
+    atlas_study_check_key(paste0(sub("/*$", "/", prefix), rel))
+  }, character(1))
+  for (i in seq_along(files)) store$put(keys[[i]], files[[i]])
+  invisible(unname(keys))
+}
+
+#' How many rows of a study ended each way.
+atlas_study_counts <- function(rows) {
+  status <- vapply(rows, function(r) as.character(r$status %||% "unknown"), "")
+  as.list(table(factor(status, levels = unique(c("scored", "refused", "mismatch", "failed", status)))))
+}
+
 #' An arm's name: arm for a benchmark, per_presence for the predictor sweep.
 atlas_arm_name <- function(arm) {
   as.character(arm$arm %||% arm$per_presence)
