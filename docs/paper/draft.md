@@ -773,15 +773,19 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
    figures on the frozen pull; these are from the 2026-10-06 pull, which
    holds the same 22 records]. A full refit on the cleaned pull would remove
    this; we did not refit, judging 22 records among more than 130,000 too few
-   to matter, and report the shares instead. Separately, the frozen pull
-   named records from approved sequences including those the sequencing
-   pipeline had set aside (a "trash" category still marked approved): about
-   380 records (≈ 0.3% of the ~141,800 with named sequences) were named only
-   by such sequences, and 2,023 (≈ 1.4%) were left out because a set-aside
-   sequence disagreed with their others. This adds a few weakly supported
-   records and removes some well-supported ones; we expect little effect on
-   maps and grades [PENDING E16: the taxa whose record sets change]. Later
-   releases exclude the category (Atlas commit 31709fa).
+   to matter, and report the shares instead. Separately, the frozen pull's
+   naming also read two kinds of sequence it should have ignored: sequences
+   the sequencing pipeline had set aside (a "trash" category) and sequences
+   flagged as contaminants, reads of another organism than the specimen,
+   which mycomap.org's own validation already excludes. About 502 records
+   (≈ 0.35% of the ~141,800 with named sequences) were named only by such
+   sequences, for example an iNaturalist record named *Bacillus mycoides*
+   by three contaminant reads, and about 2,281 (≈ 1.6%) were left out because
+   such a sequence disagreed with their others. This adds a few weakly
+   supported records and removes some well-supported ones; we expect little
+   effect on maps and grades [PENDING E16: the taxa whose record sets
+   change]. Later releases exclude both kinds (Atlas commits 31709fa and
+   9379a64).
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -1078,6 +1082,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.6 (2026-10-13).** Naming limitation widened to contaminant-flagged
+  sequences as well as set-aside ones (≈ 502 records named by them, ≈ 2,281
+  left out).
 - **0.9.5 (2026-10-13).** Provisional strong-map count (576 models, 470
   taxa, ~7%) in C4 and the Discussion; the like-for-like old-test
   comparison is E1c.
