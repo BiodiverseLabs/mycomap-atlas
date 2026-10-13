@@ -172,3 +172,194 @@ test_that("H6b reads the strong models only", {
   expect_equal(result$kernel$H6b$places, strong_places)
   expect_equal(result$kernel$H6b$n_taxa, 20L)
 })
+
+# --- The review's guards ----------------------------------------------------------
+
+test_that("the combined map is scored for E15 but never enters the grades or the hypotheses", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  with_combined <- function(taxon) {
+    maps <- model_maps(taxon)
+    # A combined map that ranks the east lowest: if it counted, strong maps
+    # would look poor.
+    maps$combined <- list(layers = layers_from(-east()), grade = "strong", learner = "combined", kind = "combined")
+    maps
+  }
+  plain <- atlas_score_baselines_core(places, model_maps, reps = 200)
+  both <- atlas_score_baselines_core(places, with_combined, reps = 200)
+  expect_equal(both$models$by_grade, plain$models$by_grade)
+  expect_equal(both$hypotheses$H2a$estimate, plain$hypotheses$H2a$estimate)
+  expect_true(both$models$combined$all$tested)
+  expect_lt(both$models$combined$all$top_half, 0.5)
+})
+
+test_that("H6b on new places counts the new places only, and both sides cover the kernel's taxa only", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  west <- score_grid()
+  terra::values(west) <- -east()
+  path <- tempfile(fileext = ".tif")
+  terra::writeRaster(west, path)
+  # Kernels for the first 20 taxa only.
+  kernel_for <- function(taxon) {
+    if (as.integer(sub("T", "", taxon)) > 20) return(NULL)
+    atlas_score_kernel_maps(model_maps(taxon), path)
+  }
+  result <- atlas_score_baselines_core(places, model_maps, kernel_maps_for = kernel_for, reps = 200)
+  half <- places[places$taxon %in% sprintf("T%02d", 1:20), ]
+  expect_equal(result$kernel$H6b$places, atlas_e2_place_count(half))
+  expect_equal(result$kernel$H6b_new$places, atlas_e2_place_count(half[half$new_place, ]))
+  expect_equal(result$kernel$models_same_taxa$strong$all$taxa, 20L)
+  expect_equal(result$kernel$paired_by_grade$strong$all$taxa, 20L)
+  expect_true(is.finite(result$kernel$H6b$mean_rank_difference$estimate))
+})
+
+test_that("E2's own hypotheses are part of the results", {
+  skip_if_not_installed("terra")
+  result <- atlas_score_baselines_core(score_places(), model_maps, reps = 200)
+  expect_true(all(c("H2a", "H2b", "H2c", "C2") %in% names(result$hypotheses)))
+  expect_true(result$hypotheses$H2a$holds)
+})
+
+test_that("the visitor's map is the combined map, else the best strong map, else none", {
+  skip_if_not_installed("terra")
+  layers <- layers_from(east())
+  model <- c(layers, list(grade = "strong", metrics = list(), aoa = TRUE))
+  weak <- c(layers, list(grade = "weak", metrics = list(), aoa = TRUE))
+  local_mocked_bindings(atlas_tracker_maps = function(view, taxon) {
+    switch(taxon,
+           ens = list(none = FALSE, models = list(maxnet = model, rf = model), grade = "strong",
+                      choice = list(kind = "ensemble"), ensemble = c(layers, list(known = rep(1, 100), aoa = TRUE))),
+           best = list(none = FALSE, models = list(maxnet = weak, rf = model), grade = "strong",
+                       choice = list(kind = "model", algorithm = "rf"), ensemble = NULL),
+           weak = list(none = FALSE, models = list(maxnet = weak), grade = "weak", choice = NULL, ensemble = NULL),
+           list(none = TRUE))
+  })
+  ens <- atlas_score_model_maps(list(), "ens")
+  expect_equal(ens$combined$kind, "combined")
+  expect_equal(ens$combined$known, rep(1, 100))
+  best <- atlas_score_model_maps(list(), "best")
+  expect_equal(best$combined$learner, "rf")
+  expect_equal(best$maxnet$grade, "weak")
+  expect_null(atlas_score_model_maps(list(), "weak")$combined)
+  expect_null(atlas_score_model_maps(list(), "none"))
+})
+
+baseline_run <- function(dir, release, shards, taxa_of = function(i) sprintf("T%02d", i)) {
+  vapply(seq_along(shards), function(i) {
+    prefix <- sprintf("distance-%s-s%d", release, i)
+    dir.create(file.path(dir, paste0(prefix, "-20261020T010101Z")), recursive = TRUE, showWarnings = FALSE)
+    path <- file.path(dir, paste0(prefix, "-20261020T010101Z.json"))
+    jsonlite::write_json(list(settings = list(release = release, shard = shards[[i]]),
+                              taxa = lapply(taxa_of(i), function(t) list(taxon = t, status = "scored"))),
+                         path, auto_unbox = TRUE)
+    path
+  }, "")
+}
+
+test_that("a baseline run is taken whole and only if it was run on this hindcast", {
+  dir <- tempfile("runs-")
+  whole <- baseline_run(dir, "h1", c("1/2", "2/2"))
+  run <- atlas_score_run(whole, "h1")
+  expect_length(run$dirs, 2L)
+  expect_length(run$rows, 2L)
+  expect_error(atlas_score_run(whole, "R_main"), "not of hindcast")
+  expect_error(atlas_score_run(whole[1], "h1"), "missing shards")
+  expect_error(atlas_score_run(c(whole[1], whole[1]), "h1"), "twice")
+  mixed <- baseline_run(tempfile("runs-"), "h1", c("1/2", "2/3"))
+  expect_error(atlas_score_run(mixed, "h1"), "different splits")
+  again <- baseline_run(tempfile("runs-"), "h1", c("1/2", "2/2"), taxa_of = function(i) "T01")
+  expect_error(atlas_score_run(again, "h1"), "two shards")
+})
+
+# A small hindcast as study-score reads it: its manifest, its pull's keys
+# and names; and the full pull of the release it came from.
+score_world <- function() {
+  set.seed(5)
+  n <- 120
+  pull <- data.frame(
+    source = "inat", observation_id = as.character(seq_len(n)),
+    scientific_name = rep(sprintf("T%02d", 1:40), length.out = n),
+    latitude = as.character(40 + stats::runif(n, 0, 0.5)), longitude = as.character(-85 + stats::runif(n, 0, 0.5)),
+    first_green_on = ifelse(seq_len(n) <= 80, "2026-07-01", "2026-09-01"),
+    observed_on = "2026-06-01", stringsAsFactors = FALSE
+  )
+  view <- list(
+    manifest = list(purpose = "hindcast", validated_through = "2026-08-17", from_release = "r1"),
+    pull = data.frame(key = paste("inat", pull$observation_id[1:80], sep = ":"), stringsAsFactors = FALSE),
+    names = sprintf("T%02d", 1:40), renames = NULL
+  )
+  xy <- atlas_albers(as.numeric(pull$latitude), as.numeric(pull$longitude))
+  grid <- terra::rast(nrows = 20, ncols = 20, crs = ATLAS_CRS,
+                      xmin = min(xy[, "x"]) - 5e4, xmax = max(xy[, "x"]) + 5e4,
+                      ymin = min(xy[, "y"]) - 5e4, ymax = max(xy[, "y"]) + 5e4)
+  suitability <- grid
+  terra::values(suitability) <- seq_len(400)
+  list(pull = pull, view = view, layers = atlas_tracker_layers(suitability))
+}
+
+later_places <- function(world) {
+  later <- world$pull[81:120, ]
+  xy <- atlas_albers(as.numeric(later$latitude), as.numeric(later$longitude))
+  atlas_e2_place_count(data.frame(taxon = later$scientific_name, place = atlas_e2_square(xy[, "x"], xy[, "y"])))
+}
+
+test_that("study-score reads the cutoff and source release from the hindcast and scores its later finds", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) {
+    list(maxnet = list(layers = world$layers, grade = "strong", learner = "maxnet", kind = "model"))
+  })
+  with_data_dir({
+    result <- atlas_score_study(store = NULL, hindcast = "h1", view = world$view, full_pull = world$pull,
+                                reps = 100, quiet = TRUE)
+    expect_equal(result$settings$cutoff, "2026-08-17")
+    expect_equal(result$settings$from_release, "r1")
+    expect_equal(result$settings$seed, 1L)
+    expect_equal(result$models$by_grade$strong$all$ranked, later_places(world))
+    expect_true(file.exists(result$path))
+  })
+})
+
+test_that("study-score refuses a cutoff, source release or hindcast that do not belong together", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) NULL)
+  run <- function(..., reps = 10) {
+    with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", full_pull = world$pull, reps = reps,
+                                    quiet = TRUE, ...))
+  }
+  expect_error(run(view = world$view, cutoff = "2026-07-15"), "not the hindcast's")
+  expect_error(run(view = world$view, from_release = "R_main"), "not the hindcast's")
+  not_hindcast <- world$view
+  not_hindcast$manifest$purpose <- "record-names"
+  expect_error(run(view = not_hindcast), "not a hindcast")
+  # A pull that is not the hindcast's source: its training records differ.
+  other <- world$view
+  other$pull <- other$pull[1:70, , drop = FALSE]
+  expect_error(run(view = other), "not the hindcast's")
+  # A cutoff earlier than the hindcast's records: the split would score the
+  # hindcast's own training records as later finds.
+  leaky <- world$view
+  leaky$manifest$validated_through <- "2026-06-15"
+  expect_error(run(view = leaky), "not the hindcast's")
+  for (bad in list(0, -5, 2.5, NA)) expect_error(run(view = world$view, reps = bad), "whole number")
+})
+
+test_that("a later find under a name the release spells otherwise is scored under the release's name", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  world$pull$scientific_name[81] <- "T01 (Author) Name"
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) {
+    list(maxnet = list(layers = world$layers, grade = "strong", learner = "maxnet", kind = "model"))
+  }, atlas_best_match = function(requested, names, renames = NULL) {
+    if (identical(requested, "T01 (Author) Name")) return(list(name = "T01", how = "spelling"))
+    if (requested %in% names) list(name = requested, how = "exact") else NULL
+  })
+  with_data_dir({
+    result <- atlas_score_study(store = NULL, hindcast = "h1", view = world$view, full_pull = world$pull,
+                                reps = 50, quiet = TRUE)
+    expect_equal(result$models$by_grade$strong$all$unknown_name, 0L)
+    expect_equal(result$models$by_grade$strong$all$ranked, later_places(world))
+  })
+})

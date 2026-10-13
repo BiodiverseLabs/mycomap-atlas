@@ -190,13 +190,14 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               taxa at once (default 1)")
-  message("  study-score        paper E6b and E6a: score the baselines on the hindcast's later finds,")
-  message("                     with the hindcast's scorer, on the same places as its models")
-  message("      --hindcast=ID             the hindcast's private release")
-  message("      --from-release=ID         the release it was made from (its pull has the later finds)")
-  message("      --cutoff=YYYY-MM-DD       the hindcast's first-validation cutoff")
-  message("      --kernels=DIR             an E6b run's directory (its kernels/)")
-  message("      --defaults=FILE           an E6a run's results file (its maps/ beside it)")
+  message("  study-score        paper E2, E6b and E6a: score the hindcast's models and the baselines on")
+  message("                     its later finds, all on the same places")
+  message("      --hindcast=ID             the hindcast's private release (its cutoff and source release")
+  message("                                are read from it)")
+  message("      --from-release=ID         optional: refused unless it is the hindcast's source release")
+  message("      --cutoff=YYYY-MM-DD       optional: refused unless it is the hindcast's cutoff")
+  message("      --kernels=a.json,...      every shard's results file of one E6b run on this hindcast")
+  message("      --defaults=a.json,...     every shard's results file of one E6a run on this hindcast")
   message("      --observed-after          only finds also observed after the cutoff")
   message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
@@ -771,17 +772,15 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "study-score" = {
-      for (flag in c("hindcast", "from_release", "cutoff")) {
-        if (is.null(flags[[flag]])) stop("study-score needs --", gsub("_", "-", flag), call. = FALSE)
-      }
+      if (is.null(flags$hindcast)) stop("study-score needs --hindcast=ID", call. = FALSE)
+      files <- function(value) if (is.null(value)) NULL else trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
       atlas_score_study(
         atlas_flag_store(flags), hindcast = as.character(flags$hindcast),
-        from_release = as.character(flags$from_release), cutoff = as.character(flags$cutoff),
-        grid = atlas_flag_grid(flags),
-        kernels = if (is.null(flags$kernels)) NULL else as.character(flags$kernels),
-        defaults = if (is.null(flags$defaults)) NULL else as.character(flags$defaults),
+        from_release = if (is.null(flags$from_release)) NULL else as.character(flags$from_release),
+        cutoff = if (is.null(flags$cutoff)) NULL else as.character(flags$cutoff),
+        grid = atlas_flag_grid(flags), kernels = files(flags$kernels), defaults = files(flags$defaults),
         observed_after = isTRUE(flags$observed_after),
-        reps = as.integer(atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP)),
+        reps = atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP),
         out = if (is.null(flags$out)) NULL else as.character(flags$out)
       )
       invisible(0L)
