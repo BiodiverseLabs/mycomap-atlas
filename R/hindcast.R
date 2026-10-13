@@ -363,7 +363,10 @@ atlas_finish_private_release_work <- function(store = atlas_store(), id, grid = 
     list(counted = counted, models = models, entries = entries)
   })
   manifest_file <- tempfile(fileext = ".json")
-  atlas_write_json(list(id = id, grid = grid, kind = "private-release", purpose = job$purpose,
+  # job is this job: its inputs hold the variant pull, so the new-find
+  # tracker's reader (atlas_tracker_view) finds the records it was trained
+  # on, as it does a release's.
+  atlas_write_json(list(id = id, grid = grid, kind = "private-release", purpose = job$purpose, job = id,
                         from_release = job$from_release, validated_through = job$validated_through,
                         created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
                         pull = job$pull, layers_key = job$layers_key,
