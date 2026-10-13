@@ -667,6 +667,14 @@ rebuilding nightly; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
 
+### 4.4 What it costs (E23)
+
+[PENDING: from the ledger in `costs.md`. Cost and wall time of one full
+rebuild (EC2 spot compute, storage added); a typical nightly incremental
+run; the standing monthly cost (server, storage, transfer); the cost of each
+analysis in this paper; and CPU seconds per model by learner and by number of
+sites, so that other groups can plan an atlas of their own.] → **Table 5**.
+
 ### 4.3 Usage notes
 
 [PENDING: how to read a grade; use strong maps only for claims; suitability
@@ -774,6 +782,7 @@ community-science papers do:
 | Table 2 | Predictors and sources | methods | layer manifest |
 | Table 3 | Models and maps by grade × learner × site band | C2, C4 | release |
 | Table 4 | Evidence summary: each claim, its tests, the result | all | |
+| Table 5 | Cost and time: per rebuild, per nightly run, per analysis, standing monthly; CPU seconds per model by learner and site band | C4 | E23 (`costs.md`) |
 
 Supporting information: one Appendix S1 with sections, as the journal
 prefers. Section S1 ODMAP protocol (Zurell et al. 2020); S2 virtual-species
@@ -834,6 +843,7 @@ data, command, result, release, commit).
 |---|---|---|
 | E19 | Training-record table for the frozen release (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
+| E23 | Cost and time ledger (`costs.md`): per run, CPU-hours, billed instance-hours, instance types, wall time, compute USD, storage added; standing monthly costs (Steve, 2026-10-13) | P1 |
 
 | ID | Pre-declared question Q1 | Exists? | Data / method | Cost / time | Priority |
 |---|---|---|---|---|---|
@@ -957,6 +967,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.7.7 (2026-10-13).** Cost and time ledger (E23, `costs.md`), section
+  4.4 and Table 5 (Steve).
 - **0.7.6 (2026-10-13).** Training-record table columns settled (E19).
 - **0.7.5 (2026-10-13).** Predictors corrected to the production layer
   manifest: 69 bands, 29 host genera + conifer share (the public Methods

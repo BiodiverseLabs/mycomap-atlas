@@ -16,6 +16,9 @@ Each file says:
 - **Code** — the commit, and the one command that reruns it.
 - **Result** — the numbers, with intervals, and where the results file lives
   in the store (never a local path, never a record or coordinate).
+- **Cost** — where it ran (EC2 spot, the server, a local PC), fit
+  CPU-hours, billed instance-hours and instance types, wall time, compute
+  USD, and storage added. The same row goes into `docs/paper/costs.md`.
 - **Decision** — what was decided from it, by whom, or "none".
 
 Results files hold no coordinates, but they stay in the store or the data
