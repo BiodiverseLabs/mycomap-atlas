@@ -631,12 +631,15 @@ Zenodo DOI, format, size and licence:]
   cells and any other published layer need the same treatment for hidden,
   obscured and unknown-privacy records, and whether that can be applied when
   the frozen release is finished.
-- **Contributors** (Steve, 2026-10-13): one row per contributor, holding the
-  name or username as public at the source and record counts only. There
-  are no record ids, species or places in it, so it cannot be joined to the
-  training-record table to tie a person to a hidden-location record.
-  Contributors may ask to be listed anonymously. [PENDING: the coordinator
-  is confirming this shape with Steve.]
+- **Contributors** (Steve, 2026-10-13): one row per contributor with a name
+  and record counts only. Names are as public at the source: the
+  iNaturalist login, the Mushroom Observer user, the MyCoPortal collector,
+  GenBank's own public submitter or author field, and, for MycoMap sequence
+  records, the mycomap.org uploader. There are no record ids, species or
+  places in it, so it cannot be joined to the training-record table to tie a
+  person to a hidden-location record. Contributors may ask to be listed
+  anonymously. [PENDING: the data, after the cutover, with the provenance
+  table.]
 - **Code**: the repository at the release commit, with a Zenodo software
   DOI, and the container image digest.
 
@@ -939,6 +942,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.7.2 (2026-10-13).** Contributor table confirmed by Steve: names by
+  source as public there, counts only, opt-out.
 - **0.7.1 (2026-10-13).** ODMAP protocol drafted (Appendix S1, Section S1).
 - **0.7 (2026-10-13).** Introduction drafted as prose (~1,000 words);
   contributor table shape and opt-out in 4.1.
