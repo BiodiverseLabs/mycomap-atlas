@@ -16,7 +16,11 @@
   20-step path),
   every production predictor, no pruning, no effort term; 10,000 background
   points: random grid cells with complete predictors inside the taxon's
-  500 km accessible area (not the target-group sites).
+  500 km accessible area (not the target-group sites). Predictors constant
+  over a fit's points (detections and background, in each CV fold, the final
+  fit and each null) are left out, because maxnet cannot fit them; the count
+  is reported. Nothing that varies is pruned. (Added 2026-10-13, before any
+  run, on the experiments lane's finding.)
 - **Its own evaluation.** Random 5-fold cross-validation AUC, reported as
   the model's own score; and the null test as Raes & ter Steege (2007) run
   it: the model's TRAINING AUC (fit on all points against the background)
