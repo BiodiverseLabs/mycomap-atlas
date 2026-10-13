@@ -75,27 +75,31 @@ on the cleaned pull, and the 18 other names are not modelled. The exclusion list
 pull's manifest records its SHA-256 and the number of rows removed (Atlas
 commit 643b444), and it applies to every later pull.
 
-## S2.3 Set-aside and contaminant sequences in the naming (frozen pull only)
+## S2.3 Set-aside, contaminant and misattributed sequences in the naming (frozen pull only)
 
 Atlas names each record by the species name of its approved DNA sequences
-on mycomap.org. In the frozen pull this naming also read two kinds of
+on mycomap.org. In the frozen pull this naming also read three kinds of
 sequence it should have ignored: those the sequencing pipeline had set aside
 (a "trash" category the mirror still marks approved; 180,631 sequences on
-2026-10-13) and those flagged as contaminants, reads of a different organism
+2026-10-13); those flagged as contaminants, reads of a different organism
 than the specimen (31,130), which mycomap.org's own validation already
-excludes. About 502 records were named only by such sequences (for example
-an iNaturalist record named *Bacillus mycoides* by three contaminant reads),
-and about 2,281 more had such a sequence with a different name from their
-own sequences and were left out under the rule that drops records whose
-sequences disagree: about 0.35% of the ~141,800 records with named
-sequences named on a weaker basis, and about 1.6% left out that might
-otherwise have been modelled. Figures from the data inputs lane, read-only
-on production, 2026-10-13. Both kinds are excluded from the next pull on
-(Atlas commits 31709fa and 9379a64); the frozen release keeps them
-(Steve). [PENDING E16: a read-only script, run on
+excludes; and those flagged as belonging to a different observation or
+specimen (13,526 approved). About 527 records were named only by such
+sequences (for example an iNaturalist record named *Bacillus mycoides* by
+three contaminant reads), and about 2,287 more had such a sequence with a
+different name from their own sequences and were left out under the rule
+that drops records whose sequences disagree: about 0.37% of the ~141,800
+records with named sequences named on a weaker basis, and about 1.6% left
+out that might otherwise have been modelled. Of the 527, 25 come from the
+third kind alone and have no approved sequence left once it is excluded;
+they are passed to data review. Figures read-only on production,
+2026-10-13 (trash and contaminant counts from the data inputs lane; the
+third kind from the rebuild lane, by Atlas's own naming rule). All three
+kinds are excluded from the next pull on (Atlas commits 31709fa, 9379a64,
+06cf6ea); the frozen release keeps them (Steve). [PENDING E16: a read-only script, run on
 the Atlas server with the bogus-record counts, labels every record first
-validated by 2026-10-12 with and without set-aside and contaminant-flagged
-sequences and reports
+validated by 2026-10-12 with and without set-aside, contaminant-flagged
+and misattributed sequences and reports
 records joining, leaving and renamed; taxa whose record sets change; taxa
 crossing 3 and 20 sites either way; and, for taxa with 20+ sites, the median
 and maximum share of detection sites changed. Worded as "as of the frozen
