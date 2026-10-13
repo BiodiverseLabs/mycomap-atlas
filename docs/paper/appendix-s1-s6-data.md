@@ -11,10 +11,18 @@ validation provenance, observer names) and how they join; what is private.]
 
 ## S6.2 Records removed before the frozen release
 
-Before an October 2026 update, data checks on mycomap.org found 75 rows
-whose iNaturalist id was wrong. Sequencing sheets had labelled Mushroom
-Observer specimens "iNat<n>", so the records pointed at unrelated
-iNaturalist observations [CHECK: what triggered the check]. Twenty-two were
+Seventy-five mycomap.org rows had a wrong iNaturalist id. Sequencing sheets
+had labelled Mushroom Observer specimens "iNat<n>", so the records pointed at
+unrelated iNaturalist observations under the same number. The error was
+first noticed by hand on 2026-09-30, on one sequence linked to an
+iNaturalist dragonfly observation instead of the Mushroom Observer
+specimen of the same number. The 75 rows were found on 2026-10-13 by an
+audit of MycoMap Vision's training references, in which 41 records showed
+animal photos, each with a Mushroom Observer twin in the same validation
+project [CHECK: confirm with Steve or the Vision retrain lane]. A separate
+Vision export bug (Mushroom Observer and MyCoPortal ids fetched as
+iNaturalist ids, found 2026-10-09) had a different cause and did not affect
+Atlas. Twenty-two were
 in the October 2026 pull. All 75 ids are excluded from the frozen release
 and from the hindcast's pull.
 

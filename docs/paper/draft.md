@@ -283,11 +283,13 @@ it; MyCoPortal records need MyCoPortal's own coordinates accurate to 5 km, or
 a locality that is not a shared county or state centroid. [PENDING E16: the
 records kept and dropped by each rule, by source.]
 
-*Data errors found and removed.* Data checks on mycomap.org before an
-October 2026 update found 75 rows whose iNaturalist id was wrong:
-sequencing sheets had labelled Mushroom Observer specimens "iNat<n>", so
-the records pointed at unrelated iNaturalist observations [CHECK: what
-triggered the check]. Twenty-two of them were in the pull. Two gave a fungus
+*Data errors found and removed.* Seventy-five mycomap.org rows had a wrong
+iNaturalist id: sequencing sheets had labelled Mushroom Observer specimens
+"iNat<n>", so the records pointed at unrelated iNaturalist observations
+under the same number. The error was first seen by hand on one sequence on
+2026-09-30. The 75 rows were found on 2026-10-13 by an audit of MycoMap
+Vision's training photos, where records validated as fungi showed birds and
+mammals [CHECK: confirm with Steve]. Twenty-two of them were in the pull. Two gave a fungus
 one false site each (*Clitocybe deceptiva*, 1 of 53 sites; *Agaricus
 bitorquis*, 1 of 25). The other 20 put 18 non-fungal names into the taxa
 list with one or two sites each, too few for a model: seven birds (nine
@@ -988,6 +990,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.8.2 (2026-10-13).** How the mislabelled rows were found: Vision's
+  photo audit (to confirm with Steve).
 - **0.8.1 (2026-10-13).** Data-error paragraph with the exact taxa and the
   skunk record.
 - **0.8 (2026-10-13).** Data errors found and removed (75 mislabelled
