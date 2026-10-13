@@ -175,14 +175,15 @@ test_that("the standard test's verdict needs the release's own Boyce index above
 test_that("the 2% rule is read over every shard together, and a missing shard keeps the run unreadable", {
   dir <- tempfile("rescan-")
   dir.create(dir)
-  shard <- function(i, statuses) {
-    path <- file.path(dir, paste0("shard", i, ".json"))
+  shard <- function(i, statuses, of = 2, ids = NULL) {
+    ids <- ids %||% sprintf("maxnet|Taxon %d-%03d", i, seq_along(statuses))
+    path <- file.path(dir, paste0("shard", i, "of", of, "-", length(statuses), ".json"))
     jsonlite::write_json(list(settings = list(release = "r1", seed = 1, per_cell = 50, nulls = 19,
-                                              shard = paste0(i, "/2")),
+                                              shard = paste0(i, "/", of)),
                               strata = list(sampled = list(a = 100L)),
-                              taxa = lapply(statuses, function(s) list(status = s, algorithm = "maxnet",
-                                                                       grade = "strong",
-                                                                       scatter = list(verdict = "passed")))),
+                              taxa = lapply(seq_along(statuses), function(k) list(
+                                taxon = ids[[k]], status = statuses[[k]], algorithm = "maxnet",
+                                grade = "strong", scatter = list(verdict = "passed")))),
                          path, auto_unbox = TRUE)
     path
   }
@@ -200,4 +201,24 @@ test_that("the 2% rule is read over every shard together, and a missing shard ke
   jsonlite::write_json(list(settings = list(release = "r2", seed = 1, per_cell = 50, nulls = 19, shard = "2/2"),
                             taxa = list()), other, auto_unbox = TRUE)
   expect_error(atlas_rescan_pool(c(a, other)), "not shards of one rescan")
+  # Shards of different splits never add up to a run, even when the
+  # counts would happen to.
+  expect_error(atlas_rescan_pool(c(a, shard(2, rep("scored", 50), of = 3))), "different splits")
+  # A model in two shards is refused.
+  twice <- shard(2, rep("scored", 50), ids = c("maxnet|Taxon 1-001", sprintf("maxnet|Taxon 2-%03d", 2:50)))
+  expect_error(atlas_rescan_pool(c(a, twice)), "two shards")
+  # With a shard missing, the run is not complete, however many rows it has.
+  big <- shard(1, rep("scored", 100), of = 3)
+  expect_false(atlas_rescan_pool(big)$complete)
+})
+
+test_that("a rescan model whose record keeps no folds is not trusted", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  world <- synthetic_landscape()
+  record <- atlas_rescan_record(fitted_record(world))
+  inputs <- atlas_rescan_inputs("Eastern fungus", "maxnet", record, world$points, world$stack,
+                                n_background = 500, buffer_km = 300)
+  expect_equal(atlas_rescan_differences(inputs, modifyList(record, list(fold_presences = integer())), "f00dfeed"),
+               "no folds recorded")
 })

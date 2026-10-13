@@ -143,8 +143,10 @@ atlas_rescan_differences <- function(inputs, record, fingerprint, observed_auc =
   fold_presences <- vapply(sort(unique(inputs$folds)), function(f) {
     sum(training$presence[inputs$folds == f] == 1L)
   }, 0L)
-  if (length(record$fold_presences) &&
-      !identical(as.integer(fold_presences), as.integer(record$fold_presences))) {
+  # A record that keeps no folds cannot vouch for them.
+  if (!length(record$fold_presences)) {
+    why <- c(why, "no folds recorded")
+  } else if (!identical(as.integer(fold_presences), as.integer(record$fold_presences))) {
     why <- c(why, "folds")
   }
   if (!is.null(observed_auc) && is.finite(record$observed_auc) &&
@@ -224,7 +226,9 @@ atlas_rescan_health <- function(rows, max_dropped = ATLAS_RESCAN_MAX_DROPPED) {
 #' The shards of one rescan read together: every shard's rows, the 2% rule
 #' over all of them (a shard on its own can pass while the run fails), and
 #' the summary. paths are the shards' results files; they must come from one
-#' release, seed, sample size and null count, and no shard may appear twice.
+#' release, seed, sample size and null count, all from one split into n
+#' shards, and no shard or model may appear twice. The run is readable only
+#' with every shard 1..n there and every sampled model in it.
 atlas_rescan_pool <- function(paths) {
   results <- lapply(paths, function(p) jsonlite::fromJSON(p, simplifyVector = FALSE))
   key <- function(r) paste(r$settings$release, r$settings$seed, r$settings$per_cell, r$settings$nulls)
@@ -235,12 +239,20 @@ atlas_rescan_pool <- function(paths) {
   shards <- vapply(results, function(r) as.character(r$settings$shard %||% "1/1"), "")
   if (anyDuplicated(shards)) stop("a shard appears twice: ", paste(shards[duplicated(shards)], collapse = ", "),
                                   call. = FALSE)
+  splits <- unique(sub("^.*/", "", shards))
+  if (length(splits) != 1L) {
+    stop("the shards come from different splits (", paste(sort(shards), collapse = ", "), ")", call. = FALSE)
+  }
   rows <- do.call(c, lapply(results, function(r) r$taxa))
+  ids <- vapply(rows, function(r) as.character(r$taxon %||% NA), "")
+  if (anyDuplicated(ids)) stop("a model appears in two shards: ", ids[duplicated(ids)][[1]], call. = FALSE)
+  every_shard <- setequal(as.integer(sub("/.*$", "", shards)), seq_len(as.integer(splits)))
   sampled <- sum(unlist(results[[1]]$strata$sampled %||% list()))
   health <- atlas_rescan_health(rows)
+  complete <- every_shard && length(rows) == sampled
   list(shards = sort(shards), models = length(rows), sampled = sampled,
-       complete = length(rows) == sampled, health = health,
-       readable = isTRUE(health$readable) && length(rows) == sampled,
+       complete = complete, health = health,
+       readable = isTRUE(health$readable) && complete,
        summary = atlas_rescan_summary(rows), strata = results[[1]]$strata, rows = rows)
 }
 
