@@ -92,7 +92,9 @@ grade.
     deterministic seed index, at most 20 times; a cell stops when full. The
     redraws and any failures are reported per cell.
   - **Weak signal:** detection probability per record = rate × (0.5 · h /
-    mean h + 0.5), mean h over the accessible area's survey sites, with the
+    mean h + 0.5), mean h over every survey site in the pull where h > 0
+    (the ground the habitat reaches; the accessible area does not exist
+    before collection), with the
     rate solved as for strong species so the expected number of detection
     sites matches the target. The same matching rule as strong.
   - **Breadth** halves or doubles the bell-shaped responses' widths only;
@@ -102,8 +104,12 @@ grade.
     scale (peak = 1).
   - **Nulls:** Maxent and RF both run scatter and shift ×99 with stop at 5,
     as registered (C1 needs both learners; RF fits are cheaper than Maxent's).
-    The effort arms (E14) are Maxent only, on the same species, without
-    nulls.
+    The effort arms (E14) are Maxent only, on the 1,000 full-model species
+    (habitat and geography), without nulls.
+  - **Learners per species:** full-model species get Maxent and RF (not ESM,
+    even at 20–49 sites); ESM species get ESM only. Map-to-truth ρ and the
+    scatter and shift verdicts are computed per learner, and H1e is tested
+    per learner.
 
 ## Deviations
 
