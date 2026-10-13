@@ -83,6 +83,27 @@ grade.
   so that power is a curve; habitat species per cell reduced from 40 to 30
   to keep cells balanced (600 + 400 full-model species, 420 ESM); H1f
   added.
+- 2026-10-13 (design questions from the experiments lane, agreed before
+  code):
+  - **Bands by realised count.** The generator matches *expected* detection
+    sites to a target; a species counts in the band of its *realised*
+    detection sites. The target is drawn uniformly inside the band; a species
+    whose realised count falls outside the band is redrawn with the next
+    deterministic seed index, at most 20 times; a cell stops when full. The
+    redraws and any failures are reported per cell.
+  - **Weak signal:** detection probability per record = rate × (0.5 · h /
+    mean h + 0.5), mean h over the accessible area's survey sites, with the
+    rate solved as for strong species so the expected number of detection
+    sites matches the target. The same matching rule as strong.
+  - **Breadth** halves or doubles the bell-shaped responses' widths only;
+    rising responses (cover, host trees) are unchanged. Realised breadth
+    (the covariate) captures the result.
+  - **Realised breadth** uses suitability ≥ 0.5 on the absolute habitat
+    scale (peak = 1).
+  - **Nulls:** Maxent and RF both run scatter and shift ×99 with stop at 5,
+    as registered (C1 needs both learners; RF fits are cheaper than Maxent's).
+    The effort arms (E14) are Maxent only, on the same species, without
+    nulls.
 
 ## Deviations
 
