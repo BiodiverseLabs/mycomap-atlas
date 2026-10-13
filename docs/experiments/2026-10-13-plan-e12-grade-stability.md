@@ -30,9 +30,12 @@
    AUC, pooled Boyce and per-fold AUC, release vs refit, by learner. Also
    the cost basis below.
 2. **Same-machine test of the two taxa** (*Stropharia hardii*, *Gliophorus
-   fumosus*): first on a local PC with a development pull (R-level
-   run-to-run determinism; in progress), then on the Atlas server with the
-   frozen pull and the release image.
+   fumosus*): first on a local PC with a development pull: **passed
+   2026-10-13**, six fresh processes bit-identical
+   (`2026-10-13-e12-local-two-taxon-gate.md`); then `study-repro` with
+   the release image on the frozen inputs, one EC2 worker per family (r7i,
+   r7a), 3 taxa × 2 fresh runs, compared with each other and with the
+   release (awaiting Steve's go).
    - **Different answers on the same machine:** a non-determinism bug. Stop
      the paper's run queue (the coordinator's rule), find and fix it, and
      then run E12 to confirm the fix.
@@ -40,10 +43,14 @@
 
 ## Design
 
-- **Sample.** Stratified by learner (Maxent, RF, boosted trees, ESM) × site
-  band (3–4, 5–19, 20–49, 50+) × grade (strong, weak, failed), up to 25 per
-  cell, at most ~10 per cell for 50+ site tuned Maxent if those cells
-  dominate the cost; seed recorded.
+- **Sample (fixed 2026-10-13, before any cost or result was seen).** Strata
+  = learner (Maxent, RF, boosted trees, ESM) × site band (3–4, 5–19, 20–49,
+  50+) × grade (strong, weak, failed) in the frozen release, empty cells
+  skipped. Within each cell, models in a random order from seed 1; take the
+  first 25 (all, if fewer). Cost rule, applied once from step 0's recorded
+  seconds: if the 50+ site Maxent cells together exceed half the estimated
+  cost, keep only the first 10 of each of those cells in the same seeded
+  order. Analyses weight each cell back to its share of the release.
 - **Arms**, each a full graded refit from the frozen pull with the frozen
   settings and seeds, nulls included (null draws are seeded, so they are a
   fair test, and grade agreement needs the null p):
