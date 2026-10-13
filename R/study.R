@@ -133,7 +133,8 @@ atlas_study_check_key <- function(key) {
 
 #' Where a study run writes: a local directory, and the store prefix it is
 #' copied to afterwards (atlas_study_publish). out is a store prefix under
-#' study/ or private/, or NULL for data/<kind>/<grid>/ on this machine only.
+#' study/ or private/study/, or NULL for data/<kind>/<grid>/ on this machine
+#' only.
 atlas_study_out <- function(out, kind, grid, label) {
   stamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
   slug <- gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", as.character(label)))

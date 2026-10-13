@@ -316,6 +316,10 @@ test_that("a bad --out is refused before anything is read or computed", {
   with_data_dir({
     expect_error(atlas_distance_study(store, "hindcast-test", view = view, out = "private/tracker/", quiet = TRUE),
                  "only under")
+    # Without a view handed in, the release would be read from the store:
+    # the --out check still comes first.
+    expect_error(atlas_distance_study(store, "hindcast-test", out = "private/tracker/", quiet = TRUE),
+                 "only under")
   })
   expect_false(touched)
 })

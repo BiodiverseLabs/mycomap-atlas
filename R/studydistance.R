@@ -306,6 +306,8 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
                                  out = NULL, shard = "1/1", workers = 1L,
                                  bandwidths = ATLAS_DISTANCE_BANDWIDTHS_KM,
                                  plan_only = FALSE, quiet = FALSE, view = NULL) {
+  # A bad --out is refused before the store is read at all.
+  if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   view <- view %||% atlas_tracker_view(store, release, grid)
   expected <- atlas_distance_expected(view)
   taxa <- atlas_study_shard(sort(view$modelled), shard)
