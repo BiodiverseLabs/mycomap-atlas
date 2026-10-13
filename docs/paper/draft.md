@@ -819,7 +819,7 @@ data, command, result, release, commit).
 | E1c | **Planned** (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
 | E2 | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e2-hindcast.md`). Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
-| E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`). Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
+| E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. ~200 CPU-h ($10), ~3 days code | P1 |
 | E6b | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
 | E12 | Reproducibility: rerun a random sample of taxa from the frozen pull; (a) byte identity on ONE pinned instance family (e.g. r7i, Intel); (b) a cross-family comparison reported separately against the stated tolerances (float32 storage precision: suitability relative 5e-7, AOA index absolute 1e-6 or relative 5e-7; grades and ranks identical; a different model differs by ≥ 1e-4); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers, 20–50 taxa, both families | ~20 CPU-h, 1 day | P1 |
@@ -919,12 +919,12 @@ gets Steve's direct go through the operations lane; every run gets a
 |---|---|---|---|
 | 0 | Rebuild cutover; nightly tracking (E3) starts | Steve's go | October 2026 |
 | 1 | Full-view refresh → **frozen release** (id, then Zenodo layers, models, training records) | rebuild-lane code; Steve's go | October 2026 |
-| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | hindcast code (~1–1.5 days); the refresh; Steve's go | run by ~25 October 2026 (Vision freezes its test set ~30 October) |
+| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | code pushed early (feat/hindcast ba03e73: `plan-job --hindcast --validated-through=2026-08-17`), awaiting Steve's review; E2 scoring code (experiments lane); Steve's go | can launch soon after the cutover, well before ~25 October 2026 (Vision freezes its test set ~30 October) |
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; Steve's go | November 2026 |
-| 7 | **E9** sequence vs record names | record-name arm; Steve's go | November 2026 |
+| 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
 | 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
 | 9 | **E12** reproducibility rerun; E16 descriptives; E17 ODMAP | the frozen release; rebuild-lane tolerance wording | December 2026 |
 | 10 | Q1 arms (E21, E22) | Vision side, after E2 | November 2026 |
@@ -967,6 +967,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.7.8 (2026-10-13).** Hindcast code pushed early (feat/hindcast
+  ba03e73), checked against the E2 pre-registration; E9 runs through the
+  same private-job code.
 - **0.7.7 (2026-10-13).** Cost and time ledger (E23, `costs.md`), section
   4.4 and Table 5 (Steve).
 - **0.7.6 (2026-10-13).** Training-record table columns settled (E19).

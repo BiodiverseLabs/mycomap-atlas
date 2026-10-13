@@ -11,7 +11,9 @@
   Name merging (spelling, author, rank-word variants) as in production.
 - **Refit.** Every taxon whose record set under record names differs from
   its set under sequence names: full graded fits, every learner, into a
-  private release.
+  private release, through `plan-job --record-names --from-release=<frozen
+  release>` (feat/hindcast ba03e73). The experiments lane builds the
+  comparison only.
 - **Counted, not compared:** taxa with no counterpart (names only in one
   labelling, including provisional codes that exist only as sequence
   names).

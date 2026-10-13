@@ -85,6 +85,20 @@ pre-cutoff records. Design choices (layers, tuning grid, null design) were
 made on data that include post-cutoff records. The rebuild lane is listing
 these items; they go into the Discussion's limitations.
 
+## Implementation (not a design change)
+
+Code: Atlas feat/hindcast ba03e73, awaiting Steve's review.
+`plan-job --hindcast --from-release=<frozen release> --validated-through=2026-08-17`,
+then `run-job-ec2` and `finish-private-release`. Checked against this file
+on 2026-10-13: the filter keeps first_green_on ≤ cutoff and never uses the
+observation date; undated records are left out and counted; the plan and
+the finish both refuse a job that kept any post-cutoff record; every taxon
+is planned afresh with tuning and shift nulls (99, stop at 5), so grades
+and map strengths are the job's own; survey sites, effort, background and
+reach are rebuilt from the filtered pull; outputs go only to private store
+prefixes. Scoring (`score-hindcast`) uses the experiments lane's E2 scoring
+code.
+
 ## Deviations
 
 None yet.
