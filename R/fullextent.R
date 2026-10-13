@@ -46,6 +46,30 @@ atlas_predict_raster_full <- function(model, stack, score, name = "suitability")
   predicted
 }
 
+#' Where a full view is predicted beyond the reach, on a template on the
+#' Atlas grid: North America as Atlas maps it, the union of the states and
+#' provinces of the three countries (R/predictions.R) with the holes in it
+#' filled. The boundary file's neighbours do not quite meet: their union had
+#' 367 holes, 42,775 km2, among them a strip about 27 km wide along 60 N
+#' south of the Northwest Territories and slivers along 49 N, 42 N and 35 N.
+#' Land there is in no state, so the region grid alone left it unpredicted,
+#' the thin streaks of the 2026-10-13 run's full views. Water stays out: the
+#' stack has no data there.
+atlas_full_scope <- local({
+  made <- NULL
+  function(template) {
+    if (is.null(made)) {
+      regions <- terra::project(atlas_read_boundaries("regions"), ATLAS_CRS)
+      made <<- terra::rasterize(terra::fillHoles(terra::aggregate(regions)), atlas_region_grid()$ids)
+    }
+    scope <- made
+    if (!terra::compareGeom(scope, template, stopOnError = FALSE)) {
+      scope <- terra::resample(scope, template, method = "near")
+    }
+    !is.na(terra::values(scope, mat = FALSE))
+  }
+})
+
 #' The full-extent suitability and dissimilarity, predicting only the ground
 #' beyond the accessible area: inside it they are the default map's values,
 #' already predicted (about half of a widespread taxon's continent, measured
@@ -53,15 +77,11 @@ atlas_predict_raster_full <- function(model, stack, score, name = "suitability")
 atlas_predict_full_extent <- function(model, score, aoa, stack, area, suitability, dissimilarity) {
   template <- stack[[1]]
   in_area <- !is.na(terra::values(terra::rasterize(area, template), mat = FALSE))
-  # Beyond the reach, North America only: the states and provinces of the
-  # three countries Atlas maps (R/predictions.R), not every land cell of the
-  # grid's rectangle, which runs from Siberia and Greenland to South America
-  # (the 2026-10-12 pilot drew them). Inside the reach the map is as it is.
-  regions <- atlas_region_grid()$ids
-  if (!terra::compareGeom(regions, template, stopOnError = FALSE)) {
-    regions <- terra::resample(regions, template, method = "near")
-  }
-  in_scope <- !is.na(terra::values(regions, mat = FALSE))
+  # Beyond the reach, North America only (atlas_full_scope), not every land
+  # cell of the grid's rectangle, which runs from Siberia and Greenland to
+  # South America (the 2026-10-12 pilot drew them). Inside the reach the map
+  # is as it is.
+  in_scope <- atlas_full_scope(template)
   cells <- which(!in_area & in_scope & !is.na(terra::values(template, mat = FALSE)))
   data <- terra::extract(stack, cells)
   data <- data[, setdiff(names(data), "ID"), drop = FALSE]
