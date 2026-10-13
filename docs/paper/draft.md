@@ -903,7 +903,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
-| 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; Steve's go | November 2026 |
+| 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
 | 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
 | 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
 | 9 | **E12** reproducibility rerun; E16 descriptives; E17 ODMAP | the frozen release; per-model machine records (feat/result-machine c099bc7, awaiting Steve's review; best merged before the hindcast so every paper job records which processor fitted each model) | December 2026 |

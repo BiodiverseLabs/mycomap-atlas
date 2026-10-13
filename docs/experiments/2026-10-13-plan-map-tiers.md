@@ -18,9 +18,17 @@
 ## The tiers
 
 All use only what every graded model already stores (no refit): the shift
-null test's p (Besag–Clifford, sequential: 99 nulls, stop at 5 matches, so
-p = 5 / nulls drawn when stopped early), the observed held-out AUC and the
-pooled Boyce index, and the null AUCs' mean and spread.
+null test's p, the observed held-out AUC and the pooled Boyce index, and
+the null AUCs' mean and spread. The p follows R/nulls.R: a test that stops
+early (five matches) has p = 5 / nulls scored, so p ≤ 0.20 means 25 or more
+nulls scored before the fifth match; a test that runs to 99 without
+stopping has at most four matches, so p = (1 + matches) / (1 + nulls) ≤
+0.05, which is a pass (strong if Boyce > 0). Moderate needs a shift-null
+p: a model graded only against scattered nulls can reach indicative at
+most (the grade breakdown reports whether any such model is in the frozen
+release). The null AUCs' mean and spread, needed for moderate-z in E1, are
+recorded once study/calibration-tier-fields 520fac9 merges, before E1
+launches.
 
 | Tier | Rule (applied in order) | Today |
 |---|---|---|
