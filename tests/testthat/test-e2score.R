@@ -235,6 +235,30 @@ test_that("the paired test compares the model and the kernel on identical places
   result <- atlas_e2_paired(models, kernel, reps = 200)
   expect_equal(result$estimate, 0)
   expect_equal(result$places, 160L)
+  expect_equal(result$mean_rank_difference$estimate, 0)
+})
+
+test_that("the paired test also reports the mean rank difference with its interval", {
+  models <- taxon_rows(40, 5, function(i, n) rep(0.8, n))
+  kernel <- models
+  kernel$rank <- 0.6
+  result <- atlas_e2_paired(models, kernel, reps = 300)
+  expect_equal(result$mean_rank_difference$estimate, 0.2)
+  expect_equal(c(result$mean_rank_difference$low, result$mean_rank_difference$high), c(0.2, 0.2))
+})
+
+test_that("the split keys every record and lists every record it trains on", {
+  pull <- data.frame(
+    source = "inat", observation_id = as.character(1:4), scientific_name = "A",
+    latitude = c("40", NA, "40.1", "40.2"), longitude = "-85",
+    first_green_on = c("2026-08-01", "2026-08-02", "2026-09-01", NA),
+    observed_on = "2026-07-01", stringsAsFactors = FALSE
+  )
+  split <- atlas_e2_split(pull, "2026-08-17")
+  # Trained on: both dated on or before the cutoff, located or not.
+  expect_equal(split$training_keys, c("inat:1", "inat:2"))
+  expect_equal(split$training$key, "inat:1")
+  expect_setequal(split$finds$key, c("inat:3", "inat:4"))
 })
 
 test_that("a grade is tested only from 30 distinct places, not 30 rows", {
@@ -358,6 +382,7 @@ test_that("the bootstrap leaves the caller's random numbers as they were, and re
 
 test_that("the pull splits into dated training records and later finds, with every kept-apart reason counted", {
   pull <- data.frame(
+    source = "inat", observation_id = as.character(1:5),
     scientific_name = c("A", "A", "A", "B", "B"),
     latitude = c("40", "40.1", "40.2", NA, "41"), longitude = c("-85", "-85.1", "-85", "-86", "-86"),
     first_green_on = c("2026-08-01", "2026-09-01", NA, "2026-09-10", "2026-08-17"),
@@ -385,6 +410,11 @@ test_that("the pull splits into dated training records and later finds, with eve
   expect_equal(attr(before$finds, "kept_apart")$observed_before, 1L)
   expect_equal(nrow(atlas_e2_places(before$finds, before$training)), 0L)
   expect_error(atlas_e2_split(pull[, setdiff(names(pull), "first_green_on")], "2026-08-17"), "first_green_on")
+  expect_error(atlas_e2_split(pull[, setdiff(names(pull), "observation_id")], "2026-08-17"), "key its records")
+  # A cutoff that is not YYYY-MM-DD would compare wrongly as text.
+  for (bad in c("2026-8-17", "17/08/2026", "2026-02-30", "")) {
+    expect_error(atlas_e2_split(pull, bad), "YYYY-MM-DD")
+  }
 })
 
 test_that("H2b never loses a resample for want of failed taxa, since each group is resampled on its own", {
