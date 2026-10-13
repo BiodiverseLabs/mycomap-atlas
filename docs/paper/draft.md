@@ -1063,8 +1063,8 @@ revised (Path).
    refitted, 18 names dropped). The hindcast reads the cleaned pull. Waiting
    for both releases, then for ids and Zenodo DOIs.
 4. **Crediting contributors:** the full plan in section 6 adopted (Steve,
-   2026-10-13). Steve item: the few people to thank by name (each asked
-   first). Data item: observer name or username per training record for the
+   2026-10-13). No individuals named for now (Steve, 2026-10-13); revisit
+   before submission. Data item: observer name or username per training record for the
    Zenodo contributor table (asked of the coordinator).
 5. **Zenodo layers archive:** Steve, 2026-10-13: "probably" discard the
    draft held since 2026-09-29 and re-archive the frozen release's layers,
