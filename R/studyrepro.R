@@ -16,7 +16,7 @@
 # run-to-run non-determinism.
 #
 #   ./atlas plan-study --command=study-repro --shards=1 \
-#     --args="--release=<frozen> --source-job=<job that fitted them> --taxa='A|B' --runs=2 --label=r7i"
+#     --args="--release=<frozen> --source-job=<job that fitted them> --taxa=Name%20one|Name%20two --runs=2 --label=r7i"
 #   ATLAS_EC2_INSTANCE_TYPES=r7i.2xlarge ./atlas run-job-ec2 --job=<ID>
 #
 # Each run fits exactly as a shard does (atlas_fit_batch, the job's own fit
@@ -27,9 +27,11 @@
 ATLAS_REPRO_RUNS <- 2L
 
 #' The taxa a --taxa flag names: separated by "|", since names hold spaces
-#' and commas never.
+#' and commas never. plan-study splits a study's arguments at spaces, so a
+#' name may be percent-encoded there (Stropharia%20hardii, %27 for a quote).
 atlas_repro_taxa <- function(text) {
   taxa <- trimws(strsplit(as.character(text %||% ""), "|", fixed = TRUE)[[1]])
+  taxa <- vapply(taxa, utils::URLdecode, "", USE.NAMES = FALSE)
   taxa <- unique(taxa[nzchar(taxa)])
   if (!length(taxa)) stop("study-repro needs --taxa='Name one|Name two'", call. = FALSE)
   taxa

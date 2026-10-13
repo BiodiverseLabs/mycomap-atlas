@@ -207,7 +207,7 @@ atlas_usage <- function() {
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
   message("  study-repro        paper E12 gate: refit models in fresh processes on one machine, twice or more,")
-  message("                     against the release (--release=ID --source-job=ID --taxa='A|B' [--runs=2] [--label])")
+  message("                     against the release (--release=ID --source-job=ID --taxa=A%20b|C%20d [--runs=2] [--label])")
   message("  study-default      paper E6a: \"default practice\" Maxent (maxnet defaults, random")
   message("                     background and folds, 19 uniform nulls) on a release's 20+ site taxa")
   message("      --release=ID              the (hindcast) release whose pull and taxa it uses")

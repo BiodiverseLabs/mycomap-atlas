@@ -74,6 +74,9 @@ test_that("study-repro refuses fewer than two runs, an unknown release, and a st
   expect_error(atlas_repro_taxa(" | "), "needs --taxa")
   expect_equal(atlas_repro_taxa("Russula sp. 'compacta-PA01'| Gliophorus fumosus"),
                c("Russula sp. 'compacta-PA01'", "Gliophorus fumosus"))
+  # As plan-study passes them: no spaces, percent-encoded.
+  expect_equal(atlas_repro_taxa("Russula%20sp.%20%27compacta-PA01%27|Stropharia%20hardii"),
+               c("Russula sp. 'compacta-PA01'", "Stropharia hardii"))
 })
 
 test_that("two fits compare as identical only when every part a rerun must reproduce is the same", {
