@@ -245,7 +245,13 @@ atlas_tracker_manifest <- function(store, id, grid, cache = atlas_tracker_cache_
   path <- file.path(cache, "releases", grid, paste0(id, ".json"))
   if (!file.exists(path)) {
     dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-    store$get(paste0("releases/", grid, "/", id, ".json"), path)
+    key <- paste0("releases/", grid, "/", id, ".json")
+    # A private release (R/hindcast.R) is read from where it is kept, so the
+    # paper's scoring reads it as it reads a release; it is never listed,
+    # promoted or served.
+    private <- atlas_benchmark_key(id, "release.json")
+    if (!store$exists(key) && store$exists(private)) key <- private
+    store$get(key, path)
   }
   jsonlite::fromJSON(path, simplifyVector = FALSE)
 }

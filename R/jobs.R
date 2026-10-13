@@ -564,6 +564,10 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
   if (atlas_is_full_refresh(job)) {
     stop("job ", id, " is a full-view refresh: publish it with finish-full-refresh", call. = FALSE)
   }
+  # A study job (R/studyjob.R) publishes its own results under study/.
+  if (atlas_is_study_job(job)) {
+    stop("job ", id, " is a study job: its results are under ", job$out, ", never a release", call. = FALSE)
+  }
   # A private release (R/hindcast.R) is never a release.
   if (atlas_is_private_release(job)) {
     stop("job ", id, " is a private release: it never becomes a release; ",

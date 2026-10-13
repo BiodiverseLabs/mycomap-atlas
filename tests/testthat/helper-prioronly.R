@@ -94,11 +94,11 @@ stub_continent_build <- function(grid = "draft", quiet = TRUE) {
 }
 
 # A store with an EC2 worker's write limits (deploy/aws/worker/permissions.json):
-# objects/ and a job's shard records and logs, nothing else.
+# objects/, a job's shard records and logs, and study results, nothing else.
 worker_store <- function(store) {
   limited <- store
   limited$put <- function(key, file) {
-    if (!grepl("^(objects/|jobs/[^/]+/[^/]+/(shards|logs)/)", key)) {
+    if (!grepl("^(objects/|jobs/[^/]+/[^/]+/(shards|logs)/|study/)", key)) {
       stop("AccessDenied: a worker may not write ", key, call. = FALSE)
     }
     store$put(key, file)

@@ -20,7 +20,8 @@
       "Resource": [
         "arn:aws:s3:::${BUCKET}/objects/*",
         "arn:aws:s3:::${BUCKET}/jobs/*/shards/*",
-        "arn:aws:s3:::${BUCKET}/jobs/*/logs/*"
+        "arn:aws:s3:::${BUCKET}/jobs/*/logs/*",
+        "arn:aws:s3:::${BUCKET}/study/*"
       ]
     }
   ]

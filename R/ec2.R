@@ -299,7 +299,10 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   # A private release (R/hindcast.R) likewise: never published, finished
   # privately on one worker once its shards report.
   private <- atlas_is_private_release(job)
-  if (prior_only || private) finish <- FALSE
+  # A study job (R/studyjob.R): each worker runs one shard of a study
+  # command, which publishes its own results; nothing is finished after.
+  study <- atlas_is_study_job(job)
+  if (prior_only || private || study) finish <- FALSE
   # A full-view refresh is published whole or not at all (R/fullrefresh.R).
   refresh <- atlas_is_full_refresh(job)
   # finish = FALSE runs the shards and stops there: no release is built or
@@ -333,7 +336,9 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   launch <- function(shard) {
     tried_at[[shard]] <<- clock()
     id <- atlas_launch_worker(ec2, config, job$id, shard, grid, attempts[[shard]] + 1L,
-                              minutes = minutes_left(), say = say)
+                              minutes = minutes_left(), say = say,
+                              command = if (study) sprintf("run-study --grid=%s --job=%s --shard=%d",
+                                                           grid, job$id, as.integer(shard)))
     if (is.null(id)) {
       latest[[as.character(shard)]] <<- NA_character_
       return(invisible(NULL))
@@ -384,6 +389,8 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
              "; a prior-only job is never published, in part or whole: plan it again"
            } else if (private) {
              "; a private release is never finished in part: plan it again"
+           } else if (study) {
+             paste0("; the reported shards' results are under ", job$out)
            } else if (refresh) {
              "; a full-view refresh is never published in part: run it again"
            } else if (is.null(partial)) {
@@ -431,6 +438,11 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     return(atlas_finish_prior_only_on_ec2(store, job, grid, ec2 = ec2, config = config,
                                           poll_seconds = poll_seconds, wait = wait, quiet = quiet,
                                           clock = clock, image_exists = image_exists))
+  }
+  if (study) {
+    finished <- TRUE
+    terminate_all()
+    return(invisible(atlas_study_outcome(store, job, grid)))
   }
   if (private) {
     finished <- TRUE
