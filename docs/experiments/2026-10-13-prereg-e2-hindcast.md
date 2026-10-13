@@ -100,9 +100,10 @@ prefixes. Scoring (`score-hindcast`) uses the experiments lane's E2 scoring
 code.
 
 Data (2026-10-13, before any run; not a design change): the hindcast is
-planned from the cleaned release, so its pull leaves out all 22 mislabelled
-records (the 75-id exclusion list, Atlas commit 643b444) in training and in
-the test finds alike. Its summary records the list's SHA-256.
+planned from the cleaned release, so its pull (x73b85b36) leaves out all 76
+removed records (the 129-id exclusion list, Atlas commit 643b444) in
+training and in the test finds alike. Its summary records the list's
+SHA-256.
 
 ## Deviations
 

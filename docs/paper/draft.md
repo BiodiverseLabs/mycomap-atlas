@@ -286,26 +286,15 @@ it; MyCoPortal records need MyCoPortal's own coordinates accurate to 5 km, or
 a locality that is not a shared county or state centroid. [PENDING E16: the
 records kept and dropped by each rule, by source.]
 
-*Data errors found and removed.* Seventy-five mycomap.org rows had a wrong
-iNaturalist id: sequencing sheets had labelled Mushroom Observer specimens
-"iNat<n>", so the records pointed at unrelated iNaturalist observations
-under the same number. The error was first seen by hand on one sequence on
-2026-09-30. The 75 rows were found on 2026-10-13 by an audit of MycoMap
-Vision's training photos, where records validated as fungi showed birds and
-mammals [CHECK: confirm with Steve]. Twenty-two of them were in the pull. Two gave a fungus
-one false site each (*Clitocybe deceptiva*, 1 of 53 sites; *Agaricus
-bitorquis*, 1 of 25). The other 20 put 18 non-fungal names into the taxa
-list with one or two sites each, too few for a model: seven birds (nine
-records), two mammals (coyote, raccoon), three insects, two ferns and four
-flowering plants. The false *Clitocybe deceptiva* site was an iNaturalist
-observation of a striped skunk, labelled by its fungal sequence: the
-pipeline did exactly what it was built to do with a wrong link, which is
-why the paper reports data errors as well as model errors. The 75 ids are
-excluded from the frozen release; the two fungi are refitted and the 18
-names dropped. The full list is in Appendix S1: Section S2. The exclusion
-list of 75 mycomap.org record ids is applied to the frozen pull and to
-every later pull; each pull's manifest records the list's SHA-256 and the
-number of rows removed (Atlas commit 643b444).
+*Data errors found and removed.* Two checks before the freeze removed 76
+records whose name or place was wrong: 22 Mushroom Observer specimens
+linked to unrelated iNaturalist observations (one a striped skunk, named
+*Clitocybe deceptiva* by its fungal sequence), and 54 records of plants,
+animals and a bacterium named by sequences from pooled host samples or
+contaminants. Three fungi were refitted or retired; a 129-id exclusion list
+applies to every later pull (Appendix S1: Section S2). The pipeline did
+exactly what it was built to do with wrong links, which is why the paper
+reports data errors as well as model errors.
 
 Each taxon's record set is hashed into a fingerprint. A model belongs to its
 record set, not its name: it is refitted when the fingerprint changes, and a
@@ -598,10 +587,10 @@ refit job 20261013T062143Z-2ffed182: *Clitocybe deceptiva* × 4 learners,
 export, prior, clean cells) = the frozen release [PENDING: id]. Rebuild: 9,534 models planned, 9,042 fitted, 492
 refused (too little evidence after site thinning or blocking), 0 failed;
 797 old models retired; 118,657 training records; 4 spot reclaims, all
-resumed. Cleaned pull occurrences-20261012T051017Z-x73b85b36 (sha256
-7d3c5d70…) [CHECK: an earlier message gave -x2dd5cb30; confirm which]:
-133,289 records, 16,303 taxa (the original 133,311 / 16,321 minus 22 rows and 18
-names; the original kept untouched).
+resumed. Frozen pull occurrences-20261012T051017Z-x73b85b36 (sha256
+7d3c5d70…): 133,235 records, 16,252 taxa, after two removal-only cleanings
+of the original 133,311 / 16,321 (kept untouched): −22 records / −18 names
+(x2dd5cb30), then −54 records / −51 names.
 
 [PENDING: models, maps and taxa by grade × learner × site band, with the
 strong share stated up front (C4); strong maps by guild and region; how many
@@ -758,44 +747,14 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
    validation state, names and coordinates for pre-cutoff records, and the
    design (layers, tuning grid, null design) was chosen on data that include
    post-cutoff records [PENDING: the rebuild lane's list of such items].
-   Twenty-two records in the frozen pull (of about 133,000) were later
-   found to be erroneous: Mushroom Observer specimens linked on mycomap.org
-   to unrelated iNaturalist observations, which gave them the wrong taxon
-   and place. Rather than pull the database again, which would have moved
-   the validation cutoff that the hindcast and Vision's held-out test depend
-   on, we removed them from the frozen pull by an explicit, versioned
-   exclusion list. We refitted the two fungal taxa whose record sets changed
-   (*Clitocybe deceptiva* and *Agaricus bitorquis*, one record each), fully
-   graded with the same settings, in a release that supersedes the main one.
-   The other 18 affected names were non-fungal, with one or two records
-   each, too few for any model; they no longer appear in the published
-   taxa, cells or counts. Models of unaffected taxa were not refitted.
-   Because survey sites, effort and background are built from the whole
-   pull, their inputs still reflect these 22 records, less than 0.02% of all
-   records. They formed 16 survey sites of their own and fell in 3 others
-   (19 of 8,803 sites); they made up a median 0.13% (at most 0.45%) of the
-   non-detection sites behind any full model's background, and a median
-   0.11% for small-site models, with a tail of sparsely surveyed southern
-   taxa up to 5.2% (*Oudemansiella* sp. 'TX01', 3 sites); 18 taxa exceed 1%
-   and 71 exceed 0.5%, all small-site models. Each such site enters at the
-   lowest effort, and none is a detection site of any modelled taxon [PENDING: exact
-   figures on the frozen pull; these are from the 2026-10-06 pull, which
-   holds the same 22 records]. A full refit on the cleaned pull would remove
-   this; we did not refit, judging 22 records among more than 130,000 too few
-   to matter, and report the shares instead. Separately, the frozen pull's
-   naming also read three kinds of sequence it should have ignored: those
-   the sequencing pipeline had set aside (a "trash" category), those flagged
-   as contaminants (reads of a different organism than the specimen, which
-   mycomap.org's own validation already excludes), and those flagged as
-   belonging to a different observation or specimen. About 527 records
-   (≈ 0.37% of the ~141,800 with named sequences) were named only by such
-   sequences, for example an iNaturalist record named *Bacillus mycoides*
-   by three contaminant reads, and about 2,287 (≈ 1.6%) were left out because
-   such a sequence disagreed with their others. This adds a few weakly
-   supported records and removes some well-supported ones; we expect little
-   effect on maps and grades [PENDING E16: the taxa whose record sets
-   change]. Later releases exclude all three kinds (Atlas commits 31709fa,
-   9379a64 and 06cf6ea).
+   The 76 removed records were taken out by an exclusion list rather than a
+   new pull, which would have moved the validation cutoff the hindcast and
+   Vision's test depend on; only the taxa they named were refitted or
+   retired, so other models' survey sites and backgrounds still include
+   them (under 0.06% of records; per-model shares in Appendix S1: Section
+   S2). The frozen pull's naming also read set-aside, contaminant and
+   misattributed sequences (about 527 records named only by them, about
+   2,287 left out; Section S2.4), excluded from the next release on.
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -1093,6 +1052,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.10 (2026-10-13).** Second cleaning recorded (54 non-fungal records;
+  76 removed in all; 129-id list); data-error and limitation passages cut
+  to a few sentences with the detail in Appendix S1: Section S2.
 - **0.9.10 (2026-10-13).** Frozen release = the refresh's finished release
   (id pending); E12 first step placed right after the hindcast, with its
   stop rule.
