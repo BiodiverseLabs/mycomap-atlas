@@ -1048,7 +1048,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; Steve's go | November 2026 |
 | 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
 | 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
-| 9 | **E12** reproducibility rerun; E16 descriptives; E17 ODMAP | the frozen release; rebuild-lane tolerance wording | December 2026 |
+| 9 | **E12** reproducibility rerun; E16 descriptives; E17 ODMAP | the frozen release; per-model machine records (feat/result-machine c099bc7, awaiting Steve's review; best merged before the hindcast so every paper job records which processor fitted each model) | December 2026 |
 | 10 | Q1 arms (E21, E22) | Vision side, after E2 | November 2026 |
 | 11 | P2 items as time allows: E4 full, E6c, E7, E8, E10, E11, E15 | each its own go | December 2026 – January 2027 |
 | 12 | **Submission**, once E1, E2, E6a/b, E9, E12, E16 and E17 are done, with whatever E3 has accumulated; more E3 added at revision | Steve | **aim January 2027** |
