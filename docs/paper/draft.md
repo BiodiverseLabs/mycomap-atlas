@@ -283,18 +283,21 @@ it; MyCoPortal records need MyCoPortal's own coordinates accurate to 5 km, or
 a locality that is not a shared county or state centroid. [PENDING E16: the
 records kept and dropped by each rule, by source.]
 
-*Data errors found and removed.* Checking the October 2026 pull found 75
-mycomap.org rows whose iNaturalist id was wrong: sequencing sheets had
-labelled Mushroom Observer specimens "iNat<n>", so the records pointed at
-unrelated iNaturalist observations, mostly of animals and plants. Twenty-two
-were in the pull. Two gave a fungus one false site each (*Clitocybe
-deceptiva*, 1 of 53 sites; *Agaricus bitorquis*, 1 of 25); the rest put 18
-non-fungal names, a mammal among them, into the taxa list with one or two
-sites each, too few for a model. The pipeline had faithfully labelled each
-by its approved sequence, which shows why the paper reports data errors as
-well as model errors. The 75 ids are excluded from the frozen release; the
-two fungi are refitted and the 18 names dropped. [CHECK: how the rows were
-found, and the exact taxa, from the rebuild lane.]
+*Data errors found and removed.* Data checks on mycomap.org before an
+October 2026 update found 75 rows whose iNaturalist id was wrong:
+sequencing sheets had labelled Mushroom Observer specimens "iNat<n>", so
+the records pointed at unrelated iNaturalist observations [CHECK: what
+triggered the check]. Twenty-two of them were in the pull. Two gave a fungus
+one false site each (*Clitocybe deceptiva*, 1 of 53 sites; *Agaricus
+bitorquis*, 1 of 25). The other 20 put 18 non-fungal names into the taxa
+list with one or two sites each, too few for a model: seven birds (nine
+records), two mammals (coyote, raccoon), three insects, two ferns and four
+flowering plants. The false *Clitocybe deceptiva* site was an iNaturalist
+observation of a striped skunk, labelled by its fungal sequence: the
+pipeline did exactly what it was built to do with a wrong link, which is
+why the paper reports data errors as well as model errors. The 75 ids are
+excluded from the frozen release; the two fungi are refitted and the 18
+names dropped. The full list is in Appendix S1: Section S6.
 
 Each taxon's record set is hashed into a fingerprint. A model belongs to its
 record set, not its name: it is refitted when the fingerprint changes, and a
@@ -985,6 +988,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.8.1 (2026-10-13).** Data-error paragraph with the exact taxa and the
+  skunk record.
 - **0.8 (2026-10-13).** Data errors found and removed (75 mislabelled
   iNaturalist ids; 22 in the pull): the frozen release is the refresh of a
   cleaned release, and the hindcast reads the cleaned pull.
