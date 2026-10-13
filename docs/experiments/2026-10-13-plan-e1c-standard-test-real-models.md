@@ -19,11 +19,17 @@
   scattered nulls, no early stop, the model's untuned settings, the same
   folds; pass = AUC p ≤ 0.05 and the release's pooled Boyce (from the
   model's tuned cross-validation, as production's skill rule used) > 0. Each
-  model's training table and folds are rebuilt from the frozen pull. If the
-  recomputed observed (untuned) AUC differs from the one recorded in the
-  model's shift test beyond the stated cross-processor tolerance (relative
-  1e-9), the model is dropped and counted; if more than 2% are dropped, stop
-  and report before going on.
+  model's training table and folds are rebuilt from the frozen pull, with the
+  block size taken from the release record (not re-run through the
+  variogram). A rebuild counts as matching only if all of these agree with
+  the release record: fingerprint; detection-site count; predictor set;
+  seed; detection sites in every fold; and the untuned AUC at the recorded
+  three decimals, |round(ours, 3) − recorded| ≤ 0.001 (one rounding step,
+  for a cross-processor last-bit difference). The release stores that AUC
+  rounded to three decimals, so the 1e-9 comparison first planned is not
+  possible (amended 2026-10-13 before code was pushed, on the experiments
+  lane's finding). A model failing any check is dropped and counted; if more
+  than 2% are dropped, stop and report before going on.
 - **Estimate.** Among models that pass the standard test, the share not
   graded strong, weighted back to the release's composition by stratum,
   with a 95% interval from 10,000 bootstrap resamples within strata. Also
