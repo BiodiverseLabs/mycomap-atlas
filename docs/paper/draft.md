@@ -1,18 +1,71 @@
-# MycoMap Atlas: habitat-suitability maps with a calibrated trust grade for thousands of DNA-defined North American fungi
+# MycoMap Atlas: Habitat-suitability maps with a calibrated trust grade for thousands of DNA-defined North American fungi
 
-*Working title. Living draft, version 0.4 (2026-10-13). Skeleton: headings,
-the claims, the figures and tables each claim needs, and what is pending.
+*Working title (118 characters; the journal allows 120, sentence case, one
+colon, no uncommon acronyms). Alternative: "Which habitat maps can be
+trusted? Calibrated null tests for thousands of DNA-defined North American
+fungi". Living draft, version 0.5 (2026-10-13). Skeleton: headings, the
+claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
 
 | | |
 |---|---|
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
-| Target venue | [PENDING: Ecological Monographs (Method) recommended, MEE second (Appendix B); Steve decides] |
+| Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
 | Frozen release | [PENDING: the first complete release after the October 2026 rebuild; id, Zenodo DOI, code commit] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
+
+---
+
+## Submission format (Ecological Monographs, guidelines revised September 2026)
+
+Read on the journal's author guidelines and ESA's Open Research Policy pages,
+2026-10-13.
+
+- **Type and length.** Method: "new technological or analytical
+  developments or compare existing methods while providing guidance and
+  recommendations for best practices". At least 40 manuscript pages, no
+  maximum, counting title page, text, references, tables, captions and
+  figures but not supporting information. A presubmission inquiry is
+  encouraged: ≤ 300 words, 5–10 references, optionally 1–2 figures, naming
+  the type (draft: `presubmission-inquiry.md`).
+- **Title page.** Journal, type, title (≤ 120 characters, sentence case, one
+  colon at most, no uncommon acronyms), author with affiliation or
+  "Independent Researcher, city, state, country", one corresponding email,
+  the **Open Research statement**, and 6–12 key words in alphabetical order
+  separated by semicolons.
+- **Order.** Abstract (≤ 350 words, new page, no citations or URLs) → text →
+  Acknowledgments (one paragraph) → Author Contributions → Conflict of
+  Interest statement (required) → References (Wiley's Chicago author-date
+  style; permanently archived sources only) → tables (each on its own page,
+  one-sentence caption, no colour or shading) → figure captions together →
+  figures (one per page; colourblind-safe; maps with latitude and longitude,
+  north arrow, scale bar and border; 300–600 dpi; text 6–10 pt at 8.5 or
+  18 cm width).
+- **Layout.** Word (or LaTeX with a PDF), 12-pt Times New Roman,
+  double-spaced, continuous line numbers, numbered pages, Letter, 1-inch
+  margins, left-aligned. SI units.
+- **Supporting information.** Appendices as PDFs named Appendix S1, S2…;
+  a single appendix with sections is preferred; each carries its own
+  references; items labelled "Appendix S1: Figure S1". Spreadsheets and
+  large tables cannot be supporting information; they go to a repository.
+- **Open Research (ESA policy).** Novel code must be reachable by reviewers
+  at submission (public GitHub is acceptable) and archived with a Zenodo DOI
+  at acceptance. Data are strongly encouraged at submission and required in
+  a permanent public repository at acceptance, complete enough to replicate
+  every table, figure and analysis; no embargo; "available from the author"
+  is not allowed. Data from public databases need query details. Repository
+  packages must not be named "Appendix S#".
+- **AI.** Disclose which tool and how in the section the use concerns, again
+  in the Acknowledgments, and on the submission form. AI cannot be an author.
+- **Review and preprints.** Usually two anonymous reviewers; author names are
+  not hidden. A preprint may be only the version as first submitted,
+  declared in the "Dual Publication" field.
+- **Cost.** $75 per typeset page on the subscription route (ESA members can
+  get grants for up to 21 pages a year in this journal); open access is
+  optional at Wiley's price (not confirmed).
 
 ---
 
@@ -119,7 +172,7 @@ numbers → C3 numbers → resource (N taxa, S strong, nightly, open, DOI).]
 
 *Drafted from the public Methods page (atlas.mycomap.org/methods). Numbers in
 this section that describe the data are re-read from the frozen release
-before submission. ODMAP protocol in Supplement S1 (E17).*
+before submission. ODMAP protocol in Appendix S1: Section S1 (E17).*
 
 ### 2.1 Records and DNA-defined taxa
 
@@ -179,7 +232,7 @@ Sources are cropped, reprojected and averaged onto the grid (never
 interpolated); land cells left empty are filled from neighbours within
 10 km. Candidate layers (water balance, bedrock, landform, ClimateNA
 1991–2020 normals, single tree species) were built and tested in paired
-layer sweeps and not adopted (Supplement S3; E8).
+layer sweeps and not adopted (Appendix S1: Section S3; E8).
 
 ### 2.3 Survey sites, target-group background and effort
 
@@ -422,7 +475,7 @@ guilds, strong maps only; layer-sweep results in S3.] → **Figure 8**.
 ### 3.8 Stability across nightly releases (E11)
 
 [PENDING: map rank correlation and grade changes between releases against the
-number of new records.] → Supplement S4 or main text if striking.
+number of new records.] → Appendix S1: Section S4, or main text if striking.
 
 ### 3.9 Maps as a place signal for photo identification (E21, E22)
 
@@ -506,23 +559,32 @@ to report a problem.]
 
 ---
 
-## 6. Data, code and AI-use statements
+## 6. Title-page and back-matter statements
 
-- **Data availability.** Layers, models and the training-record ids of the
-  frozen release on Zenodo (section 4.1, DOIs pending). Exact coordinates
-  are not redistributed; each record's public coordinates are at its source.
-  [CHECK: wording against the chosen journal's policy; GEB, Ecography and
-  Scientific Data restrict data licences to CC BY or CC0, Appendix B.]
-- **Code availability.** GitHub repository (GPL-3.0-or-later) and a Zenodo
-  software DOI for the commit of the frozen release [PENDING].
-- **Generative AI.** [PENDING: the declaration the chosen journal requires.
-  Much of the pipeline's code and this draft were written with an AI
-  assistant (Claude, Anthropic) under the author's direction and review; AI is
-  not an author. Wording to match the venue's policy.]
-- **Author contributions** (CRediT): sole author. **Acknowledgements**
-  (collectors, validators, the sequencing network, data providers)
-  [PENDING: whether a contributor list or consortium acknowledgement is
-  wanted; to raise with Steve, not to add unasked].
+- **Open Research statement** (title page; draft for submission, ESA
+  options 3 and 6): "Novel code (the MycoMap Atlas R package, API and
+  pipeline, GPL-3.0-or-later) is available at
+  https://github.com/BiodiverseLabs/mycomap-atlas and will be archived on
+  Zenodo with a DOI for the release commit upon acceptance. Data are
+  provided for peer review on Zenodo [links]: the environmental layers, every
+  model of the frozen release (suitability and area-of-applicability rasters,
+  metrics, grades), and the table of training records with their
+  iNaturalist, Mushroom Observer, MyCoPortal and GenBank identifiers. Record
+  coordinates are those published by each source." [PENDING: DOIs; data
+  citations for WorldClim, SoilGrids, ESA WorldCover, BIGMAP, the Canadian
+  NFI, NALCMS, Copernicus and FungalTraits; query details for the
+  mycomap.org pull, Appendix S1: Section S6.]
+- **Acknowledgments** (one paragraph): collectors, validators, the
+  sequencing network, data providers [PENDING: whether to name contributors;
+  to raise with Steve, not to add unasked], and the AI disclosure: "Much of
+  the pipeline's code and the first drafts of this manuscript were written
+  with an AI assistant (Claude, Anthropic; model versions in Appendix S1)
+  under the author's direction; the author reviewed all code and text and is
+  responsible for them." The same disclosure goes in Methods 2.11 and on the
+  submission form.
+- **Author Contributions:** sole author.
+- **Conflict of Interest statement** (required): [PENDING: Steve's wording,
+  e.g. "The author directs MycoMap, which publishes MycoMap Atlas" or none].
 
 ---
 
@@ -544,9 +606,13 @@ to report a problem.]
 | Table 3 | Models and maps by grade × learner × site band | C2, C4 | release |
 | Table 4 | Evidence summary: each claim, its tests, the result | all | |
 
-Supplements: S1 ODMAP protocol (Zurell et al. 2020); S2 virtual-species
+Supporting information: one Appendix S1 with sections, as the journal
+prefers. Section S1 ODMAP protocol (Zurell et al. 2020); S2 virtual-species
 design; S3 layer and predictor sweeps; S4 sensitivity analyses (E7) and
-stability (E11); S5 small-site maps; S6 reproducibility (E12).
+stability (E11); S5 small-site maps; S6 reproducibility and data query
+details (E12). Tables of records or results go to Zenodo, not the appendix.
+Maps in figures need latitude and longitude, a north arrow, a scale bar and
+a border.
 
 ---
 
@@ -611,7 +677,10 @@ done; E16 is read-only; E3 needs only time from the cutover.
 
 Facts read on each journal's own pages on 2026-10-12 and 2026-10-13
 (metrics: each journal's metrics page, 2025 figures). "nc" = not confirmed.
-Steve decides.
+**Decided 2026-10-13 (Steve): Ecological Monographs, Method, "for now".**
+Fallback: (b) below. Open with the coordinator: whether the frozen release
+could also be issued CC BY, which would reopen Ecography, GEB and Scientific
+Data.
 
 ### Scope, two ways
 
@@ -668,17 +737,23 @@ Settled 2026-10-13 (Steve): one combined methods and data paper; sole
 author, Russell, Stephen D.; training-record ids public; compute at the size
 the claims need.
 
-1. **Venue:** Ecological Monographs (Method) recommended, after a
-   presubmission inquiry; MEE second (Appendix B).
-2. **Frozen release:** the rebuild's release, or its successor if the
+1. **Venue:** Ecological Monographs, Method (decided "for now"); send the
+   presubmission inquiry once E1 and E2 have results. Whether the frozen
+   release can also be CC BY is open (asked via the coordinator).
+2. **Conflict of interest wording.**
+3. **Frozen release:** the rebuild's release, or its successor if the
    strong-only full-view refresh runs (default maps, grades and ranks
    byte-identical; only full-extent files change). The coordinator confirms.
-3. **Acknowledgements:** whether to list contributors and collectors.
+4. **Acknowledgements:** whether to list contributors and collectors.
 
 ---
 
 ## Changelog
 
+- **0.5 (2026-10-13).** Shaped to Ecological Monographs (Method): submission
+  format section, Open Research statement draft, AI disclosure in three
+  places, conflict-of-interest slot, one Appendix S1 with sections,
+  presubmission inquiry draft.
 - **0.4 (2026-10-13).** Appendix B rewritten: scope two ways, top five
   for a combined paper with review times and comparable papers; Ecological
   Monographs recommended. C1 reworded and Introduction extended for prior
