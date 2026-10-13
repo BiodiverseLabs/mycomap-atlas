@@ -744,8 +744,10 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
    pull, their inputs still reflect these 22 records, less than 0.02% of all
    records. They formed 16 survey sites of their own and fell in 3 others
    (19 of 8,803 sites); they made up a median 0.13% (at most 0.45%) of the
-   non-detection sites behind any model's background, each at the lowest
-   effort, and no detection site of any modelled taxon [PENDING: exact
+   non-detection sites behind any full model's background, and a median
+   0.11% (at most 5.2%) for small-site models, each at the lowest effort,
+   and no detection site of any modelled taxon [PENDING: whether taxa above
+   1% are refitted on the cleaned pull, so that no model exceeds 1%] [PENDING: exact
    figures on the frozen pull; these are from the 2026-10-06 pull, which
    holds the same 22 records]. A full refit on the cleaned pull would remove
    this; we judged the effect negligible.

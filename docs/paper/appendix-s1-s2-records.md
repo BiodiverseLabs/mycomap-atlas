@@ -63,7 +63,11 @@ real sites with one such record each (of 5, 17 and 110 records). Of the
 least one of the 19 sites in their background, as expected when a
 background is every survey site within 500 km: a median of 5 such sites per
 taxon (at most 18), a median 0.13% of its background sites (at most 0.45%),
-each entering as a non-detection at the lowest effort (one record). None is
+each entering as a non-detection at the lowest effort (one record). Of the
+5,666 small-site taxa (3–19 sites, ensembles of small models), 5,150 have at
+least one in their background: a median of 3 such sites (at most 15), a
+median 0.11% of their background sites but up to 5.2% for the most affected
+taxon, whose 500 km area is sparsely surveyed. None is
 a detection site of any modelled taxon: the two fungi involved are refitted
 on the cleaned pull, and the 18 other names are not modelled. The exclusion list is versioned: each
 pull's manifest records its SHA-256 and the number of rows removed (Atlas
