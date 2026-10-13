@@ -133,15 +133,15 @@ numbers → C3 numbers → resource (N taxa, S strong, nightly, open, DOI).]
 
 ## 1. Introduction
 
-*First prose draft, 2026-10-13 (~1,000 words). Citations are author–year
-until the reference list is verified; [CHECK] marks a fact still to source.*
+*First prose draft, 2026-10-13 (~1,000 words). Citations are author–year;
+the verified list is `references.md`. [CHECK] marks a fact still to source.*
 
 Species distribution models now sit behind conservation assessments, survey
 planning and biogeography, and pipelines fit them for thousands of species
 at a time (Araújo et al. 2019). Fungi are largely absent from this work.
 Most fungal species have never been mapped, and few have been assessed for
-extinction risk [CHECK: a source for the fungal assessment gap and a review
-of fungal distribution modelling]. Two features of fungal records stand in
+extinction risk (Hao et al. 2020; Mueller et al. 2022; Niskanen et al.
+2023). Two features of fungal records stand in
 the way, and both also affect automated atlases of other groups: the names
 are unreliable, and the records are clustered where people collect.
 
@@ -449,17 +449,22 @@ verified this for Maxent, random forests and boosted trees, tuned and
 untuned, with and without null tests. Across processor families, results
 agree to floating-point precision rather than bitwise: OpenBLAS selects its
 matrix kernels by processor, and the area-of-applicability index is computed
-through one of them. Suitability values agree to a relative 1e-9, and the
-index to an absolute 1e-6 on a scale whose thresholds lie between about 0.3
-and 1. Grades, ranks and every published product built from them are
+through one of them. Values are equal to within float32 storage precision
+(four rounding steps): suitability to a relative 5e-7, and the index to an
+absolute 1e-6 (or a relative 5e-7 where larger) on a scale whose thresholds
+lie between about 0.3 and 1; a genuinely different model differs by 1e-4
+or more. Grades, ranks and every published product built from them are
 unchanged. Our refit checks enforce exactly these tolerances and refuse
 anything beyond them.
 
-Published records follow their source's privacy: a record hidden or
-obscured at its source, or of unknown privacy there, stays so in every
-published dataset. [PENDING: the rebuild lane's check of the 0.1° record
-cells and other published layers for such records, and whether the frozen
-release applies it at finishing.]
+Published records follow their source's privacy: records whose location
+is hidden, obscured or of unknown privacy at the source are excluded from
+all published record-level layers. In practice that is the 0.1° record
+cells, from which about 0.5% of records (those of unknown privacy, whose
+0.1° cell would be finer than iNaturalist's own obscuring) are dropped; no
+model is refitted. Everything else published is map-derived or coarse
+(state counts, the 500 km accessible area). The frozen release ships the
+corrected cells file.
 
 Each shard's record names its instance type,
 processor and BLAS. [PENDING E12: the numbers from the rerun.]
@@ -615,22 +620,22 @@ Zenodo DOI, format, size and licence:]
 - **Training records** (new; Steve, 2026-10-13): published for the paper's
   frozen release(s) only; the per-release lists of trained records that the
   nightly pipeline keeps stay private. The ids of every record that
-  trained the frozen release, with source (iNaturalist, Mushroom Observer,
-  MyCoPortal, GenBank, MycoMap sequence), the DNA name used, the sequence it
-  came from, the taxon fingerprint and the survey site it joined, but no
-  coordinates. Each id resolves to its public source page, which shows what
-  the source itself shows. **Privacy rule (Steve, 2026-10-13):** a record
-  hidden or obscured at its source stays hidden or obscured in every
-  published dataset. Records whose location is hidden or obscured at the
-  source, or whose privacy at the source is unknown (about 800 records in
-  the rebuild's pull [CHECK: count in the frozen pull]), are listed with
-  their id but **no survey-site membership**. Obscured iNaturalist
+  trained the frozen release: source (iNaturalist, Mushroom Observer,
+  MyCoPortal, GenBank, MycoMap sequence), source id and taxon (the DNA name
+  used), and no coordinates. [CHECK with the coordinator: whether the
+  sequence, fingerprint and survey-site columns proposed earlier are in; the
+  rebuild lane describes the table as source, source id and taxon only.]
+  Each id resolves to its public source page, which shows what the source
+  itself shows. **Privacy rule (Steve, 2026-10-13):** records whose
+  location is hidden, obscured or of unknown privacy at the source are
+  excluded from all published record-level layers, and carry no survey-site
+  membership in this table (about 800 records of unknown privacy in the
+  rebuild's pull [CHECK: count in the frozen pull]). Obscured iNaturalist
   coordinates never train a model. [CHECK: licence of this table, CC0
   proposed.]
-- **Pending check (asked of the rebuild lane):** whether the 0.1° record
-  cells and any other published layer need the same treatment for hidden,
-  obscured and unknown-privacy records, and whether that can be applied when
-  the frozen release is finished.
+- **Record cells.** The 0.1° record cells (in every release, on the live
+  site and as the Zenodo "collection-cells-0.1deg" bundle) leave out those
+  records; the frozen release ships the corrected file.
 - **Contributors** (Steve, 2026-10-13): one row per contributor with a name
   and record counts only. Names are as public at the source: the
   iNaturalist login, the Mushroom Observer user, the MyCoPortal collector,
@@ -701,9 +706,9 @@ to report a problem.]
   model of the frozen release (suitability and area-of-applicability rasters,
   metrics, grades), and the table of training records with their
   iNaturalist, Mushroom Observer, MyCoPortal and GenBank identifiers. Record
-  coordinates are those published by each source; records hidden or
-  obscured at their source, or of unknown privacy there, stay so in every
-  published dataset and carry no survey-site membership." [PENDING: DOIs; data
+  coordinates are those published by each source; records whose location is
+  hidden, obscured or of unknown privacy at the source are excluded from all
+  published record-level layers." [PENDING: DOIs; data
   citations for WorldClim, SoilGrids, ESA WorldCover, BIGMAP, the Canadian
   NFI, NALCMS, Copernicus and FungalTraits; query details for the
   mycomap.org pull, Appendix S1: Section S6.]
@@ -799,7 +804,7 @@ data, command, result, release, commit).
 | E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`). Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. ~200 CPU-h ($10), ~3 days code | P1 |
 | E6b | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
-| E12 | Reproducibility: rerun a random sample of taxa from the frozen pull; (a) byte identity on ONE pinned instance family (e.g. r7i, Intel); (b) a cross-family comparison reported separately against the stated tolerances (suitability relative 1e-9, AOA index absolute 1e-6; grades and ranks identical); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers, 20–50 taxa, both families | ~20 CPU-h, 1 day | P1 |
+| E12 | Reproducibility: rerun a random sample of taxa from the frozen pull; (a) byte identity on ONE pinned instance family (e.g. r7i, Intel); (b) a cross-family comparison reported separately against the stated tolerances (float32 storage precision: suitability relative 5e-7, AOA index absolute 1e-6 or relative 5e-7; grades and ranks identical; a different model differs by ≥ 1e-4); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers, 20–50 taxa, both families | ~20 CPU-h, 1 day | P1 |
 | E17 | ODMAP protocol (`docs/paper/appendix-s1-odmap.md`) | all | **Draft 2026-10-13**; final check against the frozen release | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
@@ -934,14 +939,21 @@ revised (Path).
 5. **Zenodo layers archive:** Steve, 2026-10-13: "probably" discard the
    draft held since 2026-09-29 and re-archive the frozen release's layers,
    once that release exists (operations lane, Steve's go).
-6. **Privacy of other published layers:** whether the 0.1° record cells
-   and other layers need the source-privacy rule, and whether the frozen
-   release can apply it at finishing (asked of the rebuild lane).
+6. **Training-record table columns:** source, source id and taxon as the
+   rebuild lane describes it, or also sequence, fingerprint and survey site
+   as first proposed (asked of the coordinator). The 0.1° cells question is
+   settled: unknown-privacy records are dropped from the cells file.
 
 ---
 
 ## Changelog
 
+- **0.7.4 (2026-10-13).** Verified reference list (`references.md`, 44
+  entries, two datasets without DOI); Introduction cites the fungal SDM review
+  and the Red List gap.
+- **0.7.3 (2026-10-13).** Tolerances corrected to float32 storage
+  precision; record-level privacy rule applied to the 0.1° cells (about 0.5%
+  of records dropped, no refit); training-record columns to confirm.
 - **0.7.2 (2026-10-13).** Contributor table confirmed by Steve: names by
   source as public there, counts only, opt-out.
 - **0.7.1 (2026-10-13).** ODMAP protocol drafted (Appendix S1, Section S1).
