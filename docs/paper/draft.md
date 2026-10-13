@@ -299,7 +299,10 @@ observation of a striped skunk, labelled by its fungal sequence: the
 pipeline did exactly what it was built to do with a wrong link, which is
 why the paper reports data errors as well as model errors. The 75 ids are
 excluded from the frozen release; the two fungi are refitted and the 18
-names dropped. The full list is in Appendix S1: Section S6.
+names dropped. The full list is in Appendix S1: Section S6. The exclusion
+list of 75 mycomap.org record ids is applied to the frozen pull and to
+every later pull; each pull's manifest records the list's SHA-256 and the
+number of rows removed (Atlas commit 643b444).
 
 Each taxon's record set is hashed into a fingerprint. A model belongs to its
 record set, not its name: it is refitted when the fingerprint changes, and a
@@ -725,10 +728,23 @@ sites, so that other groups can plan an atlas of their own.] → **Table 5**.
    validation state, names and coordinates for pre-cutoff records, and the
    design (layers, tuning grid, null design) was chosen on data that include
    post-cutoff records [PENDING: the rebuild lane's list of such items].
-   The targeted removal of 22 mislabelled records refitted only the two
-   fungi they touched; other models' survey sites, effort and background
-   still include those 22 of about 133,000 records [PENDING: the rebuild
-   lane's exact wording].
+   Twenty-two records in the frozen pull (of about 133,000) were later
+   found to be erroneous: Mushroom Observer specimens linked on mycomap.org
+   to unrelated iNaturalist observations, which gave them the wrong taxon
+   and place. Rather than pull the database again, which would have moved
+   the validation cutoff that the hindcast and Vision's held-out test depend
+   on, we removed them from the frozen pull by an explicit, versioned
+   exclusion list. We refitted the two fungal taxa whose record sets changed
+   (*Clitocybe deceptiva* and *Agaricus bitorquis*, one record each), fully
+   graded with the same settings, in a release that supersedes the main one.
+   The other 18 affected names were non-fungal, with one or two records
+   each, too few for any model; they no longer appear in the published
+   taxa, cells or counts. Models of unaffected taxa were not refitted.
+   Because survey sites, effort and background are built from the whole
+   pull, their inputs still reflect these 22 records, less than 0.02% of all
+   records [CHECK: how many survey sites they touch, and how many taxa have
+   one of them in their background]. A full refit on the cleaned pull would
+   remove this; we judged the effect negligible.
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -990,6 +1006,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.8.3 (2026-10-13).** Limitations paragraph and exclusion-list note on
+  the targeted fix, from the rebuild lane.
 - **0.8.2 (2026-10-13).** How the mislabelled rows were found: Vision's
   photo audit (to confirm with Steve).
 - **0.8.1 (2026-10-13).** Data-error paragraph with the exact taxa and the

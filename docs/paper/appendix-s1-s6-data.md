@@ -54,4 +54,6 @@ The two fungi lost one site each (*C. deceptiva* 53 → 52, *A. bitorquis*
 25 → 24) and were refitted; the 18 non-fungal names had one or two sites,
 too few for a model, and were dropped. The other models' survey sites,
 effort and background still include these 22 of about 133,000 records
-[PENDING: the rebuild lane's wording].
+(less than 0.02% of all records). The exclusion list is versioned: each
+pull's manifest records its SHA-256 and the number of rows removed (Atlas
+commit 643b444), and it applies to every later pull.
