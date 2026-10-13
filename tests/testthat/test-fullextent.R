@@ -243,3 +243,29 @@ test_that("beyond the reach a full view covers North America only, not the grid'
   expect_equal(at(28, -81.5), 2)      # central Florida, beyond the reach: predicted
   expect_true(is.na(at(22, -80)))     # Cuba: not North America as Atlas maps it
 })
+
+test_that("a full view is predicted across the slivers between states and provinces, not left as streaks", {
+  skip_if_not_installed("terra")
+  # 5 km cells around 60 N, where the Northwest Territories' southern border
+  # and those of Alberta and Saskatchewan do not meet: a strip about 27 km
+  # wide that is in no region.
+  albers <- atlas_albers(c(58.5, 61.5), c(-116, -109))
+  window <- terra::ext(min(albers[, "x"]), max(albers[, "x"]), min(albers[, "y"]), max(albers[, "y"]))
+  grid <- terra::rast(terra::ext(ATLAS_GRID_EXTENT), resolution = 5000, crs = ATLAS_CRS)
+  stack <- terra::crop(grid, window, snap = "out")
+  terra::values(stack) <- 1
+  names(stack) <- "v1"
+  sliver <- matrix(atlas_albers(60.2, -112.63), ncol = 2)
+  regions <- atlas_region_grid()$ids
+  expect_true(is.na(terra::extract(regions, sliver)[[1]]))
+  # The reach: a small circle well south of it.
+  area <- terra::buffer(terra::vect(atlas_albers(58.8, -113), crs = ATLAS_CRS), 20000)
+  suitability <- terra::mask(terra::crop(stack, terra::ext(area), snap = "out"), area)
+  testthat::local_mocked_bindings(atlas_aoa_index = function(aoa, newdata) rep(0, nrow(newdata)))
+  out <- atlas_predict_full_extent(NULL, function(model, data) rep(2, nrow(data)), NULL, stack, area,
+                                   suitability, suitability * 0)
+  expect_equal(terra::extract(out$suitability, sliver)[[1]], 2)
+  # Every land cell of the window is predicted: no streak of missing cells.
+  expect_false(anyNA(terra::values(out$suitability, mat = FALSE)))
+  expect_false(anyNA(terra::values(out$dissimilarity, mat = FALSE)))
+})
