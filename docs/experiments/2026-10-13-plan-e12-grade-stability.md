@@ -1,56 +1,90 @@
 # Plan: reproducibility and grade stability across reruns and machines (paper E12)
 
-- **Status.** Planned 2026-10-13, before code or run.
-- **Question.** When the same model is refitted from the same inputs, on the
-  same processor family and on another, do its map, its held-out scores and
-  its grade come out the same? Serves C4 ("says which maps to trust") and
-  qualifies C1–C2: a grade that changes with the machine is a weaker trust
-  measure.
-- **Why now.** Refitting the frozen release's 576 strong models for the
+- **Status.** Planned 2026-10-13, before code or run; revised the same day
+  after the rebuild lane's review (gates, arms, cost basis, measures,
+  boosted-tree threads).
+- **Question.** When the same model is refitted from the same inputs, in
+  another worker process, on the same processor family and on another, do
+  its map, its held-out scores and its grade come out the same? Serves C4
+  ("says which maps to trust") and qualifies C1–C2: a grade that changes
+  between runs or machines is a weaker trust measure.
+- **Why.** Refitting the frozen release's 576 strong models for the
   full-view refresh (release 20261013T155140Z-026d3a26) kept 573 maps within
   float32 tolerance. Three tuned Maxent models chose other settings: one a
   near-tie (*Russula* sp. 'compacta-PA01', picks 0.003 apart), and two where
-  the cross-validated AUC of every candidate moved (*Stropharia hardii*: mean
-  change −0.032, correlation of candidate scores 0.49; *Gliophorus fumosus*:
-  median change 0.035, correlation 0.55), with the same pull, presences and
-  background, and random forests byte-identical. The mechanism is not
-  identified. The refresh check compares maps, not held-out scores, so a
-  model can keep its map within tolerance while its AUC and Boyce shift.
+  the cross-validated AUC of every candidate moved (*Stropharia hardii*:
+  mean change −0.032, correlation of candidate scores 0.49; *Gliophorus
+  fumosus*: median change 0.035, correlation 0.55), with the same pull,
+  presences and background, and random forests byte-identical. The
+  mechanism is not identified; the rebuild lane's working order of
+  suspicion is process state or run-to-run effects in Maxent's CV fits,
+  then BLAS-path effects, then the machine alone. The refresh check compares
+  maps, not held-out scores, so a model can keep its map within tolerance
+  while its AUC and Boyce shift.
 - **Reproducibility.** frozen.
+
+## Gates (cheap steps first)
+
+1. **Step 0, read-only (rebuild lane's script, run by ops).** For all 576
+   refreshed models: chosen setting, per-candidate tuning AUCs, mean blocked
+   AUC, pooled Boyce and per-fold AUC, release vs refit, by learner. Also
+   the cost basis below.
+2. **Same-machine test of the two taxa** (*Stropharia hardii*, *Gliophorus
+   fumosus*): first on a local PC with a development pull (R-level
+   run-to-run determinism; in progress), then on the Atlas server with the
+   frozen pull and the release image.
+   - **Different answers on the same machine:** a non-determinism bug. Stop
+     the paper's run queue (the coordinator's rule), find and fix it, and
+     then run E12 to confirm the fix.
+   - **Identical:** run E12 as designed.
 
 ## Design
 
-- **Step 0 (read-only, the rebuild lane's script, run by ops).** For all 576
-  refreshed models: chosen setting, per-candidate tuning AUCs, mean blocked
-  AUC, pooled Boyce and per-fold AUC, release vs refit, by learner.
 - **Sample.** Stratified by learner (Maxent, RF, boosted trees, ESM) × site
   band (3–4, 5–19, 20–49, 50+) × grade (strong, weak, failed), up to 25 per
-  cell, seed recorded (≈ 600–900 models).
-- **Arms.** Full graded refits from the frozen pull with the frozen settings
-  and seeds, nulls included: (a) twice on one pinned instance family (the
-  original's, r7i), (b) once on another (r7a). Every model's result records
-  the machine that fitted it (feat/result-machine).
+  cell, at most ~10 per cell for 50+ site tuned Maxent if those cells
+  dominate the cost; seed recorded.
+- **Arms**, each a full graded refit from the frozen pull with the frozen
+  settings and seeds, nulls included (null draws are seeded, so they are a
+  fair test, and grade agreement needs the null p):
+  - (a1) on r7i (Intel);
+  - (a2) on r7i again, with a *different shard split and model order*, so
+    each fit sits at a different position in its worker process (tests
+    state carried between fits);
+  - (b) on r7a (AMD);
+  - (c) free fourth observation: the frozen release's own metrics, from
+    machines of unknown family (R_main's shards ran r7i and r7a after spot
+    reclaims, and its records do not say which fitted which model), for the
+    576 strong models.
+  - Every model's result records the machine that fitted it
+    (feat/result-machine). xgboost's thread count is pinned in every arm and
+    recorded (multithreaded tree building is a known source of run-to-run
+    differences).
 - **Measures.** Grade agreement (strong/weak/failed) with Cohen's κ and the
-  share of flips by type; chosen-setting agreement; |Δ| of blocked AUC,
-  pooled Boyce, null-test p and map strength; map difference against the
-  float32 tolerance. Reported for (a) within family and (b) across families,
-  by learner and site band.
+  share of flips by type; chosen-setting agreement; the per-candidate
+  tuning-score vector and its correlation between runs; per-fold AUC; |Δ| of
+  blocked AUC, pooled Boyce, null-test p and map strength; map difference
+  against the float32 tolerance. Reported for a1 vs a2 (same family, other
+  process state), a vs b (across families), and each vs c, by learner and
+  site band.
 
 ## Reading
 
-- Any difference within (a) means a non-determinism inside one machine
-  type: report it and fix it before submission.
-- Differences only in (b) are machine effects: report the grade-flip rate
-  with its interval, and state it in the paper wherever grades are used.
-- If grade flips concentrate in small-site tuned Maxent, say so, and test
-  whether a more stable tuning rule (e.g. a fixed path or a tie tolerance)
-  removes them; that would be a method change for a later release, not the
-  frozen one.
+- a1 ≠ a2 means non-determinism within one machine type: report it and fix
+  it before submission.
+- Differences only between a and b are machine effects: report the
+  grade-flip rate with its interval, and state it wherever grades are used.
+- If flips concentrate in small-site tuned Maxent, say so, and test whether
+  a more stable tuning rule (a fixed path, or a tie tolerance) removes them;
+  that is a method change for a later release, not the frozen one.
 
 ## Cost
 
-Est. 30–60 CPU-h (≈ 0.05 CPU-h per model with nulls, three fits each), a few
-dollars. Gate: feat/result-machine merged.
+Estimated from R_main's own shard records rather than a flat rate: for the
+drawn sample, the sum of each model's recorded `seconds` (nulls included) ×
+3 fits [PENDING: step 0 adds this read-only query]. The first guess of
+30–60 CPU-h is likely low because the sample over-represents rich taxa.
+Gate: feat/result-machine merged.
 
 ## Deviations
 
