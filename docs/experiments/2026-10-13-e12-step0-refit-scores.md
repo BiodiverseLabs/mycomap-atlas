@@ -21,7 +21,8 @@
   Every other model's chosen settings, tuning AUCs, mean AUC, pooled Boyce
   and per-fold AUC are identical to four decimals. Score changes are
   confined to the three models whose maps changed: 3 of 121 tuned Maxent
-  models and 0 of 455 others.
+  models and 0 of 455 others. All three have 21–45 detection sites, in the 20–49 band
+  (Maxent is fitted only from 20 sites).
 - **Reading.** The map check and the score check agree; there is no hidden
   score drift behind matching maps. Probably only about a quarter of models
   crossed processor families (refit on r7i, original on r7i or r7a), so the
