@@ -104,6 +104,9 @@ atlas_usage <- function() {
   message("  promote-release    make a release current (rolling back is promoting an older one)")
   message("      --release=ID              which release (required)")
   message("  publish-layers     put this machine's built layers in the store for workers")
+  message("  exclude-records    leave listed rows out of this pull and every later one, by a private drop")
+  message("                     list (--ids=FILE|LIST [--by=id|source_observation] [--reason=...]);")
+  message("                     --clear --confirm retires the list")
   message("  plan-job           list what needs refitting and split it into shards")
   message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
   message("      --shards=N                how many workers will share it (default 4)")
@@ -268,6 +271,17 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       # Read-only: the private list of records whose place their source
       # hides, for the published collection cells (R/privacy.R).
       atlas_pull_privacy()
+      invisible(0L)
+    },
+    "exclude-records" = {
+      # Private: the box's drop list, applied to every pull (R/exclude.R).
+      if (isTRUE(flags$clear)) {
+        atlas_clear_exclusions(confirm = isTRUE(flags$confirm))
+      } else {
+        if (is.null(flags$ids)) stop("exclude-records needs --ids=FILE or a comma list, or --clear --confirm", call. = FALSE)
+        atlas_exclude_records(as.character(flags$ids), by = as.character(flags$by %||% "id"),
+                              reason = as.character(flags$reason %||% ""))
+      }
       invisible(0L)
     },
     "pull-occurrences" = {
