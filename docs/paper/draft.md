@@ -667,6 +667,13 @@ rebuilding nightly; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
 
+### 4.3 Usage notes
+
+[PENDING: how to read a grade; use strong maps only for claims; suitability
+is not occurrence; AOA hatching; ranks are within-taxon; the API (best-map,
+maps/best, prior; rate limits); citing a release; reusing CC BY-SA maps; how
+to report a problem.]
+
 ### 4.4 What it costs (E23)
 
 [PENDING: from the ledger in `costs.md`. Cost and wall time of one full
@@ -674,13 +681,6 @@ rebuild (EC2 spot compute, storage added); a typical nightly incremental
 run; the standing monthly cost (server, storage, transfer); the cost of each
 analysis in this paper; and CPU seconds per model by learner and by number of
 sites, so that other groups can plan an atlas of their own.] → **Table 5**.
-
-### 4.3 Usage notes
-
-[PENDING: how to read a grade; use strong maps only for claims; suitability
-is not occurrence; AOA hatching; ranks are within-taxon; the API (best-map,
-maps/best, prior; rate limits); citing a release; reusing CC BY-SA maps; how
-to report a problem.]
 
 ---
 
