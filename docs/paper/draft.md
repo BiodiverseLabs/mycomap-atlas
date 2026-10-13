@@ -3,7 +3,7 @@
 *Working title (118 characters; the journal allows 120, sentence case, one
 colon, no uncommon acronyms). Alternative: "Which habitat maps can be
 trusted? Calibrated null tests for thousands of DNA-defined North American
-fungi". Living draft, version 0.6 (2026-10-13). Skeleton: headings, the
+fungi". Living draft, version 0.7 (2026-10-13). Skeleton: headings, the
 claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -133,45 +133,86 @@ numbers → C3 numbers → resource (N taxa, S strong, nightly, open, DOI).]
 
 ## 1. Introduction
 
-[PENDING: ~900–1,200 words. Paragraph plan:]
+*First prose draft, 2026-10-13 (~1,000 words). Citations are author–year
+until the reference list is verified; [CHECK] marks a fact still to source.*
 
-1. **Fungi are missing from distribution maps.** Most fungal species have no
-   map, and the ones that do rest on herbarium and photo names. [CHECK: cite
-   a fungal SDM review and the fungal conservation-assessment gap (IUCN
-   fungal assessments).]
-2. **Names are the first problem.** Morphological names lump cryptic species
-   and split one species across regions; DNA barcoding by community
-   scientists now produces sequenced, georeferenced collections at scale
-   (MycoMap's sequencing network, FunDiS [CHECK]), many under provisional
-   names that are clusters of sequences, not ranges.
-3. **Clustered collecting is the second.** Records concentrate where
-   collectors and sequencers live (here six states and provinces hold 61% of
-   records). Target-group backgrounds (Phillips et al. 2009) and spatial
-   blocking (Roberts et al. 2017; Valavi et al. 2019) address part of it.
-4. **Automated SDM at scale has no honest trust measure.** Atlases that fit
-   thousands of models report AUC, which spatial clustering inflates and
-   which pseudo-predictors made from paintings can match (Fourcade et al.
-   2018, Glob. Ecol. Biogeogr. 27:245–256). Null models (Raes & ter Steege
-   2007) are the standard check, but scattered nulls inherit none of the
-   clustering. Spatially structured nulls were argued for in macroecology
-   (Beale et al. 2008, PNAS 105:14908–14912), and contested as too strict
-   because shifted patterns keep the environment's own autocorrelation
-   (Araújo et al. 2009; Peterson et al. 2009; reply Beale et al. 2009, PNAS
-   106:E41–E43) [CHECK: the two 2009 letters' citations]. Two recent tools
-   keep spatial structure in SDM nulls: Fauxcurrence simulates occurrences
-   that keep within- and between-species structure and found many good-fitting
-   SDMs no better than null (Osborne et al. 2022, Ecography e05880,
-   doi:10.1111/ecog.05880); the shift-&-rotate approach translates and rotates
-   the sampling area over the environmental layers to make null predictors
-   (Ridder, Hardy & Ovaskainen 2024, Methods Ecol. Evol. 15:2331–2342,
-   doi:10.1111/2041-210X.14443). Neither measures a false-pass rate and power
-   against known truth under target-group sampling, nor grades maps at scale.
-   Say exactly how Atlas's shift differs (it moves the detections, keeps them
-   on surveyed sites, and runs sequentially per model). Environment-based
-   models also need to beat spatial interpolation (Bahn & McGill 2007, Glob.
-   Ecol. Biogeogr. 16:733–742).
-5. **What this paper does.** C1–C4 in a sentence each, and what the resource
-   offers (maps, grades, API, releases).
+Species distribution models now sit behind conservation assessments, survey
+planning and biogeography, and pipelines fit them for thousands of species
+at a time (Araújo et al. 2019). Fungi are largely absent from this work.
+Most fungal species have never been mapped, and few have been assessed for
+extinction risk [CHECK: a source for the fungal assessment gap and a review
+of fungal distribution modelling]. Two features of fungal records stand in
+the way, and both also affect automated atlases of other groups: the names
+are unreliable, and the records are clustered where people collect.
+
+The first is names. Many fungal morphospecies hide several lineages with
+different ranges, and one lineage can carry several names in different
+regions [CHECK: cite cryptic diversity in macrofungi]. A map fitted to a
+morphological name averages over whatever the name covers, and it is
+confidently wrong where the lineages part. DNA barcodes resolve many of
+these cases [CHECK: ITS barcode reference], and community science now
+produces sequenced, georeferenced collections at a continental scale:
+volunteers collect and photograph a specimen, a sequencing network reads
+its barcode, and validators compare the sequence with reference data before
+the record's name is accepted. Many of the lineages found this way have no
+formal name yet and carry provisional names that are clusters of sequences
+rather than described species. They can be mapped as long as a map belongs
+to its set of records rather than to a name that may later change.
+
+The second is clustered collecting. Records concentrate where collectors
+and sequencing projects are: in the data used here, six states and
+provinces hold 61% of the records and Indiana alone 12%. Two practices
+address this when fitting and evaluating a model. A target-group background
+compares a species' records with other records collected the same way
+(Phillips et al. 2009). Spatially blocked cross-validation scores a model on
+whole regions it did not see (Roberts et al. 2017; Valavi et al. 2019).
+Neither makes a score absolute. Within a few hundred kilometres of a
+cluster of records, almost any smooth predictor separates the cluster from
+its background, so a model can score well without learning habitat:
+predictors made from paintings matched real environmental layers for many
+species (Fourcade et al. 2018). A map's score alone therefore cannot say
+whether the map knows anything.
+
+The usual check is a null test: the model is refitted on null species of
+randomly drawn occurrences, and its score must beat theirs (Raes & ter
+Steege 2007). Null occurrences scattered one by one, however, lose the
+clustering the real species has, so under clustered sampling they set a bar
+that clustering alone can clear. Null patterns that keep spatial structure
+were proposed in macroecology, where they found most bird–climate
+associations no better than chance (Beale et al. 2008). That result was
+disputed, partly because shifted patterns keep the environment's own
+spatial structure and so may be too strict a test (Araújo et al. 2009;
+Peterson et al. 2009; Beale et al. 2009). Structure-keeping nulls are now
+available for distribution models, as simulated occurrences that keep
+within- and between-species structure (Osborne et al. 2022) and as
+environmental layers shifted and rotated under the sampling area (Ridder et
+al. 2024). What is still missing is a measurement of how often each kind of
+null test passes a species with no habitat signal, and how often it passes
+one with a signal, under realistic target-group sampling. Without those two
+error rates an atlas cannot say how far to trust a map that passed, and none
+of the large automated atlases grades its maps this way [CHECK: confirm for
+the main existing atlases]. A habitat model should also beat a model that
+knows only how far a place is from known records (Bahn & McGill 2007).
+
+This paper describes MycoMap Atlas, which maps every North American fungus
+defined by DNA with enough sites to fit a model, from validated
+community-science collections, and rebuilds the maps every night. Its
+central method is a calibrated trust grade. We make four claims. First
+(C1), on virtual species collected at the atlas's real survey sites, the
+usual scattered null test passes most species that follow no habitat at
+all, while a null that keeps each species' clustering and stays on surveyed
+sites holds false passes near the nominal rate, at a measured cost in power.
+Second (C2), the grade this test gives each map (strong, weak or failed)
+predicts how the map ranks records validated after it was made. Third (C3),
+labelling records by their approved sequence rather than by the record's
+own name changes the maps, and about half of the modellable taxa have no
+formal name. Fourth (C4), the whole pipeline runs automatically at a
+continental scale and says which of its maps to trust: most are weak or
+failed, and they are published with that grade rather than hidden. We also
+report a test registered in advance: whether the maps carry habitat
+information that another system, a photo-identification model, can use
+(Q1). The maps, models, layers, code and the identifiers of every training
+record are archived for reuse.
 
 ---
 
@@ -590,6 +631,12 @@ Zenodo DOI, format, size and licence:]
   cells and any other published layer need the same treatment for hidden,
   obscured and unknown-privacy records, and whether that can be applied when
   the frozen release is finished.
+- **Contributors** (Steve, 2026-10-13): one row per contributor, holding the
+  name or username as public at the source and record counts only. There
+  are no record ids, species or places in it, so it cannot be joined to the
+  training-record table to tie a person to a hidden-location record.
+  Contributors may ask to be listed anonymously. [PENDING: the coordinator
+  is confirming this shape with Steve.]
 - **Code**: the repository at the release commit, with a Zenodo software
   DOI, and the container image digest.
 
@@ -680,6 +727,7 @@ community-science papers do:
    project leaders, lab leads, the most active validators), with their
    permission.
 2. *Every collector credited in the data*: a contributor table on Zenodo
+   (shape and opt-out in section 4.1)
    beside the training-record table (observer name or username as given at
    the source, and record counts), derived from the record ids. Names are
    already public at each source; the source-privacy rule still applies to
@@ -891,6 +939,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.7 (2026-10-13).** Introduction drafted as prose (~1,000 words);
+  contributor table shape and opt-out in 4.1.
 - **0.6.6 (2026-10-13).** Contributor credit plan adopted; licence stays
   CC BY-SA (Steve).
 - **0.6.5 (2026-10-13).** Validation paragraph filled from the data
