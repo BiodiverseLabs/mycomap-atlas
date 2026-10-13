@@ -551,45 +551,83 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
 
 ## 5. Discussion
 
-[PENDING. Paragraph plan:]
+*First prose draft, 2026-10-13 (~900 words). Results are placeholders; the
+reading of each paragraph is fixed only once its numbers are in.*
 
-1. The cost of an honest grade: about 7% of modelled taxa have a strong
-   map [provisional: 470 of ~6,811]. Under the old scattered-null test the
-   October 7 release (20261007T085351Z-89ef2317) had 3,043 passing models of
-   8,908 (Maxent 674, random forest 765, boosted trees 225, small-model
-   ensembles 1,379) across 1,835 of 6,498 taxa, but data, naming
-   rules and design all changed between the two releases; the like-for-like
-   figure is E1c (the standard test rerun on the frozen release's own
-   models), which is the number to quote.
-   What a grade means and does not: strong = beats its own collecting pattern
-   on held-out ground; weak and failed maps are not shown to be wrong; low
-   power (C1) means many real signals are left unclaimed; that is the price
-   of an honest claim. Engage the Beale–Araújo–Peterson debate directly: our
-   virtual species measure both error rates where the truth is known, which
-   that debate could not, and E1 tests whether the flat power comes from
-   smooth, broad habitats surviving a shift.
-2. Implications for other automated SDM atlases and for null tests in SDM
-   generally (scattered nulls with clustered target-group data).
-3. Fungi: DNA-defined and provisional taxa as mappable units; what the drivers
-   say by guild; the value of community sequencing for map coverage (each new
-   site moves a taxon toward a map).
-4. Limits: suitability, not occurrence; no true absences (until E4); host
-   layers stop at national inventories; 1970–2000 climate; provisional names
-   can be re-clustered; the maps can only be as good as where people collect
-   and sequence. Hindcast fairness (E2): the hindcast uses today's
-   validation state, names and coordinates for pre-cutoff records, and the
-   design (layers, tuning grid, null design) was chosen on data that include
-   post-cutoff records [PENDING: the rebuild lane's list of such items].
-   The 76 removed records were taken out by an exclusion list rather than a
-   new pull, which would have moved the validation cutoff the hindcast and
-   Vision's test depend on; only the taxa they named were refitted or
-   retired, so other models' survey sites and backgrounds still include
-   them (under 0.06% of records; per-model shares in Appendix S1: Section
-   S2). The frozen pull's naming also read set-aside, contaminant and
-   misattributed sequences (about 527 records named only by them, about
-   2,287 left out; Section S2.4), excluded from the next release on.
-5. What comes next: eDNA as an independent test and in integrated models,
-   1 km releases, climate projections, survey guidance.
+**The cost of an honest grade.** Most of the atlas's maps are not strong:
+[S] of [M] models, and [470] of [~6,811] modelled taxa [provisional]. The
+standard test, rerun on the same models, would have called [X]% of them
+good [PENDING E1c]. That gap is the point of the method rather than a
+shortfall of the data. On simulated species collected the way MycoMap's
+records are, the scattered null passed most species that follow no habitat
+at all, and every one with a hundred sites or more; the shifted null passed
+almost none of them, and [PENDING E2] its strong maps placed records
+validated later on higher-ranked ground than weak or failed maps. A strong
+grade therefore says something a high AUC does not: that the map beats the
+species' own pattern of collecting on ground it never saw. The price is
+power. A strong grade caught about a quarter of simulated species that did
+follow a habitat, and more sites did not raise that share [PENDING E1: by
+breadth and signal strength]. "Not strong" therefore means "not shown",
+not "wrong", which is why weak and failed maps are published, faint and
+labelled, rather than withheld, and why looser tiers were judged on the
+same two kinds of evidence [PENDING E24].
+
+**Why shifted nulls are strict.** A shifted copy of a species' records keeps
+its clustering, and on a continent whose climate varies smoothly it often
+lands on similar ground. That is the objection raised against structured
+nulls in the bird–climate debate (Araújo et al. 2009; Peterson et al. 2009;
+Beale et al. 2009), and our results bear it out for broad habitats
+[PENDING E1: power by breadth]. The debate could not settle the question
+because real species have no known truth. Simulated species collected at
+real survey sites measure both error rates directly, and a reader can
+choose a test by the error that matters to them: a scattered null that
+passes most clustered species with no habitat signal, or a shifted null
+that misses most real ones.
+
+**For other automated atlases.** Any pipeline that fits thousands of models
+to clustered occurrence data faces the same problem, whatever its learners.
+Three practices carry over: grade each map against nulls that keep its own
+clustering and stay on surveyed ground; calibrate that grade on simulated
+species that inherit the real sampling, so its error rates are known; and
+test the grade on records collected or validated after the maps were made
+[PENDING E2, E3]. A distance-only model is a necessary baseline: where
+habitat adds nothing over distance to known records, a map should not claim
+otherwise [PENDING E6b]. And because the grade is the contribution, an
+atlas should report how many of its maps earn it, not only how many it
+draws.
+
+**For fungi.** Naming taxa by approved DNA sequences rather than by the
+record's own name changed the maps of [PENDING E9] taxa, and about half the
+modelled taxa have no formal name: they are sequence clusters that can now
+be mapped as soon as they have enough sites. Community sequencing is
+therefore what extends the atlas: each new site moves a taxon toward its
+first map or toward a strong one. Host trees ranked [PENDING E8] for
+ectomycorrhizal fungi and climate for the rest, consistent with the
+partner-dependence of mycorrhizal fruiting.
+
+**Limits.** The maps describe habitat suitability, not occurrence, and are
+fitted to presences against other collectors' sites, not to true
+absences, which MycoMap's own soil sequencing and published metabarcoding
+data could supply [PENDING E4]. Host-tree layers stop at the two national
+inventories, so Alaska, Hawaii, Puerto Rico and Mexico have climate and
+soil but no trees; the climate is a 1970–2000 average; provisional names can
+be re-clustered. The hindcast reads today's validation state, names and
+coordinates for pre-cutoff records, and the design was chosen on data that
+include later records [PENDING: the rebuild lane's list]. Seventy-six
+erroneous records were removed by an exclusion list rather than a new pull,
+which would have moved the validation cutoff, so other models' backgrounds
+still include their sites (under 0.06% of records); and the frozen pull's
+naming read some sequences it should have skipped, about 527 records named
+only by them and 2,287 left out, corrected from the next release on
+(Appendix S1: Section S2). Tuned Maxent models with few sites can choose
+different settings on different processors [PENDING E12: how often grades
+differ]. The maps can only be as good as where people collect and
+sequence.
+
+**What comes next.** Metabarcoding samples as an independent
+presence–absence test and in integrated models; 1 km releases; projections
+under future climates; and survey guidance that sends collectors where a
+map is least certain and a find would most change it.
 
 ---
 
@@ -889,6 +927,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.13 (2026-10-13).** Discussion drafted as prose (~900 words) with
+  placeholders for results.
 - **0.12 (2026-10-13).** Methods cut to the lean budget (~1,700 words);
   the previous text moved unchanged into Appendix S1 Sections S2 (S2.0),
   S3, S4, S9 and S10.
