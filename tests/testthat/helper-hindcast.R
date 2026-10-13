@@ -25,7 +25,12 @@ hindcast_occurrences <- function() {
 hindcast_setup <- function() {
   store <- fresh_store()
   boss <- machine()
-  on_machine(boss, orchestrator_data(hindcast_occurrences()))
+  on_machine(boss, {
+    orchestrator_data(hindcast_occurrences())
+    # A rename the release carries, as a pull records one (R/names.R).
+    atlas_write_json(data.frame(from = "Taxon Old", to = "Taxon A", records = 3L, moved = 3L,
+                                seen = "2026-10-01"), atlas_renames_path())
+  })
   main <- full_cycle(store, boss, fit = map_fit(list("Taxon A" = "strong", "Taxon B" = "strong", "Taxon C" = "weak")))
   list(store = store, boss = boss, main = main)
 }
