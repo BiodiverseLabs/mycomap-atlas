@@ -61,15 +61,14 @@ export const LAYER_NOTES: Record<string, ReactNode> = {
   ),
   hostsdecay: (
     <>
-      The share of a cell's trees in each of 16 more genera: maple, ash, elm, juniper and eastern
+      The share of a cell's trees in each of 10 more genera: maple, ash, elm, juniper and eastern
       redcedar, northern white-cedar and western redcedar, tulip tree, cherry and plum, sweetgum,
-      sycamore, black locust, walnut and butternut, hackberry, bald cypress, coast redwood, giant
-      sequoia and incense-cedar. Maple, ash and elm host mycorrhizal, wood-decay and parasitic
+      sycamore and black locust. Maple, ash and elm host mycorrhizal, wood-decay and parasitic
       fungi alike, so these are host trees like the 19 genera, shown and measured with them. Same
       sources and same measure (BIGMAP in the lower 48, Canada's National Forest Inventory), as
-      shares of the same total of trees. Canada's inventory maps maple, ash, elm, juniper, cedar,
-      cherry and walnut; the others read 0 there. Measured on 158 taxa (30 September 2026), the
-      first ten raised held-out AUC by 0.0018 ± 0.0013 overall and by 0.004 for species with
+      shares of the same total of trees. Canada's inventory maps maple, ash, elm, juniper, cedar
+      and cherry; the others read 0 there. Measured on 158 taxa (30 September 2026), these ten
+      raised held-out AUC by 0.0018 ± 0.0013 overall and by 0.004 for species with
       30–49 collecting sites, maple doing most of the work. Elm keeps a place in any model of a
       region where it is at least 1% of the trees; the rest count toward the same allowance of
       trees as the host genera.
