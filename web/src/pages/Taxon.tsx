@@ -11,7 +11,7 @@ import { ShareMap } from "@/components/ShareMap";
 import { sparseFailedNote } from "@/lib/sparseSkill";
 import { gradeNote, gradeVerdict, isFaint, mapGrade } from "@/lib/grade";
 import { reachedFromNote, renamedTaxonPath } from "@/lib/renamed";
-import { openingView } from "@/lib/mapView";
+import { hasFullView, mapOverlay, openingView, type MapView } from "@/lib/mapView";
 import { NOT_YET_VALIDATED_HELP, notYetValidatedLine } from "@/lib/unvalidated";
 import { NEW_FINDS_HELP, newFindsLine } from "@/lib/tracker";
 import { useFullscreen } from "@/components/Fullscreen";
@@ -301,9 +301,50 @@ function RasterDownload({ name, algorithm }: { name: string; algorithm: Algorith
   );
 }
 
-function boundsOf(model?: Model | null): Bounds | null {
-  const b = model?.bounds;
-  return b ? [[b.south, b.west], [b.north, b.east]] : null;
+// The two grounds a strong map can show (lib/mapView.ts). Potential, not
+// range: beyond its reach the model cannot tell ground nobody surveyed from
+// ground searched without a find.
+const GROUND_OPTIONS: [MapView, string][] = [
+  ["accessible", "Within 500 km of records"],
+  ["full", "Everywhere conditions resemble its known sites"],
+];
+
+function GroundToggle({
+  ground,
+  onGround,
+  bar = false,
+}: {
+  ground: MapView;
+  onGround: (next: MapView) => void;
+  /** A strip across a full-screen map, where the section's own toggle is out of sight. */
+  bar?: boolean;
+}) {
+  return (
+    <div
+      className={
+        bar
+          ? "flex flex-wrap gap-1 border-b border-[#A87146]/10 bg-white px-3 py-1.5 text-xs"
+          : "inline-flex flex-wrap rounded-md border border-[#A87146]/20 p-0.5 text-xs"
+      }
+      role="radiogroup"
+      aria-label="Which ground the maps show"
+    >
+      {GROUND_OPTIONS.map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={ground === value}
+          onClick={() => onGround(value)}
+          className={`rounded px-2 py-1 ${
+            ground === value ? "bg-myco-green text-white" : "text-[#5c4a3a] hover:bg-[#A87146]/10"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function ModelMap({
@@ -319,6 +360,8 @@ function ModelMap({
   hidden,
   alone = false,
   onToggle,
+  ground,
+  onGround,
 }: {
   name: string;
   algorithm: Algorithm;
@@ -333,9 +376,13 @@ function ModelMap({
   /** The only map this taxon has: it takes the whole row. */
   alone?: boolean;
   onToggle: () => void;
+  /** Which ground the taxon's maps show: one choice for all of them. */
+  ground: MapView;
+  onGround: (next: MapView) => void;
 }) {
   const busiest = points.reduce((most, cell) => Math.max(most, cell.records), 1);
-  const overlay = boundsOf(model);
+  const layer = mapOverlay(model, ground);
+  const overlay = layer?.bounds ?? null;
   const minimum = ALGORITHM_MIN_PRESENCES[algorithm];
   const grade = mapGrade(model);
   const failed = isFaint(grade);
@@ -415,6 +462,7 @@ function ModelMap({
           </span>
         </div>
       </CardHeader>
+      {screen.full && hasFullView(model) && <GroundToggle ground={ground} onGround={onGround} bar />}
       <div
         className={`relative ${screen.full ? "min-h-0 flex-1" : expanded ? "h-[70vh] min-h-[420px]" : "h-[380px]"}`}
       >
@@ -432,10 +480,12 @@ function ModelMap({
             attribution={BASEMAP_ATTRIBUTION}
             url={BASEMAP_URL}
           />
-          {overlay && (
+          {layer && (
             <ImageOverlay
-              url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at)}
-              bounds={overlay}
+              // A new image, not the old one stretched to new bounds.
+              key={layer.view}
+              url={mapUrl(name, algorithm, model?.map_drawn_at ?? model?.built_at, layer.view)}
+              bounds={layer.bounds}
               // A map starts as strong as it beat its null models by.
               opacity={strength / 100}
             />
@@ -455,6 +505,18 @@ function ModelMap({
             {algorithm === "esm" && (model?.presences ?? presences ?? 0) < SPARSE_BELOW
               ? sparseFailedNote(model?.presences ?? presences ?? 0)
               : gradeNote(grade)}
+          </div>
+        )}
+        {layer?.view === "full" && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
+            Potential, not range: beyond 500 km, colour marks ground whose conditions resemble the
+            places it was found, hatched where they do not. The model cannot tell ground nobody
+            searched from ground searched without a find.
+          </div>
+        )}
+        {ground === "full" && model && !model.map_withheld && !hasFullView(model) && !failed && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
+            Only strong maps are drawn beyond 500 km; this one stays within its reach.
           </div>
         )}
         {model?.map_withheld && (
@@ -721,6 +783,21 @@ export default function Taxon() {
   // One map can be expanded across all three panels. The others stay mounted
   // (hidden), so they keep following it and come back where it was.
   const [expanded, setExpanded] = useState<Algorithm | null>(null);
+  // Which ground the maps show, for all of them at once; the full view opens
+  // on the whole of it, and going back opens on the collections again.
+  const [ground, setGround] = useState<MapView>("accessible");
+  const fullExtent = ALGORITHMS.map((a) => models[a]).find(hasFullView)?.full_map?.bounds;
+  const chooseGround = (next: MapView) => {
+    setGround(next);
+    const target: Bounds | null =
+      next === "full" && fullExtent
+        ? [[fullExtent.south, fullExtent.west], [fullExtent.north, fullExtent.east]]
+        : opening;
+    if (!target) return;
+    group.current.syncing = true;
+    for (const map of group.current.maps.values()) map.fitBounds(target, { animate: false });
+    group.current.syncing = false;
+  };
   const view = useRef<{ center: LatLng; zoom: number } | null>(null);
   const show = (next: Algorithm | null) => {
     // Read the view before the layout changes: the map that is on screen now.
@@ -888,6 +965,7 @@ export default function Taxon() {
                       </button>
                     </div>
                   )}
+                  {fullExtent && <GroundToggle ground={ground} onGround={chooseGround} />}
                   <Legend />
                 </div>
               </div>
@@ -907,6 +985,8 @@ export default function Taxon() {
                     hidden={expanded != null && expanded !== algorithm}
                     alone={shown.length === 1}
                     onToggle={() => show(expanded === algorithm ? null : algorithm)}
+                    ground={ground}
+                    onGround={chooseGround}
                   />
                 ))}
               </div>
@@ -931,7 +1011,10 @@ export default function Taxon() {
                 maps move together; expand one to see it across all three panels. Each map is coloured by rank within its own ground: the darkest
                 green is the tenth of the area that model rates highest, so the three can be compared
                 directly even though their raw scores run on different scales. Colour stops 500 km
-                from the nearest record: beyond that a map makes no claim.
+                from the nearest record, the ground the model was fitted on. A strong map can also
+                show everywhere conditions resemble the places the taxon was found: that is
+                potential, not range, because beyond its reach the model cannot tell ground nobody
+                surveyed from ground searched without a find.
               </p>
             </section>
 
