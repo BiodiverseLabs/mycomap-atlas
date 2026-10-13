@@ -167,6 +167,11 @@ atlas_usage <- function() {
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
+  message("Paper studies (private; results under study/ or this machine only):")
+  message("  study-compare      paper E9: the record-name release against the frozen one, per taxon")
+  message("                     and learner: grades, map Spearman and Schoener's D, label changes")
+  message("      --frozen=ID               the frozen (DNA-named) release")
+  message("      --record=ID               the private release built with --record-names")
   invisible(NULL)
 }
 
@@ -722,6 +727,15 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "help" = {
       atlas_usage()
+      invisible(0L)
+    },
+    # Paper studies.
+    "study-compare" = {
+      if (is.null(flags$frozen) || is.null(flags$record)) {
+        stop("study-compare needs --frozen=ID and --record=ID", call. = FALSE)
+      }
+      atlas_e9_study(atlas_flag_store(flags), frozen = as.character(flags$frozen),
+                     record = as.character(flags$record), grid = atlas_flag_grid(flags))
       invisible(0L)
     },
     {
