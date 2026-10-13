@@ -76,6 +76,9 @@ test_that("sequence names come from the record's key and, for iNat, from its lin
   # Nor one .com flags as a contaminant (non-target), set as true or 1.
   expect_equal(lengths(regmatches(sql, gregexpr("coalesce(s.flags ->> 'contaminant', '') NOT IN ('true', '1')", sql,
                                                 fixed = TRUE))), 2L)
+  # Nor one flagged as on the wrong observation or specimen.
+  expect_equal(lengths(regmatches(sql, gregexpr("coalesce(s.flags ->> 'wrong', '') NOT IN ('true', '1')", sql,
+                                                fixed = TRUE))), 2L)
   expect_equal(lengths(regmatches(sql, gregexpr("o.id >= 100 AND o.id <= 200", sql, fixed = TRUE))), 2L)
   expect_match(sql, "'yes' IN (coalesce(o.validation_status_1, '')", fixed = TRUE)
   expect_false(grepl("\n", sql))

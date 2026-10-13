@@ -40,6 +40,8 @@ ATLAS_TRASH_SEQUENCE_CATEGORY <- 169L
 # iNaturalist 292971948). .org keeps .com's flags as JSON on the sequence,
 # contaminant set as true or 1 (31,130 approved sequences on 2026-10-13), and
 # its own validation already leaves them out; Atlas named records by them.
+# Nor one .com flags "wrong": associated with the wrong observation or
+# specimen, which "are generally excluded from any future use" (Steve).
 # From the next pull (Steve, 2026-10-13).
 
 # How a .org source is written in a sequence's observation key ("inat:123").
@@ -87,6 +89,7 @@ atlas_sequence_names_sql <- function(first_id, last_id) {
     paste("o.id >= %d AND o.id <= %d AND 'yes' IN (%s) AND s.approved = 1",
           "AND coalesce(s.category_id, 0) <> %d",
           "AND coalesce(s.flags ->> 'contaminant', '') NOT IN ('true', '1')",
+          "AND coalesce(s.flags ->> 'wrong', '') NOT IN ('true', '1')",
           "AND btrim(coalesce(s.species_name, '')) <> ''"),
     as.integer(first_id), as.integer(last_id), statuses, ATLAS_TRASH_SEQUENCE_CATEGORY
   )
