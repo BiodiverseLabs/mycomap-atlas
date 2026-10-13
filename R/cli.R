@@ -190,6 +190,16 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               taxa at once (default 1)")
+  message("  study-score        paper E6b and E6a: score the baselines on the hindcast's later finds,")
+  message("                     with the hindcast's scorer, on the same places as its models")
+  message("      --hindcast=ID             the hindcast's private release")
+  message("      --from-release=ID         the release it was made from (its pull has the later finds)")
+  message("      --cutoff=YYYY-MM-DD       the hindcast's first-validation cutoff")
+  message("      --kernels=DIR             an E6b run's directory (its kernels/)")
+  message("      --defaults=FILE           an E6a run's results file (its maps/ beside it)")
+  message("      --observed-after          only finds also observed after the cutoff")
+  message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
   invisible(NULL)
 }
 
@@ -757,6 +767,22 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         out = out, store = if (!is.null(out)) atlas_flag_store(flags),
         plan_only = isTRUE(flags$plan_only)
+      )
+      invisible(0L)
+    },
+    "study-score" = {
+      for (flag in c("hindcast", "from_release", "cutoff")) {
+        if (is.null(flags[[flag]])) stop("study-score needs --", gsub("_", "-", flag), call. = FALSE)
+      }
+      atlas_score_study(
+        atlas_flag_store(flags), hindcast = as.character(flags$hindcast),
+        from_release = as.character(flags$from_release), cutoff = as.character(flags$cutoff),
+        grid = atlas_flag_grid(flags),
+        kernels = if (is.null(flags$kernels)) NULL else as.character(flags$kernels),
+        defaults = if (is.null(flags$defaults)) NULL else as.character(flags$defaults),
+        observed_after = isTRUE(flags$observed_after),
+        reps = as.integer(atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP)),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out)
       )
       invisible(0L)
     },
