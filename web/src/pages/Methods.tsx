@@ -202,7 +202,7 @@ export default function Methods() {
               </p>
               <ol className="list-decimal space-y-1 pl-5">
                 <li>Pull every MycoMap collection whose name was confirmed by DNA.</li>
-                <li>Describe every cell of North America (5 km now, 1 km for releases) with 75 environmental predictors, including which trees grow there and what kind of forest it is.</li>
+                <li>Describe every cell of North America (5 km now, 1 km for releases) with 69 environmental predictors, including which trees grow there and what kind of forest it is.</li>
                 <li>Gather all collections into survey sites, and for each species mark the sites where it was found and the sites where people collected other fungi but not it.</li>
                 <li>Fit Maxent, boosted trees and a random forest to the same sites, with collecting effort as a predictor for the trees, held fixed when the map is drawn, so the model learns habitat, not where people collect.</li>
                 <li>Tune each model and score it on whole regions it never saw, blocks as wide as the species' finds are spatially alike.</li>
@@ -282,7 +282,7 @@ export default function Methods() {
 
             <Section id="predictors" title="Environmental predictors">
               <p>
-                Seventy-five predictors, two of which only say which source described a cell. All
+                Sixty-nine predictors, two of which only say which source described a cell. All
                 but the host trees and forest type come from sources
                 that cover the whole continent: the obvious United States products (TreeMap, NLCD,
                 PAD-US) stop at the border, and British Columbia alone holds 8% of the records. No
@@ -315,7 +315,7 @@ export default function Methods() {
                   ],
                   [
                     "Host trees: more genera",
-                    "share of a cell's trees that are each of 16 more genera (maple, ash, elm, juniper, cedar, tulip tree, cherry, sweetgum, sycamore, black locust, walnut, hackberry, bald cypress, coast redwood, giant sequoia, incense-cedar), over the same trees as the host genera; maple, ash and elm host mycorrhizal, decay and parasitic fungi alike",
+                    "share of a cell's trees that are each of 10 more genera (maple, ash, elm, juniper, cedar, tulip tree, cherry, sweetgum, sycamore, black locust), over the same trees as the host genera; maple, ash and elm host mycorrhizal, decay and parasitic fungi alike",
                     <span>
                       <DatasetLink id="bigmap" /> (lower 48), <DatasetLink id="nfi" /> (Canada)
                     </span>,
@@ -421,7 +421,7 @@ export default function Methods() {
 
             <Section id="selection" title="Choosing predictors">
               <p>
-                Seventy-three predictors is a lot of rope for a taxon with forty records, and the
+                Sixty-seven predictors is a lot of rope for a taxon with forty records, and the
                 bioclim variables are near-copies of one another. For Maxent, correlated predictors
                 are pruned before fitting:
               </p>
@@ -470,7 +470,7 @@ export default function Methods() {
                 cap stops binding.
               </p>
               <p>
-                The two tree models get all 75 predictors, in any order; Maxent is never given the
+                The two tree models get all 69 predictors, in any order; Maxent is never given the
                 two that only say which source described a cell. Trees are not confused by correlated
                 inputs the way a regression is, and in the benchmark boosted trees did worse when
                 restricted to Maxent's list (−0.011 ± 0.003 AUC).
