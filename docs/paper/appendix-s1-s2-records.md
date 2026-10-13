@@ -74,3 +74,20 @@ a detection site of any modelled taxon: the two fungi involved are refitted
 on the cleaned pull, and the 18 other names are not modelled. The exclusion list is versioned: each
 pull's manifest records its SHA-256 and the number of rows removed (Atlas
 commit 643b444), and it applies to every later pull.
+
+## S2.3 Set-aside sequences in the naming (frozen pull only)
+
+Atlas names each record by the species name of its approved DNA sequences
+on mycomap.org. In the frozen pull this naming also read sequences the
+sequencing pipeline had set aside (a "trash" category that the mirror still
+marks approved; 180,631 such sequences on 2026-10-13). About 380 records
+were named only by such sequences; a further 2,023 had a set-aside sequence
+whose name differed from their other sequences and were left out under the
+rule that drops records whose sequences disagree. That is about 0.3% of the
+~141,800 records with named sequences named on a weaker basis, and about
+1.4% left out that might otherwise have been modelled. Figures from the data
+inputs lane, read-only on production, consistent with a check on one id
+range (records 180,000–230,000: 162 such records among 43,946). The
+category is excluded from the next pull on (Atlas commit 31709fa); the
+frozen release keeps it (Steve). [PENDING E16: taxa whose record sets would
+change.]

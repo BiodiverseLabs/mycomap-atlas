@@ -764,7 +764,15 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
    figures on the frozen pull; these are from the 2026-10-06 pull, which
    holds the same 22 records]. A full refit on the cleaned pull would remove
    this; we did not refit, judging 22 records among more than 130,000 too few
-   to matter, and report the shares instead.
+   to matter, and report the shares instead. Separately, the frozen pull
+   named records from approved sequences including those the sequencing
+   pipeline had set aside (a "trash" category still marked approved): about
+   380 records (≈ 0.3% of the ~141,800 with named sequences) were named only
+   by such sequences, and 2,023 (≈ 1.4%) were left out because a set-aside
+   sequence disagreed with their others. This adds a few weakly supported
+   records and removes some well-supported ones; we expect little effect on
+   maps and grades [PENDING E16: the taxa whose record sets change]. Later
+   releases exclude the category (Atlas commit 31709fa).
 5. What comes next: eDNA as an independent test and in integrated models,
    1 km releases, climate projections, survey guidance.
 
@@ -1061,6 +1069,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.9.4 (2026-10-13).** Limitation: set-aside ("trash") sequences used
+  for naming in the frozen pull (≈ 380 records named by them, 2,023 left
+  out), fixed from the next pull.
 - **0.9.3 (2026-10-13).** Provisional rebuild facts and release lineage
   (3.3, costs.md).
 - **0.9.2 (2026-10-13).** Steve: no refit for background exposure; shares
