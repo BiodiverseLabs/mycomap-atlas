@@ -32,11 +32,16 @@
 # Built on the tracker's lookup and Boyce code (R/tracker.R), so the
 # hindcast and the prospective tracker (E3) read a map the same way.
 
+# A place is a square of Atlas's survey-site spacing, and a place further
+# than that from every training record of its taxon is new (as the tracker
+# calls a new site). Both are ATLAS_SITE_KM (R/sites.R, sourced after this
+# file, so the number is written here and a test holds them equal).
 ATLAS_E2_PLACE_KM <- 5
-# Distance bands to the nearest training record of the taxon, in km.
-ATLAS_E2_BANDS_KM <- c(5, 25, 100, 500)
-# A place further than this from every training record of its taxon is new.
 ATLAS_E2_NEW_KM <- 5
+# Distance bands to the nearest training record of the taxon, in km. A band
+# includes its upper edge, so a place exactly 5 km away is in "0-5" and
+# known, as it is not new.
+ATLAS_E2_BANDS_KM <- c(5, 25, 100, 500)
 # Fewest ranked places a grade needs before it is tested, and fewest taxa an
 # interval over taxa needs.
 ATLAS_E2_MIN_PLACES <- 30L
@@ -48,7 +53,46 @@ ATLAS_E2_BOOTSTRAP <- 10000L
 atlas_e2_band <- function(km) {
   breaks <- c(0, ATLAS_E2_BANDS_KM)
   labels <- c(paste0(utils::head(breaks, -1), "-", breaks[-1]), paste0(utils::tail(breaks, 1), "+"))
-  ifelse(is.na(km), NA_character_, labels[findInterval(km, breaks, rightmost.closed = FALSE)])
+  index <- pmax(1L, findInterval(km, breaks, left.open = TRUE))
+  ifelse(is.na(km), NA_character_, labels[index])
+}
+
+#' The test finds in a pull: records first validated after the cutoff (with
+#' observed_after, also observed after it), each with the taxon it is
+#' modelled under, its point on the model grid, and a reason when it is kept
+#' apart: "undated" (no first-validation date, so on neither side of the
+#' cutoff) or "off_grid" (no usable coordinate). Training records are the
+#' rest that are dated: first validated on or before the cutoff. Counts of
+#' every reason are kept in attr(finds, "kept_apart"); nothing is dropped
+#' silently.
+atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft") {
+  if (!ATLAS_FIRST_GREEN_FIELD %in% names(pull)) {
+    stop("the pull has no ", ATLAS_FIRST_GREEN_FIELD, " column", call. = FALSE)
+  }
+  green <- as.character(pull[[ATLAS_FIRST_GREEN_FIELD]])
+  dated <- !is.na(green) & nzchar(green)
+  cutoff <- as.character(cutoff)
+  placed <- atlas_tracker_place(pull$latitude, pull$longitude, grid)
+  located <- is.finite(placed$x) & is.finite(placed$y)
+  after <- dated & green > cutoff
+  test <- after
+  if (isTRUE(observed_after)) {
+    observed <- substr(as.character(pull$observed_on), 1, 10)
+    test <- after & !is.na(observed) & observed > cutoff
+  }
+  reason <- ifelse(!dated, "undated", ifelse(!located, "off_grid", NA_character_))
+  keep <- test | !dated
+  finds <- data.frame(taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
+                      first_green_on = green, kept_apart = reason,
+                      stringsAsFactors = FALSE)[keep, , drop = FALSE]
+  finds <- finds[order(finds$first_green_on, na.last = TRUE), , drop = FALSE]
+  training <- data.frame(taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
+                         stringsAsFactors = FALSE)[dated & !after & located, , drop = FALSE]
+  rownames(finds) <- NULL
+  rownames(training) <- NULL
+  counts <- as.list(table(factor(finds$kept_apart[!is.na(finds$kept_apart)],
+                                 levels = c("undated", "off_grid"))))
+  list(finds = structure(finds, kept_apart = counts), training = training)
 }
 
 #' The 5 km square a point falls in, as a key.
@@ -68,6 +112,7 @@ atlas_e2_square <- function(x, y, km = ATLAS_E2_PLACE_KM) {
 #' (attr(, "off_grid")), never merged into a place.
 atlas_e2_places <- function(finds, training) {
   located <- is.finite(finds$x) & is.finite(finds$y)
+  if ("kept_apart" %in% names(finds)) located <- located & is.na(finds$kept_apart)
   off_grid <- sum(!located)
   finds <- finds[located, , drop = FALSE]
   empty <- data.frame(taxon = character(), place = character(), x = numeric(), y = numeric(),
@@ -94,7 +139,9 @@ atlas_e2_places <- function(finds, training) {
     finds = as.integer(table(group)), observed_after = as.logical(tapply(observed, group, any)),
     known_km = as.numeric(nearest), stringsAsFactors = FALSE
   )
-  places$new_place <- !is.na(places$known_km) & places$known_km > ATLAS_E2_NEW_KM
+  # A taxon with no training record has no known place: every place is new,
+  # as the tracker counts it (such a taxon has no model either).
+  places$new_place <- is.na(places$known_km) | places$known_km > ATLAS_E2_NEW_KM
   places$band <- atlas_e2_band(places$known_km)
   rownames(places) <- NULL
   structure(places, off_grid = off_grid)
@@ -112,6 +159,12 @@ atlas_e2_places <- function(finds, training) {
 #' inside), place class ("inside", "outside_aoa", "beyond_reach", "no_map",
 #' "unknown_name"), and beats_effort for ranked places.
 atlas_e2_score <- function(places, maps_for, known_names = NULL) {
+  if (!nrow(places)) {
+    return(structure(data.frame(places, map = character(), learner = character(), kind = character(),
+                                grade = character(), rank = numeric(), class = character(),
+                                beats_effort = numeric(), stringsAsFactors = FALSE),
+                     off_grid = attr(places, "off_grid") %||% 0L))
+  }
   rows <- list()
   apart <- function(mine, class) {
     data.frame(mine, map = NA_character_, learner = NA_character_, kind = NA_character_,
@@ -153,7 +206,7 @@ atlas_e2_score <- function(places, maps_for, known_names = NULL) {
   }
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
-  out
+  structure(out, off_grid = attr(places, "off_grid") %||% 0L)
 }
 
 #' Ranked rows: inside a map's area of applicability, with a rank.
@@ -165,8 +218,10 @@ atlas_e2_place_count <- function(rows) length(unique(paste(rows$taxon, rows$plac
 
 #' The pre-registered numbers for a set of scored rows: counts each way, and
 #' for ranked places the shares in the top half and top tenth, mean rank,
-#' beats effort and Boyce. Shares are reported from ATLAS_E2_MIN_PLACES
-#' distinct ranked places; below, only counts.
+#' beats effort and Boyce. The unit of a share is a place on a map: a place
+#' ranked by two maps counts on each. Shares are reported from
+#' ATLAS_E2_MIN_PLACES distinct ranked places, Boyce from the tracker's
+#' ATLAS_TRACKER_MIN_BOYCE; below, only counts.
 atlas_e2_metrics <- function(scored, min_places = ATLAS_E2_MIN_PLACES) {
   inside <- scored[atlas_e2_ranked(scored), , drop = FALSE]
   ranked <- inside$rank
@@ -178,33 +233,50 @@ atlas_e2_metrics <- function(scored, min_places = ATLAS_E2_MIN_PLACES) {
     rows = nrow(scored), taxa = length(unique(scored$taxon)), ranked = length(ranked),
     ranked_places = places, outside_aoa = count("outside_aoa"), beyond_reach = count("beyond_reach"),
     no_map = count("no_map"), unknown_name = count("unknown_name"),
+    off_grid = attr(scored, "off_grid") %||% 0L,
     top_half = if (show) mean(ranked >= 0.5), top_tenth = if (show) mean(ranked >= 0.9),
     mean_rank = if (show) mean(ranked),
     beats_effort = if (show && length(effort)) mean(effort),
-    boyce = if (show) atlas_tracker_boyce(ranked),
+    boyce = if (places >= ATLAS_TRACKER_MIN_BOYCE) atlas_tracker_boyce(ranked),
     tested = show
   )
 }
 
 #' A statistic of scored rows, resampled over taxa: the point estimate and
 #' its 95% percentile interval. stat(rows) gives one number; rows is every
-#' row of the resampled taxa (a taxon drawn twice counts twice). Fewer than
-#' ATLAS_E2_MIN_TAXA taxa give no interval.
-atlas_e2_bootstrap <- function(scored, stat, reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
-  taxa <- unique(scored$taxon)
+#' row of the resampled taxa (a taxon drawn twice counts twice). With
+#' strata (a named list of row filters), taxa are resampled within each
+#' stratum separately, so a difference between two groups keeps each group's
+#' own taxa. Fewer than ATLAS_E2_MIN_TAXA taxa in any stratum give no
+#' interval. The caller's random number stream is left as it was, and
+#' resamples whose statistic cannot be computed are counted (dropped).
+atlas_e2_bootstrap <- function(scored, stat, reps = ATLAS_E2_BOOTSTRAP, seed = 1L, strata = NULL) {
+  stream <- atlas_rng_state()
+  on.exit(atlas_rng_restore(stream), add = TRUE)
+  strata <- strata %||% list(all = function(rows) rep(TRUE, nrow(rows)))
+  groups <- lapply(strata, function(keep) scored[keep(scored), , drop = FALSE])
+  taxa <- lapply(groups, function(rows) unique(rows$taxon))
   estimate <- stat(scored)
-  if (length(taxa) < ATLAS_E2_MIN_TAXA) {
-    return(list(estimate = estimate, low = NA_real_, high = NA_real_, reps = 0L))
+  n_taxa <- length(unique(scored$taxon))
+  if (any(lengths(taxa) < ATLAS_E2_MIN_TAXA)) {
+    return(list(estimate = estimate, low = NA_real_, high = NA_real_, reps = 0L, dropped = 0L,
+                n_taxa = n_taxa))
   }
-  by_taxon <- split(seq_len(nrow(scored)), factor(scored$taxon, levels = taxa))
+  by_taxon <- lapply(seq_along(groups), function(g) {
+    split(seq_len(nrow(groups[[g]])), factor(groups[[g]]$taxon, levels = taxa[[g]]))
+  })
   set.seed(seed)
   draws <- vapply(seq_len(reps), function(i) {
-    picked <- taxa[sample.int(length(taxa), length(taxa), replace = TRUE)]
-    stat(scored[unlist(by_taxon[picked], use.names = FALSE), , drop = FALSE])
+    resampled <- do.call(rbind, lapply(seq_along(groups), function(g) {
+      picked <- taxa[[g]][sample.int(length(taxa[[g]]), length(taxa[[g]]), replace = TRUE)]
+      groups[[g]][unlist(by_taxon[[g]][picked], use.names = FALSE), , drop = FALSE]
+    }))
+    stat(resampled)
   }, numeric(1))
-  draws <- draws[is.finite(draws)]
-  interval <- if (length(draws)) unname(stats::quantile(draws, c(0.025, 0.975))) else c(NA_real_, NA_real_)
-  list(estimate = estimate, low = interval[[1]], high = interval[[2]], reps = length(draws))
+  finite <- draws[is.finite(draws)]
+  interval <- if (length(finite)) unname(stats::quantile(finite, c(0.025, 0.975))) else c(NA_real_, NA_real_)
+  list(estimate = estimate, low = interval[[1]], high = interval[[2]], reps = length(finite),
+       dropped = length(draws) - length(finite), n_taxa = n_taxa)
 }
 
 #' The share of rows' ranked places at or above a rank.
@@ -232,17 +304,22 @@ atlas_e2_hypotheses <- function(scored, reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
   strong <- models[models$grade %in% "strong", , drop = FALSE]
   failed <- models[models$grade %in% "failed", , drop = FALSE]
   enough <- function(rows) atlas_e2_place_count(rows[atlas_e2_ranked(rows), , drop = FALSE]) >= ATLAS_E2_MIN_PLACES
-  test <- function(rows, stat, above) {
-    if (!enough(rows)) return(list(tested = FALSE))
-    b <- atlas_e2_bootstrap(rows, stat, reps = reps, seed = seed)
+  untested <- function(rows) list(tested = FALSE, n_taxa = length(unique(rows$taxon)))
+  test <- function(rows, stat, above, strata = NULL) {
+    if (!enough(rows)) return(untested(rows))
+    b <- atlas_e2_bootstrap(rows, stat, reps = reps, seed = seed, strata = strata)
     c(b, list(tested = is.finite(b$low), holds = isTRUE(b$low > above)))
   }
   h2a <- test(strong, atlas_e2_share, 0.5)
+  # Strong and failed maps are resampled each over their own taxa.
+  is_strong <- function(r) r$grade == "strong"
+  is_failed <- function(r) r$grade == "failed"
   h2b <- if (enough(strong) && enough(failed)) {
     test(models[models$grade %in% c("strong", "failed"), , drop = FALSE],
-         atlas_e2_difference(function(r) r$grade == "strong", function(r) r$grade == "failed"), 0)
+         atlas_e2_difference(is_strong, is_failed), 0,
+         strata = list(strong = is_strong, failed = is_failed))
   } else {
-    list(tested = FALSE)
+    untested(failed)
   }
   h2c <- test(strong, function(rows) {
     effort <- rows$beats_effort[atlas_e2_ranked(rows) & is.finite(rows$beats_effort)]
@@ -266,7 +343,9 @@ atlas_e2_paired <- function(model_rows, kernel_rows, grade = "strong",
   both <- atlas_e2_ranked(models) & atlas_e2_ranked(kernel)
   models <- models[both, , drop = FALSE]
   kernel <- kernel[both, , drop = FALSE]
-  if (atlas_e2_place_count(models) < ATLAS_E2_MIN_PLACES) return(list(tested = FALSE))
+  if (atlas_e2_place_count(models) < ATLAS_E2_MIN_PLACES) {
+    return(list(tested = FALSE, n_taxa = length(unique(models$taxon))))
+  }
   columns <- c("taxon", "map", "place", "rank", "class")
   paired <- rbind(data.frame(models[, columns], arm = "model", stringsAsFactors = FALSE),
                   data.frame(kernel[, columns], arm = "kernel", stringsAsFactors = FALSE))

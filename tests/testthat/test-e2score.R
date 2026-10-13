@@ -38,7 +38,15 @@ test_that("finds of a taxon in one 5 km square are one place, scored at the firs
   expect_true(far$new_place)
   expect_equal(far$band, "25-100")
   expect_equal(atlas_e2_band(c(0, 4.9, 5, 30, 499, 501, NA)),
-               c("0-5", "0-5", "5-25", "25-100", "100-500", "500+", NA))
+               c("0-5", "0-5", "0-5", "25-100", "100-500", "500+", NA))
+  # The band's edge and the new/known line agree: 5 km is known, just over
+  # it is new.
+  edge <- atlas_e2_places(data.frame(taxon = "A", x = c(5000, 10001), y = 0),
+                          data.frame(taxon = "A", x = 0, y = 0))
+  expect_equal(edge$new_place, c(FALSE, TRUE))
+  expect_equal(edge$band, c("0-5", "5-25"))
+  expect_equal(ATLAS_E2_PLACE_KM, ATLAS_SITE_KM)
+  expect_equal(ATLAS_E2_NEW_KM, ATLAS_SITE_KM)
 })
 
 test_that("a place is new only when every one of its finds is over 5 km from the taxon's training records", {
@@ -235,4 +243,147 @@ test_that("a grade is tested only from 30 distinct places, not 30 rows", {
                   taxon_rows(15, 1, function(i, n) rep(0.9, n), map = "rf"))
   h <- atlas_e2_hypotheses(strong, reps = 200)
   expect_false(h$H2a$tested)
+})
+
+test_that("a taxon with no training records has only new places, as the tracker counts them", {
+  places <- atlas_e2_places(data.frame(taxon = "A", x = 500, y = 500),
+                            data.frame(taxon = "B", x = 0, y = 0))
+  expect_true(places$new_place)
+  expect_true(is.na(places$band))
+})
+
+test_that("no finds give an empty set of places and of scored rows, which the metrics take", {
+  places <- atlas_e2_places(data.frame(taxon = character(), x = numeric(), y = numeric()),
+                            data.frame(taxon = character(), x = numeric(), y = numeric()))
+  expect_equal(nrow(places), 0L)
+  scored <- atlas_e2_score(places, function(taxon) NULL)
+  expect_equal(nrow(scored), 0L)
+  expect_true(all(c("rank", "class", "beats_effort") %in% names(scored)))
+  metrics <- atlas_e2_metrics(scored)
+  expect_equal(c(metrics$rows, metrics$ranked), c(0L, 0L))
+  expect_false(metrics$tested)
+})
+
+test_that("finds off the grid are counted through to the metrics", {
+  grid <- score_grid()
+  finds <- data.frame(taxon = "A", x = c(NA, 95e3), y = c(NA, 95e3))
+  places <- atlas_e2_places(finds, data.frame(taxon = "A", x = 0, y = 0))
+  scored <- atlas_e2_score(places, function(taxon) list(maxnet = rising_map(grid)))
+  expect_equal(atlas_e2_metrics(scored)$off_grid, 1L)
+})
+
+test_that("a place beyond a map's reach is counted, not ranked", {
+  grid <- score_grid()
+  places <- place_rows("A", 500e3, 500e3)
+  scored <- atlas_e2_score(places, function(taxon) list(maxnet = rising_map(grid)))
+  expect_equal(scored$class, "beyond_reach")
+  expect_equal(atlas_e2_metrics(scored)$beyond_reach, 1L)
+})
+
+test_that("a place counts once on each map that scores it", {
+  grid <- score_grid()
+  places <- place_rows("A", c(25e3, 75e3), c(50e3, 50e3))
+  scored <- atlas_e2_score(places, function(taxon) list(maxnet = rising_map(grid), rf = rising_map(grid)))
+  expect_equal(nrow(scored), 4L)
+  expect_equal(as.integer(table(scored$map)), c(2L, 2L))
+  expect_equal(atlas_e2_place_count(scored), 2L)
+})
+
+test_that("Boyce is reported from 50 ranked places, as the tracker reports it", {
+  rows <- taxon_rows(10, 4, function(i, n) stats::runif(n))
+  expect_null(atlas_e2_metrics(rows)$boyce)
+  rows <- taxon_rows(10, 6, function(i, n) stats::runif(n)^0.3)
+  expect_true(is.finite(atlas_e2_metrics(rows)$boyce))
+  expect_gt(atlas_e2_metrics(rows)$boyce, 0)
+})
+
+test_that("C2 fails when failed maps do as well as strong ones (H2b)", {
+  good <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0.45, 1))
+  as_good <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0.45, 1), grade = "failed", seed = 9, prefix = "F")
+  h <- atlas_e2_hypotheses(rbind(good, as_good), reps = 1000)
+  expect_true(h$H2a$holds)
+  expect_false(h$H2b$holds)
+  expect_false(h$C2)
+})
+
+test_that("C2 fails when strong maps rank high but do not beat collecting effort (H2c)", {
+  rows <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0.45, 1))
+  rows$beats_effort <- stats::runif(nrow(rows), 0.3, 0.5)
+  failed <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0, 1), grade = "failed", seed = 2, prefix = "F")
+  h <- atlas_e2_hypotheses(rbind(rows, failed), reps = 1000)
+  expect_true(h$H2a$holds && h$H2b$holds)
+  expect_false(h$H2c$holds)
+  expect_false(h$C2)
+})
+
+test_that("H2b is untested with fewer than 30 failed places, and C2 then cannot hold", {
+  good <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0.45, 1))
+  failed <- taxon_rows(5, 5, function(i, n) stats::runif(n, 0, 1), grade = "failed", seed = 2, prefix = "F")
+  h <- atlas_e2_hypotheses(rbind(good, failed), reps = 500)
+  expect_true(h$H2a$holds)
+  expect_false(h$H2b$tested)
+  expect_equal(h$H2b$n_taxa, 5L)
+  expect_false(h$C2)
+})
+
+test_that("H2b resamples strong and failed taxa each within their own group", {
+  good <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0.45, 1))
+  failed <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0, 1), grade = "failed", seed = 2, prefix = "F")
+  rows <- rbind(good, failed)
+  sizes <- numeric()
+  stat <- function(r) {
+    sizes <<- c(sizes, length(unique(r$taxon[r$grade == "strong"])))
+    atlas_e2_difference(function(x) x$grade == "strong", function(x) x$grade == "failed")(r)
+  }
+  atlas_e2_bootstrap(rows, stat, reps = 50, strata = list(strong = function(r) r$grade == "strong",
+                                                         failed = function(r) r$grade == "failed"))
+  # Each resample draws 40 strong taxa (with repeats), never a mix that
+  # takes strong taxa's places from the failed group.
+  drawn <- sizes[-1]
+  expect_true(all(drawn <= 40))
+  expect_gt(min(drawn), 15)
+})
+
+test_that("the bootstrap leaves the caller's random numbers as they were, and reports taxa and drops", {
+  rows <- taxon_rows(10, 5, function(i, n) stats::runif(n))
+  set.seed(42)
+  expected <- stats::runif(1)
+  set.seed(42)
+  b <- atlas_e2_bootstrap(rows, function(r) if (stats::runif(1) < 0.1) NA_real_ else atlas_e2_share(r), reps = 200)
+  expect_equal(stats::runif(1), expected)
+  expect_equal(b$n_taxa, 10L)
+  expect_gt(b$dropped, 0L)
+  expect_equal(b$reps + b$dropped, 200L)
+})
+
+test_that("the pull splits into dated training records and later finds, with every kept-apart reason counted", {
+  pull <- data.frame(
+    scientific_name = c("A", "A", "A", "B", "B"),
+    latitude = c("40", "40.1", "40.2", NA, "41"), longitude = c("-85", "-85.1", "-85", "-86", "-86"),
+    first_green_on = c("2026-08-01", "2026-09-01", NA, "2026-09-10", "2026-08-17"),
+    observed_on = c("2025-08-01", "2026-08-20", "2026-09-01", "2025-01-01", "2026-08-10"),
+    stringsAsFactors = FALSE
+  )
+  split <- atlas_e2_split(pull, "2026-08-17")
+  # The cutoff day itself trains.
+  expect_equal(nrow(split$training), 2L)
+  expect_equal(nrow(split$finds), 3L)
+  expect_equal(attr(split$finds, "kept_apart"), list(undated = 1L, off_grid = 1L))
+  places <- atlas_e2_places(split$finds, split$training)
+  # Only the dated, located find becomes a place; the others stay counted.
+  expect_equal(nrow(places), 1L)
+  expect_equal(attr(places, "off_grid"), 2L)
+  observed <- atlas_e2_split(pull, "2026-08-17", observed_after = TRUE)
+  expect_equal(sum(is.na(observed$finds$kept_apart)), 1L)
+  expect_error(atlas_e2_split(pull[, setdiff(names(pull), "first_green_on")], "2026-08-17"), "first_green_on")
+})
+
+test_that("H2b never loses a resample for want of failed taxa, since each group is resampled on its own", {
+  good <- taxon_rows(40, 5, function(i, n) stats::runif(n, 0.45, 1))
+  # Two failed taxa with 15 places each: a resample over all 42 taxa would
+  # often draw neither.
+  failed <- taxon_rows(2, 15, function(i, n) stats::runif(n, 0, 1), grade = "failed", seed = 2, prefix = "F")
+  h <- atlas_e2_hypotheses(rbind(good, failed), reps = 500)
+  expect_true(h$H2b$tested)
+  expect_equal(h$H2b$dropped, 0L)
 })
