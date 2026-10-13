@@ -893,7 +893,7 @@ gets Steve's direct go through the operations lane; every run gets a
 
 | # | Item | Gate | Target |
 |---|---|---|---|
-| 0 | Rebuild cutover; nightly tracking (E3) starts | Steve's go | October 2026 |
+| 0 | Rebuild cutover: **done** 2026-10-13 23:03 UTC (atlas.mycomap.org serves 20261013T191324Z-fa1b4198, image bc2a7a5, shift grading; the full-view toggle is off on the site by Steve's choice, the full-extent rasters are in the release). Nightly tracking (E3) starts once the tracker backfill and daily unit are on | Steve's go | E3 start date [PENDING] |
 | 1 | Full-view refresh → **frozen release**: **done**, 20261013T191324Z-fa1b4198 (2026-10-13); then the Zenodo re-archive (layers, models, training records, contributors) | Steve's go, after the cutover | October 2026 |
 | 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | code pushed early (feat/hindcast ba03e73: `plan-job --hindcast --validated-through=2026-08-17`), awaiting Steve's review; E2 scoring code (experiments lane); Steve's go | can launch soon after the cutover, well before ~25 October 2026 (Vision freezes its test set ~30 October) |
 | 2b | **E12 first step**: read-only scores of all 576 refreshed models, and a same-machine double run of *Stropharia hardii* and *Gliophorus fumosus* | Steve's go | right after the hindcast. Same-machine differences = a bug: the queue stops until fixed. Machine dependence only = E12's full run moves before E1 |
@@ -950,6 +950,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.1 (2026-10-13).** Cutover done (23:03 UTC); E3 start date pending.
 - **0.15 (2026-10-13).** Frozen release pinned: 20261013T191324Z-fa1b4198,
   with its full lineage.
 - **0.14 (2026-10-13).** Abstract skeleton (under 350 words) with
