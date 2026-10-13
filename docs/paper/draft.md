@@ -308,7 +308,7 @@ Each taxon's record set is hashed into a fingerprint. A model belongs to its
 record set, not its name: it is refitted when the fingerprint changes, and a
 provisional name can be renamed or re-clustered without leaving a stale map.
 
-[PENDING E16: Table 1, records and taxa by source; Figure 2, where records
+[PENDING E16: Table 1 (counts); Appendix S1: Section S2, records by source and where records
 are (0.1° cells) and how they cluster.]
 
 ### 2.2 Study region, grid and predictors
@@ -317,7 +317,7 @@ Everything is modelled on a North America Albers Equal Area Conic grid with
 5 km cells (3.7 million cells); the frozen release is on this grid. The
 pipeline also defines a nested 1 km grid, which no release used here.
 
-Sixty-nine predictor bands in eight layers (Table 2): 19 WorldClim 2.1
+Sixty-nine predictor bands in eight layers (Appendix S1: Section S3): 19 WorldClim 2.1
 bioclimatic variables (1970–2000) and elevation (Fick & Hijmans 2017); slope
 and roughness derived on the grid; topsoil (0–5 cm) pH, organic carbon, total
 nitrogen, clay, sand and cation exchange capacity from SoilGrids 2.0 (Poggio
@@ -550,7 +550,7 @@ figure or table and the analysis that fills it.*
 
 [PENDING: records and taxa by source; sites per taxon (distribution, with the
 3 / 20 / 50 thresholds); share provisional; where records are; validation lag
-(median ~8 months [pre-freeze]).] → **Figure 2**, **Table 1**.
+(median ~8 months [pre-freeze]).] → **Table 1**; detail in S2.
 
 ### 3.2 Calibrating the null test (E1, E1b)
 
@@ -575,7 +575,7 @@ habitat breadth]. Habitat species that passed the shift test had maps closer
 to the true habitat (median Spearman ρ 0.83 vs 0.73 for those that did not),
 a first sign that the grade selects better maps (C2). Early stopping drew a
 mean of 29 shifted nulls per species instead of 99. Shift-effort nulls
-matched shift (2/49 false, 13/50 power). → **Figure 3**.
+matched shift (2/49 false, 13/50 power). → **Figure 2**; every cell in S5.
 
 ### 3.3 What the atlas contains (E16)
 
@@ -583,31 +583,31 @@ matched shift (2/49 false, 13/50 power). → **Figure 3**.
 strong share stated up front (C4); strong maps by guild and region; how many
 taxa have a strong map; combined maps; share of reach inside AOA; and the
 standard test on real models (E1c): the share of maps 19 scattered nulls call
-good that are not shown to beat collecting.] → **Table 3**, **Figure 4** (example maps across grades).
+good that are not shown to beat collecting.] → **Table 1**, **Figure 4** (example maps across grades); detail in S4.
 
 ### 3.4 How the maps did on records they never saw (E2, E3, E15)
 
 [PENDING: rank of hindcast and prospective finds by grade; top half / top
 tenth / Boyce / beats-effort with intervals; new sites vs near known sites;
-inside vs outside AOA; combined vs single maps.] → **Figure 5**.
+inside vs outside AOA; combined vs single maps.] → **Figure 3**; every split in S6.
 
 ### 3.5 Against standard practice (E6)
 
 [PENDING: self-reported CV score vs independent-test score for each
-approach.] → **Figure 6**.
+approach.] → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
 
 [PENDING: records whose sequence name differs from the record name (species,
 genus) by source; for affected taxa, map rank correlation, grade changes and
 independent-test skill under each labelling; the share of modellable taxa
-with no formal name.] → **Figure 7**. (E6c, morphology-named GBIF models, if
+with no formal name.] → one paragraph; detail in S8. (E6c, morphology-named GBIF models, if
 run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
 
 [PENDING: permutation importance by predictor group, ectomycorrhizal vs other
-guilds, strong maps only; layer-sweep results in S3.] → **Figure 8**.
+guilds, strong maps only.] → Appendix S1: Section S3 only (one sentence in the main text).
 
 ### 3.8 Stability across nightly releases (E11)
 
@@ -620,7 +620,7 @@ number of new records.] → Appendix S1: Section S10.
 band lower bound vs −2%); P2c vs the served kernel; trust weighting (P2c vs
 P2c-u); depth-matched effects; P4 vs P6; projection validity H. Confirmed on
 the fresh v1-test set when it exists. Reported whatever the result.]
-→ **Figure 9** (cut first if the monograph runs long).
+→ one paragraph; the design and every arm in S9.
 
 ---
 
@@ -701,7 +701,7 @@ to report a problem.]
 rebuild (EC2 spot compute, storage added); a typical nightly incremental
 run; the standing monthly cost (server, storage, transfer); the cost of each
 analysis in this paper; and CPU seconds per model by learner and by number of
-sites, so that other groups can plan an atlas of their own.] → **Table 5**.
+sites, so that other groups can plan an atlas of their own.] → one line in **Table 1**; the full ledger in S10.
 
 ---
 
