@@ -78,6 +78,23 @@ If any one fails, C2 is reported as not supported, with the numbers.
 - Grade agreement between the hindcast release and the October 2026 rebuild
   for taxa in both.
 
+## Secondary hypotheses: map tiers (added 2026-10-13, before any run)
+
+For each tier in `2026-10-13-plan-map-tiers.md` (moderate, moderate-z,
+indicative), scored with the same metrics and intervals as above:
+
+- **H2d.** Moderate maps place test finds in the top half more often than
+  chance (lower bound > 0.50).
+- **H2e.** Moderate maps beat collecting effort (beats-effort lower bound >
+  0.50).
+- **H2f.** Indicative maps place test finds in the top half more often than
+  chance (lower bound > 0.50).
+
+Also reported: the same for moderate-z; each tier against the
+distance-only baseline (E6b) on the same places. These do not change H2a–c
+or what supports C2; they feed Steve's choice of tiers, against the
+thresholds stated in the tiers plan.
+
 ## Fairness limits (to state in the paper)
 
 The hindcast reads today's validation state, names and coordinates for

@@ -71,6 +71,15 @@ H1d and H1f describe the power; they do not decide C1. The ESM results are repor
 by band against the same criteria but are secondary, because nulls at 3–19
 sites are known to be weak.
 
+## Secondary analysis: map tiers (added 2026-10-13, before launch)
+
+For each tier in `2026-10-13-plan-map-tiers.md` (strong, moderate,
+moderate-z, indicative), applied to the shift-design results already
+recorded for every species: false pass (geography species) and power
+(habitat species) by learner, band, breadth and signal strength, with
+Wilson intervals; and map-to-truth ρ by tier. No extra fits. This analysis
+does not change H1a–H1f or what supports C1.
+
 ## Reporting
 
 False pass and power by design × learner × band × breadth × strength, with

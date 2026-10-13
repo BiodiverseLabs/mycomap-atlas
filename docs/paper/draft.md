@@ -932,6 +932,7 @@ data, command, result, release, commit).
 |---|---|---|
 | E19 | Training-record table for the frozen release (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
+| E24 | Looser map tiers (moderate, indicative) judged on simulated species (E1) and later finds (E2), pre-specified with the thresholds Steve's choice will be read against (`docs/experiments/2026-10-13-plan-map-tiers.md`; Steve, 2026-10-13: "some form of map for most species") | P1 |
 | E23 | Cost and time ledger (`costs.md`): per run, CPU-hours, billed instance-hours, instance types, wall time, compute USD, storage added; standing monthly costs (Steve, 2026-10-13) | P1 |
 
 | ID | Pre-declared question Q1 | Exists? | Data / method | Cost / time | Priority |
@@ -1042,6 +1043,10 @@ revised (Path).
    after its finishing step (two removal-only cleanings, 76 records; pull
    x73b85b36). The hindcast reads the same cleaned pull. Waiting for the
    finished release's id, then the Zenodo DOIs.
+3b. **Map tiers (Steve, 2026-10-13):** looser tiers below "strong" so most
+   species get some form of map; rules and the evidence thresholds fixed
+   before E1 and E2 (E24). Steve chooses which tiers feed which products
+   after both results; whether they appear in the paper is separate.
 4. **Crediting contributors:** the full plan in section 6 adopted (Steve,
    2026-10-13). No individuals named for now (Steve, 2026-10-13); revisit
    before submission. Data item: observer name or username per training record for the
@@ -1058,6 +1063,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.11 (2026-10-13).** Looser map tiers pre-specified (E24): moderate
+  (shift p ≤ 0.20), indicative (AUC > 0.5, Boyce > 0), with a continuous
+  variant; added to the E1 and E2 pre-registrations as secondary analyses.
 - **0.10.1 (2026-10-13).** Reproducibility: scores of the other 573
   refreshed models identical; same-machine refits bit-identical.
 - **0.10 (2026-10-13).** Second cleaning recorded (54 non-fungal records;
