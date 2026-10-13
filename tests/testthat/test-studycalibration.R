@@ -287,10 +287,11 @@ test_that("each learner gets its own scores, map-to-truth and verdict under each
     expect_true(habitat$presences >= 20 && habitat$presences <= 29)
 
     esm <- Filter(function(r) identical(r$kind, "geography"), rows)[[1]]
-    if (identical(esm$status, "scored")) {
-      expect_equal(vapply(esm$arms, function(a) a$arm, ""), "esm")
-      expect_null(esm$realised_breadth)
-    }
+    expect_equal(esm$status, "scored")
+    expect_equal(vapply(esm$arms, function(a) a$arm, ""), "esm")
+    expect_null(esm$arms[[1]]$error)
+    expect_setequal(names(esm$arms[[1]]$nulls), c("scatter", "shift"))
+    expect_null(esm$realised_breadth)
     long <- atlas_calibration_long(rows)
     expect_setequal(unique(long$learner[long$kind == "habitat"]), c("maxnet", "rf"))
     expect_equal(sum(long$taxon == habitat$taxon), 4L)

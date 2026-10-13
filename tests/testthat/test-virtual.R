@@ -258,3 +258,21 @@ test_that("the study collects virtual species at real sites and scores every arm
     expect_true(length(saved$nulls) > 0)
   })
 })
+
+test_that("an ensemble arm in the virtual study gets the ensemble's own predictors and is scored", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("glmnet")
+  with_data_dir({
+    world <- virtual_landscape()
+    result <- atlas_virtual_study(
+      species = 1, kinds = "habitat", arms = c("maxnet:none", "esm"), nulls = 0L,
+      n_background = 2000, buffer_km = 600, block_km = 200, folds = 3,
+      quiet = TRUE, points = world$points, stack = world$stack
+    )
+    row <- jsonlite::fromJSON(result$path, simplifyVector = FALSE)$taxa[[1]]
+    expect_equal(row$status, "scored")
+    esm <- Filter(function(a) identical(a$arm, "esm"), row$arms)[[1]]
+    expect_null(esm$error)
+    expect_true(is.finite(as.numeric(esm$auc)))
+  })
+})

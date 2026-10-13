@@ -363,7 +363,15 @@ atlas_virtual_taxon <- function(name, fingerprint, points, stack,
     # keep ends with effort, which every arm's table carries for the null
     # models and the effort modes; Maxent leaves it out unless told otherwise.
     pruned = training[, c("presence", "cell", "x", "y", keep), drop = FALSE],
-    all = training
+    all = training,
+    # The small-model ensemble's own choice of predictors, for an esm arm.
+    esm = if ("esm" %in% arms) {
+      training[, c("presence", "cell", "x", "y",
+                   atlas_algorithm("esm")$choose(training, correlation,
+                                                 atlas_predictor_priority(ATLAS_GUILD_UNKNOWN),
+                                                 atlas_host_allowance(ATLAS_GUILD_UNKNOWN))),
+               drop = FALSE]
+    }
   )
   occupied <- training[training$presence == 1L, , drop = FALSE]
   area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
