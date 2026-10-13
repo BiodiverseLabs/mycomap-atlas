@@ -145,11 +145,15 @@ test_that("the results say how many predictors each taxon's fit left out, median
 
 test_that("a taxon whose records differ from the release's, or that it holds no record of, is not fitted", {
   skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
   world <- synthetic_landscape()
-  sites <- atlas_training_table("Eastern fungus", world$points, n_background = 0L, buffer_km = 300,
-                                fingerprint = "f00dfeed")
-  n <- nrow(atlas_add_predictors(sites[sites$presence == 1L, , drop = FALSE], stack = world$stack))
-  record <- list(fingerprint = "f00dfeed", presences = as.integer(n))
+  # The record as production keeps it: the detection sites its own fit
+  # counted, not a count made by the code under test.
+  fit <- atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                         fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                         buffer_km = 300, predict = FALSE, write = FALSE, quiet = TRUE,
+                         nulls = 0, tune = FALSE, importance = FALSE)
+  record <- list(fingerprint = "f00dfeed", presences = as.integer(fit$metrics$presences))
   run <- function(records, fingerprint = "f00dfeed") {
     atlas_default_taxon("Eastern fungus", fingerprint, world$points, world$stack, out_dir = tempfile(),
                         n_background = 300, buffer_km = 300, nulls = 1, min_sites = 1000, records = records)
