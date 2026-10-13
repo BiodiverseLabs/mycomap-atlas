@@ -142,3 +142,22 @@ test_that("the results say how many predictors each taxon's fit left out, median
   expect_equal(summary$taxa, 3L)
   expect_equal(c(summary$median, summary$max, summary$taxa_with_any), c(3, 7, 2))
 })
+
+test_that("a taxon whose records differ from the release's, or that it holds no record of, is not fitted", {
+  skip_if_not_installed("terra")
+  world <- synthetic_landscape()
+  sites <- atlas_training_table("Eastern fungus", world$points, n_background = 0L, buffer_km = 300,
+                                fingerprint = "f00dfeed")
+  n <- nrow(atlas_add_predictors(sites[sites$presence == 1L, , drop = FALSE], stack = world$stack))
+  record <- list(fingerprint = "f00dfeed", presences = as.integer(n))
+  run <- function(records, fingerprint = "f00dfeed") {
+    atlas_default_taxon("Eastern fungus", fingerprint, world$points, world$stack, out_dir = tempfile(),
+                        n_background = 300, buffer_km = 300, nulls = 1, min_sites = 1000, records = records)
+  }
+  # A matching record passes the check (and is then refused only for the
+  # test's high minimum).
+  expect_equal(run(list("Eastern fungus" = record))$status, "refused")
+  expect_equal(unlist(run(list("Eastern fungus" = record), "beefcafe")$differs), "fingerprint")
+  expect_equal(unlist(run(list("Eastern fungus" = modifyList(record, list(presences = 1L))))$differs), "presences")
+  expect_equal(unlist(run(list())$differs), "no record")
+})

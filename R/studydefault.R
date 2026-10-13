@@ -154,10 +154,17 @@ atlas_default_raster_path <- function(out_dir, name) {
 
 #' One taxon: fit the default workflow, score it its own way, test it, and
 #' write its map over the accessible area. The row holds no coordinate.
+#'
+#' records holds, by taxon, the release's record of it
+#' (atlas_distance_record). The default workflow has folds of its own, so
+#' only the records it is fitted on are checked: a taxon whose fingerprint
+#' or detection sites differ from the record, or that has no record, is a
+#' mismatch and is not fitted. With records NULL nothing is checked (a
+#' study on a pull with no release).
 atlas_default_taxon <- function(name, fingerprint, points, stack, grid = "draft", out_dir,
                                 n_background = ATLAS_DEFAULT_BACKGROUND, buffer_km = 500,
                                 folds = ATLAS_DEFAULT_FOLDS, nulls = ATLAS_DEFAULT_NULLS,
-                                min_sites = ATLAS_DEFAULT_MIN_SITES) {
+                                min_sites = ATLAS_DEFAULT_MIN_SITES, records = NULL) {
   started <- Sys.time()
   seconds <- function(since = started) round(as.numeric(difftime(Sys.time(), since, units = "secs")), 1)
   seed <- atlas_seed_from_fingerprint(fingerprint)
@@ -170,6 +177,18 @@ atlas_default_taxon <- function(name, fingerprint, points, stack, grid = "draft"
   row <- list(taxon = name, presences = presences,
               band = atlas_presence_band(presences, ATLAS_DISTANCE_BANDS),
               classes = atlas_default_classes(presences))
+  if (!is.null(records)) {
+    record <- records[[name]]
+    differs <- if (is.null(record)) {
+      "no record"
+    } else {
+      c(if (!identical(as.character(fingerprint), record$fingerprint)) "fingerprint",
+        if (!identical(as.integer(presences), record$presences)) "presences")
+    }
+    if (length(differs)) {
+      return(c(row, list(status = "mismatch", differs = as.list(differs), seconds = seconds())))
+    }
+  }
   if (presences < min_sites) return(c(row, list(status = "refused", seconds = seconds())))
   area <- atlas_accessible_area(sites$x, sites$y, buffer_km)
   background <- atlas_default_cells(stack, area, n_background, seed = seed)
@@ -274,6 +293,7 @@ atlas_default_study <- function(store = atlas_store(), release, grid = "draft",
   pull <- atlas_tracker_release_pull(store, view$manifest, grid, view$cache)
   points <- atlas_occurrence_points(pull, grid)
   fingerprints <- as.list(atlas_fingerprints_for(pull, taxa))
+  records <- lapply(stats::setNames(taxa, taxa), function(taxon) atlas_distance_record(view, taxon))
   settings <- list(release = release, shard = shard, min_sites = min_sites,
                    background = ATLAS_DEFAULT_BACKGROUND, folds = ATLAS_DEFAULT_FOLDS,
                    nulls = ATLAS_DEFAULT_NULLS, model = "maxnet::maxnet defaults",
@@ -282,7 +302,8 @@ atlas_default_study <- function(store = atlas_store(), release, grid = "draft",
   result <- atlas_run_study(
     kind = "default-studies", file_prefix = out$prefix, taxon_fn = "atlas_default_taxon",
     sample = data.frame(scientific_name = taxa, stringsAsFactors = FALSE),
-    fingerprints = fingerprints, args = list(grid = grid, out_dir = out$dir, min_sites = min_sites),
+    fingerprints = fingerprints,
+    args = list(grid = grid, out_dir = out$dir, min_sites = min_sites, records = records),
     settings = settings, baseline = "default-maxent", grid = grid, workers = workers,
     points = points, quiet = quiet, summarise = atlas_default_summary,
     extra = function(rows) list(counts = atlas_study_counts(rows),
