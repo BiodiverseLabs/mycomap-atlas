@@ -206,6 +206,8 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
+  message("  study-e12-draw     paper E12 step 0: the seeded stratified draw on a release and its cost from")
+  message("                     recorded fit times, to a local CSV (--release=ID [--out=e12-draw.csv]); read-only")
   message("  study-repro        paper E12 gate: refit models in fresh processes on one machine, twice or more,")
   message("                     against the release (--release=ID --source-job=ID --taxa=A%20b|C%20d [--runs=2] [--label])")
   message("  study-default      paper E6a: \"default practice\" Maxent (maxnet defaults, random")
@@ -882,6 +884,12 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         reps = atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP),
         out = if (is.null(flags$out)) NULL else as.character(flags$out)
       )
+      invisible(0L)
+    },
+    "study-e12-draw" = {
+      if (is.null(flags$release)) stop("study-e12-draw needs --release=ID", call. = FALSE)
+      atlas_e12_draw_study(atlas_flag_store(flags), release = as.character(flags$release),
+                           grid = atlas_flag_grid(flags), out = as.character(flags$out %||% "e12-draw.csv"))
       invisible(0L)
     },
     "study-repro" = {
