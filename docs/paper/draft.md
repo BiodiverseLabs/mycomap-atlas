@@ -1,6 +1,6 @@
 # MycoMap Atlas: habitat-suitability maps with a calibrated trust grade for thousands of DNA-defined North American fungi
 
-*Working title. Living draft, version 0.3 (2026-10-13). Skeleton: headings,
+*Working title. Living draft, version 0.4 (2026-10-13). Skeleton: headings,
 the claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -8,7 +8,7 @@ frozen release.*
 | | |
 |---|---|
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
-| Target venue | [PENDING: top five being checked (Appendix B); Steve decides] |
+| Target venue | [PENDING: Ecological Monographs (Method) recommended, MEE second (Appendix B); Steve decides] |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
 | Frozen release | [PENDING: the first complete release after the October 2026 rebuild; id, Zenodo DOI, code commit] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
@@ -21,12 +21,17 @@ frozen release.*
 The paper makes four claims and one application test. Every figure and table
 below serves one of them.
 
-1. **C1. Standard null tests cannot tell habitat from clustered collecting;
-   spatially structured nulls can.** On virtual species collected at
-   MycoMap's real survey sites, nulls scattered site by site passed 73.5% of
-   species whose finds followed no habitat at all (power 80%). Nulls that keep
-   the finds' own clustering (rotated and shifted together) passed 2.0% of
-   them, at 26% power. [pre-freeze; E1, E1b]
+1. **C1. The usual null test cannot tell habitat from clustered collecting;
+   a structure-keeping null restricted to surveyed sites can, and we measure
+   both error rates.** On virtual species collected at MycoMap's real survey
+   sites, nulls scattered site by site passed 73.5% of species whose finds
+   followed no habitat at all (power 80%), and every such species from 100
+   sites up. Nulls that keep the finds' own clustering (rotated and shifted
+   together, snapped to surveyed sites) passed 2.0%, at 26% power. Structure-
+   keeping nulls are not new (Beale et al. 2008; Osborne et al. 2022; Ridder
+   et al. 2024); what is new is their calibration against known truth in a
+   target-group design, by sample size, and their use to grade thousands of
+   automatically built maps. [pre-freeze; E1, E1b]
 2. **C2. The grade predicts how a map does on data it never saw.** Records
    validated after the training cut, and after each release, fall on
    higher-ranked ground on strong maps than on weak or failed ones, and strong
@@ -92,7 +97,17 @@ numbers → C3 numbers → resource (N taxa, S strong, nightly, open, DOI).]
    (Beale et al. 2008, PNAS 105:14908–14912), and contested as too strict
    because shifted patterns keep the environment's own autocorrelation
    (Araújo et al. 2009; Peterson et al. 2009; reply Beale et al. 2009, PNAS
-   106:E41–E43) [CHECK: the two 2009 letters' citations]. Environment-based
+   106:E41–E43) [CHECK: the two 2009 letters' citations]. Two recent tools
+   keep spatial structure in SDM nulls: Fauxcurrence simulates occurrences
+   that keep within- and between-species structure and found many good-fitting
+   SDMs no better than null (Osborne et al. 2022, Ecography e05880,
+   doi:10.1111/ecog.05880); the shift-&-rotate approach translates and rotates
+   the sampling area over the environmental layers to make null predictors
+   (Ridder, Hardy & Ovaskainen 2024, Methods Ecol. Evol. 15:2331–2342,
+   doi:10.1111/2041-210X.14443). Neither measures a false-pass rate and power
+   against known truth under target-group sampling, nor grades maps at scale.
+   Say exactly how Atlas's shift differs (it moves the detections, keeps them
+   on surveyed sites, and runs sequentially per model). Environment-based
    models also need to beat spatial interpolation (Bahn & McGill 2007, Glob.
    Ecol. Biogeogr. 16:733–742).
 5. **What this paper does.** C1–C4 in a sentence each, and what the resource
@@ -592,51 +607,58 @@ done; E16 is read-only; E3 needs only time from the cutover.
 
 ---
 
-## Appendix B. Venue
+## Appendix B. Venue and scope
 
-Facts read on each journal's own author pages on 2026-10-12, except where
-marked. JIF and median days to first decision are from each journal's home
-page. Steve decides.
+Facts read on each journal's own pages on 2026-10-12 and 2026-10-13
+(metrics: each journal's metrics page, 2025 figures). "nc" = not confirmed.
+Steve decides.
 
-| | Methods in Ecology and Evolution | Ecography | Global Ecology and Biogeography | Diversity and Distributions | Scientific Data |
-|---|---|---|---|---|---|
-| Type for us | Research Article (or Workflow) | Original Research Paper | Method | Method | Data Descriptor |
-| Words | 7,000–8,000 **including** references, captions, tables | ≤ 5,000 main text | ~10 printed pages (~5,000 words, ~50 refs) | ≤ 6,000 main text | no limit; no results or discussion allowed |
-| Abstract | ≤ 350, numbered paragraphs 1–4 | ≤ 300 | ≤ 300, Aim / Innovation / Main conclusions | ≤ 300, structured | ≤ 170, unstructured |
-| Figures + tables | no limit stated | ≤ 6 display items | 6–8 | no limit stated | ≤ 8 figs, ≤ 10 tables recommended |
-| Data | public archive with DOI, every result recreatable; anonymised for review | Zenodo/Dryad DOI at acceptance; anonymised for review | public repository, not GitHub; **data licence CC0 or CC BY only** | mandatory, no embargo, no "on request" | **CC0 or CC BY only** (an exception for share-alike forced by inputs); static DOI'd version |
-| Code | available to reviewers, public at acceptance, DOI recommended | archived with DOI | archived | mandatory for new methods | available, with DOI |
-| Generative AI | not an author; describe use in Methods with tool name and version; mark LLM-written code | not an author; AI statement for any content use incl. code | Wiley policy: Methods/Acknowledgements disclosure | not an author; Methods or Acknowledgements | not an author; document in Methods |
-| Preprint | allowed | allowed | allowed (non-commercial server) | allowed (non-commercial server) | allowed |
-| Access, APC | gold OA, US$3,500 (20% off for BES members; waivers on request) | gold OA, US$3,190 | hybrid: free route, or OA US$5,250 | gold OA, US$4,150 (waiver if unfunded) | gold OA, US$2,690 |
-| Review | double-anonymous | double-anonymous | double-anonymous | double-anonymous | technical soundness, not impact |
-| JIF / first decision | 5.7 / 15 days | 5.3 / 8 days | 6.5 / 12 days | 4.2 / 11 days | 7.2 / 11 days |
-| Fit | best for C1–C2 as a general method, simulations first; "workflows that link existing methods" are not new methods | good, but 6 display items is tight for 8 figures | good for critical evaluation; desk-rejects many | needs a conservation-implications section | the data paper, later |
+### Scope, two ways
 
-Mycology venues checked too: IMA Fungus (Pensoft; gold OA, €1,950 up to 20
-pages; AI declared in Methods; no word limit) and Fungal Ecology (Elsevier,
-hybrid, OA US$3,600; guide not readable, so limits not confirmed). Both reach
-mycologists but not SDM methodologists. Mycologia (checked 2026-10-08 for the
-Vision paper): no word limit found, AI declaration required, OA US$3,940.
+- **(a) One combined methods and data paper** (Steve's choice, 2026-10-13).
+  It needs, beyond the methods and results: a data-records section (every
+  deposited file with DOI, format, licence: section 4.1), technical validation
+  (the null calibration, hindcast, tracker and reproducibility rerun:
+  Results 3.2–3.5 and E12), usage notes (4.3) and a versioned archive (the
+  frozen release on Zenodo, 4.2). All four are in the outline now. Length is
+  ~7,000–9,000 words, 9 figures and 4 tables, so it needs a journal without a
+  tight cap.
+- **(b) A methods paper plus a companion data descriptor.** Methods in MEE
+  (C1, C2, C5); the descriptor cites the same frozen release. The usual
+  descriptor journals require CC0 or CC BY data (Scientific Data, with an
+  exception for share-alike forced by inputs; GigaScience CC0), which
+  conflicts with the CC BY-SA maps. Two reviews, two fees, more total work.
 
-**Licence conflict.** Atlas maps are CC BY-SA 4.0 because WorldClim, an
-input, is share-alike. Scientific Data and GEB accept only CC0 or CC BY for
-deposited data (Scientific Data allows share-alike forced by third-party
-inputs), and Ecography asks for repositories no more restrictive than CC BY.
-MEE and Diversity and Distributions state no data-licence rule.
+**Recommendation: (a), in Ecological Monographs (Method).** It is the one
+journal where the combined paper fits without cutting. It has no data-licence
+conflict, and it published the presence-only SDM benchmark this paper
+extends (Valavi et al. 2022, doi:10.1002/ecm.1486). Keep (b) as the fallback
+if the presubmission inquiry is declined.
 
-**Recommendation: Methods in Ecology and Evolution, Research Article.**
-Frame C1 and C2 as a general method (structured null tests that grade
-automatically built SDMs, calibrated on virtual species and validated on
-independent finds), with the fungal atlas as its application. Simulations
-come first, as MEE asks. MEE counts references and captions in its
-7,000–8,000 words, so C3 (DNA names) is kept to one results section and the
-mycology goes to a second paper. Its double-anonymous review needs an
-anonymised code and data link at submission. Second choice: Ecography (main
-text ≤ 5,000 words, 6 display items). Later: a Scientific Data descriptor of
-a frozen release, arguing the share-alike exception, and a mycology results
-paper (drivers by guild, provisional taxa; Mycologia or IMA Fungus) that also
-cites MycoMap Vision.
+### Top five for the combined paper
+
+| Rank | Journal (type) | Words / display items | Data and code | AI declaration | Preprint | Access, cost | JIF; median days to first decision / acceptance | Comparable recent papers |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **Ecological Monographs** (Method; presubmission inquiry encouraged) | ≥ 40 manuscript pages, no maximum; abstract ≤ 350; no figure or reference caps | ESA Open Research: data and new code in a permanent public repository at acceptance; no licence rule (ESA's Dryad is CC0, so maps go on Zenodo) | tool and use in the relevant section, Acknowledgments and submission form | original submission only | hybrid; $75 per typeset page on the subscription route (ESA member grants up to 21 pages/yr); OA price nc | 9.0; 19 / 242 | Valavi et al. 2022 presence-only SDM benchmark (10.1002/ecm.1486); cross-validation for model selection review 2023 (10.1002/ecm.1557) |
+| 2 | **Methods in Ecology and Evolution** (Research Article, or Workflow) | 7,000–8,000 words **including** references, captions, statements; no display cap | public archive, every result recreatable; anonymised at submission; no licence rule | Methods, tool name and version; annotate AI-written code | allowed | gold OA $3,500 (Workflow $2,600) | 5.7; 15 / 148 | Ridder et al. 2024 shift-&-rotate nulls (10.1111/2041-210X.14443); Meyer & Pebesma 2021 AOA (10.1111/2041-210X.13650); ENMeval 2.0 (10.1111/2041-210X.13628) |
+| 3 | **Diversity and Distributions** (Method or Data paper) | 6,000 words excluding abstract, references, captions, tables; long tables online | mandatory, no embargo; code mandatory for new methods; no licence rule | Methods or Acknowledgements | allowed | gold OA $4,150 (waiver if unfunded) | 4.2; 11 / 226 | eBird community-science SDM guidelines 2021 (10.1111/ddi.13271); threshold selection 2025 (10.1111/ddi.70019). Needs a conservation-implications section |
+| 4 | **Ecological Applications** (Article) | ≤ 60 manuscript pages | as Ecological Monographs | as Ecological Monographs | as Ecological Monographs | hybrid, $75/page | 4.6; 35 / 218 | Fink et al. 2020 eBird full-annual-cycle distributions (10.1002/eap.2056) |
+| 5 | **Fungal Diversity** (Research Article or Data Paper; BioAcademic Press since 2026) | no word limit | GenBank/TreeBASE rules; no licence or code rule | mandatory statement: tool, version, purpose | allowed | gold OA CC BY, $3,200 up to 60 pages (Data Paper $1,600) | 24.8; 29 days (pre-2026) / nc | Global Soil Mycobiome dataset 2021 (10.1007/s13225-021-00493-7); global polypore distribution 2026 (10.65390/fdiv.2026.136002). Taxonomy-heavy scope; SDM review would be weaker |
+
+One-line reasons: (1) fits the whole paper and has published the closest
+benchmark; (2) the core methods audience and the shift-&-rotate paper's home,
+but the cap forces most of the data and C3–C5 into supplements; (3) has a
+data-paper type and no licence rule, but adds a conservation section; (4)
+room and an applied angle, slowest first decision; (5) mycology readers and
+high JIF, weak SDM fit.
+
+**Excluded for the licence conflict** (data must be CC0 or CC BY, or no
+stricter than CC BY): Ecography (5,000 words, 6 display items), Global Ecology
+and Biogeography, Scientific Data, GigaScience. Nature Ecology & Evolution
+(3,500-word Article, $12,850 OA or free subscription) is a long shot that
+would need the paper restructured around C1. Global Change Biology's scope
+needs an environmental-change focus. Mycologia (checked 2026-10-08): no word
+limit found, AI declaration required, OA $3,940.
 
 ---
 
@@ -646,7 +668,8 @@ Settled 2026-10-13 (Steve): one combined methods and data paper; sole
 author, Russell, Stephen D.; training-record ids public; compute at the size
 the claims need.
 
-1. **Venue:** top five being checked (Appendix B).
+1. **Venue:** Ecological Monographs (Method) recommended, after a
+   presubmission inquiry; MEE second (Appendix B).
 2. **Frozen release:** the rebuild's release, or its successor if the
    strong-only full-view refresh runs (default maps, grades and ranks
    byte-identical; only full-extent files change). The coordinator confirms.
@@ -656,6 +679,10 @@ the claims need.
 
 ## Changelog
 
+- **0.4 (2026-10-13).** Appendix B rewritten: scope two ways, top five
+  for a combined paper with review times and comparable papers; Ecological
+  Monographs recommended. C1 reworded and Introduction extended for prior
+  work on structure-keeping nulls (Osborne et al. 2022; Ridder et al. 2024).
 - **0.3.1 (2026-10-13).** Pre-declaration cited as b78609d (plan approved
   5c9a4b6, unchanged); v1-test confirmation and its leakage rule; "Atlas
   E<n>" citation note.
