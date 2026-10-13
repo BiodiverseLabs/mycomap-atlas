@@ -41,9 +41,21 @@ atlas_default_classes <- function(n) {
   if (n < 10) "l" else if (n < 15) "lq" else if (n < 80) "lqh" else "lqph"
 }
 
-#' Fit maxnet exactly as shipped. data holds the predictors only.
+#' The predictors that vary over the points a fit is given. maxnet cannot fit
+#' a predictor with one value (its hinge and threshold features divide by the
+#' range), so a default user has to leave such a one out, as here; a host
+#' tree absent from a taxon's whole area is the usual case.
+atlas_default_varying <- function(data) {
+  names(data)[vapply(data, function(v) length(unique(v[is.finite(v)])) > 1L, TRUE)]
+}
+
+#' Fit maxnet exactly as shipped, on the predictors that vary. data holds
+#' the predictors only; attr(, "constant") names the ones left out.
 atlas_default_fit <- function(presence, data) {
-  maxnet::maxnet(presence, data)
+  keep <- atlas_default_varying(data)
+  model <- maxnet::maxnet(presence, data[, keep, drop = FALSE])
+  attr(model, "constant") <- setdiff(names(data), keep)
+  model
 }
 
 #' maxnet's cloglog output for new data.
@@ -168,6 +180,7 @@ atlas_default_taxon <- function(name, fingerprint, points, stack, grid = "draft"
   fit_started <- Sys.time()
   cv <- atlas_default_cv(presence, data, atlas_default_folds(presence, folds, seed))
   model <- atlas_default_fit(presence, data)
+  row$constant_predictors <- length(attr(model, "constant"))
   train_auc <- atlas_default_train_auc(model, presence, data)
   row$seconds_fit <- seconds(fit_started)
 

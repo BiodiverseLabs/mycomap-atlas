@@ -22,6 +22,16 @@ test_that("maxnet is fitted with its shipped defaults: hinges from 15 detections
   expect_true(any(product(big)))
 })
 
+test_that("a predictor with one value over the points is left out, as maxnet cannot fit it", {
+  skip_if_not_installed("maxnet")
+  set.seed(4)
+  data <- data.frame(a = stats::runif(330), absent_host = 0, b = stats::runif(330))
+  presence <- c(rep(1L, 30), rep(0L, 300))
+  model <- atlas_default_fit(presence, data)
+  expect_equal(attr(model, "constant"), "absent_host")
+  expect_true(all(is.finite(atlas_default_predict(model, data))))
+})
+
 test_that("background cells are drawn uniformly inside the accessible area, each once, all predictors known", {
   skip_if_not_installed("terra")
   world <- synthetic_landscape()
