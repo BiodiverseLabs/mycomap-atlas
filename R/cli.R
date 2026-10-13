@@ -155,6 +155,14 @@ atlas_usage <- function() {
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
   message("      --port=N             another port")
+  message("Paper studies (private; results under study/ or this machine only):")
+  message("  study-distance     paper E6b: a distance-only kernel map per taxon of a release,")
+  message("                     bandwidth by the taxon's production folds; scored by the E2 scorer")
+  message("      --release=ID              the (hindcast) release whose pull and taxa it uses")
+  message("      --plan-only               print the work and CPU-hours, do nothing")
+  message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
+  message("      --out=study/<id>/         also copy the results to this store prefix")
+  message("      --workers=N               taxa at once (default 1)")
   invisible(NULL)
 }
 
@@ -676,6 +684,19 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "help" = {
       atlas_usage()
+      invisible(0L)
+    },
+    # Paper studies.
+    "study-distance" = {
+      if (is.null(flags$release)) stop("study-distance needs --release=ID", call. = FALSE)
+      atlas_distance_study(
+        atlas_flag_store(flags), release = as.character(flags$release),
+        grid = atlas_flag_grid(flags),
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        shard = as.character(flags$shard %||% "1/1"),
+        workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+        plan_only = isTRUE(flags$plan_only)
+      )
       invisible(0L)
     },
     {
