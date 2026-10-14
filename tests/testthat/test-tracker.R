@@ -600,12 +600,17 @@ test_that("a run holds one taxon's maps at a time, and no raster's values beyond
     finds$key <- paste(finds$source, finds$observation_id, sep = ":")
     rows <- atlas_tracker_score_release(finds, view, "2026-10-01T08:00:00Z", "now", "record")
     expect_true(all(rows$status == "scored"))
-    held <- setdiff(ls(view), c("id", "grid", "store", "cache", "shas", "entries", "pulled_at", "scheme",
+    held <- setdiff(ls(view), c("id", "grid", "store", "cache", "shas", "entries", "manifest", "pulled_at", "scheme",
                                 "naming", "pull", "cells", "names", "modelled", "renames",
                                 "last_taxon", "last_maps"))
     expect_equal(held, character(0))
     expect_equal(view$last_taxon, "Cortinarius three")
     expect_false(terra::hasValues(view$last_maps$models$maxnet$raster))
-    expect_null(view$manifest)
+    # The manifest stays, for the studies that read it, without its bulk.
+    expect_equal(view$manifest$job, "job-R1")
+    expect_null(view$manifest$files)
+    expect_null(view$manifest$index)
+    expect_equal(atlas_tracker_release_pull(store, view$manifest, "draft", view$cache)$observation_id,
+                 atlas_tracker_release_pull(store, atlas_tracker_manifest(store, "R1", "draft"), "draft")$observation_id)
   })
 })

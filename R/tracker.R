@@ -313,6 +313,11 @@ atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_
   view$cache <- cache
   view$shas <- shas
   view$entries <- entries
+  # Its other fields (id, job, previous, purpose, validated_through, ...) for
+  # the studies that read a release through this view (R/study*.R) and for
+  # atlas_tracker_release_pull. Its files and index, the bulk, are held above
+  # as shas and entries.
+  view$manifest <- manifest[setdiff(names(manifest), c("files", "index"))]
   view$pulled_at <- as.character(manifest$pull$pulled_at %||% NA)
   # Shifted-null grades are recorded in a release's index from the rebuild
   # on; before, the index says only whether a map passed (skill).
