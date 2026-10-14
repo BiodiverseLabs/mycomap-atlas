@@ -17,7 +17,7 @@
 # of both the API and the app, and the server never builds anything.
 
 # node:22-bookworm-slim (Node 22.23.3), with the pnpm version CI uses.
-FROM node:22-bookworm-slim@sha256:43ac6c60b8f89723f746e8a92ce91abd5017e627ce1ddfe4238355d3a30b772c AS web
+FROM node:26-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567 AS web
 RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
 WORKDIR /src/web
 COPY web/package.json web/pnpm-lock.yaml ./
