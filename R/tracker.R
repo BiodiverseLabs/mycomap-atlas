@@ -112,8 +112,11 @@ atlas_tracker_summary_path <- function(grid = "draft") {
   atlas_path("tracker", grid, "summary.json")
 }
 
+#' Where fetched releases, pulls and rasters are kept by hash. ATLAS_TRACKER_CACHE
+#' moves it, so a dry run can work with the data directory mounted read-only.
 atlas_tracker_cache_dir <- function() {
-  atlas_path("private", "tracker", "cache")
+  explicit <- Sys.getenv("ATLAS_TRACKER_CACHE", unset = "")
+  if (nzchar(explicit)) explicit else atlas_path("private", "tracker", "cache")
 }
 
 atlas_tracker_promotions_file <- function(grid = "draft", root = Sys.getenv("ATLAS_ROOT", unset = ".")) {
@@ -308,9 +311,13 @@ atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_
   view$grid <- grid
   view$store <- store
   view$cache <- cache
-  view$manifest <- manifest
   view$shas <- shas
   view$entries <- entries
+  # Its other fields (id, job, previous, purpose, validated_through, ...) for
+  # the studies that read a release through this view (R/study*.R) and for
+  # atlas_tracker_release_pull. Its files and index, the bulk, are held above
+  # as shas and entries.
+  view$manifest <- manifest[setdiff(names(manifest), c("files", "index"))]
   view$pulled_at <- as.character(manifest$pull$pulled_at %||% NA)
   # Shifted-null grades are recorded in a release's index from the rebuild
   # on; before, the index says only whether a map passed (skill).
@@ -324,7 +331,6 @@ atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_
   view$names <- sort(unique(c(pull$scientific_name, index_taxa)))
   view$modelled <- unique(index_taxa)
   view$renames <- renames
-  view$maps <- new.env(parent = emptyenv())
   view
 }
 
@@ -335,10 +341,11 @@ atlas_tracker_file <- function(view, path, ext) {
 }
 
 #' One drawn map's layers: rank (inside the area of applicability), whether
-#' the cell has a value, and the raster to find cells on.
+#' the cell has a value, and the grid to find cells on: the raster's geometry
+#' only, without its values, so a map costs its two vectors and no more.
 atlas_tracker_layers <- function(suitability, dissimilarity = NULL, threshold = NULL) {
   layers <- atlas_map_layers(suitability, dissimilarity, threshold)
-  list(raster = layers,
+  list(raster = terra::rast(suitability, nlyrs = 1),
        rank = terra::values(layers[["rank"]], mat = FALSE),
        outside = terra::values(layers[["outside"]], mat = FALSE))
 }
@@ -361,10 +368,16 @@ atlas_tracker_version <- function(view, taxon) {
   substr(digest::digest(sort(parts), algo = "sha256"), 1, 16)
 }
 
-#' A taxon's maps in a release, read once: each model's layers, the grades,
-#' and the map that stands for it. NULL when it has no map in the release.
+#' A taxon's maps in a release: each model's layers, the grades, and the map
+#' that stands for it; list(none = TRUE) when it has no map in the release.
+#' Only the last taxon asked for is kept: a taxon's maps run to tens of MB,
+#' and a backfill scores hundreds of taxa on a box with 1 GB to spare
+#' (2026-10-14: keeping them all was killed for memory).
 atlas_tracker_maps <- function(view, taxon) {
-  if (!is.null(view$maps[[taxon]])) return(view$maps[[taxon]])
+  if (identical(view$last_taxon, taxon)) return(view$last_maps)
+  view$last_taxon <- NULL
+  view$last_maps <- NULL
+  invisible(gc(FALSE))
   grid <- view$grid
   models <- list()
   for (entry in Filter(function(e) identical(e$taxon, taxon), view$entries)) {
@@ -383,8 +396,9 @@ atlas_tracker_maps <- function(view, taxon) {
                                           skill = if (is.character(metrics$skill)) metrics$skill else "untested"))
   }
   if (!length(models)) {
-    view$maps[[taxon]] <- list(none = TRUE)
-    return(view$maps[[taxon]])
+    view$last_taxon <- taxon
+    view$last_maps <- list(none = TRUE)
+    return(view$last_maps)
   }
   grade <- if (identical(view$scheme, "shift")) {
     atlas_tracker_best_of(vapply(models, `[[`, "", "grade"), c("strong", "weak", "failed", "untested"))
@@ -419,7 +433,8 @@ atlas_tracker_maps <- function(view, taxon) {
   }
   out <- list(none = FALSE, models = models, grade = grade, choice = choice, ensemble = ensemble,
               version = atlas_tracker_version(view, taxon))
-  view$maps[[taxon]] <- out
+  view$last_taxon <- taxon
+  view$last_maps <- out
   out
 }
 

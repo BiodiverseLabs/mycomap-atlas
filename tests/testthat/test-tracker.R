@@ -584,3 +584,33 @@ test_that("a find whose place is corrected into another cell is retracted as mov
   expect_equal(nrow(ledger_row(third, "iNaturalist:m")), 2L)
   expect_equal(sum(is.na(ledger_row(third, "iNaturalist:m")$retracted_why)), 1L)
 })
+
+test_that("a run holds one taxon's maps at a time, and no raster's values beyond the two it reads", {
+  skip_if_not_installed("terra")
+  # A backfill scores hundreds of taxa on a box with about 1 GB to spare;
+  # keeping every taxon's maps was killed for memory (2026-10-14).
+  store <- fresh_store()
+  taxa <- c("Amanita one", "Boletus two", "Cortinarius three")
+  tracker_release(store, "R1", "2026-10-01T07:00:00Z", "2026-10-01T08:00:00Z",
+                  do.call(rbind, lapply(taxa, function(t) tracker_records(t, 15))),
+                  lapply(taxa, function(t) tracker_model(store, t)))
+  finds <- do.call(rbind, lapply(taxa, function(t) tracker_records(t, 18, first_green_on = "2026-10-02")))
+  on_machine(machine(), {
+    view <- atlas_tracker_view(store, "R1")
+    finds$key <- paste(finds$source, finds$observation_id, sep = ":")
+    rows <- atlas_tracker_score_release(finds, view, "2026-10-01T08:00:00Z", "now", "record")
+    expect_true(all(rows$status == "scored"))
+    held <- setdiff(ls(view), c("id", "grid", "store", "cache", "shas", "entries", "manifest", "pulled_at", "scheme",
+                                "naming", "pull", "cells", "names", "modelled", "renames",
+                                "last_taxon", "last_maps"))
+    expect_equal(held, character(0))
+    expect_equal(view$last_taxon, "Cortinarius three")
+    expect_false(terra::hasValues(view$last_maps$models$maxnet$raster))
+    # The manifest stays, for the studies that read it, without its bulk.
+    expect_equal(view$manifest$job, "job-R1")
+    expect_null(view$manifest$files)
+    expect_null(view$manifest$index)
+    expect_equal(atlas_tracker_release_pull(store, view$manifest, "draft", view$cache)$observation_id,
+                 atlas_tracker_release_pull(store, atlas_tracker_manifest(store, "R1", "draft"), "draft")$observation_id)
+  })
+})
