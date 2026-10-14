@@ -752,6 +752,11 @@ from weeks ago is scored exactly as it was drawn:
 ./atlas track-new-finds --since=2026-10-03 --dry-run
 ```
 
+Fetched releases, pulls and rasters are kept by hash in `data/private/tracker/cache`
+(`ATLAS_TRACKER_CACHE` moves it, e.g. to `/tmp` for a dry run with the data
+directory read-only). A run holds one taxon's maps at a time: about 0.5 GB at
+peak whatever the number of taxa, about a second per taxon.
+
 - **The rank** is the drawn map's: the share of the map's ground inside its
   area of applicability that the find's cell beats (`atlas_map_layers`). A
   strong taxon is scored on the map an app shows for it (`atlas_best_rule`,
