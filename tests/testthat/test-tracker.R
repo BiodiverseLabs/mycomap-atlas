@@ -585,7 +585,7 @@ test_that("a find whose place is corrected into another cell is retracted as mov
   expect_equal(sum(is.na(ledger_row(third, "iNaturalist:m")$retracted_why)), 1L)
 })
 
-test_that("a run holds one taxon's maps at a time, and no raster's values beyond the two it reads", {
+test_that("a run reads each model at the points it needs and keeps no maps", {
   skip_if_not_installed("terra")
   # A backfill scores hundreds of taxa on a box with about 1 GB to spare;
   # keeping every taxon's maps was killed for memory (2026-10-14).
@@ -600,12 +600,18 @@ test_that("a run holds one taxon's maps at a time, and no raster's values beyond
     finds$key <- paste(finds$source, finds$observation_id, sep = ":")
     rows <- atlas_tracker_score_release(finds, view, "2026-10-01T08:00:00Z", "now", "record")
     expect_true(all(rows$status == "scored"))
+    # Scoring keeps no maps on the view: each model is read at the points
+    # needed and let go (2026-10-14: the box was out of memory again).
     held <- setdiff(ls(view), c("id", "grid", "store", "cache", "shas", "entries", "manifest", "pulled_at", "scheme",
-                                "naming", "pull", "cells", "names", "modelled", "renames",
-                                "last_taxon", "last_maps"))
+                                "naming", "pull", "cells", "names", "modelled", "renames"))
     expect_equal(held, character(0))
-    expect_equal(view$last_taxon, "Cortinarius three")
-    expect_false(terra::hasValues(view$last_maps$models$maxnet$raster))
+    at <- tracker_xy(c(5, 18))
+    maps <- atlas_tracker_maps(view, "Amanita one", at = at)
+    expect_null(maps$models$maxnet$raster)
+    expect_null(maps$models$maxnet$rank)
+    expect_length(maps$models$maxnet$hit$rank, 2L)
+    expect_equal(atlas_tracker_score_at(maps)$rank,
+                 atlas_tracker_score(atlas_tracker_maps(view, "Amanita one"), at[, 1], at[, 2])$rank)
     # The manifest stays, for the studies that read it, without its bulk.
     expect_equal(view$manifest$job, "job-R1")
     expect_null(view$manifest$files)
@@ -613,4 +619,33 @@ test_that("a run holds one taxon's maps at a time, and no raster's values beyond
     expect_equal(atlas_tracker_release_pull(store, view$manifest, "draft", view$cache)$observation_id,
                  atlas_tracker_release_pull(store, atlas_tracker_manifest(store, "R1", "draft"), "draft")$observation_id)
   })
+})
+
+test_that("no days means no releases, so a run with no new finds scores nothing", {
+  expect_identical(atlas_tracker_live_at(character(), data.frame(release = "A", promoted_at = "2026-10-01T08:00:00Z")),
+                   character())
+})
+
+test_that("ranks read at points are the drawn map's ranks, ties, area of applicability and edges included", {
+  skip_if_not_installed("terra")
+  set.seed(11)
+  r <- terra::rast(nrows = 30, ncols = 40, xmin = 0, xmax = 40, ymin = 0, ymax = 30)
+  v <- round(stats::runif(terra::ncell(r)), 1)
+  v[sample(length(v), 300)] <- NA
+  terra::values(r) <- v
+  di <- terra::rast(r)
+  terra::values(di) <- stats::runif(terra::ncell(r), 0, 2)
+  x <- c(stats::runif(400, -2, 42), 0.5, 39.5)
+  y <- c(stats::runif(400, -2, 32), 0.5, 29.5)
+  for (aoa in c(FALSE, TRUE)) {
+    drawn <- atlas_tracker_lookup(atlas_tracker_layers(r, if (aoa) di, if (aoa) 1), x, y)
+    fast <- atlas_tracker_rank_points(r, x, y, if (aoa) di, if (aoa) 1)
+    expect_equal(fast$rank, drawn$rank)
+    expect_equal(fast$place, drawn$place)
+  }
+  # A combined map: ranked as it stands, reached where a member reaches.
+  known <- ifelse(is.na(v), NA, 1)
+  known[1:50] <- 1
+  expect_equal(atlas_tracker_rank_points(r, x, y, reach = known)$place[is.na(atlas_tracker_rank_points(r, x, y)$rank)] %in%
+                 c("outside_aoa", "beyond_reach"), rep(TRUE, sum(is.na(atlas_tracker_rank_points(r, x, y)$rank))))
 })
