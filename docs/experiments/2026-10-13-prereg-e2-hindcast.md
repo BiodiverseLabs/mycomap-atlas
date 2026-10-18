@@ -160,8 +160,11 @@ strong taxa.
       2026-02-12, before it was collected (taken from MyCoPortal record
       658533); **in the trained ids**; hindcast 15 sites, small-model
       ensemble only, weak. → the 3–19-site case: refitted without this
-      record if the taxon has any scored test finds; otherwise noted.
-      [PENDING: whether it has test finds.]
+      record if the taxon has any scored test finds; otherwise noted. It
+      has one (mycomap.org 593531, first validated 2026-08-25, an
+      iNaturalist record whose own date the collision does not touch), so
+      by the rule its hindcast model is refitted without 586958 before
+      scoring. [PENDING: Steve's go for the one-taxon refit.]
     - 586894, *Fibroporia albicans*: in the pull with first_green_on
       2025-08-06, before collection; not in the trained ids (no hindcast
       model for the taxon). It still sat in the training pull's survey
