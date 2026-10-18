@@ -1,8 +1,9 @@
 # Each record's first green validation date: a private side column of the
 # pull, computed exactly as MycoMap Vision computes validated_on.
 
-slot_rows <- function(observation_id, s1 = NA, d1 = NA, s2 = NA, d2 = NA, s3 = NA, d3 = NA) {
-  data.frame(observation_id = observation_id,
+slot_rows <- function(observation_id, s1 = NA, d1 = NA, s2 = NA, d2 = NA, s3 = NA, d3 = NA,
+                      source = "iNaturalist") {
+  data.frame(observation_id = observation_id, source = source,
              validation_status_1 = s1, validation_date_1 = d1,
              validation_status_2 = s2, validation_date_2 = d2,
              validation_status_3 = s3, validation_date_3 = d3,
@@ -45,15 +46,47 @@ test_that("the first green date is the earliest green slot over all of an observ
     slot_rows(" 500 ", "yes", "2/2/2022")
   )
   first <- atlas_first_green_dates(slots)
-  expect_equal(first[["100"]], "2026-03-01")
-  expect_equal(first[["200"]], "2025-05-20")
-  expect_false("300" %in% names(first))
-  expect_false("400" %in% names(first))
-  expect_equal(first[["500"]], "2022-02-02")
+  key <- function(id) atlas_first_green_key("iNaturalist", id)
+  expect_equal(first[[key("100")]], "2026-03-01")
+  expect_equal(first[[key("200")]], "2025-05-20")
+  expect_false(key("300") %in% names(first))
+  expect_false(key("400") %in% names(first))
+  expect_equal(first[[key("500")]], "2022-02-02")
   page <- fake_occurrences()
   page$observation_id <- c("100", "200", "400")
   added <- atlas_add_first_green(page, slots)
   expect_equal(added$first_green_on, c("2026-03-01", "2025-05-20", NA))
+})
+
+test_that("two sources sharing an observation number each get their own first green date", {
+  # The 10/12 pull: .org row 590501, MO 355385 (observed 2019-01-12), took
+  # 2025-03-20 from row 176523, MycoPortal 355385, a different record; and MO
+  # 658533 (collected 2026-07-31) took MyCoPortal 658533's 2026-02-12.
+  slots <- rbind(
+    slot_rows("355385", "yes", "3/20/2025", source = "MycoPortal"),
+    slot_rows("355385", "yes", "10/4/2026", source = "MO Observations"),
+    slot_rows("658533", "yes", "2/12/2026", source = "MyCoPortal"),
+    slot_rows("658533", "yes", "8/25/2026", source = "MO Observations"),
+    # Green under one source only: the other source's record has no date.
+    slot_rows("777", "yes", "1/1/2024", source = "Sequences"),
+    slot_rows("777", "no", "1/1/2023", source = "MO Observations"),
+    # Rows of one source sharing a number are still one observation.
+    slot_rows("888", "yes", "6/1/2025", source = "MO Observations"),
+    slot_rows("888", "yes", "5/1/2025", source = " MO Observations ")
+  )
+  page <- data.frame(
+    id = c("590501", "176523", "586958", "505331", "1", "2", "3"),
+    observation_id = c("355385", "355385", "658533", "658533", "777", "777", "888"),
+    source = c("MO Observations", "MycoPortal", "MO Observations", "MyCoPortal",
+               "MO Observations", "Sequences", "MO Observations"),
+    stringsAsFactors = FALSE
+  )
+  added <- atlas_add_first_green(page, slots)
+  expect_equal(added$first_green_on,
+               c("2026-10-04", "2025-03-20", "2026-08-25", "2026-02-12", NA, "2024-01-01", "2025-05-01"))
+  # And the query fetches the other rows of the same source and number only.
+  expect_match(atlas_first_green_sql(1, 2), "WHERE (g.source, g.observation_id) IN (SELECT o.source, o.observation_id",
+               fixed = TRUE)
 })
 
 test_that("the dates come from a query of their own, one line and safe for the SQL route", {
@@ -63,7 +96,7 @@ test_that("the dates come from a query of their own, one line and safe for the S
     expect_match(sql, sprintf("g.validation_status_%d, g.validation_date_%d", slot, slot), fixed = TRUE)
   }
   # Every row of the page's observations, not only the page's own rows.
-  expect_match(sql, "g.observation_id IN (SELECT o.observation_id FROM observations o WHERE o.id >= 175002 AND o.id <= 190000)",
+  expect_match(sql, "(g.source, g.observation_id) IN (SELECT o.source, o.observation_id FROM observations o WHERE o.id >= 175002 AND o.id <= 190000)",
                fixed = TRUE)
   # The pull's own query does not change.
   expect_false(grepl("validation_date", atlas_occurrence_sql(), fixed = TRUE))
