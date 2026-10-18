@@ -129,6 +129,14 @@ changed and what it means for you.
 
 ### Maps
 
+- **Records no longer lost to another source's number.** The pull left out
+  any record whose number matched an iNaturalist observation that
+  iNaturalist obscures or places coarsely, whatever its source: .org's
+  sources number their records independently. Only iNaturalist records are
+  checked now. On 2026-10-18 that brings 15 Mushroom Observer records into
+  the pull, so the record-set fingerprint of the next pull moves and the
+  taxa they belong to are refitted.
+
 - **Full-extent maps.** Each strong map is also predicted over the whole of
   North America, beyond its 500 km reach, on the same colour scale, with
   ground the model knows nothing about hatched (most of the continent, far

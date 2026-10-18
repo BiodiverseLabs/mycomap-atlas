@@ -38,21 +38,12 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
   since_clause <- if (is.null(since)) "" else {
     sprintf("AND o.updated_at >= date '%s'", since)
   }
-  # OFFSET 0 keeps the obscured-coordinates check a per-record index probe.
-  # Without it the planner turns it into an anti join that rescans ~32,000
-  # cached iNat answers for every record, and a page ran past the route's
-  # 60 s cap (2026-10-08). The records returned are the same.
   sql <- sprintf(
     "SELECT %s FROM observations o
      WHERE 'yes' IN (%s)
        AND o.latitude IS NOT NULL
        AND o.longitude IS NOT NULL
-       AND NOT EXISTS (
-         SELECT 1 FROM observation_cache c
-         WHERE c.source = 'inat'
-           AND c.source_observation_id = o.observation_id
-           AND (c.coordinates_obscured = true OR c.positional_accuracy > %d)
-         OFFSET 0)
+       %s
        %s
        %s
        %s
@@ -61,11 +52,35 @@ atlas_occurrence_sql <- function(after_id = 0, limit = 20000, since = NULL) {
      ORDER BY o.id
      LIMIT %d",
     atlas_occurrence_columns_sql(),
-    atlas_status_columns(), ATLAS_MAX_ACCURACY_M, atlas_place_clause(),
+    atlas_status_columns(), atlas_obscured_clause(), atlas_place_clause(),
     since_clause, atlas_mo_location_clause(), atlas_mycoportal_location_clause(),
     as.integer(after_id), as.integer(limit)
   )
   atlas_one_line(sql)
+}
+
+#' The SQL condition that leaves out an iNaturalist record whose coordinates
+#' iNaturalist obscures or places no better than max_m.
+#'
+#' Only iNaturalist records are checked. .org's sources number their records
+#' independently, so an MO, MyCoPortal or Sequences record can carry the same
+#' number as an obscured iNaturalist observation; matched by number alone,
+#' 20 MO records and 1 MyCoPortal record were left out of every pull
+#' (2026-10-18).
+#'
+#' OFFSET 0 keeps the check a per-record index probe. Without it the planner
+#' turns it into an anti join that rescans ~32,000 cached iNat answers for
+#' every record, and a page ran past the route's 60 s cap (2026-10-08). The
+#' records returned are the same.
+atlas_obscured_clause <- function(max_m = ATLAS_MAX_ACCURACY_M) {
+  sprintf(
+    paste(
+      "AND (o.source <> '%s' OR NOT EXISTS (SELECT 1 FROM observation_cache c",
+      "WHERE c.source = 'inat' AND c.source_observation_id = o.observation_id",
+      "AND (c.coordinates_obscured = true OR c.positional_accuracy > %d) OFFSET 0))"
+    ),
+    ATLAS_INAT_SOURCE, as.integer(max_m)
+  )
 }
 
 #' The columns a pull selects: .org's, with an MO record's coordinate taken
@@ -165,11 +180,13 @@ atlas_mycoportal_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
   # gathered once and probed. The per-record form scanned every observation
   # for each geocoded record (no index on coordinates) and could run a page
   # past the route's 60 s cap; on prod (2026-10-12) both keep the same 1,352
-  # of 4,352 geocoded green records.
+  # of 4,352 geocoded green records. Only MyCoPortal records count: another
+  # source's record can carry a MyCoPortal record's number (28 MO rows did
+  # on 2026-10-18) and would lend its point that record's label.
   shared <- paste(
     "SELECT o2.latitude, o2.longitude FROM observations o2",
     "JOIN mycoportal_data p2 ON p2.observation_id = o2.observation_id",
-    "WHERE o2.latitude IS NOT NULL AND o2.longitude IS NOT NULL",
+    sprintf("WHERE o2.source IN (%s) AND o2.latitude IS NOT NULL AND o2.longitude IS NOT NULL", sources),
     "GROUP BY o2.latitude, o2.longitude HAVING count(DISTINCT coalesce(p2.locality, '')) >= 2"
   )
   placed <- sprintf(paste(
