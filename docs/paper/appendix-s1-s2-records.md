@@ -204,7 +204,17 @@ median 0.58 km apart (90th percentile 4.1 km): 1,486 pairs (91%) lie within
 5 km, where site thinning counts the find once and only the effort
 predictor (records per site) is slightly inflated; 146 lie further apart
 and may give their taxon a second detection site, 10 of them over 50 km
-apart (maximum 9,336 km), most likely a coordinate error on one side.
+apart (maximum 9,336 km). The 146 touch 132 distinct taxa, by the release's
+own site counts 1 with 1–2 sites, 39 with 3–19, 53 with 20–49 and 39 with
+50 or more. In 131 of the 146 the far copy is a Mushroom Observer record
+with no cached Mushroom Observer answer, which Atlas places at
+mycomap.org's point (usually a named location's centre) rather than
+dropping it; so most are a coarse Mushroom Observer point, not a wrong
+observation. Of 8,003 eligible Mushroom Observer records, 880 (11%) are
+placed that way; a backfill of their Mushroom Observer answers, proposed
+for a later pull, would let the 5 km rule check them and should merge many
+of these pairs into one site. [CHECK: share of all training records this is,
+from the frozen pull.]
 These figures are approximate: they apply the pull's rules to the live
 database read-only on 2026-10-18, not to the frozen pull itself; the name
 check is a simplified match (about ±1%); and they are a lower bound,
