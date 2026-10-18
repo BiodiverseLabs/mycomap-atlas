@@ -1031,6 +1031,25 @@ spellings both cleared the threshold they shared a file name and one map
 silently replaced the other. A fit now refuses to overwrite another taxon's
 model.
 
+### Renames from mycomap.org
+
+.org logs every rename its Name Update makes (`name_change_log`, with the
+records behind each in `name_change_records`), and Atlas reads the log over
+its read-only SQL login after each pull, from a cursor kept with what it read
+in `occurrences/name-changes.json`. That file names records, so it stays on
+the machine that pulled it, like the pull. A failed read never fails the pull;
+the cursor stays put and the next pull reads from there.
+
+The log's renames go into `occurrences/renames.json` as `source: "org"`,
+ahead of Atlas's own guess (`detected`: a name gone from a pull whose records
+mostly moved to one other name). A split that leaves records under the old
+name is no rename while the old name is still modelled. A taxon that a merge
+or a split touched since the release a job builds on is planned with the
+reason, "refit: name merged (org change 812)", in the plan's output and in
+`job.json`. Every rename refits: a model is traced to the job that fitted its
+record set, and the fingerprint covers the name. Frozen releases never change;
+a rename reaches the next pull and the next release.
+
 ### Coordinates
 
 Exact coordinates stay inside Atlas's own private compute and storage: the

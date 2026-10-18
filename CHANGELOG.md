@@ -122,6 +122,13 @@ changed and what it means for you.
   the name its records were renamed to on mycomap.org (`how`: `current`,
   `spelling` or `renamed`, with `via` listing earlier names). 404 when none
   applies. Releases carry `occurrences/renames.json`.
+- **Renames come from mycomap.org's own record.** Each pull reads .org's
+  name-change log, so `GET /api/names/{name}` follows every rename .org's
+  Name Update makes, ahead of Atlas's guess from where the records went, and
+  a name split on .org no longer looks like a dropped one. Rows in
+  `occurrences/renames.json` gain `source` (`org` or `detected`) and, for
+  `org`, `change`, the log's id. Added fields. A rename reaches the next pull
+  and the next release; published releases never change.
 
 ### Maps
 
