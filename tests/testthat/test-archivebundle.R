@@ -137,6 +137,16 @@ test_that("the models record's summary names every model the release fits, the g
   for (grade in c("strong", "weak", "failed", "untested")) expect_true(grepl(grade, summary, fixed = TRUE), info = grade)
   expect_true(grepl("combined maps", summary, fixed = TRUE))
   expect_true(grepl("0.1 degree cells", summary, fixed = TRUE))
+  expect_true(grepl("hides, obscures or may hide", summary, fixed = TRUE))
+  # Each model's site range as the code sets it (R/algorithms.R).
+  esm <- ATLAS_ALGORITHMS$esm
+  expect_true(grepl(sprintf("taxa with %d to %d sites with an ensemble of small models", esm$min_presences,
+                            esm$max_presences), summary, fixed = TRUE))
+  expect_true(grepl(sprintf("from %d sites also maxent", atlas_algorithm_min(ATLAS_ALGORITHMS$maxnet)), summary,
+                    fixed = TRUE))
+  expect_equal(atlas_algorithm_min(ATLAS_ALGORITHMS$rf), atlas_algorithm_min(ATLAS_ALGORITHMS$maxnet))
+  expect_true(grepl(sprintf("from %d sites also boosted trees", atlas_algorithm_min(ATLAS_ALGORITHMS$xgboost)),
+                    summary, fixed = TRUE))
   expect_false(grepl("three ways", summary, fixed = TRUE))
   expect_true("ensembles of small models" %in% unlist(template$common$keywords))
 })
