@@ -125,3 +125,18 @@ test_that("a release with every kind of file still packs to the same bytes every
     expect_equal(hashes(first), hashes(second))
   })
 })
+
+test_that("the models record's summary names every model the release fits, the grades and the cells", {
+  template <- jsonlite::fromJSON(file.path(testthat::test_path("..", ".."), "inst", "archive", "zenodo.json"),
+                                 simplifyVector = FALSE)
+  summary <- tolower(template$models$summary)
+  # One phrase per algorithm, so a new algorithm cannot ship undescribed.
+  described <- c(maxnet = "maxent", xgboost = "boosted trees", rf = "random forest", esm = "ensemble of small models")
+  expect_setequal(names(described), names(ATLAS_ALGORITHMS))
+  for (a in names(described)) expect_true(grepl(described[[a]], summary, fixed = TRUE), info = a)
+  for (grade in c("strong", "weak", "failed", "untested")) expect_true(grepl(grade, summary, fixed = TRUE), info = grade)
+  expect_true(grepl("combined maps", summary, fixed = TRUE))
+  expect_true(grepl("0.1 degree cells", summary, fixed = TRUE))
+  expect_false(grepl("three ways", summary, fixed = TRUE))
+  expect_true("ensembles of small models" %in% unlist(template$common$keywords))
+})

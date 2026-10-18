@@ -363,8 +363,11 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
   if (bundle$kind == "models") {
     lines <- c(
       lines,
-      "`maps-<model>.tar` holds, per taxon, the raw suitability raster (GeoTIFF, North America Albers Equal Area,",
-      "inside the 500 km accessible area) and the drawn map (PNG, Web Mercator, coloured by percentile).",
+      "`maps-<model>.tar` holds, per taxon, the raw suitability raster (`.tif`) and its area-of-applicability",
+      "dissimilarity (`.di.tif`), both GeoTIFF on North America Albers Equal Area inside the 500 km accessible area,",
+      "and the drawn map (PNG, Web Mercator, coloured by percentile); for strong models, the same three beyond",
+      "500 km (`.full.*`). The models are Maxent (`maxnet`), random forest (`rf`), boosted trees (`xgboost`) and",
+      "ensembles of small models (`esm`).",
       "`maps-ensemble.tar` holds the combined maps: each taxon's passing models together, and where they disagree.",
       "`scores.tar.gz` holds each model's scores on every spatial fold, predictors and settings.",
       "`explore-index-20km.tsv.gz` is the Explore index: for each 20 km cell, every strong map's rank there",
