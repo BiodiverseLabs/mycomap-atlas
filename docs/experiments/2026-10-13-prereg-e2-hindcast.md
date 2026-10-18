@@ -129,13 +129,26 @@ validation date. The Vision v1 cutoff of 2026-08-17 is confirmed unchanged
 after Vision's curation pause (its fixes go to a later v2).
 
 Run (2026-10-18): private release priv-20261018T171648Z-9e3ab153, 414
-strong taxa. Open before scoring: Q1's run found a cross-source id collision
-in Atlas's first-validation lookup (two Vision validation records left out
-there). [CHECK with the rebuild lane: whether the collision put any record
-on the wrong side of the cutoff in this hindcast's training set or test
-finds; if so, those records are excluded from scoring and counted, as a
-deviation recorded here before scoring.]
+strong taxa.
 
 ## Deviations
 
-None yet.
+- **2026-10-18, before any scoring: first-validation dates colliding
+  across sources.** Atlas's first-validation lookup matched records by
+  observation number alone, so a record could take another source's date
+  (fix: keyed on source and number, Atlas branch fix/first-green-by-source
+  46556a9). A read-only rebuild from the live database, which reproduces
+  the known frozen values, finds at most 65 records with a wrong date, of
+  which 61 stay on the same side of the cutoff. At most **4 crossed it, all
+  wrongly into training** (truly first validated after 2026-08-17): mycomap.org
+  ids 590501 (*Amanita pantherinoides*), 586958 (*Sparassis spathulata*),
+  586894 (*Fibroporia albicans*) and 598980 (*Pluteus* sp. 'plautus-PNW09',
+  whose date is the pull day and may postdate the pull). None can be wrongly
+  in the test set: the fix only moves dates later. **Handling, as
+  pre-registered:** these records are excluded from the scored test finds
+  and counted; each added one presence to one taxon's training, so the
+  affected taxa are noted, and refitted only if a scored taxon with 3–19
+  sites is among them (none refitted unless that holds). [PENDING: the
+  operations lane's exact check of the four ids in the frozen pull and the
+  hindcast's trained-id list, their taxa under sequence names, and those
+  taxa's grades.]

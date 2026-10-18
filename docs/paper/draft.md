@@ -664,7 +664,12 @@ which would have moved the validation cutoff, so other models' backgrounds
 still include their sites (under 0.06% of records); and the frozen pull's
 naming read some sequences it should have skipped, about 527 records named
 only by them and 2,287 left out, corrected from the next release on
-(Appendix S1: Section S2). Some finds appear twice, posted to both
+(Appendix S1: Section S2). The pull also lost 21 validated records (20
+from Mushroom Observer, 1 from MyCoPortal) to a check for obscured
+iNaturalist coordinates that matched by observation number alone, and the
+hindcast trained on at most four records validated after its cutoff
+through a similar mix-up of first-validation dates (both fixed for later
+pulls). Some finds appear twice, posted to both
 iNaturalist and Mushroom Observer: at least about 1,630 such pairs have both
 records in the training data. For the 91% whose two points lie within 5 km,
 site thinning counts the find once and only the effort predictor is
@@ -944,7 +949,7 @@ gets Steve's direct go through the operations lane; every run gets a
 |---|---|---|---|
 | 0 | Rebuild cutover: **done** 2026-10-13 23:03 UTC (atlas.mycomap.org serves 20261013T191324Z-fa1b4198, image bc2a7a5, shift grading; the full-view toggle is off on the site by Steve's choice, the full-extent rasters are in the release). Nightly tracking (E3) starts once the tracker backfill and daily unit are on | Steve's go | E3 start date [PENDING] |
 | 1 | Full-view refresh → **frozen release**: **done**, 20261013T191324Z-fa1b4198 (2026-10-13); then the Zenodo re-archive (layers, models, training records, contributors) | Steve's go, after the cutover | October 2026 |
-| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **run 2026-10-18**: private release priv-20261018T171648Z-9e3ab153 (414 strong taxa); scoring with the experiments lane's E2 scorer next. [CHECK: the cross-source id collision in the first-validation lookup that Q1's run found, and whether it moved any record across the cutoff in the hindcast's training set] | — |
+| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **run 2026-10-18**: private release priv-20261018T171648Z-9e3ab153 (414 strong taxa); a first-validation date collision put at most 4 post-cutoff records into training, none into the test set (deviation logged before scoring; exact check pending); scoring with the experiments lane's E2 scorer next | — |
 | 2b | **E12 first step**: read-only scores of all 576 refreshed models, and a same-machine double run of *Stropharia hardii* and *Gliophorus fumosus* | Steve's go | right after the hindcast. Same-machine differences = a bug: the queue stops until fixed. Machine dependence only = E12's full run moves before E1 |
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
@@ -999,6 +1004,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.16.1 (2026-10-18).** E2 deviation logged before scoring (≤ 4
+  post-cutoff records in training, excluded from scoring); obscured-check
+  number collision (21 records lost) in Limitations.
 - **0.16 (2026-10-18).** Q1 answered (Vision place-signal arms on the
   hindcast): weakly yes; loses to the DNA kernel by 0.2 points; projection
   not valid beyond 500 km. Hindcast release recorded.
