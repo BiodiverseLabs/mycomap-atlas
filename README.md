@@ -776,9 +776,14 @@ peak whatever the number of taxa, about a second per taxon.
   other taxon's finds landed in the same release window: `beats_effort` is
   the share of those it outranks (0.5 = no better than knowing where people
   look), and `boyce_effort` the Boyce index against them. Several finds of a
-  taxon in one cell are one place.
+  taxon in one cell are one place. The 100–500 km band is the test far from
+  known records. A find 500 km or more from every record of its taxon lies
+  beyond the maps' 500 km reach by construction, so that band counts how often
+  finds turn up outside the mapped reach (range growth, or maps drawn too
+  narrowly) and is never a test of the maps.
 - **Small counts** are withheld: pooled shares below 30 ranked places, Boyce
-  below 50, per-taxon tallies below 5 ("fewer than 5").
+  below 50, per-taxon tallies below 5 ("fewer than 5"). A p-value is never
+  published as 0: below 1e-15 it reads 1e-15.
 - **Retractions:** a find the newest pull drops, or holds under another name,
   is marked retracted and left out of the counts; it is never re-scored. A
   find whose coordinates were corrected into another cell is retracted as

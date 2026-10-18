@@ -649,3 +649,11 @@ test_that("ranks read at points are the drawn map's ranks, ties, area of applica
   expect_equal(atlas_tracker_rank_points(r, x, y, reach = known)$place[is.na(atlas_tracker_rank_points(r, x, y)$rank)] %in%
                  c("outside_aoa", "beyond_reach"), rep(TRUE, sum(is.na(atlas_tracker_rank_points(r, x, y)$rank))))
 })
+
+test_that("a p-value is never published as 0: one that underflows reads 1e-15, below which it lies", {
+  finds <- data.frame(key = paste0("k", 1:400), release = "R", taxon = "T", cell = 1:400,
+                      rank = rep(c(0.99, 1), 200), place = "inside", aoa = "known", stringsAsFactors = FALSE)
+  row <- atlas_tracker_row(finds, data.frame(key = character(), tg_percentile = numeric()), list())
+  expect_equal(row$mean_rank_p, 1e-15)
+  expect_equal(row$top_tenth_p, 1e-15)
+})
