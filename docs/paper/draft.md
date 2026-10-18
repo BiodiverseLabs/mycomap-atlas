@@ -300,10 +300,10 @@ Records of all taxa are gathered into survey sites by 5 km distance
 thinning. For each taxon a site is a detection if any of its records is
 that taxon and a non-detection otherwise, so the background is where people
 collected and sequenced other fungi (a target group; Phillips et al. 2009),
-within 500 km of the taxon's sites. Taxa with 20 or more sites are fitted
-with Maxent (maxnet; Phillips et al. 2017), a down-sampled random forest
-(Valavi et al. 2021) and, from 50 sites, boosted trees; taxa with 3 to 19
-sites with an ensemble of small models (Breiner et al. 2015). Settings are
+within 500 km of the taxon's sites. Taxa with 3 to 49 sites are fitted
+with an ensemble of small models (ESM; Breiner et al. 2015); from 20 sites
+also with Maxent (maxnet; Phillips et al. 2017) and a down-sampled random
+forest (Valavi et al. 2021); and from 50 sites also with boosted trees. Settings are
 tuned by nested spatial cross-validation, with blocks sized from each
 taxon's spatial autocorrelation (Valavi et al. 2019), and every model is
 scored on whole held-out blocks by AUC against non-detection sites and the
@@ -377,8 +377,8 @@ fingerprint or settings changed, on spot instances running one pinned
 container; each release is content-addressed and records the code commit,
 package versions, layer builds and pull fingerprint, and archived releases
 carry Zenodo DOIs. Exact coordinates never leave Atlas's private compute;
-records whose location is hidden or obscured at the source stay so in every
-published dataset. A rerun on one machine reproduces maps byte for byte;
+records whose location the source hides, obscures or may hide are left out
+of every published record-level layer. A rerun on one machine reproduces maps byte for byte;
 across machines, 573 of the frozen release's 576 strong models refitted
 within float32 precision, and three tuned Maxent models chose different
 settings (Appendix S1: Section S10, which also gives the cost and time of
@@ -535,7 +535,7 @@ Zenodo DOI, format, size and licence:]
   records are a separate, unpublished file.)
   Each id resolves to its public source page, which shows what the source
   itself shows. **Privacy rule (Steve, 2026-10-13):** records whose
-  location is hidden, obscured or of unknown privacy at the source are
+  location the source hides, obscures or may hide (unknown privacy) are
   excluded from all published record-level layers, and carry no survey-site
   membership in this table (about 800 records of unknown privacy in the
   rebuild's pull [CHECK: count in the frozen pull]). Obscured iNaturalist
@@ -830,7 +830,7 @@ data, command, result, release, commit).
 | E11 | Stability across nightly releases | C4 | No; releases are kept indefinitely | Per-taxon rank correlation and grade flips vs new records | ~2 days code, ≥4 weeks of nightlies | P2 |
 | E14 | Effort handling on virtual species | methods | Pre-freeze, 198 species | Rerun inside E1 | inside E1 | P2 |
 | E15 | Combined map vs its members on independent finds | C2 | No | From E2/E3 | hours, after E2 | P2 |
-| E18 | Small-site maps: grades and power at 3–19 sites | secondary | Pre-freeze (thinning study; first-build pass rates) | Inside E1 + E7a | inside E1 | P2 |
+| E18 | Small-site maps: grades and power at 3–19 sites (ESM alone there; ESM also runs at 20–49 beside Maxent and RF) | secondary | Pre-freeze (thinning study; first-build pass rates) | Inside E1 + E7a | inside E1 | P2 |
 | E5 | Expert and checklist comparison: state verdicts vs independent checklists; expert ranges for ~20 well-known taxa | C2 | No | Curated panel; expert time | 1–2 weeks, mostly expert time | P3 (P2 if a reviewer-friendly panel exists) |
 | E6d | biomod2-style default ensemble | C2 | No | Same sites | ~1 week | P3 |
 | E13 | Block-size check (kNNDM-style distance matching) | methods | Pre-freeze, 153 taxa | Rerun `study-blocks` | ~10 CPU-h | P3 |
@@ -979,6 +979,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.8 (2026-10-18).** ESM range corrected to 3–49 sites (ESM alone at
+  3–19); privacy wording mirrors the Zenodo records (hides, obscures or may
+  hide).
 - **0.15.7 (2026-10-18).** Tracker backfill under the old grading logged
   as background for E3 (new sites 82% top half; old pass vs not barely
   separate).

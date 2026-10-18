@@ -1,5 +1,12 @@
 # Appendix S1, Section S4: models, evaluation and maps (draft)
 
+**Which learners fit which taxa** (R/algorithms.R): the ensemble of small
+models (ESM) for 3 to 49 sites; from 20 sites also Maxent and a
+down-sampled random forest; from 50 sites also boosted trees. Taxa with
+3–19 sites therefore have the ESM alone, taxa with 20–49 sites have three
+models (Maxent, random forest, ESM), and taxa with 50 or more have Maxent,
+random forest and boosted trees.
+
 *Moved from the main text on 2026-10-13 (lean main text); edited only for the move.*
 
 ## S4.1 Survey sites, target-group background and effort

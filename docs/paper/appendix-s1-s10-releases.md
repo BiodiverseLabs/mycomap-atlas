@@ -41,7 +41,7 @@ families [PENDING E12]. Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
-is hidden, obscured or of unknown privacy at the source are excluded from
+the source hides, obscures or may hide (unknown privacy) are excluded from
 all published record-level layers. In practice that is the 0.1° record
 cells, from which about 0.5% of records (those of unknown privacy, whose
 0.1° cell would be finer than iNaturalist's own obscuring) are dropped; no
