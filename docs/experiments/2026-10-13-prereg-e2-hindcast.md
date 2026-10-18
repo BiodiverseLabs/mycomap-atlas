@@ -123,6 +123,11 @@ removed records (the 129-id exclusion list, Atlas commit 643b444) in
 training and in the test finds alike. Its summary records the list's
 SHA-256.
 
+Dry run (2026-10-18, before launch; not a design change): from the frozen
+release, the cutoff keeps 124,955 of 133,235 records; 0 have no first
+validation date. The Vision v1 cutoff of 2026-08-17 is confirmed unchanged
+after Vision's curation pause (its fixes go to a later v2).
+
 ## Deviations
 
 None yet.

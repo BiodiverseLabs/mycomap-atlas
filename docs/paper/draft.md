@@ -644,7 +644,10 @@ which would have moved the validation cutoff, so other models' backgrounds
 still include their sites (under 0.06% of records); and the frozen pull's
 naming read some sequences it should have skipped, about 527 records named
 only by them and 2,287 left out, corrected from the next release on
-(Appendix S1: Section S2). Tuned Maxent models with few sites can choose
+(Appendix S1: Section S2). Some specimens appear twice, posted to both
+iNaturalist and Mushroom Observer; survey-site thinning already counts them
+once, so they inflate only the effort predictor slightly [PENDING: how many
+twin pairs]. Tuned Maxent models with few sites can choose
 different settings on different processors [PENDING E12: how often grades
 differ]. The maps can only be as good as where people collect and
 sequence.
@@ -890,12 +893,11 @@ limit found, AI declaration required, OA $3,940.
 
 ## Path
 
-**PAUSED 2026-10-18 (Steve):** all paper runs are on hold while MycoMap
-Vision's data is curated toward its v2, which may change the Vision v1
-cutoff or record set that the hindcast (E2) and Q1 depend on. The frozen
-release 20261013T191324Z-fa1b4198 is unchanged and live. Resume with the
-coordinator's word on what Vision decides; recheck E2's cutoff and the Q1
-design against it before any launch.
+**Paused and resumed 2026-10-18 (Steve).** Vision's curation fixes go to
+a later v2; the v1 cutoff of 2026-08-17 holds, so the hindcast (E2, also
+Vision's training run) proceeds exactly as pre-registered. Its dry run from
+the frozen release keeps 124,955 of 133,235 records, none undated. Launch on
+Steve's direct go through the operations lane.
 
 Set 2026-10-13 with the Atlas coordinator after Steve's revision. Every launch
 gets Steve's direct go through the operations lane; every run gets a
@@ -960,6 +962,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.3 (2026-10-18).** Resumed: v1 cutoff holds, the hindcast proceeds
+  as pre-registered (dry run 124,955 of 133,235 records kept, 0 undated);
+  cross-posted twin records added to Limitations.
 - **0.15.2 (2026-10-18).** Paper runs paused by Steve pending Vision v2
   curation.
 - **0.15.1 (2026-10-13).** Cutover done (23:03 UTC); E3 start date pending.
