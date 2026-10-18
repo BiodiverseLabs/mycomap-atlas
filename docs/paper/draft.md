@@ -890,6 +890,13 @@ limit found, AI declaration required, OA $3,940.
 
 ## Path
 
+**PAUSED 2026-10-18 (Steve):** all paper runs are on hold while MycoMap
+Vision's data is curated toward its v2, which may change the Vision v1
+cutoff or record set that the hindcast (E2) and Q1 depend on. The frozen
+release 20261013T191324Z-fa1b4198 is unchanged and live. Resume with the
+coordinator's word on what Vision decides; recheck E2's cutoff and the Q1
+design against it before any launch.
+
 Set 2026-10-13 with the Atlas coordinator after Steve's revision. Every launch
 gets Steve's direct go through the operations lane; every run gets a
 `docs/experiments` entry, pre-registered where there is a hypothesis.
@@ -953,6 +960,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.2 (2026-10-18).** Paper runs paused by Steve pending Vision v2
+  curation.
 - **0.15.1 (2026-10-13).** Cutover done (23:03 UTC); E3 start date pending.
 - **0.15 (2026-10-13).** Frozen release pinned: 20261013T191324Z-fa1b4198,
   with its full lineage.
