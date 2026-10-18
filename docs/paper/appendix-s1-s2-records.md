@@ -211,10 +211,14 @@ with no cached Mushroom Observer answer, which Atlas places at
 mycomap.org's point (usually a named location's centre) rather than
 dropping it; so most are a coarse Mushroom Observer point, not a wrong
 observation. Of 8,003 eligible Mushroom Observer records, 880 (11%) are
-placed that way; a backfill of their Mushroom Observer answers, proposed
-for a later pull, would let the 5 km rule check them and should merge many
-of these pairs into one site. [CHECK: share of all training records this is,
-from the frozen pull.]
+placed that way in the frozen pull. Their Mushroom Observer answers were
+fetched on 2026-10-18, after the freeze. On the live database afterwards,
+by the same method, about 1,588 pairs have both copies kept and named
+(Atlas's Mushroom Observer rule now drops copies placed only by a location
+box wider than 5 km); 1,568 (98.7%) lie within 5 km and 20 further apart (3
+over 50 km), and the median separation where Mushroom Observer gives a GPS
+point is 0.08 km. These later figures describe the next pull, not the
+frozen release, which keeps the 146.
 These figures are approximate: they apply the pull's rules to the live
 database read-only on 2026-10-18, not to the frozen pull itself; the name
 check is a simplified match (about ±1%); and they are a lower bound,

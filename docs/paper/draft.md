@@ -653,7 +653,9 @@ further apart and may give their taxon a second detection site. In 131 of
 them the far copy is a Mushroom Observer record whose own coordinates
 Atlas could not check, so it kept mycomap.org's point, often a named
 place's centre; about 11% of eligible Mushroom Observer records (880 of
-8,003) are placed that way (Appendix S1: Section S2). Tuned Maxent models with few sites can choose
+8,003) were placed that way in the frozen pull. Fetching their Mushroom
+Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
+(Appendix S1: Section S2). Tuned Maxent models with few sites can choose
 different settings on different processors [PENDING E12: how often grades
 differ]. The maps can only be as good as where people collect and
 sequence.
@@ -968,6 +970,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.6 (2026-10-18).** Twins after the Mushroom Observer backfill: 20
+  far pairs in the next pull (the frozen pull keeps 146).
 - **0.15.5 (2026-10-18).** Twins: the 146 far pairs touch 132 taxa (39
   small-site), mostly unchecked Mushroom Observer points (880 of 8,003
   eligible MO records).
