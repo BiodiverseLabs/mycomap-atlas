@@ -457,6 +457,15 @@ good that are not shown to beat collecting.] → **Table 1**, **Figure 4** (exam
 tenth / Boyce / beats-effort with intervals; new sites vs near known sites;
 inside vs outside AOA; combined vs single maps.] → **Figure 3**; every split in S6.
 
+*Background, old grading (exploratory; `2026-10-18-tracker-backfill-old-grading.md`):*
+on the releases live before the rebuild, records first validated 3–12
+October at new sites fell in the maps' top half 82% of the time (chance
+50%; 817 ranked places) and beat collecting effort 66% of the time; maps
+that passed the old scattered-null test barely beat those that did not
+(beats-effort 0.67 vs 0.63), as C1 predicts. Finds 500 km or more from any
+known record are beyond the maps' reach by construction, so that band
+measures range growth or reach drawn too narrowly, not map skill.
+
 ### 3.5 Against standard practice (E6)
 
 [PENDING: self-reported CV score vs independent-test score for each
@@ -970,6 +979,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.7 (2026-10-18).** Tracker backfill under the old grading logged
+  as background for E3 (new sites 82% top half; old pass vs not barely
+  separate).
 - **0.15.6 (2026-10-18).** Twins after the Mushroom Observer backfill: 20
   far pairs in the next pull (the frozen pull keeps 146).
 - **0.15.5 (2026-10-18).** Twins: the 146 far pairs touch 132 taxa (39
