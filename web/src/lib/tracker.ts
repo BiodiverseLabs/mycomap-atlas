@@ -132,8 +132,10 @@ export const NEW_FINDS_HELP =
 export const TRACKER_CAVEAT =
   "Finds cluster where people already collect, so most fall near a known site and the share in the top half " +
   "runs high for reasons that have little to do with habitat. The honest tests are the new sites (more than " +
-  "5 km from every known record of the species), the finds 100–500 km and 500+ km away, and the comparison " +
-  "with where everyone else's finds landed.";
+  "5 km from every known record of the species), the finds 100–500 km from any known record, and the " +
+  "comparison with where everyone else's finds landed. A find 500 km or more from every known record lies " +
+  "beyond the maps' 500 km reach by construction, so that row is not a test of the maps: it counts how often " +
+  "finds turn up outside the mapped reach, as a species spreads or where its maps were drawn too narrowly.";
 
 const GRADE_WORDS: Record<string, Record<string, string>> = {
   shift: { any: "All maps", strong: "Strong", weak: "Weak", failed: "Failed", untested: "Untested" },
@@ -150,8 +152,8 @@ const SUBSET_WORDS: Record<string, string> = {
   new_site: "New sites",
   known_site: "Near a known site",
   band_under_100: "Under 100 km from a known site",
-  band_100_500: "100–500 km",
-  band_500_plus: "500 km or more",
+  band_100_500: "100–500 km from a known site",
+  band_500_plus: "500 km or more: beyond the maps' reach",
   band_none: "First record of the species",
   channel_triage: "Validated from the triage card (left out above)",
   channel_priority_sort: "Validated from the priority list (left out above)",

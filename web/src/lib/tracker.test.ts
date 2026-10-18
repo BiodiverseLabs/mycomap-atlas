@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { gradeLabel, homeLine, newFindsLine, percent, schemeRows, scoringPaused, type Tracker, type TrackerRow } from "./tracker.ts";
+import {
+  TRACKER_CAVEAT, gradeLabel, homeLine, newFindsLine, percent, schemeRows, scoringPaused, subsetLabel,
+  type Tracker, type TrackerRow,
+} from "./tracker.ts";
 
 const row = (over: Partial<TrackerRow>): TrackerRow => ({
   scheme: "shift", release: "all", grade: "strong", subset: "new_site", places: 40, finds: 44, ranked: 36,
@@ -35,6 +38,13 @@ test("the taxon line says only 'fewer than 5' when the server withholds the coun
   assert.equal(newFindsLine({ since: "2026-10-08", finds: 12, finds_text: "12", top_half: 9 }),
     "New finds since this map was made: 12, 9 in its top half");
   assert.equal(newFindsLine(undefined), null);
+});
+
+test("the 500 km row is never called a test of the maps: it lies beyond their reach", () => {
+  assert.match(subsetLabel("band_500_plus"), /beyond the maps' reach/);
+  assert.match(TRACKER_CAVEAT, /beyond the maps' 500 km reach by construction/);
+  assert.doesNotMatch(TRACKER_CAVEAT, /500\+ km away/);
+  assert.match(TRACKER_CAVEAT, /100–500 km from any known record/);
 });
 
 test("a withheld share is a dash, never 0%", () => {

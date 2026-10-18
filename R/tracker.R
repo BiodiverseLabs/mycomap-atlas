@@ -73,6 +73,9 @@ ATLAS_TRACKER_MIN_SHARE <- 30L
 ATLAS_TRACKER_MIN_BOYCE <- 50L
 # Distance bands to the nearest known site of the taxon, in km.
 ATLAS_TRACKER_BANDS_KM <- c(100, 500)
+# A test's p-value is never published as 0: one that underflows is given as
+# this, to be read as "below it".
+ATLAS_TRACKER_MIN_P <- 1e-15
 
 # A find's outcome, in the ledger.
 ATLAS_TRACKER_STATUSES <- c(
@@ -876,8 +879,8 @@ atlas_tracker_row <- function(finds, tg, hist) {
     top_tenth = share(ranked >= 0.9),
     top_tenth_ci = if (show) atlas_tracker_wilson(top_tenth, k),
     mean_rank = share(ranked),
-    mean_rank_p = if (show) signif(suppressWarnings(stats::wilcox.test(ranked, mu = 0.5, exact = FALSE)$p.value), 3),
-    top_tenth_p = if (show) signif(stats::binom.test(top_tenth, k, 0.1, alternative = "greater")$p.value, 3),
+    mean_rank_p = if (show) signif(max(ATLAS_TRACKER_MIN_P, suppressWarnings(stats::wilcox.test(ranked, mu = 0.5, exact = FALSE)$p.value)), 3),
+    top_tenth_p = if (show) signif(max(ATLAS_TRACKER_MIN_P, stats::binom.test(top_tenth, k, 0.1, alternative = "greater")$p.value), 3),
     beats_effort = if (length(pct) >= ATLAS_TRACKER_MIN_SHARE) round(mean(pct), 3),
     beats_effort_n = length(pct),
     outside_aoa = if (n >= ATLAS_TRACKER_MIN_SHARE) round(mean(units$place == "outside_aoa"), 3),

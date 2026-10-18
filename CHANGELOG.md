@@ -36,6 +36,10 @@ changed and what it means for you.
   triage card, the priority list or automatic validation, each in a row of its
   own. Counts and shares only; shares are null below
   30 ranked places. `status: "not_started"` before the first run. New route.
+- **`GET /api/tracker`**: `mean_rank_p` and `top_tenth_p` are never 0; a
+  p-value below 1e-15 is given as 1e-15. The `band_500_plus` rows are
+  described for what they are: finds beyond the maps' 500 km reach by
+  construction, counted, not a test of the maps.
 - **`GET /api/taxa/{name}`** gains `new_finds`: records validated since the
   map the taxon shows now was made, and how many fell in its top half;
   below 5 finds, only `finds_text: "fewer than 5"`. Absent when there are
