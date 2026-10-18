@@ -191,8 +191,19 @@ ATLAS_MO_POINTS <- "atlas.mo_points"
 # lies within this many metres of the centre: half the box's diagonal.
 ATLAS_MO_MAX_LOCATION_M <- 5000
 # What to do with an MO record whose MO answer .org has not cached: keep it
-# ("keep") or leave it out ("drop").
-ATLAS_MO_UNKNOWN <- "keep"
+# ("keep") or leave it out ("drop"). Left out (Steve, 2026-10-18): since the
+# MO cache backfill, an uncached record is either new (cached by the next
+# night, so it waits a day) or deleted on MO, and .org's own point for either
+# is one this file does not trust (below). A record deleted on MO with no
+# cached answer is left out under "keep" too: its answer can never come.
+# One deleted on MO WITH a cached answer is kept, on that answer.
+ATLAS_MO_UNKNOWN <- "drop"
+
+# .org's marker for a record its source platform has deleted (data inputs
+# lane, 2026-10-18): when .org learned it, NULL when not known deleted. Set
+# only for MO today. atlas_ro reads it by its own column grant
+# (deploy/readonly-sql/atlas-install.sh on .org).
+ATLAS_SOURCE_DELETED <- "o.source_deleted_at"
 
 # What .org holds for an MO record is not the observer's GPS point: its index
 # takes MO's GPS field and then overwrites it with the named location's
@@ -253,11 +264,79 @@ atlas_mo_location_clause <- function(max_m = ATLAS_MO_MAX_LOCATION_M,
     ATLAS_MO_POINTS, answer$gps, answer$small
   )
   uncached <- sprintf(
-    "NOT EXISTS (SELECT 1 FROM %s m WHERE m.source_observation_id = o.observation_id)",
-    ATLAS_MO_POINTS
+    "(NOT EXISTS (SELECT 1 FROM %s m WHERE m.source_observation_id = o.observation_id) AND %s IS NULL)",
+    ATLAS_MO_POINTS, ATLAS_SOURCE_DELETED
   )
+  # "drop" needs no marker: every uncached record is left out already.
   keep <- if (identical(unknown, "keep")) paste(placed, "OR", uncached) else placed
   sprintf("AND (o.source <> '%s' OR %s)", ATLAS_MO_SOURCE, keep)
+}
+
+#' How many eligible MO records a pull leaves out, and why, among records
+#' with ids in (after_id, through_id] (through_id NULL: every id above
+#' after_id). The pull's own filters but its MO clause:
+#'   deleted_at_source_uncached  deleted on MO, no cached answer: always left out
+#'   uncached                    no cached answer, not known deleted: left out
+#'                               under ATLAS_MO_UNKNOWN "drop", kept under "keep"
+#'   too_coarse                  cached, but no shown GPS point and a named
+#'                               location too big to model: always left out
+atlas_mo_left_out_sql <- function(after_id = 0, through_id = NULL, since = NULL,
+                                  max_m = ATLAS_MO_MAX_LOCATION_M) {
+  answer <- atlas_mo_answer_sql(max_m)
+  since_clause <- if (is.null(since)) "" else sprintf("AND o.updated_at >= date '%s'", since)
+  through <- if (is.null(through_id)) "" else sprintf("AND o.id <= %d", as.integer(through_id))
+  sql <- sprintf(
+    "SELECT count(*) FILTER (WHERE NOT x.cached AND x.deleted) AS deleted_at_source_uncached,
+       count(*) FILTER (WHERE NOT x.cached AND NOT x.deleted) AS uncached,
+       count(*) FILTER (WHERE x.cached AND NOT x.placed) AS too_coarse
+     FROM (SELECT
+       EXISTS (SELECT 1 FROM %s m WHERE m.source_observation_id = o.observation_id) AS cached,
+       EXISTS (SELECT 1 FROM %s m WHERE m.source_observation_id = o.observation_id AND (%s OR %s)) AS placed,
+       %s IS NOT NULL AS deleted
+     FROM observations o
+     WHERE o.source = '%s'
+       AND 'yes' IN (%s)
+       AND o.latitude IS NOT NULL
+       AND o.longitude IS NOT NULL
+       %s
+       %s
+       AND o.id > %d
+       %s) x",
+    ATLAS_MO_POINTS, ATLAS_MO_POINTS, answer$gps, answer$small, ATLAS_SOURCE_DELETED, ATLAS_MO_SOURCE,
+    atlas_status_columns(), atlas_place_clause(), since_clause, as.integer(after_id), through
+  )
+  atlas_one_line(sql)
+}
+
+#' The MO records a pull left out, summed over its pages' id windows (the
+#' last one open, when the pull read to the end), for its manifest. A count
+#' that fails never fails the pull: the manifest says why it has none.
+atlas_mo_left_out <- function(bounds, complete, since = NULL, host = atlas_sql_host(),
+                              unknown = ATLAS_MO_UNKNOWN) {
+  windows <- if (length(bounds)) {
+    lapply(seq_along(bounds), function(i) c(if (i == 1L) 0 else bounds[[i - 1L]], bounds[[i]]))
+  } else {
+    list()
+  }
+  if (isTRUE(complete)) windows <- c(windows, list(c(if (length(bounds)) utils::tail(bounds, 1) else 0, NA)))
+  tryCatch({
+    totals <- c(deleted_at_source_uncached = 0, uncached = 0, too_coarse = 0)
+    for (w in windows) {
+      row <- atlas_parse_tsv(atlas_run_sql(atlas_mo_left_out_sql(w[[1]], if (is.na(w[[2]])) NULL else w[[2]], since),
+                                           host = host))
+      for (k in names(totals)) if (nrow(row) && !is.null(row[[k]])) totals[[k]] <- totals[[k]] + as.numeric(row[[k]][[1]])
+    }
+    drop <- identical(unknown, "drop")
+    list(unknown = unknown,
+         deleted_at_source_uncached = as.integer(totals[["deleted_at_source_uncached"]]),
+         uncached = if (drop) as.integer(totals[["uncached"]]) else 0L,
+         uncached_kept = if (drop) 0L else as.integer(totals[["uncached"]]),
+         too_coarse = as.integer(totals[["too_coarse"]]),
+         complete = isTRUE(complete))
+  }, error = function(e) {
+    warning("MO records left out not counted: ", conditionMessage(e), call. = FALSE)
+    list(unknown = unknown, error = conditionMessage(e))
+  })
 }
 
 #' An MO record's coordinate, as a column of the pull: the shown GPS point,
@@ -296,6 +375,10 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   chunks <- list()
   after_id <- 0
   total <- 0
+  # Each page's last id, so the MO records left out can be counted window by
+  # window, as the pull itself pages; complete when it read to the end.
+  bounds <- numeric()
+  complete <- FALSE
 
   repeat {
     want <- if (is.finite(max_rows)) min(chunk_size, max_rows - total) else chunk_size
@@ -304,7 +387,10 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     page <- atlas_parse_tsv(
       atlas_run_sql(atlas_occurrence_sql(after_id, want, since), host = host)
     )
-    if (!nrow(page)) break
+    if (!nrow(page)) {
+      complete <- TRUE
+      break
+    }
 
     ids <- as.numeric(page$id)
     names_page <- atlas_parse_tsv(
@@ -325,8 +411,13 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     }
 
     after_id <- max(ids)
-    if (nrow(page) < want) break
+    bounds <- c(bounds, after_id)
+    if (nrow(page) < want) {
+      complete <- TRUE
+      break
+    }
   }
+  mo_left_out <- atlas_mo_left_out(bounds, complete, since, host = host)
 
   labelled <- if (length(chunks)) do.call(rbind, chunks) else atlas_label_occurrences(
     atlas_empty_occurrences(), data.frame(id = character(), species_name = character()))
@@ -363,6 +454,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     fingerprint = atlas_fingerprint(occurrences),
     # The drop list applied: its hash and how many rows it removed.
     exclusions = excluded$info,
+    # MO records left out by place, and why (atlas_mo_left_out).
+    mo_left_out = mo_left_out,
     file = basename(combined),
     # Private, like the rest of this manifest: atlas_release_pull_summary
     # publishes none of it.
