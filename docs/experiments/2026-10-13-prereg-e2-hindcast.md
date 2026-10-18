@@ -148,7 +148,24 @@ strong taxa.
   pre-registered:** these records are excluded from the scored test finds
   and counted; each added one presence to one taxon's training, so the
   affected taxa are noted, and refitted only if a scored taxon with 3–19
-  sites is among them (none refitted unless that holds). [PENDING: the
-  operations lane's exact check of the four ids in the frozen pull and the
-  hindcast's trained-id list, their taxa under sequence names, and those
-  taxa's grades.]
+  sites is among them (none refitted unless that holds).
+  - **Exact check (operations lane, read-only, 2026-10-18)** against the
+    frozen pull x73b85b36 and the hindcast's trained-id list and model
+    table:
+    - 590501, *Amanita pantherinoides*: in the pull with first_green_on
+      2025-03-20 (taken from MyCoPortal record 355385); **in the trained
+      ids**; hindcast 73 sites, Maxent, random forest and boosted trees all
+      weak. → noted.
+    - 586958, *Sparassis spathulata*: in the pull with first_green_on
+      2026-02-12, before it was collected (taken from MyCoPortal record
+      658533); **in the trained ids**; hindcast 15 sites, small-model
+      ensemble only, weak. → the 3–19-site case: refitted without this
+      record if the taxon has any scored test finds; otherwise noted.
+      [PENDING: whether it has test finds.]
+    - 586894, *Fibroporia albicans*: in the pull with first_green_on
+      2025-08-06, before collection; not in the trained ids (no hindcast
+      model for the taxon). It still sat in the training pull's survey
+      sites. → noted.
+    - 598980: not in the frozen pull. → nothing to do.
+  - Net: two records trained hindcast models; all four are excluded from
+    scored test finds if present.

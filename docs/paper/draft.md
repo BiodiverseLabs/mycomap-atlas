@@ -667,7 +667,7 @@ only by them and 2,287 left out, corrected from the next release on
 (Appendix S1: Section S2). The pull also lost 21 validated records (20
 from Mushroom Observer, 1 from MyCoPortal) to a check for obscured
 iNaturalist coordinates that matched by observation number alone, and the
-hindcast trained on at most four records validated after its cutoff
+hindcast trained two of its models on records validated after its cutoff
 through a similar mix-up of first-validation dates (both fixed for later
 pulls). Some finds appear twice, posted to both
 iNaturalist and Mushroom Observer: at least about 1,630 such pairs have both
@@ -949,7 +949,7 @@ gets Steve's direct go through the operations lane; every run gets a
 |---|---|---|---|
 | 0 | Rebuild cutover: **done** 2026-10-13 23:03 UTC (atlas.mycomap.org serves 20261013T191324Z-fa1b4198, image bc2a7a5, shift grading; the full-view toggle is off on the site by Steve's choice, the full-extent rasters are in the release). Nightly tracking (E3) starts once the tracker backfill and daily unit are on | Steve's go | E3 start date [PENDING] |
 | 1 | Full-view refresh → **frozen release**: **done**, 20261013T191324Z-fa1b4198 (2026-10-13); then the Zenodo re-archive (layers, models, training records, contributors) | Steve's go, after the cutover | October 2026 |
-| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **run 2026-10-18**: private release priv-20261018T171648Z-9e3ab153 (414 strong taxa); a first-validation date collision put at most 4 post-cutoff records into training, none into the test set (deviation logged before scoring; exact check pending); scoring with the experiments lane's E2 scorer next | — |
+| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **run 2026-10-18**: private release priv-20261018T171648Z-9e3ab153 (414 strong taxa); a first-validation date collision put two post-cutoff records into trained models (*Amanita pantherinoides*, 73 sites; *Sparassis spathulata*, 15 sites), none into the test set (deviation logged before scoring; the 15-site taxon is refitted only if it has test finds); scoring with the experiments lane's E2 scorer next | — |
 | 2b | **E12 first step**: read-only scores of all 576 refreshed models, and a same-machine double run of *Stropharia hardii* and *Gliophorus fumosus* | Steve's go | right after the hindcast. Same-machine differences = a bug: the queue stops until fixed. Machine dependence only = E12's full run moves before E1 |
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
@@ -1004,6 +1004,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.16.2 (2026-10-18).** E2 deviation: exact check, two records trained
+  hindcast models.
 - **0.16.1 (2026-10-18).** E2 deviation logged before scoring (≤ 4
   post-cutoff records in training, excluded from scoring); obscured-check
   number collision (21 records lost) in Limitations.
