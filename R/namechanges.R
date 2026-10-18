@@ -46,7 +46,10 @@ atlas_name_changes_path <- function() {
   atlas_path("occurrences", "name-changes.json")
 }
 
-#' One page of the log after a cursor. logged_at is a UTC timestamp on .org.
+#' One page of the log after a cursor. logged_at is a timestamp without a
+#' time zone, written by .org's defaultNow(), so it is UTC only because .org's
+#' database runs Etc/UTC (checked 2026-10-18). Plan reasons compare it with a
+#' release's pulled_at; a change of that server's time zone would shift them.
 atlas_name_change_log_sql <- function(after_id = 0, limit = ATLAS_NAME_CHANGE_PAGE) {
   stopifnot(length(after_id) == 1, is.numeric(after_id), after_id >= 0)
   columns <- paste0("l.", ATLAS_NAME_CHANGE_COLUMNS)
@@ -191,10 +194,15 @@ atlas_pull_name_changes <- function(host = atlas_sql_host(), path = atlas_name_c
 #' The latest change of each old name wins. A change inside one of Atlas's own
 #' spelling folds (atlas_name_key) is no rename here. The new name is given in
 #' the spelling the pull models it under when the pull has it.
-atlas_org_renames <- function(changes, current_names = character()) {
+#'
+#' records and moved count the pull, as a detected row's do: records, the
+#' change's records this pull holds; moved, how many of them sit under the new
+#' name. .org's own count, over every record it renamed whatever its status,
+#' place or kind, is org_records_changed. Without a pull both counts are NA.
+atlas_org_renames <- function(changes, current_names = character(), occurrences = NULL) {
   empty <- data.frame(from = character(), to = character(), records = integer(), moved = integer(),
                       seen = character(), source = character(), change = integer(),
-                      stringsAsFactors = FALSE)
+                      org_records_changed = integer(), stringsAsFactors = FALSE)
   changes <- Filter(function(r) r$kind %in% ATLAS_NAME_CHANGE_KINDS &&
                       !identical(atlas_name_key(r$old_name), atlas_name_key(r$new_name)), changes)
   if (!length(changes)) return(empty)
@@ -204,12 +212,17 @@ atlas_org_renames <- function(changes, current_names = character()) {
   latest <- changes[!duplicated(keys, fromLast = TRUE)]
   current_names <- unique(as.character(current_names))
   canonical <- stats::setNames(current_names, atlas_name_key(current_names))
+  refs <- if (!is.null(occurrences) && nrow(occurrences)) atlas_occurrence_refs(occurrences)
   out <- do.call(rbind, lapply(latest, function(r) {
     to <- unname(canonical[atlas_name_key(r$new_name)])
-    data.frame(from = r$old_name, to = if (is.na(to)) r$new_name else to,
-               records = r$records_changed, moved = r$records_changed,
+    to <- if (is.na(to)) r$new_name else to
+    held <- if (!is.null(refs)) !is.na(refs) & refs %in% r$records
+    data.frame(from = r$old_name, to = to,
+               records = if (is.null(held)) NA_integer_ else sum(held),
+               moved = if (is.null(held)) NA_integer_ else sum(held & occurrences$scientific_name == to),
                seen = substr(r$logged_at %||% NA_character_, 1L, 10L),
-               source = "org", change = r$id, stringsAsFactors = FALSE)
+               source = "org", change = r$id, org_records_changed = r$records_changed,
+               stringsAsFactors = FALSE)
   }))
   out <- out[order(out$from), , drop = FALSE]
   rownames(out) <- NULL
@@ -222,13 +235,14 @@ atlas_org_renames <- function(changes, current_names = character()) {
 #' no row leads away from it: a split that left records under the old name is
 #' no rename.
 atlas_merge_org_renames <- function(existing, org, current_names) {
-  columns <- c("from", "to", "records", "moved", "seen", "source", "change")
+  columns <- c("from", "to", "records", "moved", "seen", "source", "change", "org_records_changed")
   shape <- function(x, source) {
     if (is.null(x) || !NROW(x)) return(NULL)
     x <- as.data.frame(x, stringsAsFactors = FALSE)
     if (is.null(x$source)) x$source <- source
     x$source[is.na(x$source)] <- source
     if (is.null(x$change)) x$change <- NA_integer_
+    if (is.null(x$org_records_changed)) x$org_records_changed <- NA_integer_
     x[, columns, drop = FALSE]
   }
   existing <- shape(existing, "detected")
@@ -241,7 +255,7 @@ atlas_merge_org_renames <- function(existing, org, current_names) {
   if (is.null(out) || !nrow(out)) {
     return(data.frame(from = character(), to = character(), records = integer(), moved = integer(),
                       seen = character(), source = character(), change = integer(),
-                      stringsAsFactors = FALSE))
+                      org_records_changed = integer(), stringsAsFactors = FALSE))
   }
   out <- out[!atlas_name_key(out$from) %in% atlas_name_key(current_names), , drop = FALSE]
   out <- out[order(out$from), , drop = FALSE]
@@ -251,10 +265,12 @@ atlas_merge_org_renames <- function(existing, org, current_names) {
 
 #' Put the log's renames into renames.json for the pull just made. Never
 #' fails the pull.
-atlas_record_org_renames <- function(current_names, path = atlas_renames_path(),
+atlas_record_org_renames <- function(occurrences, path = atlas_renames_path(),
                                      changes = atlas_read_name_changes()$changes, quiet = FALSE) {
   tryCatch({
-    merged <- atlas_merge_org_renames(atlas_read_renames(path), atlas_org_renames(changes, current_names),
+    current_names <- unique(occurrences$scientific_name)
+    merged <- atlas_merge_org_renames(atlas_read_renames(path),
+                                      atlas_org_renames(changes, current_names, occurrences),
                                       current_names)
     atlas_write_json(merged, path)
     invisible(merged)
@@ -262,6 +278,16 @@ atlas_record_org_renames <- function(current_names, path = atlas_renames_path(),
     if (!isTRUE(quiet)) message("renames from the name-change log not recorded: ", conditionMessage(e))
     invisible(NULL)
   })
+}
+
+#' Each pulled record as the log names it (inat:N, mo:N), NA for the rest.
+atlas_occurrence_refs <- function(occurrences) {
+  refs <- rep(NA_character_, nrow(occurrences))
+  for (prefix in names(ATLAS_NAME_CHANGE_REF_SOURCES)) {
+    hit <- occurrences$source %in% ATLAS_NAME_CHANGE_REF_SOURCES[[prefix]]
+    refs[hit] <- paste0(prefix, ":", occurrences$observation_id[hit])
+  }
+  refs
 }
 
 # ---- plan reasons ---------------------------------------------------------------
@@ -281,11 +307,7 @@ atlas_name_change_reasons <- function(changes, occurrences, since = NA_character
   if (!length(changes)) return(none)
   taxa <- unique(occurrences$scientific_name)
   by_key <- stats::setNames(taxa, atlas_name_key(taxa))
-  refs <- rep(NA_character_, nrow(occurrences))
-  for (prefix in names(ATLAS_NAME_CHANGE_REF_SOURCES)) {
-    hit <- occurrences$source %in% ATLAS_NAME_CHANGE_REF_SOURCES[[prefix]]
-    refs[hit] <- paste0(prefix, ":", occurrences$observation_id[hit])
-  }
+  refs <- atlas_occurrence_refs(occurrences)
   touched <- list()
   for (r in changes) {
     names_hit <- c(by_key[atlas_name_key(r$new_name)],

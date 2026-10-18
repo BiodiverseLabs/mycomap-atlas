@@ -127,7 +127,9 @@ changed and what it means for you.
   Name Update makes, ahead of Atlas's guess from where the records went, and
   a name split on .org no longer looks like a dropped one. Rows in
   `occurrences/renames.json` gain `source` (`org` or `detected`) and, for
-  `org`, `change`, the log's id. Added fields. A rename reaches the next pull
+  `org`, `change`, the log's id, and `org_records_changed`, .org's count of
+  every record it renamed (any status or place). `records` and `moved` count
+  Atlas's own pull in both kinds of row. Added fields. A rename reaches the next pull
   and the next release; published releases never change.
 
 ### Maps

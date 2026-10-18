@@ -394,7 +394,7 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     warning("name-change log not kept: ", conditionMessage(e), call. = FALSE)
   })
   if (is.null(since) && !is.finite(max_rows)) {
-    atlas_record_org_renames(unique(occurrences$scientific_name), quiet = quiet)
+    atlas_record_org_renames(occurrences, quiet = quiet)
   }
 
   if (!quiet) {

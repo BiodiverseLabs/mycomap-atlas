@@ -1042,8 +1042,11 @@ the cursor stays put and the next pull reads from there.
 
 The log's renames go into `occurrences/renames.json` as `source: "org"`,
 ahead of Atlas's own guess (`detected`: a name gone from a pull whose records
-mostly moved to one other name). A split that leaves records under the old
-name is no rename while the old name is still modelled. A taxon that a merge
+mostly moved to one other name). In both, `records` and `moved` count Atlas's
+own pull; an org row keeps .org's count, over every record it renamed whatever
+its status or place, apart as `org_records_changed`. A split that leaves
+records under the old name is no rename while the old name is still
+modelled. A taxon that a merge
 or a split touched since the release a job builds on is planned with the
 reason, "refit: name merged (org change 812)", in the plan's output and in
 `job.json`. Every rename refits: a model is traced to the job that fitted its

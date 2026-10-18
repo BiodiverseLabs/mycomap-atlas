@@ -150,6 +150,29 @@ test_that("the new name is given in the spelling the pull models it under", {
   expect_equal(org$to, "Gymnopilus sp. 'G2'")
 })
 
+test_that("an org row counts the pull's records, never .org's total, which it keeps apart", {
+  occurrences <- data.frame(
+    scientific_name = c("Russula b", "Russula b", "Russula b", "Russula c"),
+    source = c("iNaturalist", "MO Observations", "iNaturalist", "iNaturalist"),
+    observation_id = c("1", "2", "3", "4"), stringsAsFactors = FALSE
+  )
+  # .org renamed 40 records; the pull holds three of them (a sequence ref and
+  # records outside the pull are not here), two still under the new name.
+  renamed <- change(900, "Russula a", "Russula b", moved = 40L, records = c("inat:1", "mo:2", "inat:4", "seq:77"))
+  org <- atlas_org_renames(list(renamed), unique(occurrences$scientific_name), occurrences)
+  expect_equal(org$records, 3L)
+  expect_equal(org$moved, 2L)
+  expect_equal(org$org_records_changed, 40L)
+  # It survives the merge into renames.json, and a detected row has none.
+  merged <- atlas_merge_org_renames(data.frame(from = "Lactarius y", to = "Lactarius z", records = 4L, moved = 3L,
+                                               seen = "2026-10-01"),
+                                    org, unique(occurrences$scientific_name))
+  expect_equal(merged$org_records_changed[merged$source == "org"], 40L)
+  expect_true(is.na(merged$org_records_changed[merged$source == "detected"]))
+  # Without a pull to count, the counts are unknown rather than .org's.
+  expect_true(is.na(atlas_org_renames(list(renamed))$records))
+})
+
 test_that("a merge or split since the base release names the refit's reason; older changes and renames do not", {
   occurrences <- data.frame(
     scientific_name = c("Russula b", "Russula b", "Cortinarius sp. 'C1'", "Cortinarius fulvus", "Amanita x", "Boletus y"),
@@ -226,6 +249,8 @@ test_that("a pull reads the log after its own files, puts its renames in renames
     expect_equal(renames$from, "Taxon Old")
     expect_equal(renames$to, "Taxon B")
     expect_equal(renames$source, "org")
+    expect_equal(renames$org_records_changed, 3L)
+    expect_equal(renames$records, 0L)
 
     second <- pull_with(function(sql, host) stop("permission denied for table name_change_log"))
     expect_identical(second$fingerprint, first$fingerprint)
