@@ -98,13 +98,122 @@ atlas_archive_file_table <- function(sources) {
   )
 }
 
-#' Which algorithm a published model path belongs to, or NA.
+#' Which algorithm a published model path belongs to, or NA. The combined
+#' maps (models/<grid>/ensemble/) count as their own, "ensemble".
 atlas_archive_algorithm <- function(path, grid) {
   prefix <- paste0("models/", grid, "/")
   if (!startsWith(path, prefix)) return(NA_character_)
   rest <- substring(path, nchar(prefix) + 1L)
   if (!grepl("/", rest, fixed = TRUE)) return("maxnet")
   sub("/.*$", "", rest)
+}
+
+# Release files the models bundle leaves out on purpose: path patterns, each
+# named with why. Everything else a release publishes goes into some bundle
+# file, or the bundle is not built (atlas_archive_plan).
+ATLAS_ARCHIVE_EXCLUDE <- c()
+
+#' Where each of a release's files goes in the models bundle: maps per
+#' algorithm (the combined maps as "ensemble"), every model's scores, single
+#' files under public names, and the Explore index (converted). Stops, naming
+#' them, if any path is private or fits nowhere: a file is never left out
+#' silently, and nothing private is ever archived.
+atlas_archive_plan <- function(paths, grid = "draft", exclude = ATLAS_ARCHIVE_EXCLUDE) {
+  paths <- as.character(paths)
+  private <- paths[grepl("(^|/)private/", paths)]
+  if (length(private)) {
+    stop("a release lists private files, which are never archived: ", paste(utils::head(private, 5), collapse = ", "),
+         call. = FALSE)
+  }
+  placed <- character()
+  tars <- list()
+  algorithms <- vapply(paths, atlas_archive_algorithm, character(1), grid = grid)
+  known <- c(names(ATLAS_ALGORITHMS), "ensemble")
+  for (algorithm in known) {
+    mine <- paths[algorithms %in% algorithm & grepl("[.](tif|png)$", paths)]
+    if (!length(mine)) next
+    tars[[paste0("maps-", algorithm, ".tar")]] <- list(paths = mine, compression = "none")
+    placed <- c(placed, mine)
+  }
+  # Every model's scores and settings, all algorithms and the combined maps',
+  # in one small archive.
+  scores <- paths[algorithms %in% known & grepl("[.]json$", paths)]
+  if (length(scores)) {
+    tars[["scores.tar.gz"]] <- list(paths = scores, compression = "gzip")
+    placed <- c(placed, scores)
+  }
+  singles <- c(
+    "occurrences/taxa-latest.json" = "taxa.json",
+    "occurrences/renames.json" = "renames.json",
+    "occurrences/name-merges.json" = "name-merges.json",
+    "public/cells.tsv.gz" = "collection-cells-0.1deg.tsv.gz",
+    "public/regions.tsv.gz" = "taxa-by-state-province.tsv.gz",
+    "public/unvalidated.tsv.gz" = "taxa-not-yet-validated.tsv.gz",
+    "public/pull.json" = "pull.json"
+  )
+  singles[[paste0("layers/", grid, "/manifest.json")]] <- "layers-manifest.json"
+  # The location prior: strong maps' ranks by 20 km cell (R/prior.R).
+  for (file in ATLAS_PRIOR_FILES) singles[[paste0("prior/", grid, "/", file)]] <- paste0("prior-", file)
+  for (benchmark in paths[startsWith(paths, paste0("benchmarks/", grid, "/"))]) {
+    singles[[benchmark]] <- "benchmark.json"
+  }
+  singles <- singles[intersect(names(singles), paths)]
+  placed <- c(placed, names(singles))
+  here <- paste0("index/", grid, "/here.rds")
+  here <- if (here %in% paths) here
+  placed <- c(placed, here)
+  excluded <- character()
+  for (pattern in exclude) excluded <- c(excluded, paths[grepl(pattern, paths)])
+  unplaced <- setdiff(paths, c(placed, excluded))
+  if (length(unplaced)) {
+    stop("the models bundle has no place for ", length(unplaced), " of the release's files (",
+         paste(utils::head(unplaced, 5), collapse = ", "), if (length(unplaced) > 5) ", ..." else "",
+         "): give them one in atlas_archive_plan, or list them in ATLAS_ARCHIVE_EXCLUDE with why",
+         call. = FALSE)
+  }
+  list(tars = tars, singles = as.list(singles), here = here, excluded = unique(excluded))
+}
+
+#' The Explore index (R/here.R) as a table: one row per (cell, map) with the
+#' map's rank there, cell by cell. The same entries as the index, in its order.
+atlas_archive_here_table <- function(index) {
+  counts <- diff(as.integer(index$start))
+  entries <- as.integer(index$model)
+  data.frame(
+    cell = rep(seq_along(counts), counts),
+    taxon = as.character(index$models$taxon[entries]),
+    algorithm = as.character(index$models$algorithm[entries]),
+    rank = as.integer(index$rank),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' The grid the Explore index's cells are numbered on, so a reader can place
+#' them without R.
+atlas_archive_here_grid <- function(index) {
+  size <- index$cell_km * 1000
+  list(
+    grid = index$grid, cell_km = index$cell_km, min_rank = index$min_rank, built_at = index$built_at,
+    crs = ATLAS_CRS, extent = as.list(ATLAS_GRID_EXTENT),
+    ncol = ceiling((ATLAS_GRID_EXTENT[["xmax"]] - ATLAS_GRID_EXTENT[["xmin"]]) / size),
+    nrow = ceiling((ATLAS_GRID_EXTENT[["ymax"]] - ATLAS_GRID_EXTENT[["ymin"]]) / size),
+    cell = paste("cell = row * ncol + col + 1, where col = floor((x - xmin) / (cell_km * 1000)) and",
+                 "row = floor((ymax - y) / (cell_km * 1000)), x and y in metres in crs"),
+    rank = paste("the mean percentile rank (0-100) of the map's 5 km cells inside its area of applicability;",
+                 "only ranks of min_rank or more are listed"),
+    models = nrow(index$models), entries = length(index$model)
+  )
+}
+
+#' Write the Explore index's table and grid into a bundle directory, and
+#' return their names.
+atlas_archive_write_here <- function(path, out) {
+  index <- readRDS(path)
+  table <- file.path(out, "explore-index-20km.tsv.gz")
+  grid <- file.path(out, "explore-index-20km.json")
+  atlas_write_tsv_gz(atlas_archive_here_table(index), table)
+  atlas_write_json(atlas_archive_here_grid(index), grid)
+  basename(c(table, grid))
 }
 
 #' Build the models bundle for one release: fetch its files from the store,
@@ -143,41 +252,22 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
   stamp <- as.POSIXct(manifest$created_at %||% "2000-01-01T00:00:00Z", format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   Sys.setFileTime(file.path(tree, paths), stamp)
 
+  plan <- atlas_archive_plan(paths, grid)
   names <- character()
-  algorithms <- vapply(paths, atlas_archive_algorithm, character(1), grid = grid)
-  model_paths <- paths[!is.na(algorithms)]
-  model_algorithms <- algorithms[!is.na(algorithms)]
-  # Maps per algorithm: raw suitability rasters and the drawn rank maps.
-  for (algorithm in intersect(names(ATLAS_ALGORITHMS), unique(model_algorithms))) {
-    mine <- model_paths[model_algorithms == algorithm & grepl("[.](tif|png)$", model_paths)]
-    if (!length(mine)) next
-    name <- paste0("maps-", algorithm, ".tar")
-    atlas_archive_tar(normalizePath(file.path(out, name), mustWork = FALSE), tree, mine)
+  for (name in names(plan$tars)) {
+    tar <- plan$tars[[name]]
+    atlas_archive_tar(normalizePath(file.path(out, name), mustWork = FALSE), tree, tar$paths,
+                      compression = tar$compression)
     names <- c(names, name)
   }
-  # Every model's scores and settings, all algorithms, in one small archive.
-  scores <- model_paths[grepl("[.]json$", model_paths)]
-  if (length(scores)) {
-    atlas_archive_tar(normalizePath(file.path(out, "scores.tar.gz"), mustWork = FALSE), tree, scores,
-                      compression = "gzip")
-    names <- c(names, "scores.tar.gz")
+  for (path in names(plan$singles)) {
+    file.copy(file.path(tree, path), file.path(out, plan$singles[[path]]))
+    names <- c(names, plan$singles[[path]])
   }
-  singles <- c(
-    "occurrences/taxa-latest.json" = "taxa.json",
-    "public/cells.tsv.gz" = "collection-cells-0.1deg.tsv.gz",
-    "public/regions.tsv.gz" = "taxa-by-state-province.tsv.gz",
-    "public/unvalidated.tsv.gz" = "taxa-not-yet-validated.tsv.gz",
-    "public/pull.json" = "pull.json"
-  )
-  singles[[paste0("layers/", grid, "/manifest.json")]] <- "layers-manifest.json"
-  # The location prior: strong maps' ranks by 20 km cell (R/prior.R).
-  for (file in ATLAS_PRIOR_FILES) singles[[paste0("prior/", grid, "/", file)]] <- paste0("prior-", file)
-  for (benchmark in paths[startsWith(paths, paste0("benchmarks/", grid, "/"))]) {
-    singles[[benchmark]] <- "benchmark.json"
-  }
-  for (path in intersect(names(singles), paths)) {
-    file.copy(file.path(tree, path), file.path(out, singles[[path]]))
-    names <- c(names, singles[[path]])
+  # The Explore index, as a table anyone can read (R/here.R keeps it as R's
+  # own .rds), with the grid that places its cells.
+  if (!is.null(plan$here)) {
+    names <- c(names, atlas_archive_write_here(file.path(tree, plan$here), out))
   }
   atlas_write_json(manifest, file.path(out, "release.json"))
   names <- c(names, "release.json")
@@ -273,9 +363,16 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
   if (bundle$kind == "models") {
     lines <- c(
       lines,
-      "`maps-<model>.tar` holds, per taxon, the raw suitability raster (GeoTIFF, North America Albers Equal Area,",
-      "inside the 500 km accessible area) and the drawn map (PNG, Web Mercator, coloured by percentile).",
+      "`maps-<model>.tar` holds, per taxon, the raw suitability raster (`.tif`) and its area-of-applicability",
+      "dissimilarity (`.di.tif`), both GeoTIFF on North America Albers Equal Area inside the 500 km accessible area,",
+      "and the drawn map (PNG, Web Mercator, coloured by percentile); for strong models, the same three beyond",
+      "500 km (`.full.*`). The models are Maxent (`maxnet`), random forest (`rf`), boosted trees (`xgboost`) and",
+      "ensembles of small models (`esm`).",
+      "`maps-ensemble.tar` holds the combined maps: each taxon's passing models together, and where they disagree.",
       "`scores.tar.gz` holds each model's scores on every spatial fold, predictors and settings.",
+      "`explore-index-20km.tsv.gz` is the Explore index: for each 20 km cell, every strong map's rank there",
+      "(cell, taxon, algorithm, rank); `explore-index-20km.json` gives its grid and how to place a cell.",
+      "`renames.json` lists names changed since earlier pulls; `name-merges.json` the spellings merged into one name.",
       "`prior-*` is the location prior: every strong map's ranks by 20 km cell (`prior-ranks.parquet`,",
       "`prior-ranks.tsv.gz`), its taxa (`prior-taxa.tsv`), and the grid with a Python cell lookup (`prior-grid.json`).",
       "Collection locations appear only as 0.1 degree cells; exact coordinates are never published.",
