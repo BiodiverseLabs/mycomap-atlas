@@ -215,7 +215,11 @@ atlas_tracker_promotions <- function(store = NULL, grid = "draft", runs = NULL,
 }
 
 #' The start of a day, as an ISO time in UTC.
-atlas_tracker_day_start <- function(day) paste0(as.character(day), "T00:00:00Z")
+atlas_tracker_day_start <- function(day) {
+  # paste0 would turn no days into one: a run with no new finds must have none.
+  if (!length(day)) return(character())
+  paste0(as.character(day), "T00:00:00Z")
+}
 
 #' The release live when a day began, or NA: the last promotion before it.
 atlas_tracker_live_at <- function(days, promotions) {
@@ -261,6 +265,11 @@ atlas_tracker_manifest <- function(store, id, grid, cache = atlas_tracker_cache_
 
 #' The pull a release was planned from: its job's private input in the store.
 atlas_tracker_release_pull <- function(store, manifest, grid, cache = atlas_tracker_cache_dir()) {
+  atlas_read_occurrences(atlas_tracker_release_pull_file(store, manifest, grid, cache))
+}
+
+#' The local copy of a release's pull, fetched once and kept by hash.
+atlas_tracker_release_pull_file <- function(store, manifest, grid, cache = atlas_tracker_cache_dir()) {
   job <- atlas_json_string(manifest$job)
   if (is.null(job)) stop("release ", manifest$id, " names no job, so its pull is unknown", call. = FALSE)
   path <- file.path(cache, "jobs", grid, paste0(job, ".json"))
@@ -271,7 +280,7 @@ atlas_tracker_release_pull <- function(store, manifest, grid, cache = atlas_trac
   inputs <- jsonlite::fromJSON(path, simplifyVector = FALSE)$inputs %||% list()
   pull <- Filter(function(e) grepl("^occurrences/occurrences-.*[.]tsv[.]gz$", e$path %||% ""), inputs)
   if (length(pull) != 1L) stop("job ", job, " lists no single pull", call. = FALSE)
-  atlas_read_occurrences(atlas_tracker_object(store, pull[[1]]$sha256, ".tsv.gz", cache))
+  atlas_tracker_object(store, pull[[1]]$sha256, ".tsv.gz", cache)
 }
 
 #' Model-grid coordinates and cell of points: the cell the release's rasters
@@ -295,12 +304,22 @@ atlas_tracker_cell_xy <- function(cell, grid = "draft") {
 }
 
 #' Everything about one release that scoring needs, read once per run.
-atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_cache_dir()) {
+#' With pull = FALSE the view holds the release's maps and index but not its
+#' records: enough for the summary's per-taxon tallies, at a fraction of the
+#' memory.
+atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_cache_dir(), pull = TRUE) {
   manifest <- atlas_tracker_manifest(store, id, grid, cache)
   files <- manifest$files %||% list()
   shas <- stats::setNames(vapply(files, function(f) f$sha256, ""), vapply(files, function(f) f$path, ""))
   entries <- Filter(function(e) !isTRUE(e$refused), manifest$index %||% list())
-  pull <- atlas_tracker_release_pull(store, manifest, grid, cache)
+  pull_file <- atlas_tracker_release_pull_file(store, manifest, grid, cache)
+  columns <- strsplit(readLines(gzfile(pull_file), n = 1L, warn = FALSE), "\t")[[1]]
+  pull <- if (isTRUE(pull)) {
+    atlas_read_occurrences(pull_file)
+  } else {
+    data.frame(source = character(), observation_id = character(), scientific_name = character(),
+               latitude = character(), longitude = character(), stringsAsFactors = FALSE)
+  }
   placed <- atlas_tracker_place(pull$latitude, pull$longitude, grid)
   renames <- if (!is.na(shas["occurrences/renames.json"])) {
     atlas_read_renames(atlas_tracker_object(store, shas[["occurrences/renames.json"]], ".json", cache))
@@ -323,7 +342,7 @@ atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_
   # on; before, the index says only whether a map passed (skill).
   view$scheme <- if (any(vapply(entries, function(e) !is.null(e$grade), logical(1)))) "shift" else "skill"
   # A pull named by the DNA keeps each record's own name beside it.
-  view$naming <- if ("record_name" %in% names(pull)) "sequence" else "record"
+  view$naming <- if ("record_name" %in% columns) "sequence" else "record"
   view$pull <- data.frame(key = paste(pull$source, pull$observation_id, sep = ":"),
                           taxon = pull$scientific_name, lat = placed$lat, lng = placed$lng,
                           cell = placed$cell, stringsAsFactors = FALSE)
@@ -373,10 +392,18 @@ atlas_tracker_version <- function(view, taxon) {
 #' Only the last taxon asked for is kept: a taxon's maps run to tens of MB,
 #' and a backfill scores hundreds of taxa on a box with 1 GB to spare
 #' (2026-10-14: keeping them all was killed for memory).
-atlas_tracker_maps <- function(view, taxon) {
-  if (identical(view$last_taxon, taxon)) return(view$last_maps)
-  view$last_taxon <- NULL
-  view$last_maps <- NULL
+#'
+#' With at, a two-column matrix of grid coordinates, each model is read,
+#' looked up at those points and let go before the next: the answer holds the
+#' lookups (hit) and no raster, so a taxon costs one model's grid at a time.
+#' That is how a run scores (atlas_tracker_rank_window); nothing is kept on
+#' the view.
+atlas_tracker_maps <- function(view, taxon, at = NULL) {
+  if (is.null(at) && identical(view$last_taxon, taxon)) return(view$last_maps)
+  if (is.null(at)) {
+    view$last_taxon <- NULL
+    view$last_maps <- NULL
+  }
   invisible(gc(FALSE))
   grid <- view$grid
   models <- list()
@@ -390,12 +417,19 @@ atlas_tracker_maps <- function(view, taxon) {
     di <- atlas_tracker_file(view, paths[[3]], ".tif")
     threshold <- suppressWarnings(as.numeric(metrics$applicability$threshold %||% NA))
     aoa <- !is.null(di) && length(threshold) == 1L && is.finite(threshold)
-    layers <- atlas_tracker_layers(terra::rast(tif), if (aoa) terra::rast(di), if (aoa) threshold)
+    layers <- if (is.null(at)) {
+      atlas_tracker_layers(terra::rast(tif), if (aoa) terra::rast(di), if (aoa) threshold)
+    } else {
+      list(hit = atlas_tracker_rank_points(terra::rast(tif), at[, 1], at[, 2],
+                                           if (aoa) terra::rast(di), if (aoa) threshold))
+    }
+    if (!is.null(at)) invisible(gc(FALSE))
     models[[algorithm]] <- c(layers, list(metrics = metrics, aoa = aoa,
                                           grade = atlas_metrics_grade(metrics),
                                           skill = if (is.character(metrics$skill)) metrics$skill else "untested"))
   }
   if (!length(models)) {
+    if (!is.null(at)) return(list(none = TRUE))
     view$last_taxon <- taxon
     view$last_maps <- list(none = TRUE)
     return(view$last_maps)
@@ -422,17 +456,26 @@ atlas_tracker_maps <- function(view, taxon) {
         choice <- atlas_best_rule(drawable, NULL, show_weak = FALSE)
       } else {
         stack <- terra::rast(ens_tif)
-        # Drawn as atlas_build_ensemble draws it: ranked again over the cells
-        # some member applies to; "outside" where a member reaches but none applies.
-        outside <- terra::ifel(is.na(stack[["rank"]]) & !is.na(stack[["known"]]), 1, 0)
-        ensemble <- c(atlas_tracker_layers(stack[["rank"]], outside, 0.5),
-                      list(known = terra::values(stack[["known"]], mat = FALSE),
-                           aoa = any(vapply(models[choice$members], `[[`, logical(1), "aoa"))))
+        ens_aoa <- any(vapply(models[choice$members], `[[`, logical(1), "aoa"))
+        ensemble <- if (is.null(at)) {
+          # Drawn as atlas_build_ensemble draws it: ranked again over the cells
+          # some member applies to; "outside" where a member reaches but none applies.
+          outside <- terra::ifel(is.na(stack[["rank"]]) & !is.na(stack[["known"]]), 1, 0)
+          c(atlas_tracker_layers(stack[["rank"]], outside, 0.5),
+            list(known = terra::values(stack[["known"]], mat = FALSE), aoa = ens_aoa))
+        } else {
+          # Its rank layer holds values only where some member applies, so
+          # ranking it as it stands is the drawing's ranking.
+          list(hit = atlas_tracker_rank_points(stack[["rank"]], at[, 1], at[, 2],
+                                               reach = terra::values(stack[["known"]], mat = FALSE)),
+               aoa = ens_aoa)
+        }
       }
     }
   }
   out <- list(none = FALSE, models = models, grade = grade, choice = choice, ensemble = ensemble,
               version = atlas_tracker_version(view, taxon))
+  if (!is.null(at)) return(out)
   view$last_taxon <- taxon
   view$last_maps <- out
   out
@@ -443,6 +486,40 @@ atlas_tracker_maps <- function(view, taxon) {
 atlas_tracker_best_of <- function(values, order) {
   hit <- order[order %in% values]
   if (length(hit)) hit[[1]] else utils::tail(order, 1)
+}
+
+#' The drawn map's rank and place at points, without drawing it: the same
+#' answer as atlas_tracker_lookup(atlas_tracker_layers(...)), the ranks of
+#' atlas_map_layers with ties averaged, but from the values sorted once rather
+#' than a ranked copy of the whole grid, so a model costs its values and one
+#' sorted vector. reach, when given (a combined map's "known" layer), says
+#' which cells a member reaches.
+atlas_tracker_rank_points <- function(suitability, x, y, dissimilarity = NULL, threshold = NULL, reach = NULL) {
+  values <- terra::values(suitability, mat = FALSE)
+  has_value <- is.finite(values)
+  outside <- rep(FALSE, length(values))
+  if (!is.null(dissimilarity) && length(threshold) == 1L && is.finite(threshold)) {
+    index <- terra::values(dissimilarity, mat = FALSE)
+    outside <- has_value & is.finite(index) & index > threshold
+    rm(index)
+  }
+  inside <- has_value & !outside
+  cell <- terra::cellFromXY(suitability, cbind(x, y))
+  sorted <- sort(values[inside])
+  n <- length(sorted)
+  hit <- !is.na(cell) & inside[ifelse(is.na(cell), 1L, cell)]
+  v <- values[cell[hit]]
+  rank <- rep(NA_real_, length(x))
+  if (n == 1L) {
+    rank[hit] <- 1
+  } else if (n > 1L) {
+    below <- findInterval(v, sorted, left.open = TRUE)
+    upto <- findInterval(v, sorted)
+    rank[hit] <- (below + (upto - below + 1) / 2 - 1) / (n - 1)
+  }
+  reached <- if (is.null(reach)) has_value else is.finite(reach)
+  reached <- !is.na(cell) & reached[ifelse(is.na(cell), 1L, cell)]
+  list(rank = rank, place = ifelse(is.finite(rank), "inside", ifelse(reached, "outside_aoa", "beyond_reach")))
 }
 
 #' Where points fall on one map's layers: rank (NA unless inside) and place,
@@ -462,11 +539,21 @@ atlas_tracker_lookup <- function(layers, x, y, known = NULL) {
 #' A taxon's scores at points in one release: the headline rank and place,
 #' the kind of map it came from, and each model's own.
 atlas_tracker_score <- function(maps, x, y) {
-  n <- length(x)
   per_model <- lapply(maps$models, function(m) atlas_tracker_lookup(m, x, y))
-  if (!is.null(maps$ensemble)) {
-    hit <- atlas_tracker_lookup(maps$ensemble, x, y, known = maps$ensemble$known)
-    return(list(rank = hit$rank, place = hit$place, kind = rep("ensemble", n),
+  ensemble <- if (!is.null(maps$ensemble)) atlas_tracker_lookup(maps$ensemble, x, y, known = maps$ensemble$known)
+  atlas_tracker_headline(maps, per_model, ensemble, length(x))
+}
+
+#' The same, from maps read at their points (atlas_tracker_maps with at).
+atlas_tracker_score_at <- function(maps) {
+  per_model <- lapply(maps$models, `[[`, "hit")
+  atlas_tracker_headline(maps, per_model, maps$ensemble$hit, length(per_model[[1]]$rank))
+}
+
+#' The headline score from each model's lookup (and the combined map's).
+atlas_tracker_headline <- function(maps, per_model, ensemble, n) {
+  if (!is.null(ensemble)) {
+    return(list(rank = ensemble$rank, place = ensemble$place, kind = rep("ensemble", n),
                 aoa = rep(maps$ensemble$aoa, n), per_model = per_model))
   }
   if (!is.null(maps$choice)) {
@@ -516,8 +603,17 @@ atlas_tracker_name_in <- function(finds, naming) {
 
 #' Score finds against one release. Returns ledger rows.
 atlas_tracker_score_release <- function(finds, view, promoted_at, scored_at, pulled_naming) {
+  rows <- atlas_tracker_match(finds, view, promoted_at, scored_at, pulled_naming)
+  atlas_tracker_rank_window(view, rows, rows[rows$status %in% "scored", , drop = FALSE])$rows
+}
+
+#' Everything about finds in a release that needs no raster: whether its pull
+#' already holds them, the name and taxon they go by there, whether the taxon
+#' has a map (status "scored" means it will be), the nearest known site, and
+#' the find's grid point (columns .x and .y, which the ranking uses and the
+#' ledger does not keep).
+atlas_tracker_match <- function(finds, view, promoted_at, scored_at, pulled_naming) {
   grid <- view$grid
-  n <- nrow(finds)
   rows <- atlas_tracker_types(data.frame(key = finds$key, stringsAsFactors = FALSE))
   rows$source <- finds$source
   rows$observation_id <- finds$observation_id
@@ -533,6 +629,8 @@ atlas_tracker_score_release <- function(finds, view, promoted_at, scored_at, pul
   rows$scored_at <- scored_at
   placed <- atlas_tracker_place(finds$latitude, finds$longitude, grid)
   rows$cell <- placed$cell
+  rows$.x <- placed$x
+  rows$.y <- placed$y
 
   # The guard behind the date rule: a find its release already holds is
   # never scored against it.
@@ -564,26 +662,73 @@ atlas_tracker_score_release <- function(finds, view, promoted_at, scored_at, pul
     rows$band[mine] <- atlas_tracker_band(nearest)
     rows$new_site[mine] <- is.na(nearest) | nearest > ATLAS_SITE_KM
     rows$new_area[mine] <- !placed$cell[mine] %in% view$cells
-
-    maps <- atlas_tracker_maps(view, taxon)
-    if (isTRUE(maps$none)) {
-      rows$status[mine] <- "no_map"
-      next
-    }
-    scores <- atlas_tracker_score(maps, placed$x[mine], placed$y[mine])
-    rows$status[mine] <- "scored"
-    rows$grade[mine] <- maps$grade
-    rows$kind[mine] <- scores$kind
-    rows$rank[mine] <- round(scores$rank, 4)
-    rows$place[mine] <- scores$place
-    rows$aoa[mine] <- ifelse(scores$aoa, "known", "unknown")
-    rows$map_version[mine] <- maps$version
-    for (algorithm in names(scores$per_model)) {
-      rows[[paste0("rank_", algorithm)]][mine] <- round(scores$per_model[[algorithm]]$rank, 4)
-      rows[[paste0("place_", algorithm)]][mine] <- scores$per_model[[algorithm]]$place
-    }
+    rows$status[mine] <- if (atlas_tracker_has_map(view, taxon)) "scored" else "no_map"
   }
   rows
+}
+
+#' Whether a taxon has a map in a release: a model with its metrics and raster.
+atlas_tracker_has_map <- function(view, taxon) {
+  for (entry in Filter(function(e) identical(e$taxon, taxon), view$entries)) {
+    paths <- atlas_model_relpaths(taxon, view$grid, entry$algorithm, c(".json", ".tif"))
+    if (!is.na(view$shas[paths[[1]]]) && !is.na(view$shas[paths[[2]]])) return(TRUE)
+  }
+  FALSE
+}
+
+#' Rank the new finds of a release window, and work out the window's effort
+#' baseline (atlas_tracker_target_group) in the same pass: each taxon's maps
+#' are read once, at its new finds and at the cells of every other taxon's
+#' finds in the window. window is every live scored find of the release,
+#' rows the new ones (from atlas_tracker_match). Returns the ranked rows and
+#' the window's baseline.
+atlas_tracker_rank_window <- function(view, rows, window, grid = view$grid) {
+  tg <- list(per_find = data.frame(key = character(), tg_percentile = numeric(), stringsAsFactors = FALSE),
+             hist = list())
+  for (taxon in unique(window$taxon)) {
+    mine <- which(rows$taxon %in% taxon & rows$status %in% "scored")
+    others <- unique(window$cell[window$taxon != taxon & !is.na(window$cell)])
+    if (!length(mine) && !length(others)) next
+    tg_xy <- if (length(others)) atlas_tracker_cell_xy(others, grid) else matrix(numeric(), 0, 2)
+    at <- rbind(cbind(rows$.x[mine], rows$.y[mine]), tg_xy)
+    maps <- atlas_tracker_maps(view, taxon, at = at)
+    if (isTRUE(maps$none)) next
+    scores <- atlas_tracker_score_at(maps)
+    if (length(mine)) {
+      k <- seq_along(mine)
+      rows$grade[mine] <- maps$grade
+      rows$kind[mine] <- scores$kind[k]
+      rows$rank[mine] <- round(scores$rank[k], 4)
+      rows$place[mine] <- scores$place[k]
+      rows$aoa[mine] <- ifelse(scores$aoa[k], "known", "unknown")
+      rows$map_version[mine] <- maps$version
+      for (algorithm in names(scores$per_model)) {
+        rows[[paste0("rank_", algorithm)]][mine] <- round(scores$per_model[[algorithm]]$rank[k], 4)
+        rows[[paste0("place_", algorithm)]][mine] <- scores$per_model[[algorithm]]$place[k]
+      }
+    }
+    if (length(others)) {
+      ranks <- scores$rank[length(mine) + seq_len(nrow(tg_xy))]
+      ranks <- ranks[is.finite(ranks)]
+      if (length(ranks)) {
+        tg$hist[[taxon]] <- tabulate(pmin(100L, floor(ranks * 100) + 1L), nbins = 100L)
+        # Every live find of the taxon in the window: earlier ones keep the
+        # rank they were scored with, new ones take theirs from this pass.
+        own <- window[window$taxon == taxon, c("key", "rank"), drop = FALSE]
+        fresh <- match(own$key, rows$key[mine])
+        own$rank[!is.na(fresh)] <- round(scores$rank[fresh[!is.na(fresh)]], 4)
+        own <- own[is.finite(own$rank), , drop = FALSE]
+        if (nrow(own)) {
+          pct <- vapply(own$rank, function(r) (sum(ranks < r) + 0.5 * sum(ranks == r)) / length(ranks), numeric(1))
+          tg$per_find <- rbind(tg$per_find, data.frame(key = own$key, tg_percentile = pct, stringsAsFactors = FALSE))
+        }
+      }
+    }
+    rm(maps, scores)
+  }
+  rows$.x <- NULL
+  rows$.y <- NULL
+  list(rows = rows, tg = tg)
 }
 
 #' Mark finds the newest pull no longer holds, or holds under another name,
@@ -629,45 +774,39 @@ atlas_tracker_done <- function(ledger) {
 #' finds in the same release window, read through its own taxon's map: the
 #' share of those cells its rank beats (ties half). 0.5 is no better than
 #' knowing where people look. Also each taxon's histogram of those ranks in
-#' 100 bins, for the effort-corrected Boyce index. Kept per window, and
-#' worked out again only when a window's finds change.
-atlas_tracker_target_group <- function(ledger, views, grid = "draft", cache = atlas_tracker_cache_dir()) {
-  live <- ledger[ledger$status == "scored" & is.na(ledger$retracted_on) & !is.na(ledger$cell), , drop = FALSE]
+#' 100 bins, for the effort-corrected Boyce index. Worked out with a window's
+#' ranks (atlas_tracker_rank_window) and saved under the window's finds, so
+#' it is worked out again only when they change; missing names the windows
+#' with no saved baseline for their finds as they are now.
+atlas_tracker_target_group <- function(ledger, grid = "draft", cache = atlas_tracker_cache_dir()) {
   per_find <- data.frame(key = character(), tg_percentile = numeric(), stringsAsFactors = FALSE)
   hist <- list()
+  missing <- character()
+  live <- atlas_tracker_window(ledger)
   for (release in unique(live$release)) {
-    window <- live[live$release == release, , drop = FALSE]
-    stamp <- substr(digest::digest(list(sort(paste(window$key, window$taxon, window$cell))), algo = "sha256"), 1, 16)
-    path <- file.path(cache, "target-group", grid, paste0(release, "-", stamp, ".rds"))
-    result <- if (file.exists(path)) readRDS(path)
-    if (is.null(result)) {
-      view <- views(release)
-      result <- list(per_find = per_find[0, ], hist = list())
-      for (taxon in unique(window$taxon)) {
-        others <- unique(window$cell[window$taxon != taxon])
-        mine <- window[window$taxon == taxon, , drop = FALSE]
-        if (!length(others)) next
-        maps <- atlas_tracker_maps(view, taxon)
-        if (isTRUE(maps$none)) next
-        xy <- atlas_tracker_cell_xy(others, grid)
-        tg <- atlas_tracker_score(maps, xy[, "x"], xy[, "y"])$rank
-        tg <- tg[is.finite(tg)]
-        if (!length(tg)) next
-        result$hist[[taxon]] <- tabulate(pmin(100L, floor(tg * 100) + 1L), nbins = 100L)
-        ranked <- mine[is.finite(mine$rank), , drop = FALSE]
-        if (nrow(ranked)) {
-          pct <- vapply(ranked$rank, function(r) (sum(tg < r) + 0.5 * sum(tg == r)) / length(tg), numeric(1))
-          result$per_find <- rbind(result$per_find, data.frame(key = ranked$key, tg_percentile = pct,
-                                                               stringsAsFactors = FALSE))
-        }
-      }
-      dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-      saveRDS(result, path)
+    path <- atlas_tracker_window_path(live[live$release == release, , drop = FALSE], release, grid, cache)
+    if (!file.exists(path)) {
+      missing <- c(missing, release)
+      next
     }
+    result <- readRDS(path)
     per_find <- rbind(per_find, result$per_find)
     for (taxon in names(result$hist)) hist[[paste(release, taxon, sep = "\x1f")]] <- result$hist[[taxon]]
   }
-  list(per_find = per_find, hist = hist)
+  list(per_find = per_find, hist = hist, missing = missing)
+}
+
+#' The finds a window's baseline is made from: live, scored, placed.
+atlas_tracker_window <- function(ledger, release = NULL) {
+  keep <- ledger$status %in% "scored" & is.na(ledger$retracted_on) & !is.na(ledger$cell)
+  if (!is.null(release)) keep <- keep & ledger$release %in% release
+  ledger[keep, , drop = FALSE]
+}
+
+#' Where a window's baseline is saved: under a hash of its finds.
+atlas_tracker_window_path <- function(window, release, grid = "draft", cache = atlas_tracker_cache_dir()) {
+  stamp <- substr(digest::digest(list(sort(paste(window$key, window$taxon, window$cell))), algo = "sha256"), 1, 16)
+  file.path(cache, "target-group", grid, paste0(release, "-", stamp, ".rds"))
 }
 
 # ---- statistics ------------------------------------------------------------
@@ -935,6 +1074,10 @@ atlas_track_new_finds <- function(store = NULL, grid = "draft", since = ATLAS_TR
   say <- function(...) if (!isTRUE(quiet)) message(...)
   if (is.null(store)) stop("the tracker reads releases from a store: pass --store or set ATLAS_STORE", call. = FALSE)
   occurrences <- occurrences %||% atlas_read_occurrences()
+  # Only the columns a run reads: the pull is held for the whole run.
+  occurrences <- occurrences[, intersect(c("source", "observation_id", "scientific_name", "record_name",
+                                           "latitude", "longitude", "observed_on", ATLAS_FIRST_GREEN_FIELD,
+                                           ATLAS_TRACKER_CHANNEL_FIELD), names(occurrences)), drop = FALSE]
   manifest <- atlas_read_manifest()
   today <- format(now, "%Y-%m-%d", tz = "UTC")
   stamp <- format(now, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
@@ -946,48 +1089,59 @@ atlas_track_new_finds <- function(store = NULL, grid = "draft", since = ATLAS_TR
   current_pointer <- if (store$exists(pointer)) atlas_store_text(store, pointer)
   promotions <- atlas_tracker_promotions(store, grid, runs, frozen)
 
-  views <- new.env(parent = emptyenv())
-  view_of <- function(id) {
-    if (is.null(views[[id]])) views[[id]] <- atlas_tracker_view(store, id, grid)
-    views[[id]]
-  }
-
   # Retractions first, so a find that moved is scored again in this run.
   ledger <- atlas_tracker_retract(ledger, occurrences, today, grid)
   finds <- atlas_tracker_finds(occurrences, since, atlas_tracker_done(ledger))
   pulled_naming <- if ("record_name" %in% names(occurrences)) "sequence" else "record"
   say(sprintf("%d new finds first green since %s", nrow(finds), since))
   added <- list()
-  if (nrow(finds)) {
-    live_at <- atlas_tracker_live_at(finds[[ATLAS_FIRST_GREEN_FIELD]], promotions)
-    none <- is.na(live_at)
-    if (any(none)) {
-      rows <- atlas_tracker_types(data.frame(key = finds$key[none], stringsAsFactors = FALSE))
-      rows$source <- finds$source[none]
-      rows$observation_id <- finds$observation_id[none]
-      rows$first_green_on <- finds[[ATLAS_FIRST_GREEN_FIELD]][none]
-      rows$status <- "no_release"
-      rows$scored_at <- stamp
-      added[[length(added) + 1L]] <- rows
+  live_at <- atlas_tracker_live_at(finds[[ATLAS_FIRST_GREEN_FIELD]], promotions)
+  none <- is.na(live_at)
+  if (any(none)) {
+    rows <- atlas_tracker_types(data.frame(key = finds$key[none], stringsAsFactors = FALSE))
+    rows$source <- finds$source[none]
+    rows$observation_id <- finds$observation_id[none]
+    rows$first_green_on <- finds[[ATLAS_FIRST_GREEN_FIELD]][none]
+    rows$status <- "no_release"
+    rows$scored_at <- stamp
+    added[[length(added) + 1L]] <- rows
+  }
+  # One release at a time, its view let go before the next: the releases
+  # with new finds, and any whose baseline is not saved for its finds now
+  # (a retraction changed them, or this machine's cache is new).
+  stale <- atlas_tracker_target_group(ledger, grid)$missing
+  for (id in unique(c(live_at[!none], stale))) {
+    mine <- finds[!none & live_at %in% id, , drop = FALSE]
+    view <- atlas_tracker_view(store, id, grid)
+    # The release's pull must be older than every day it scores.
+    early <- mine[[ATLAS_FIRST_GREEN_FIELD]] <= substr(view$pulled_at, 1, 10)
+    if (any(early)) {
+      stop("release ", id, " was pulled on ", view$pulled_at, ", not before every find scored against it",
+           call. = FALSE)
     }
-    for (id in unique(live_at[!none])) {
-      mine <- finds[!none & live_at == id, , drop = FALSE]
-      view <- view_of(id)
-      # The release's pull must be older than every day it scores.
-      early <- mine[[ATLAS_FIRST_GREEN_FIELD]] <= substr(view$pulled_at, 1, 10)
-      if (any(early)) {
-        stop("release ", id, " was pulled on ", view$pulled_at, ", not before every find scored against it",
-             call. = FALSE)
-      }
-      at <- promotions$promoted_at[promotions$release == id]
-      added[[length(added) + 1L]] <- atlas_tracker_score_release(mine, view, at[[length(at)]], stamp, pulled_naming)
+    at <- promotions$promoted_at[promotions$release == id]
+    rows <- if (nrow(mine)) {
+      atlas_tracker_match(mine, view, at[[length(at)]], stamp, pulled_naming)
+    } else {
+      cbind(atlas_tracker_empty_ledger(), .x = numeric(), .y = numeric())
+    }
+    window <- rbind(atlas_tracker_window(ledger, id), atlas_tracker_window(rows[, ATLAS_TRACKER_LEDGER_FIELDS, drop = FALSE]))
+    ranked <- atlas_tracker_rank_window(view, rows, window, grid)
+    path <- atlas_tracker_window_path(window, id, grid)
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(ranked$tg, path)
+    if (nrow(mine)) {
+      added[[length(added) + 1L]] <- ranked$rows
       say(sprintf("  %d finds against release %s (%s scheme, %s names)", nrow(mine), id, view$scheme, view$naming))
     }
+    rm(view, ranked, rows, window)
+    invisible(gc(FALSE))
   }
   if (length(added)) ledger <- rbind(ledger, do.call(rbind, added))
 
-  current <- if (!is.null(current_pointer$release)) view_of(current_pointer$release)
-  tg <- atlas_tracker_target_group(ledger, view_of, grid)
+  current <- if (!is.null(current_pointer$release)) atlas_tracker_view(store, current_pointer$release, grid, pull = FALSE)
+  tg <- atlas_tracker_target_group(ledger, grid)
+  if (length(tg$missing)) warning("no effort baseline for release ", paste(tg$missing, collapse = ", "), call. = FALSE)
   summary <- atlas_tracker_summary(ledger, current, tg, grid, since, now,
                                    pulled_at = as.character(manifest$pulled_at %||% NA))
 
