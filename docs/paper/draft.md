@@ -491,13 +491,24 @@ number of new records.] → Appendix S1: Section S10.
 
 ### 3.9 Q1: maps as a place signal for photo identification (E21, E22)
 
-[PENDING: primary test (P2c vs no place term: overall McNemar; 300–1,500 km
-band lower bound vs −2%); P2c vs the served kernel; trust weighting (P2c vs
-P2c-u); depth-matched effects; P4 vs P6; projection validity H. Confirmed on
-the fresh v1-test set when it exists. Reported whatever the result. Only
-8.6% of validation records have a strongly mapped true taxon (1,152 of
-13,354), so expect a small overall effect; report the mapped subset beside
-it.]
+Registered before any result and reported as it came out
+(\`2026-10-18-q1-atlas-arms.md\`): with Atlas refitted on records validated
+by 17 August 2026 (414 strong taxa; only 7.1% of the 12,872 validation
+finds have a strongly mapped true taxon), the declared primary arm, the
+continent-wide projection of strong maps weighted by trust, raised species
+top-1 from 53.8% to 54.3%. The declared test passes (McNemar p = 0.0001),
+but mostly because the declared selection fell back to photos alone. Used
+alone, the maps added 1.3 points and held the far-find band; but against
+the distance kernel over the same DNA records that they were meant to
+replace, they lost 0.2 points (55 fixed, 83 broken), on mapped truths at
+matched depth. Beyond 500 km the projection was not supported (inside the
+area of applicability 39% of 41 finds ranked at or above the median, 95% CI
+26–54%; outside it, Boyce −0.26). The habitat rank does work as a cue for
+whether an identification is right (AUC 0.61; 48%, 62% and 68% right from
+the lowest to the highest third of suitability). So the answer to Q1 is
+yes, weakly: the maps carry habitat information another system can use,
+but no more than its own distance to known records, and not beyond the
+modelled area.
 → one paragraph; the design and every arm in S9.
 
 ---
@@ -668,6 +679,15 @@ Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
 different settings on different processors [PENDING E12: how often grades
 differ]. The maps can only be as good as where people collect and
 sequence.
+
+**The question asked of MycoMap Vision.** Used as a photo-identification
+model's place signal, the maps helped a little on their own but no more
+than a simple distance to known DNA records, and the continent-wide
+projection did not hold beyond 500 km (Q1). The likeliest reasons are
+coverage (under a tenth of identifications concern a strongly mapped
+species) and that a habitat map and a distance kernel are built from the
+same records; their one distinct use was as a cue to whether an answer is
+right, which MycoMap is now designing for validators.
 
 **What comes next.** Metabarcoding samples as an independent
 presence–absence test and in integrated models; 1 km releases; projections
@@ -924,7 +944,7 @@ gets Steve's direct go through the operations lane; every run gets a
 |---|---|---|---|
 | 0 | Rebuild cutover: **done** 2026-10-13 23:03 UTC (atlas.mycomap.org serves 20261013T191324Z-fa1b4198, image bc2a7a5, shift grading; the full-view toggle is off on the site by Steve's choice, the full-extent rasters are in the release). Nightly tracking (E3) starts once the tracker backfill and daily unit are on | Steve's go | E3 start date [PENDING] |
 | 1 | Full-view refresh → **frozen release**: **done**, 20261013T191324Z-fa1b4198 (2026-10-13); then the Zenodo re-archive (layers, models, training records, contributors) | Steve's go, after the cutover | October 2026 |
-| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | code pushed early (feat/hindcast ba03e73: `plan-job --hindcast --validated-through=2026-08-17`), awaiting Steve's review; E2 scoring code (experiments lane); Steve's go | can launch soon after the cutover, well before ~25 October 2026 (Vision freezes its test set ~30 October) |
+| 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **run 2026-10-18**: private release priv-20261018T171648Z-9e3ab153 (414 strong taxa); scoring with the experiments lane's E2 scorer next. [CHECK: the cross-source id collision in the first-validation lookup that Q1's run found, and whether it moved any record across the cutoff in the hindcast's training set] | — |
 | 2b | **E12 first step**: read-only scores of all 576 refreshed models, and a same-machine double run of *Stropharia hardii* and *Gliophorus fumosus* | Steve's go | right after the hindcast. Same-machine differences = a bug: the queue stops until fixed. Machine dependence only = E12's full run moves before E1 |
 | 3 | **E6b** distance-only baseline on the E2 finds | rebuild-lane code; E2 | early November 2026 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | first E2 numbers | November 2026 |
@@ -979,6 +999,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.16 (2026-10-18).** Q1 answered (Vision place-signal arms on the
+  hindcast): weakly yes; loses to the DNA kernel by 0.2 points; projection
+  not valid beyond 500 km. Hindcast release recorded.
 - **0.15.8 (2026-10-18).** ESM range corrected to 3–49 sites (ESM alone at
   3–19); privacy wording mirrors the Zenodo records (hides, obscures or may
   hide).

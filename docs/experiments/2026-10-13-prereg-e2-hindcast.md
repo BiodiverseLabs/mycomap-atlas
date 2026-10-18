@@ -128,6 +128,14 @@ release, the cutoff keeps 124,955 of 133,235 records; 0 have no first
 validation date. The Vision v1 cutoff of 2026-08-17 is confirmed unchanged
 after Vision's curation pause (its fixes go to a later v2).
 
+Run (2026-10-18): private release priv-20261018T171648Z-9e3ab153, 414
+strong taxa. Open before scoring: Q1's run found a cross-source id collision
+in Atlas's first-validation lookup (two Vision validation records left out
+there). [CHECK with the rebuild lane: whether the collision put any record
+on the wrong side of the cutoff in this hindcast's training set or test
+finds; if so, those records are excluded from scoring and counted, as a
+deviation recorded here before scoring.]
+
 ## Deviations
 
 None yet.
