@@ -193,6 +193,24 @@ surveyed; 18 taxa exceed 1% and 71 exceed 0.5%, all small-site models. None
 is a detection site of any modelled taxon. These taxa were not refitted
 (Steve, 2026-10-13: too few records to matter).
 
+## S2.4b Finds posted to two platforms
+
+Some finds were posted to both iNaturalist and Mushroom Observer. Starting
+from MycoMap Vision's twin pairs (two records of the same label whose photos
+differ by at most 3 bits of a perceptual hash), 2,627 same-label pairs, of
+which 1,724 have both records eligible for Atlas and about 1,632 have both
+named at species level by the pull's rule. Their two placed points are a
+median 0.58 km apart (90th percentile 4.1 km): 1,486 pairs (91%) lie within
+5 km, where site thinning counts the find once and only the effort
+predictor (records per site) is slightly inflated; 146 lie further apart
+and may give their taxon a second detection site, 10 of them over 50 km
+apart (maximum 9,336 km), most likely a coordinate error on one side.
+These figures are approximate: they apply the pull's rules to the live
+database read-only on 2026-10-18, not to the frozen pull itself; the name
+check is a simplified match (about ±1%); and they are a lower bound,
+because twins can be detected only where both records have photos in
+Vision's v1 dataset. Twins are not merged in the frozen release.
+
 ## S2.5 Set-aside, contaminant and misattributed sequences in the naming (frozen pull only)
 
 Atlas names each record by the species name of its approved DNA sequences

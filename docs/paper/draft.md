@@ -644,10 +644,13 @@ which would have moved the validation cutoff, so other models' backgrounds
 still include their sites (under 0.06% of records); and the frozen pull's
 naming read some sequences it should have skipped, about 527 records named
 only by them and 2,287 left out, corrected from the next release on
-(Appendix S1: Section S2). Some specimens appear twice, posted to both
-iNaturalist and Mushroom Observer; survey-site thinning already counts them
-once, so they inflate only the effort predictor slightly [PENDING: how many
-twin pairs]. Tuned Maxent models with few sites can choose
+(Appendix S1: Section S2). Some finds appear twice, posted to both
+iNaturalist and Mushroom Observer: at least about 1,630 such pairs have both
+records in the training data. For the 91% whose two points lie within 5 km,
+site thinning counts the find once and only the effort predictor is
+slightly inflated; about 146 pairs lie further apart and may give their
+taxon a second detection site (10 of them over 50 km apart, most likely a
+coordinate error on one side) (Appendix S1: Section S2). Tuned Maxent models with few sites can choose
 different settings on different processors [PENDING E12: how often grades
 differ]. The maps can only be as good as where people collect and
 sequence.
@@ -962,6 +965,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.15.4 (2026-10-18).** Cross-posted twins quantified (~1,630 pairs;
+  146 over 5 km apart may double a detection site).
 - **0.15.3 (2026-10-18).** Resumed: v1 cutoff holds, the hindcast proceeds
   as pre-registered (dry run 124,955 of 133,235 records kept, 0 undated);
   cross-posted twin records added to Limitations.
