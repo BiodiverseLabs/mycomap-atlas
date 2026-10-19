@@ -175,8 +175,17 @@ finish).
       frozen pull, so a one-taxon leave-out refit is being added to the
       hindcast tooling (code, review, then a ~1-minute run). Scoring of all
       other taxa may proceed meanwhile; *Sparassis spathulata*'s one test
-      find is scored only after the refit. [PENDING: the refit's job id and
-      grade.]
+      find is scored only after the refit. Code: Atlas branch
+      feat/hindcast-leave-out ba7578dc (plan-job --hindcast --taxa
+      --algorithms=esm --leave-out=586958, from the hindcast release; a new
+      private release identical to the hindcast except for this one model,
+      marked refit_of, with both fits' grades and scores in its record; the
+      hindcast release untouched; 1,149 tests pass). Awaiting Steve's SHA
+      review, then the operations lane's merge and run. **Scoring the held
+      find:** the E2 scorer is not wired to read a refit, so the one held
+      find (593531) is scored against the refitted model's raster, read from
+      the refit release's manifest, with the same metrics, and recorded with
+      the E2 results. [PENDING: the refit's release id and grade.]
     - 586894, *Fibroporia albicans*: in the pull with first_green_on
       2025-08-06, before collection; not in the trained ids (no hindcast
       model for the taxon). It still sat in the training pull's survey
