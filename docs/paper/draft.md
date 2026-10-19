@@ -528,8 +528,10 @@ Zenodo DOI, format, size and licence:]
   sources. CC BY-SA 4.0 (WorldClim is share-alike). **Published:**
   doi:10.5281/zenodo.23463069 (concept doi:10.5281/zenodo.23463068), with
   Steve's approval, 2026-10-18: version draft-2026-09-30-df57c9d4, 11 files,
-  0.14 GB. [CHECK: the record's summary says 68 layers; the draft says 69
-  predictor bands in eight layers; reconcile the count.]
+  0.14 GB. The frozen release's predictor stack has 69 bands in eight
+  layers (counted from the deposited files and the manifest, layers key
+  df57c9d4); the record's summary said 68 by mistake, and a metadata-only
+  correction is with Steve.
 - **Models series** (Zenodo, one version per archived release).
   **Published:** doi:10.5281/zenodo.23463939 (concept
   doi:10.5281/zenodo.23463938), the frozen release 20261013T191324Z-fa1b4198,
@@ -1015,6 +1017,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
 - **0.16.5 (2026-10-19).** Models record published
   (doi:10.5281/zenodo.23463939); both data records cited.
 - **0.16.4 (2026-10-18).** First DOI: Zenodo layers published; hindcast
