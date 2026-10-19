@@ -87,7 +87,7 @@ test_that("nothing Atlas asks .org for reads a cached API answer: MO places come
   # The answer holds the observer's name and any GPS point they hid, and
   # Atlas's login cannot read it (.org deploy/readonly-sql/atlas-install.sh).
   asked <- c(atlas_occurrence_sql(), atlas_unvalidated_sql(), atlas_first_green_sql(1, 2),
-             atlas_sequence_names_sql(1, 2))
+             atlas_sequence_names_sql(1, 2), atlas_mo_left_out_sql(1, 2))
   for (sql in asked) expect_false(grepl("api_response_json", sql, fixed = TRUE))
   expect_match(asked[[1]], "FROM atlas.mo_points m", fixed = TRUE)
   expect_false(grepl("observation_cache m", asked[[1]], fixed = TRUE))
@@ -96,16 +96,19 @@ test_that("nothing Atlas asks .org for reads a cached API answer: MO places come
 test_that("an MO record .org has no MO answer for is kept or dropped as configured", {
   kept <- atlas_mo_location_clause(unknown = "keep")
   dropped <- atlas_mo_location_clause(unknown = "drop")
-  expect_match(kept, "OR NOT EXISTS (SELECT 1 FROM atlas.mo_points m", fixed = TRUE)
+  # Kept only when .org does not know it deleted on MO (test-modeleted.R).
+  expect_match(kept, "OR (NOT EXISTS (SELECT 1 FROM atlas.mo_points m", fixed = TRUE)
   expect_false(grepl("NOT EXISTS", dropped, fixed = TRUE))
   expect_error(atlas_mo_location_clause(unknown = "maybe"))
 })
 
 test_that("the MO condition survives the SQL route: one line, no double quote, no percent", {
-  sql <- atlas_occurrence_sql()
-  expect_false(grepl("\n", sql))
-  expect_false(grepl("\"", sql, fixed = TRUE))
-  expect_false(grepl("%", sql, fixed = TRUE))
+  for (sql in c(atlas_occurrence_sql(), atlas_occurrence_sql(since = "2026-10-01"),
+                atlas_mo_left_out_sql(1, 2, since = "2026-10-01"), atlas_mo_left_out_sql(2))) {
+    expect_false(grepl("\n", sql))
+    expect_false(grepl("\"", sql, fixed = TRUE))
+    expect_false(grepl("%", sql, fixed = TRUE))
+  }
 })
 
 test_that("a MyCoPortal record needs MyCoPortal's own coordinates or a label no other label shares a point with", {
