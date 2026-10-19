@@ -185,7 +185,19 @@ finish).
       find:** the E2 scorer is not wired to read a refit, so the one held
       find (593531) is scored against the refitted model's raster, read from
       the refit release's manifest, with the same metrics, and recorded with
-      the E2 results. [PENDING: the refit's release id and grade.]
+      the E2 results.
+    - **Refit done** 2026-10-19 04:31 UTC: private release
+      priv-20261019T042158Z-09936f85 (code merged as Atlas main 35aec02;
+      1 record left out of 124,955; 1 model; about 0.02 CPU-h). Hindcast
+      fit: ESM, weak, 15 presences, AUC 0.692, null p 0.50 (10 nulls).
+      Refit: ESM, **weak**, 14 presences, AUC 0.666, null p 0.31 (16 nulls).
+      The grade is unchanged. Trained ids 110,614 (the hindcast's minus
+      one).
+  - **Exclusion list, as the scorer applies it:** the scorer takes test
+    finds from the frozen pull's own first-validation dates, in which all
+    four ids carry pre-cutoff dates (or are absent), so none can appear as
+    a test find; the exclusion is a safeguard with nothing to match, and
+    the run uses the scorer's allow-missing option and reports 0 matched.
     - 586894, *Fibroporia albicans*: in the pull with first_green_on
       2025-08-06, before collection; not in the trained ids (no hindcast
       model for the taxon). It still sat in the training pull's survey
