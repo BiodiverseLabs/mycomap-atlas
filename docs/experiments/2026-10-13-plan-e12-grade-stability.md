@@ -131,9 +131,54 @@
 
 Estimated from R_main's own shard records rather than a flat rate: for the
 drawn sample, the sum of each model's recorded `seconds` (nulls included) ×
-3 fits [PENDING: step 0 adds this read-only query]. The first guess of
-30–60 CPU-h is likely low because the sample over-represents rich taxa.
-Gate: feat/result-machine merged.
+3 fits. The first guess of 30–60 CPU-h was low, because the sample
+over-represents rich taxa.
+Gate: feat/result-machine merged (done).
+
+**The draw and its cost (2026-10-19, before any arm).** `study-e12-draw`
+on release fa1b4198, read-only (atlas-box, image 8bfc98d):
+
+- **507 models in 24 cells**, 0 with imputed times. Left out of the index:
+  1 untested, 493 refused; 9,040 kept.
+- **Cap not applied.** The 50+ site Maxent cells are 0.275 of the cost,
+  under the plan's 0.5 trigger.
+- **109.7 CPU-h for three fits each**, about 36.6 per arm:
+
+| Learner | Models | CPU-h (3 fits) |
+|---|---|---|
+| ESM | 225 | 31.6 |
+| Maxent | 128 | 45.0 |
+| Random forest | 114 | 25.3 |
+| Boosted trees | 40 | 7.8 |
+
+The draw file (per model: cell, rank, recorded seconds) is
+atlas-box:/home/ubuntu/seamcheck/gt/e12-draw.csv, private (taxon names and
+numbers only).
+
+## Implementation (not a design change)
+
+The arms are `study-repro --draw` (Atlas branch study/e12-arms 04fb517,
+pending review and merge).
+
+- **The sample.** Each worker recomputes the sample from the release by
+  this plan's rule, with the same code as `study-e12-draw`. It records the
+  sample's key, so the arms can be shown to have fitted the same 507
+  models.
+- **Inputs, settings and nulls.** Each model is fitted on the inputs and
+  fit settings of the job that fitted it (the frozen release holds models
+  of more than one job and pull), with that job's nulls: 99, stopping at 5.
+- **Processes.** The models run in fresh worker processes, each in a fixed
+  order. Every result records its worker, its place in that order, the
+  process and the machine.
+- **Commands** (on atlas-box, after the merge):
+  - a1: `plan-study --command=study-repro --shards=2 --args="--draw
+    --release=20261013T191324Z-fa1b4198 --label=a1 --workers=16"`, run on
+    r7i.8xlarge;
+  - a2: the same with `--shards=3` and `--label=a2 --order=reverse`, on
+    r7i.8xlarge;
+  - b: as a1 with `--label=b`, on r7a.8xlarge.
+- **Workers.** 16 per 256 GB worker leaves room for a rich Maxent fit's
+  ~9 GB peak with nulls.
 
 ## Deviations
 
