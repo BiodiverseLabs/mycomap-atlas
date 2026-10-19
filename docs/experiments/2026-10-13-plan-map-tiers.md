@@ -18,6 +18,13 @@
 
 ## The tiers
 
+**Which Boyce:** the pooled Boyce index over held-out spatial folds, the same
+value the production grade uses for every learner (R/fit.R: computed as
+`boyce_pooled`, stored in each model's JSON as `boyce`). The hindcast's
+(and its refit's) `models.tsv.gz` export left its `boyce_pooled` column
+empty for all models (an export bug, reported 2026-10-19 for a one-line fix),
+so tier analyses read `boyce` from each model's JSON until it is fixed.
+
 All use only what every graded model already stores (no refit): the shift
 null test's p, the observed held-out AUC and the pooled Boyce index, and
 the null AUCs' mean and spread. The p follows R/nulls.R: a test that stops
