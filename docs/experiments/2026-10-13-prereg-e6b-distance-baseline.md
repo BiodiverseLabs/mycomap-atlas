@@ -40,6 +40,37 @@
   these finds. The Discussion then asks where habitat adds over distance:
   new places and far finds, from the secondary splits.
 
+## Implementation (not a design change)
+
+Recorded 2026-10-19, before any run, by the rebuild lane (the experiments
+lane that wrote the code is offline). Code: `study-distance` on Atlas main
+(R/studydistance.R), run on the hindcast release
+priv-20261018T171648Z-9e3ab153; its kernels are scored by `study-score
+--kernels`, a second scoring run after E2's own. Two properties of the code,
+which the run's own settings also record, for the write-up:
+
+- **The kernel's own AUC is not nested.** Its bandwidth is the best of the
+  seven candidates by blocked AUC on one set of folds, and the AUC reported
+  beside it is that same best value, so it reads optimistic next to the
+  habitat models' nested AUC. H6b does not use it: H6b scores both maps on
+  the later finds.
+- **Taxa with 20 to 49 sites take the full models' folds.** Their bandwidth
+  is chosen on the folds of the full models (Maxent and random forest),
+  also where the kernel is paired with the same taxon's small-model
+  ensemble, which is fitted on its own folds.
+
 ## Deviations
 
-None yet.
+- **2026-10-19, before any run: one taxon's kernel keeps a record its
+  habitat model does not.** The kernels are built from the hindcast's
+  training pull, which holds the 4 records whose first-validation date was
+  wrong when the hindcast was planned (E2 prereg, Deviations, 2026-10-18).
+  For three of their taxa the kernel and the hindcast model trained on the
+  same records, so the pairs stay like for like (and *Fibroporia albicans*,
+  at 1 site, has no model and so no kernel). For *Sparassis spathulata*,
+  E2 scores the leave-out refit of its small-model ensemble without
+  mycomap.org 586958 (priv-20261019T042158Z-09936f85), while its kernel is
+  built with 586958's survey site. **Handling (Steve, 2026-10-19):** keep
+  the pair in H6b and declare the asymmetry: one detection site of 15 in
+  one taxon of about 6,100. 586958 itself is excluded from the scored test
+  finds, as in E2.
