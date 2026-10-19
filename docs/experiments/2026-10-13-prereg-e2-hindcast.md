@@ -128,8 +128,14 @@ release, the cutoff keeps 124,955 of 133,235 records; 0 have no first
 validation date. The Vision v1 cutoff of 2026-08-17 is confirmed unchanged
 after Vision's curation pause (its fixes go to a later v2).
 
-Run (2026-10-18): private release priv-20261018T171648Z-9e3ab153, 414
-strong taxa.
+Run (finished 2026-10-18 22:23 UTC): private release
+priv-20261018T171648Z-9e3ab153; 9,115 models planned, 8,606 fitted, 509
+refused, 0 failed; 414 strong taxa; 110,615 trained record ids. In the
+hindcast, *Sparassis spathulata* is a small-model ensemble at 15 sites, and
+586958 is the only record in its 5 km site, so the leave-out refit takes it
+to 14 sites, still within the small-model range. Cost: 289 CPU-h, about
+USD 5.71 of compute (spot reclaims on all four shards, an on-demand
+finish).
 
 ## Deviations
 

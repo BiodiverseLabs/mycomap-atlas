@@ -13,7 +13,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa. Lineage in section 3.3. [PENDING: Zenodo DOIs; code commit] |
+| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa. Lineage in section 3.3. Layers DOI 10.5281/zenodo.23463069. [PENDING: the models DOI; code commit] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -525,7 +525,9 @@ plus E12.*
 Zenodo DOI, format, size and licence:]
 
 - **Layers series** (Zenodo): the predictor rasters on the grid, with their
-  sources. CC BY-SA 4.0 (WorldClim is share-alike).
+  sources. CC BY-SA 4.0 (WorldClim is share-alike). **Published:**
+  doi:10.5281/zenodo.23463069 (concept doi:10.5281/zenodo.23463068), with
+  Steve's approval, 2026-10-18.
 - **Models series** (Zenodo, one version per archived release): per model the
   suitability raster, AOA dissimilarity raster, map image and metrics JSON
   (scores, null test, grade, importance, settings); combined maps and
@@ -710,7 +712,8 @@ map is least certain and a find would most change it.
   pipeline, GPL-3.0-or-later) is available at
   https://github.com/BiodiverseLabs/mycomap-atlas and will be archived on
   Zenodo with a DOI for the release commit upon acceptance. Data are
-  provided for peer review on Zenodo [links]: the environmental layers, every
+  provided on Zenodo: the environmental layers (doi:10.5281/zenodo.23463069),
+  and [PENDING: the models record's DOI] every
   model of the frozen release (suitability and area-of-applicability rasters,
   metrics, grades), and the table of training records with their
   iNaturalist, Mushroom Observer, MyCoPortal and GenBank identifiers. Record
@@ -994,9 +997,10 @@ revised (Path).
    2026-10-13). No individuals named for now (Steve, 2026-10-13); revisit
    before submission. Data item: observer name or username per training record for the
    Zenodo contributor table (asked of the coordinator).
-5. **Zenodo layers archive:** Steve, 2026-10-13: "probably" discard the
-   draft held since 2026-09-29 and re-archive the frozen release's layers,
-   once that release exists (operations lane, Steve's go).
+5. **Zenodo:** layers PUBLISHED 2026-10-18 with Steve's approval,
+   doi:10.5281/zenodo.23463069 (concept 10.5281/zenodo.23463068). The models
+   record (linking the layers) is being re-drafted for Steve before
+   publishing; the training-record and contributor tables follow.
 6. **Training-record table columns:** settled 2026-10-13 (section 4.1):
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
@@ -1006,6 +1010,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.16.4 (2026-10-18).** First DOI: Zenodo layers published; hindcast
+  finished (8,606 fitted, 289 CPU-h, ~$5.71).
 - **0.16.3 (2026-10-18).** Limitations: at most 4 of 124,955 hindcast
   training records were post-cutoff; test-find exclusion list sent to the
   experiments lane.
