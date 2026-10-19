@@ -233,6 +233,11 @@ atlas_usage <- function() {
   message("      --defaults=a.json,...     every shard's results file of one E6a run on this hindcast")
   message("      --observed-after          only finds also observed after the cutoff")
   message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
+  message("      --exclude=ID,ID|@file     .org record ids of test finds never to score (counted)")
+  message("      --hold=ID,ID|@file        .org record ids of test finds held for now (counted)")
+  message("      --allow-missing-excludes  go on when an --exclude id is no later find (else refused)")
+  message("      --refits=ID,...           refits of this hindcast (plan-job --hindcast --leave-out): the")
+  message("                                taxa each refitted are scored on its maps instead")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("  study-compare      paper E9: the record-name release against the frozen one, per taxon")
   message("                     and learner: grades, map Spearman and Schoener's D, label changes")
@@ -909,7 +914,10 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         grid = atlas_flag_grid(flags), kernels = files(flags$kernels), defaults = files(flags$defaults),
         observed_after = isTRUE(flags$observed_after),
         reps = atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP),
-        out = if (is.null(flags$out)) NULL else as.character(flags$out)
+        out = if (is.null(flags$out)) NULL else as.character(flags$out),
+        exclude = atlas_score_ids(flags$exclude), hold = atlas_score_ids(flags$hold),
+        allow_missing_excludes = isTRUE(flags$allow_missing_excludes),
+        refits = files(flags$refits) %||% character()
       )
       invisible(0L)
     },

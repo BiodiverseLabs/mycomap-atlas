@@ -121,7 +121,15 @@ atlas_e2_band <- function(km) {
 #' are the rest that are dated: first validated on or before the cutoff.
 #' Counts of every reason are kept in attr(finds, "kept_apart"); nothing is
 #' dropped silently.
-atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft") {
+#'
+#' exclude and hold are .org record ids (the pull's id column) of test finds
+#' that are not to be scored: excluded for good (a record that trained the
+#' hindcast through a wrong date, say), or held until something is redone.
+#' Each is kept apart as "excluded" or "held" and counted; neither changes
+#' which records the split trains on. attr(finds, "not_found") counts ids
+#' given that are no find of the pull.
+atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft",
+                           exclude = character(), hold = character()) {
   if (!ATLAS_FIRST_GREEN_FIELD %in% names(pull)) {
     stop("the pull has no ", ATLAS_FIRST_GREEN_FIELD, " column", call. = FALSE)
   }
@@ -146,6 +154,17 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft")
   if (isTRUE(observed_after)) reason[is.na(reason) & after & !seen_after] <- "observed_before"
   keep <- after | !dated
   key <- paste(pull$source, pull$observation_id, sep = ":")
+  exclude <- unique(as.character(exclude))
+  hold <- unique(as.character(hold))
+  if ((length(exclude) || length(hold)) && !"id" %in% names(pull)) {
+    stop("the pull has no id column to match excluded or held records by", call. = FALSE)
+  }
+  record <- as.character(pull$id %||% rep(NA_character_, nrow(pull)))
+  reason[keep & record %in% hold] <- "held"
+  reason[keep & record %in% exclude] <- "excluded"
+  asked <- c(exclude, hold)
+  not_found <- sum(!asked %in% record[keep])
+  exclude_missing <- exclude[!exclude %in% record[keep]]
   finds <- data.frame(key = key, taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
                       first_green_on = green, observed_after = seen_after, kept_apart = reason,
                       stringsAsFactors = FALSE)[keep, , drop = FALSE]
@@ -155,11 +174,12 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft")
   rownames(finds) <- NULL
   rownames(training) <- NULL
   counts <- as.list(table(factor(finds$kept_apart[!is.na(finds$kept_apart)],
-                                 levels = c("undated", "off_grid", "observed_before"))))
+                                 levels = c("undated", "off_grid", "observed_before", "excluded", "held"))))
   # Every record the split trains on, located or not: what a hindcast fitted
   # at this cutoff holds (its pull), for the caller to check against.
-  list(finds = structure(finds, kept_apart = counts), training = training,
-       training_keys = sort(unique(key[dated & !after])))
+  list(finds = structure(finds, kept_apart = counts, not_found = not_found), training = training,
+       training_keys = sort(unique(key[dated & !after])),
+       excluded_keys = sort(unique(key[keep & record %in% exclude])), exclude_missing = exclude_missing)
 }
 
 #' The 5 km square a point falls in, as a key.

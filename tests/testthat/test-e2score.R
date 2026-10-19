@@ -393,7 +393,7 @@ test_that("the pull splits into dated training records and later finds, with eve
   # The cutoff day itself trains.
   expect_equal(nrow(split$training), 2L)
   expect_equal(nrow(split$finds), 3L)
-  expect_equal(attr(split$finds, "kept_apart"), list(undated = 1L, off_grid = 1L, observed_before = 0L))
+  expect_equal(attr(split$finds, "kept_apart"), list(undated = 1L, off_grid = 1L, observed_before = 0L, excluded = 0L, held = 0L))
   places <- atlas_e2_places(split$finds, split$training)
   # Only the dated, located find becomes a place; the others stay counted.
   expect_equal(nrow(places), 1L)

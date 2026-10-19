@@ -204,7 +204,8 @@ atlas_score_find <- function(dirs, path_of, taxon) {
 atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NULL, cutoff = NULL,
                               grid = "draft", kernels = NULL, defaults = NULL, observed_after = FALSE,
                               reps = ATLAS_E2_BOOTSTRAP, seed = 1L, out = NULL, quiet = FALSE,
-                              view = NULL, full_pull = NULL) {
+                              view = NULL, full_pull = NULL, exclude = character(), hold = character(),
+                              allow_missing_excludes = FALSE, refits = character(), refit_views = NULL) {
   started <- Sys.time()
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   if (length(reps) != 1L || !is.finite(reps) || reps < 1 || reps != round(reps)) {
@@ -228,17 +229,15 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   if (is.null(full_pull)) {
     full_pull <- atlas_tracker_release_pull(store, atlas_tracker_manifest(store, from_release, grid), grid)
   }
-  split <- atlas_e2_split(full_pull, cutoff, observed_after = observed_after, grid = grid)
-  # The split must be the hindcast's own: it trains on exactly the records
-  # the hindcast was fitted on, and no later find is one of them.
-  hindcast_keys <- sort(unique(view$pull$key))
-  if (!identical(split$training_keys, hindcast_keys)) {
-    stop("the split's training records are not the hindcast's (", length(split$training_keys), " against ",
-         length(hindcast_keys), "): wrong source release or cutoff", call. = FALSE)
+  split <- atlas_e2_split(full_pull, cutoff, observed_after = observed_after, grid = grid,
+                          exclude = exclude, hold = hold)
+  # An excluded id that is no find is most likely a typo, and a typo would
+  # leave the record it meant scored: refuse, naming them, unless told.
+  if (length(split$exclude_missing) && !isTRUE(allow_missing_excludes)) {
+    stop("--exclude names no later find for ", paste(split$exclude_missing, collapse = ", "),
+         " (pass --allow-missing-excludes to go on without them)", call. = FALSE)
   }
-  if (any(split$finds$key %in% hindcast_keys)) {
-    stop("a later find is one of the hindcast's training records", call. = FALSE)
-  }
+  missing <- atlas_score_check_split(split, sort(unique(view$pull$key)))
   # Names as the release knows them (renames and spellings, as the tracker
   # matches them); a name it does not know stays as it is, and is counted.
   rename <- function(names) {
@@ -251,7 +250,12 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   split$training$taxon <- rename(split$training$taxon)
   places <- atlas_e2_places(split$finds, split$training)
 
-  model_maps_for <- function(taxon) atlas_score_model_maps(view, taxon)
+  # A taxon a refit of this hindcast refitted is scored on the refit's maps;
+  # every other taxon on the hindcast's.
+  refit_views <- refit_views %||% atlas_score_refits(store, refits, hindcast, grid)
+  refit_of <- list()
+  for (r in refit_views) for (taxon in r$taxa) refit_of[[taxon]] <- r$view
+  model_maps_for <- function(taxon) atlas_score_model_maps(refit_of[[taxon]] %||% view, taxon)
   kernel_maps_for <- if (!is.null(kernel_run)) {
     function(taxon) atlas_score_kernel_maps(model_maps_for(taxon),
                                             atlas_score_find(kernel_run$dirs, atlas_distance_raster_path, taxon))
@@ -270,7 +274,12 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
     list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
          settings = list(hindcast = hindcast, from_release = from_release, cutoff = cutoff,
                          observed_after = observed_after, reps = as.integer(reps), seed = as.integer(seed),
-                         grid = grid, kernel_shards = length(kernels), default_shards = length(defaults)),
+                         grid = grid, kernel_shards = length(kernels), default_shards = length(defaults),
+                         excluded = length(unique(exclude)), held = length(unique(hold)),
+                         excluded_leaks = length(intersect(missing, split$excluded_keys)),
+                         ids_not_found = attr(split$finds, "not_found") %||% 0L,
+                         excludes_not_found = length(split$exclude_missing),
+                         refits = lapply(refit_views, function(r) list(release = r$id, taxa = as.list(r$taxa)))),
          kept_apart = attr(split$finds, "kept_apart")),
     atlas_score_baselines_core(places, model_maps_for, kernel_maps_for, default_maps_for,
                                known_names = view$names, reps = as.integer(reps), seed = as.integer(seed)),
@@ -311,4 +320,60 @@ atlas_score_default_dir <- function(results_path) {
          call. = FALSE)
   }
   hit[[1]]
+}
+
+#' Record ids from a flag: "590501,586958", or "@path" for a file of ids, one
+#' per line (blank lines and lines starting with # ignored). Only digits.
+atlas_score_ids <- function(value) {
+  if (is.null(value) || isTRUE(value)) return(character())
+  value <- as.character(value)
+  ids <- if (startsWith(value, "@")) readLines(substring(value, 2L), warn = FALSE) else strsplit(value, ",", fixed = TRUE)[[1]]
+  ids <- trimws(ids)
+  ids <- ids[nzchar(ids) & !startsWith(ids, "#")]
+  if (any(!grepl("^[0-9]+$", ids))) stop("record ids are whole numbers, not '", ids[!grepl("^[0-9]+$", ids)][[1]], "'", call. = FALSE)
+  unique(ids)
+}
+
+#' The split must be the hindcast's own: it trains on exactly the records
+#' the hindcast was fitted on, and no later find it scores is one of them.
+#' The one difference allowed is an excluded find the hindcast trained on (a
+#' record whose first-validation date was wrong when the hindcast was
+#' planned): it is kept apart, never scored, and counted as a known leak.
+#' Then, on its own, only an excluded find may be one of the hindcast's
+#' training records: any other later find among them (scored, held or kept
+#' apart for another reason) stops the run. Returns the hindcast's training
+#' keys the split lacks (the known leaks).
+atlas_score_check_split <- function(split, hindcast_keys) {
+  extra <- setdiff(split$training_keys, hindcast_keys)
+  missing <- setdiff(hindcast_keys, split$training_keys)
+  unexplained <- setdiff(missing, split$excluded_keys)
+  if (length(extra) || length(unexplained)) {
+    stop("the split's training records are not the hindcast's (", length(extra), " more, ", length(unexplained),
+         " fewer, not excluded): wrong source release or cutoff", call. = FALSE)
+  }
+  not_excluded <- !(split$finds$kept_apart %in% "excluded")
+  if (any(split$finds$key[not_excluded] %in% hindcast_keys)) {
+    stop("a later find is one of the hindcast's training records and is not excluded", call. = FALSE)
+  }
+  missing
+}
+
+#' Refits of this hindcast (plan-job --hindcast --leave-out: some taxa's
+#' models fitted again without listed records), each with the taxa it
+#' refitted. A release that is not a refit of this very hindcast is refused,
+#' and so is a taxon refitted by two of them.
+atlas_score_refits <- function(store, refits, hindcast, grid = "draft", view_of = atlas_tracker_view) {
+  out <- lapply(unique(as.character(refits)), function(id) {
+    view <- view_of(store, id, grid)
+    made <- view$manifest$refit
+    if (is.null(made) || !identical(as.character(made$hindcast %||% ""), hindcast)) {
+      stop(id, " is not a refit of hindcast ", hindcast, call. = FALSE)
+    }
+    taxa <- as.character(unlist(made$taxa %||% list()))
+    if (!length(taxa)) stop("refit ", id, " names no taxa", call. = FALSE)
+    list(id = id, view = view, taxa = taxa)
+  })
+  taxa <- unlist(lapply(out, `[[`, "taxa"))
+  if (anyDuplicated(taxa)) stop("two refits both refit ", taxa[duplicated(taxa)][[1]], call. = FALSE)
+  out
 }
