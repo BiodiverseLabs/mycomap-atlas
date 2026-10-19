@@ -44,6 +44,38 @@
      then run E12 to confirm the fix.
    - **Identical:** run E12 as designed.
 
+   **Result (2026-10-19): passed; the difference is the processor family.**
+   Both jobs ran release fa1b4198 on source job 20261013T022520Z-2cb67f32
+   (the original 10/12 pull), image 8bfc98d, 3 tuned Maxent models × 2
+   fresh-process runs, no nulls:
+
+   | Job | Machine | Runs agree | Same as the release |
+   |---|---|---|---|
+   | study-20261019T180106Z-5b4bbf44 | r7i.large, Intel Xeon Platinum 8488C, libblas.so.3 | 3/3 | *Stropharia hardii*, *Russula* sp. 'compacta-PA01' |
+   | study-20261019T181116Z-179c6d90 | r7a.large, AMD EPYC 9R14, libblas.so.3 | 3/3 | *Gliophorus fumosus* |
+
+   - **Within one family every refit is bit-identical across fresh
+     processes**, for all three models on both families. So there is no
+     run-to-run or process-state non-determinism, and the queue does not
+     stop.
+   - **Across families, tuned Maxent's choice can flip.** Each model's
+     release fit is reproduced on exactly one family, and the other family
+     gives another setting. *Gliophorus fumosus* on Intel: maximum tuning
+     change 0.0693, correlation 0.546. *Stropharia hardii* on AMD: 0.0472,
+     0.492. *Russula* on AMD: 0.0129, 0.973.
+   - **These are the refresh's three flips, number for number.** The
+     refresh's maximum tuning changes were 0.069 (*Gliophorus*, Intel) and
+     0.047 and 0.013 (*Stropharia*, *Russula*, AMD). So the release fitted
+     *Gliophorus* on AMD and the other two on Intel. The refresh refitted
+     *Gliophorus* on Intel and the other two on an AMD attempt of its
+     shard 4, before that shard's reclaim moved it to Intel.
+   - **Results:** study/<job>/repro-<label>-20261013T191324Z-fa1b4198.json
+     for each job.
+   - **Reading for the paper:** the reproducibility claim holds per
+     processor family. Across families, a small share of tuned Maxent
+     models choose other settings; arm b measures that share. E12 runs as
+     designed.
+
 ## Design
 
 - **Sample (fixed 2026-10-13, before any cost or result was seen).** Strata
