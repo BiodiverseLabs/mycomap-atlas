@@ -164,7 +164,8 @@ strong taxa.
       has one (mycomap.org 593531, first validated 2026-08-25, an
       iNaturalist record whose own date the collision does not touch), so
       by the rule its hindcast model is refitted without 586958 before
-      scoring. [PENDING: Steve's go for the one-taxon refit.]
+      scoring. Steve's go: 2026-10-18 (to the paper coordinator). [PENDING:
+      the refit's job id and the refitted model's grade.]
     - 586894, *Fibroporia albicans*: in the pull with first_green_on
       2025-08-06, before collection; not in the trained ids (no hindcast
       model for the taxon). It still sat in the training pull's survey
