@@ -39,7 +39,7 @@
   },
   "layers": {
     "title": "MycoMap Atlas: environmental predictors for North America ({grid} grid)",
-    "summary": "The 68 environmental predictor layers every Atlas model is fitted on, in eight groups: 19 climate variables, elevation, two terrain measures, six topsoil properties, six land-cover shares, four forest-type layers and 31 host-tree genera, reprojected onto one North America Albers Equal Area grid.",
+    "summary": "The 69 environmental predictor layers every Atlas model is fitted on, in eight groups: 19 climate variables, elevation, two terrain measures, six topsoil properties, six land-cover shares, four forest-type layers and 31 host-tree genera, reprojected onto one North America Albers Equal Area grid.",
     "related_identifiers": [
       { "identifier": "10.1002/joc.5086", "relation": "isDerivedFrom", "scheme": "doi" },
       { "identifier": "10.5194/soil-7-217-2021", "relation": "isDerivedFrom", "scheme": "doi" },
