@@ -243,3 +243,35 @@ finish).
     `./atlas study-score --hindcast=priv-20261018T171648Z-9e3ab153
     --refits=priv-20261019T042158Z-09936f85
     --exclude=590501,586958,586894,598980 --allow-missing-excludes`.
+- **2026-10-19, before any scoring: the 4 excludes matched no later find,
+  and no later find is a twin of a leaked record.** The naming run refused
+  with "--exclude names no later find for 590501, 586958, 586894, 598980",
+  as the entry above anticipated. The reason: E2's split is made from the
+  frozen pull (x73b85b36), which still carries the 4 records' old,
+  cross-source first-validation dates. So in the split, as in the hindcast,
+  they are training records, never test finds, and the training-records
+  check (the split trains on exactly the hindcast's records) holds without
+  them. The exclusions therefore remove nothing, and the run's
+  `--allow-missing-excludes` is expected.
+  The remaining risk runs the other way: a later find that is the same
+  specimen as a leaked training record, under another source or number,
+  would be scored against a model trained on its own twin. Checked
+  read-only on mycomap.org (rebuild lane, 2026-10-19):
+  - 586958, *Sparassis spathulata*: its later find, 593531, is scored on
+    the leave-out refit, which never saw 586958 (entry above).
+  - 590501, *Amanita pantherinoides* (MO 355385, collected 2019-01-12):
+    three records with the same DNA name lie within 6 km: iNaturalist
+    24744428 (mycomap.org 590522, collected 2019-05-05) and 45205980
+    (590579, 2020-05-05), both 3.0 km away and validated in October 2026,
+    so both are later finds; and MO 549653 (576965, 2024-05-21, 5.8 km).
+    **None is a twin:** the collection dates differ by months to years. The
+    two later finds are separate collections near the leaked record, which
+    makes them 0-5 km "known" places. The effect is declared, not
+    corrected: one taxon, with 73 sites and all three models weak.
+  - 586894, *Fibroporia albicans*: no record with its DNA name within
+    5 km; and with 1 site it has no model, so nothing is scored.
+  - 598980, *Pluteus* sp. 'plautus-PNW09': no other record with its DNA
+    name within 5 km. It shares its point with many records at one MO
+    place centre, but none has that name.
+  **Handling:** no further exclusion and no further refit. This entry
+  records that the 4 excludes matched nothing, and why.
