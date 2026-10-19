@@ -125,7 +125,8 @@ atlas_e12_run_workers <- function(models, fit_settings, nulls, grid = "draft", w
 #' are replaceable for tests.
 atlas_e12_arm_study <- function(store = atlas_store(), release, grid = "draft", out = NULL, shard = "1/1",
                                 label = NULL, order = "seeded", workers = 1L, nulls = NULL,
-                                fit_models = atlas_e12_run_workers, seconds = NULL, quiet = FALSE) {
+                                fit_models = atlas_e12_run_workers, seconds = NULL, quiet = FALSE,
+                                limit = Inf) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   key <- paste0("releases/", grid, "/", release, ".json")
@@ -136,6 +137,9 @@ atlas_e12_arm_study <- function(store = atlas_store(), release, grid = "draft", 
   sample_key <- attr(models, "sample_key")
   drawn <- nrow(models)
   mine <- models[atlas_study_shard(seq_len(drawn), shard), , drop = FALSE]
+  # A smoke run: the shard's first `limit` models only (the sample's key is
+  # still the whole sample's).
+  if (is.finite(limit)) mine <- utils::head(mine, max(1L, as.integer(limit)))
   # Each model on the inputs of the job that fitted it.
   tasks <- lapply(seq_len(nrow(mine)), function(i) {
     list(algorithm = mine$algorithm[[i]], taxon = mine$taxon[[i]], fingerprint = mine$fingerprint[[i]])
@@ -168,6 +172,7 @@ atlas_e12_arm_study <- function(store = atlas_store(), release, grid = "draft", 
   })
   result <- list(
     study = "e12-arm", label = label, release = release, shard = shard, order = order, workers = workers,
+    limit = if (is.finite(limit)) as.integer(limit),
     sample_key = sample_key, drawn = drawn, cost = attr(models, "cost"),
     machine = atlas_machine_info(), image_commit = Sys.getenv("ATLAS_COMMIT", unset = NA),
     at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
