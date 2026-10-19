@@ -1065,7 +1065,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             layers = NULL, algorithm = "maxnet",
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
                             tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
-                            guilds = atlas_guild_table(), importance = TRUE, full = NULL) {
+                            guilds = atlas_guild_table(), importance = TRUE, full = NULL,
+                            seed_from = NULL) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
@@ -1097,7 +1098,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     name, grid,
     n_background = n_background, buffer_km = buffer_km,
     write = FALSE, quiet = TRUE, points = points, stack = stack,
-    occurrences = occurrences, fingerprint = fingerprint, thin_km = thin_km
+    occurrences = occurrences, fingerprint = fingerprint, thin_km = thin_km,
+    seed_from = seed_from
   )
   presences <- sum(training$presence == 1L)
   refuse <- function(condition) {

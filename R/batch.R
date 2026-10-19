@@ -55,6 +55,11 @@ atlas_fingerprints_for <- function(occurrences, names) {
 #' of eight hundred.
 atlas_batch_fit_one <- function(name, fingerprint, fit, args) {
   started <- Sys.time()
+  # A hindcast refit draws each taxon with its hindcast model's seed
+  # (seed_from, R/hindcast.R); every other fit is called exactly as before.
+  seeds <- args$seeds
+  args$seeds <- NULL
+  if (!is.null(seeds[[name]])) args$seed_from <- seeds[[name]]
   row <- tryCatch(
     {
       result <- do.call(fit, c(list(name = name, fingerprint = fingerprint), args))
@@ -264,7 +269,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             occurrences = NULL, points = NULL, stack = NULL,
                             layers = NULL, algorithm = "maxnet",
                             nulls = ATLAS_NULL_REPS, tune = TRUE,
-                            fit = atlas_fit_taxon, on_row = NULL, full = NULL) {
+                            fit = atlas_fit_taxon, on_row = NULL, full = NULL, seeds = NULL) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
@@ -358,6 +363,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
   # A refit job may ask for full-extent maps whatever the grade; every other
   # fit is called exactly as before.
   if (!is.null(full)) args$full <- full
+  if (!is.null(seeds)) args$seeds <- seeds
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
     atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)
