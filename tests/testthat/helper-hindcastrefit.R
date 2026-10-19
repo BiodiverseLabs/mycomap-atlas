@@ -37,7 +37,9 @@ seeded_fit <- function(grades = list(), watch = NULL, refuse = list()) {
                    args[intersect(names(args), c("nulls", "folds", "block_km", "regmult", "correlation",
                                                  "min_presences", "layers", "tune", "prune"))]),
       raster = basename(raster), map = "x.png",
-      auc_mean = round(0.6 + (draws[[2]] %% 300) / 1000, 3), boyce_pooled = round((draws[[3]] %% 900) / 1000, 3),
+      # Named as a real fit names them (R/fit.R): pooled Boyce is "boyce".
+      auc_mean = round(0.6 + (draws[[2]] %% 300) / 1000, 3), boyce = round((draws[[3]] %% 900) / 1000, 3),
+      boyce_mean = round((draws[[3]] %% 700) / 1000, 3),
       grade = grades[[name]] %||% "weak"
     )
     atlas_write_json(metrics, atlas_model_path(name, grid, ".json", algorithm))

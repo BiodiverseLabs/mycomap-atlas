@@ -697,7 +697,9 @@ atlas_job_billing <- function(records, job_ids, prices = Sys.getenv("ATLAS_EC2_S
 }
 
 #' Every model's grade, strength and scores, from this data directory's
-#' metrics: what Atlas E2 scores by grade.
+#' metrics: what Atlas E2 scores by grade. A fit's metrics keep the pooled
+#' Boyce index, the one its grade is judged by, as "boyce" ("boyce_mean" is
+#' the mean over folds; R/fit.R): the table's boyce_pooled is that.
 atlas_private_models_table <- function(grid = "draft") {
   rows <- lapply(names(ATLAS_ALGORITHMS), function(algorithm) {
     files <- list.files(atlas_model_dir(grid, algorithm), pattern = "[.]json$", full.names = TRUE)
@@ -707,7 +709,7 @@ atlas_private_models_table <- function(grid = "draft") {
       number <- function(x) if (is.numeric(x) && length(x) == 1L) x else NA_real_
       data.frame(taxon = m$taxon, algorithm = algorithm, grade = atlas_metrics_grade(m),
                  presences = number(m$presences), map_strength = number(m$map_strength),
-                 auc_mean = number(m$auc_mean), boyce_pooled = number(m$boyce_pooled),
+                 auc_mean = number(m$auc_mean), boyce_pooled = number(m$boyce),
                  null_reps = number(m$null$reps), null_auc_p = number(m$null$auc_p),
                  threshold = number(m$applicability$threshold),
                  full_view = !is.null(m$full_map), stringsAsFactors = FALSE)
