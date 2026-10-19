@@ -185,7 +185,9 @@ finish).
       find:** the E2 scorer is not wired to read a refit, so the one held
       find (593531) is scored against the refitted model's raster, read from
       the refit release's manifest, with the same metrics, and recorded with
-      the E2 results.
+      the E2 results. *(Superseded 2026-10-19 by the last entry below: the
+      find is scored inside the single E2 run on the refit, with no separate
+      raster read.)*
     - **Refit done** 2026-10-19 04:31 UTC: private release
       priv-20261019T042158Z-09936f85 (code merged as Atlas main 35aec02;
       1 record left out of 124,955; 1 model; about 0.02 CPU-h). Hindcast
