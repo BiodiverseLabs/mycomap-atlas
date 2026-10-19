@@ -214,3 +214,30 @@ finish).
     recommendation); the only refit is *Sparassis spathulata*'s model,
     which is a small-model ensemble at 15 sites, so no Maxent or random
     forest model of it exists to exclude.
+- **2026-10-19, before any scoring: one run in place of hold-then-rerun.**
+  The entry above holds *Sparassis spathulata*'s test find until the refit
+  and then scores it separately. Instead, E2 is scored in **one run**:
+  - *Sparassis spathulata* is scored on the refit's ESM, private release
+    priv-20261019T042158Z-09936f85 (the hindcast's model fitted again
+    without 586958, with the same settings, seeds and shifted-null test).
+    Every other taxon is scored on the hindcast, private release
+    priv-20261018T171648Z-9e3ab153.
+  - The 4 leaks (mycomap.org 590501, 586958, 586894, 598980) are excluded
+    from the test finds. Because the frozen pull dates them before the
+    cutoff or lacks them, the run passes `--allow-missing-excludes`. The
+    first run omits that flag and is refused, and the refusal names the
+    ids not found among the later finds. Those ids are recorded with the
+    results.
+  - The scored models and test finds are identical to hold-then-rerun. The
+    only difference: *Sparassis spathulata*'s places enter the single
+    bootstrap over taxa rather than a second run. Its held find (593531)
+    is therefore scored like every other find, with no separate raster
+    read.
+  - Code: `study-score --refits`, Atlas branch study/score-exclusions
+    444d41e (pending merge). A refit is used only if its manifest names
+    this hindcast as the one it refits, and no taxon may come from two
+    refits. The run records each refit's release and taxa in its
+    settings. Command:
+    `./atlas study-score --hindcast=priv-20261018T171648Z-9e3ab153
+    --refits=priv-20261019T042158Z-09936f85
+    --exclude=590501,586958,586894,598980 --allow-missing-excludes`.
