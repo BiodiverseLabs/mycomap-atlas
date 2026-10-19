@@ -278,7 +278,7 @@ score_world <- function() {
   set.seed(5)
   n <- 120
   pull <- data.frame(
-    source = "inat", observation_id = as.character(seq_len(n)),
+    id = as.character(1000 + seq_len(n)), source = "inat", observation_id = as.character(seq_len(n)),
     scientific_name = rep(sprintf("T%02d", 1:40), length.out = n),
     latitude = as.character(40 + stats::runif(n, 0, 0.5)), longitude = as.character(-85 + stats::runif(n, 0, 0.5)),
     first_green_on = ifelse(seq_len(n) <= 80, "2026-07-01", "2026-09-01"),
@@ -384,4 +384,59 @@ test_that("each model map carries its tier from its stored metrics, and the resu
   expect_true("moderate_z" %in% names(result$models$by_tier))
   expect_true(result$tier_hypotheses$H2d$tested)
   expect_true(result$tier_hypotheses$H2d$holds)
+})
+
+
+# --- Excluded and held test finds -------------------------------------------------
+
+test_that("a find that trained the hindcast stops the run unless it is excluded, and is then a counted leak", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  # Record 81 trained the hindcast (its date was wrong then) but is now a
+  # later find: the split no longer trains on it.
+  world$view$pull <- rbind(world$view$pull, data.frame(key = "inat:81", stringsAsFactors = FALSE))
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) {
+    list(maxnet = list(layers = world$layers, grade = "strong", learner = "maxnet", kind = "model"))
+  })
+  run <- function(...) {
+    with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = world$view, full_pull = world$pull,
+                                    reps = 50, quiet = TRUE, ...))
+  }
+  expect_error(run(), "not the hindcast's")
+  result <- run(exclude = "1081")
+  expect_equal(result$settings$excluded_leaks, 1L)
+  expect_equal(result$kept_apart$excluded, 1L)
+  # The excluded find is never scored: one fewer place than the later finds.
+  expect_equal(result$models$by_grade$strong$all$ranked, later_places(world) - 1L)
+})
+
+test_that("a held find is kept apart and counted, and an id that is no find is counted too", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) {
+    list(maxnet = list(layers = world$layers, grade = "strong", learner = "maxnet", kind = "model"))
+  })
+  result <- with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = world$view, full_pull = world$pull,
+                                            reps = 50, quiet = TRUE, hold = c("1090", "1999")))
+  expect_equal(result$kept_apart$held, 1L)
+  expect_equal(result$settings$held, 2L)
+  expect_equal(result$settings$ids_not_found, 1L)
+  expect_equal(result$models$by_grade$strong$all$ranked, later_places(world) - 1L)
+  # Excluding or holding needs the pull's record ids.
+  expect_error(atlas_e2_split(world$pull[, setdiff(names(world$pull), "id")], "2026-08-17", exclude = "1081"),
+               "no id column")
+  # A training record cannot be excluded out of the training: the split's
+  # training is the hindcast's whatever the list says.
+  trained <- atlas_e2_split(world$pull, "2026-08-17", exclude = "1001")
+  expect_true("inat:1" %in% trained$training_keys)
+  expect_length(trained$excluded_keys, 0L)
+})
+
+test_that("record ids come from a comma list or a file, and only whole numbers", {
+  expect_equal(atlas_score_ids("590501, 586958,586894"), c("590501", "586958", "586894"))
+  path <- tempfile(fileext = ".txt")
+  writeLines(c("# leaks that trained the hindcast", "590501", "", "598980", "590501"), path)
+  expect_equal(atlas_score_ids(paste0("@", path)), c("590501", "598980"))
+  expect_equal(atlas_score_ids(NULL), character())
+  expect_error(atlas_score_ids("590501,inat:1"), "whole numbers")
 })

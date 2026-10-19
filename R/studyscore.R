@@ -204,7 +204,7 @@ atlas_score_find <- function(dirs, path_of, taxon) {
 atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NULL, cutoff = NULL,
                               grid = "draft", kernels = NULL, defaults = NULL, observed_after = FALSE,
                               reps = ATLAS_E2_BOOTSTRAP, seed = 1L, out = NULL, quiet = FALSE,
-                              view = NULL, full_pull = NULL) {
+                              view = NULL, full_pull = NULL, exclude = character(), hold = character()) {
   started <- Sys.time()
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   if (length(reps) != 1L || !is.finite(reps) || reps < 1 || reps != round(reps)) {
@@ -228,15 +228,23 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   if (is.null(full_pull)) {
     full_pull <- atlas_tracker_release_pull(store, atlas_tracker_manifest(store, from_release, grid), grid)
   }
-  split <- atlas_e2_split(full_pull, cutoff, observed_after = observed_after, grid = grid)
+  split <- atlas_e2_split(full_pull, cutoff, observed_after = observed_after, grid = grid,
+                          exclude = exclude, hold = hold)
   # The split must be the hindcast's own: it trains on exactly the records
-  # the hindcast was fitted on, and no later find is one of them.
+  # the hindcast was fitted on, and no later find it scores is one of them.
+  # The one difference allowed is an excluded find the hindcast trained on
+  # (a record whose first-validation date was wrong when the hindcast was
+  # planned): it is kept apart, never scored, and counted as a known leak.
   hindcast_keys <- sort(unique(view$pull$key))
-  if (!identical(split$training_keys, hindcast_keys)) {
-    stop("the split's training records are not the hindcast's (", length(split$training_keys), " against ",
-         length(hindcast_keys), "): wrong source release or cutoff", call. = FALSE)
+  extra <- setdiff(split$training_keys, hindcast_keys)
+  missing <- setdiff(hindcast_keys, split$training_keys)
+  unexplained <- setdiff(missing, split$excluded_keys)
+  if (length(extra) || length(unexplained)) {
+    stop("the split's training records are not the hindcast's (", length(extra), " more, ", length(unexplained),
+         " fewer, not excluded): wrong source release or cutoff", call. = FALSE)
   }
-  if (any(split$finds$key %in% hindcast_keys)) {
+  scored <- is.na(split$finds$kept_apart)
+  if (any(split$finds$key[scored] %in% hindcast_keys)) {
     stop("a later find is one of the hindcast's training records", call. = FALSE)
   }
   # Names as the release knows them (renames and spellings, as the tracker
@@ -270,7 +278,10 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
     list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
          settings = list(hindcast = hindcast, from_release = from_release, cutoff = cutoff,
                          observed_after = observed_after, reps = as.integer(reps), seed = as.integer(seed),
-                         grid = grid, kernel_shards = length(kernels), default_shards = length(defaults)),
+                         grid = grid, kernel_shards = length(kernels), default_shards = length(defaults),
+                         excluded = length(unique(exclude)), held = length(unique(hold)),
+                         excluded_leaks = length(intersect(missing, split$excluded_keys)),
+                         ids_not_found = attr(split$finds, "not_found") %||% 0L),
          kept_apart = attr(split$finds, "kept_apart")),
     atlas_score_baselines_core(places, model_maps_for, kernel_maps_for, default_maps_for,
                                known_names = view$names, reps = as.integer(reps), seed = as.integer(seed)),
@@ -311,4 +322,16 @@ atlas_score_default_dir <- function(results_path) {
          call. = FALSE)
   }
   hit[[1]]
+}
+
+#' Record ids from a flag: "590501,586958", or "@path" for a file of ids, one
+#' per line (blank lines and lines starting with # ignored). Only digits.
+atlas_score_ids <- function(value) {
+  if (is.null(value) || isTRUE(value)) return(character())
+  value <- as.character(value)
+  ids <- if (startsWith(value, "@")) readLines(substring(value, 2L), warn = FALSE) else strsplit(value, ",", fixed = TRUE)[[1]]
+  ids <- trimws(ids)
+  ids <- ids[nzchar(ids) & !startsWith(ids, "#")]
+  if (any(!grepl("^[0-9]+$", ids))) stop("record ids are whole numbers, not '", ids[!grepl("^[0-9]+$", ids)][[1]], "'", call. = FALSE)
+  unique(ids)
 }
