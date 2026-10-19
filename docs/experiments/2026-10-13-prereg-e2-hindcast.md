@@ -176,5 +176,11 @@ strong taxa.
       model for the taxon). It still sat in the training pull's survey
       sites. → noted.
     - 598980: not in the frozen pull. → nothing to do.
-  - Net: two records trained hindcast models; all four are excluded from
-    scored test finds if present.
+  - Net: at most 4 of the hindcast's 124,955 training records were
+    post-cutoff; two trained models. **Test-find exclusion list** for the
+    scorer (any that appear as test finds under corrected dates are left
+    out and counted): mycomap.org 590501, 586958, 586894, 598980. The
+    hindcast run is kept, not rerun (the Atlas coordinator's
+    recommendation); the only refit is *Sparassis spathulata*'s model,
+    which is a small-model ensemble at 15 sites, so no Maxent or random
+    forest model of it exists to exclude.

@@ -667,9 +667,11 @@ only by them and 2,287 left out, corrected from the next release on
 (Appendix S1: Section S2). The pull also lost 21 validated records (20
 from Mushroom Observer, 1 from MyCoPortal) to a check for obscured
 iNaturalist coordinates that matched by observation number alone, and the
-hindcast trained two of its models on records validated after its cutoff
-through a similar mix-up of first-validation dates (both fixed for later
-pulls). Some finds appear twice, posted to both
+hindcast's training set held at most four of its 124,955 records that were
+in fact validated after the cutoff, through a similar mix-up of
+first-validation dates; two of them trained models, one of which
+(*Sparassis spathulata*, 15 sites) is refitted without it, and all four are
+kept out of the scored test finds (both bugs fixed for later pulls). Some finds appear twice, posted to both
 iNaturalist and Mushroom Observer: at least about 1,630 such pairs have both
 records in the training data. For the 91% whose two points lie within 5 km,
 site thinning counts the find once and only the effort predictor is
@@ -1004,6 +1006,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.16.3 (2026-10-18).** Limitations: at most 4 of 124,955 hindcast
+  training records were post-cutoff; test-find exclusion list sent to the
+  experiments lane.
 - **0.16.2 (2026-10-18).** E2 deviation: exact check, two records trained
   hindcast models.
 - **0.16.1 (2026-10-18).** E2 deviation logged before scoring (≤ 4
