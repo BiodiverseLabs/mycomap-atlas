@@ -212,6 +212,8 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
+  message("  study-repro --draw paper E12's refit arms: the drawn models of --release=ID, graded, each on its")
+  message("                     own fitting job's inputs ([--label] [--order=seeded|reverse] [--workers=N])")
   message("  study-e12-draw     paper E12 step 0: the seeded stratified draw on a release and its cost from")
   message("                     recorded fit times, to a local CSV (--release=ID [--out=e12-draw.csv]); read-only")
   message("  study-repro        paper E12 gate: refit models in fresh processes on one machine, twice or more,")
@@ -928,6 +930,20 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "study-repro" = {
+      # Paper E12's refit arms: the plan's drawn models, graded (R/studye12arms.R).
+      if (isTRUE(flags$draw)) {
+        if (is.null(flags$release)) stop("study-repro --draw needs --release=ID", call. = FALSE)
+        atlas_e12_arm_study(
+          atlas_flag_store(flags), release = as.character(flags$release), grid = atlas_flag_grid(flags),
+          out = if (is.null(flags$out)) NULL else as.character(flags$out),
+          shard = as.character(flags$shard %||% "1/1"),
+          label = if (is.null(flags$label)) NULL else as.character(flags$label),
+          order = as.character(flags$order %||% "seeded"),
+          workers = as.integer(atlas_flag_number(flags, "workers", 1)),
+          nulls = if (is.null(flags$nulls)) NULL else as.integer(atlas_flag_number(flags, "nulls", ATLAS_NULL_REPS))
+        )
+        return(invisible(0L))
+      }
       if (is.null(flags$release) || is.null(flags$source_job) || is.null(flags$taxa)) {
         stop("study-repro needs --release=ID --source-job=ID --taxa='Name one|Name two'", call. = FALSE)
       }
