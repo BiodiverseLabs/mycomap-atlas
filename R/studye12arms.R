@@ -187,6 +187,11 @@ atlas_e12_arm_study <- function(store = atlas_store(), release, grid = "draft", 
   s <- result$summary
   say(sprintf("  %d fitted of %d; same records %d; same grade as the release %d; identical to the release %d",
               s$fitted, s$models, s$same_records, s$same_grade, s$identical_to_release))
+  # More than a few unfitted models fail the shard (its file kept), as for
+  # every study (atlas_study_guard).
+  atlas_study_guard(lapply(results, function(r) list(status = if (identical(r$fit$status, "fitted")) "fitted" else "failed",
+                                                      error = r$fit$error %||% r$fit$status)),
+                    "E12 arm")
   invisible(result)
 }
 

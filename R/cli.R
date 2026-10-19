@@ -858,7 +858,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         out = if (is.null(flags$out)) NULL else as.character(flags$out),
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
-        plan_only = isTRUE(flags$plan_only)
+        plan_only = isTRUE(flags$plan_only),
+        limit = atlas_flag_number(flags, "limit", Inf)
       )
       invisible(0L)
     },

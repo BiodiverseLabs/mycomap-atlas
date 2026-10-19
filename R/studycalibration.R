@@ -440,5 +440,6 @@ atlas_calibration_study <- function(grid = "draft", layout = atlas_calibration_l
     files <- c(result$path, sub("[.]json$", ".log", result$path))
     atlas_study_publish(store, files[file.exists(files)], out$key, root = dirname(out$dir))
   }
+  atlas_study_guard(result$taxa, "calibration study")
   invisible(result)
 }

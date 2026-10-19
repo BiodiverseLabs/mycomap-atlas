@@ -9,7 +9,15 @@
 #' named rather than shipped, so the worker uses its own copy.
 atlas_study_worker_task <- function(name, fingerprints, taxon_fn, args) {
   args$points <- get(".atlas_points", envir = globalenv())
-  args$stack <- get0(".atlas_stack", envir = globalenv())
+  stack <- get0(".atlas_stack", envir = globalenv())
+  # A worker whose layers did not open says so. (Assigning NULL to a list
+  # element drops it, and every taxon then failed on a missing argument,
+  # E6b's first run, 2026-10-19.)
+  if (is.null(stack)) {
+    return(list(taxon = name, status = "failed",
+                error = "the predictor layers did not open on this worker"))
+  }
+  args$stack <- stack
   tryCatch(
     do.call(taxon_fn, c(list(name = name, fingerprint = fingerprints[[name]]), args)),
     error = function(e) list(taxon = name, status = "failed", error = conditionMessage(e))
@@ -72,6 +80,9 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   }
 
   names <- sample$scientific_name
+  # The layers must open here before any taxon is tried, with one worker or
+  # many: a run without them stops at once rather than failing every taxon.
+  if (length(names)) stack <- stack %||% atlas_predictor_stack(grid)
   if (length(names) && workers > 1L) {
     cluster <- atlas_start_workers(min(workers, length(names)), grid, points)
     on.exit(parallel::stopCluster(cluster), add = TRUE)
@@ -80,7 +91,6 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
     atlas_run_on_workers(cluster, names, task, record,
                          fingerprints = fingerprints, taxon_fn = taxon_fn, args = args)
   } else if (length(names)) {
-    stack <- stack %||% atlas_predictor_stack(grid)
     for (name in names) {
       record(tryCatch(
         do.call(taxon_fn, c(list(name = name, fingerprint = fingerprints[[name]],
@@ -98,6 +108,26 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   say("done in ", round(as.numeric(difftime(Sys.time(), started, units = "secs"))),
       "s -> ", path)
   invisible(list(summary = summary, taxa = rows, path = path))
+}
+
+# The share of a shard's taxa that may fail (an error, not a refusal) before
+# the shard itself is marked failed.
+ATLAS_STUDY_MAX_FAILED_SHARE <- 0.05
+
+#' Stop, after a study has written and published its results, when more of
+#' its taxa failed than ATLAS_STUDY_MAX_FAILED_SHARE: a study job's shard
+#' then records "failed" instead of succeeding with nothing scored. The
+#' error names how many failed and the commonest error.
+atlas_study_guard <- function(rows, what = "study", max_share = ATLAS_STUDY_MAX_FAILED_SHARE) {
+  status <- vapply(rows, function(r) as.character(r$status %||% "unknown"), "")
+  failed <- status == "failed"
+  if (length(rows) && mean(failed) > max_share) {
+    errors <- vapply(rows[failed], function(r) as.character(r$error %||% "no message"), "")
+    commonest <- names(sort(table(errors), decreasing = TRUE))[[1]]
+    stop(sprintf("%s: %d of %d taxa failed, more than %g of them; commonest error: %s",
+                 what, sum(failed), length(rows), max_share, commonest), call. = FALSE)
+  }
+  invisible(rows)
 }
 
 #' One shard of a study's names: "i/n" takes every n-th name from the i-th,

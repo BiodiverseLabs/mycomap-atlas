@@ -357,3 +357,53 @@ test_that("a plan-only run counts the work and fits nothing", {
                                shard = "2/2", plan_only = TRUE, quiet = TRUE)
   expect_equal(half$taxa, 2L)
 })
+
+# ---- the study's own call chain (E6b's first run failed every taxon) ------------
+
+# The synthetic landscape as this data directory's layers, so the study opens
+# them as a real run does.
+synthetic_layers <- function(stack) {
+  dir.create(atlas_layer_dir("draft"), recursive = TRUE, showWarnings = FALSE)
+  terra::writeRaster(stack, atlas_layer_path("synthetic", "draft"), overwrite = TRUE)
+  atlas_write_json(list(list(id = "synthetic", file = "synthetic.tif")),
+                   file.path(atlas_layer_dir("draft"), "manifest.json"))
+}
+
+distance_through_study <- function(world, workers) {
+  out <- tempfile("distance-")
+  dir.create(out)
+  atlas_run_study(
+    kind = "distance-studies", file_prefix = "distance-test", taxon_fn = "atlas_distance_taxon",
+    sample = data.frame(scientific_name = "Eastern fungus", stringsAsFactors = FALSE),
+    fingerprints = list("Eastern fungus" = "f00dfeed"),
+    args = list(grid = "draft", out_dir = out, bandwidths = c(25, 100), n_background = 500, buffer_km = 300,
+                records = list("Eastern fungus" = distance_record(world))),
+    settings = list(), baseline = "kernel", grid = "draft", workers = workers, points = world$points,
+    quiet = TRUE, summarise = atlas_distance_summary)
+}
+
+test_that("a kernel is fitted through the study's own runner, on one worker and on several", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  root <- normalizePath(testthat::test_path("..", ".."), winslash = "/")
+  skip_if_not(file.exists(file.path(root, "R", "study.R")), "sources not found")
+  with_env(c(ATLAS_ROOT = root), with_data_dir({
+    world <- synthetic_landscape()
+    synthetic_layers(world$stack)
+    for (workers in c(1L, 2L)) {
+      result <- distance_through_study(world, workers)
+      expect_equal(vapply(result$taxa, function(r) r$status, ""), "scored", info = paste(workers, "workers"))
+      expect_true(result$taxa[[1]]$bandwidth_km %in% c(25, 100))
+    }
+  }))
+})
+
+test_that("a run whose layers do not open stops before any taxon is tried, on one worker or several", {
+  skip_if_not_installed("terra")
+  with_data_dir({
+    world <- synthetic_landscape()
+    for (workers in c(1L, 2L)) {
+      expect_error(distance_through_study(world, workers), "no layers built")
+    }
+  })
+})
