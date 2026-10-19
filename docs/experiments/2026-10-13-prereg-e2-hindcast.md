@@ -164,8 +164,13 @@ strong taxa.
       has one (mycomap.org 593531, first validated 2026-08-25, an
       iNaturalist record whose own date the collision does not touch), so
       by the rule its hindcast model is refitted without 586958 before
-      scoring. Steve's go: 2026-10-18 (to the paper coordinator). [PENDING:
-      the refit's job id and the refitted model's grade.]
+      scoring. Steve's go: 2026-10-18 (to the paper coordinator). No
+      supported command yet: the existing exclusion tool would rewrite the
+      frozen pull, so a one-taxon leave-out refit is being added to the
+      hindcast tooling (code, review, then a ~1-minute run). Scoring of all
+      other taxa may proceed meanwhile; *Sparassis spathulata*'s one test
+      find is scored only after the refit. [PENDING: the refit's job id and
+      grade.]
     - 586894, *Fibroporia albicans*: in the pull with first_green_on
       2025-08-06, before collection; not in the trained ids (no hindcast
       model for the taxon). It still sat in the training pull's survey
