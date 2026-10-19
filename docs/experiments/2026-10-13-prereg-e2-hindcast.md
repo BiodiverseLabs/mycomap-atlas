@@ -192,7 +192,10 @@ finish).
       fit: ESM, weak, 15 presences, AUC 0.692, null p 0.50 (10 nulls).
       Refit: ESM, **weak**, 14 presences, AUC 0.666, null p 0.31 (16 nulls).
       The grade is unchanged. Trained ids 110,614 (the hindcast's minus
-      one).
+      one). Pooled Boyce for both fits is read from the model JSONs
+      (field `boyce`); the refit's provenance block shows NA because of a
+      models-table export bug that affects no scored output. [PENDING: both
+      fits' pooled Boyce.]
   - **Exclusion list, as the scorer applies it:** the scorer takes test
     finds from the frozen pull's own first-validation dates, in which all
     four ids carry pre-cutoff dates (or are absent), so none can appear as
