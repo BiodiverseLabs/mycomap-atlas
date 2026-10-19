@@ -496,3 +496,55 @@ test_that("an --exclude id that is no later find is refused, naming it, unless a
   expect_equal(result$settings$ids_not_found, 1L)
   expect_equal(result$settings$excluded_leaks, 1L)
 })
+
+
+# --- The split checks, each on its own --------------------------------------------
+
+test_that("a later find among the hindcast's records stops the run even when the training records match", {
+  split <- list(training_keys = c("inat:1", "inat:2"), excluded_keys = character(),
+                finds = data.frame(key = c("inat:2", "inat:9"), kept_apart = c("held", NA), stringsAsFactors = FALSE))
+  # The training records are the hindcast's, yet a held later find is one
+  # of them: only an excluded find may be.
+  expect_error(atlas_score_check_split(split, c("inat:1", "inat:2")), "not excluded")
+  split$finds$kept_apart[1] <- "excluded"
+  expect_length(atlas_score_check_split(split, c("inat:1", "inat:2")), 0L)
+  # A training gap that an exclusion explains is returned as a known leak.
+  leak <- list(training_keys = "inat:1", excluded_keys = "inat:2",
+               finds = data.frame(key = "inat:2", kept_apart = "excluded", stringsAsFactors = FALSE))
+  expect_equal(atlas_score_check_split(leak, c("inat:1", "inat:2")), "inat:2")
+  expect_error(atlas_score_check_split(leak, c("inat:1", "inat:2", "inat:3")), "not the hindcast's")
+})
+
+# --- Refits of the hindcast -------------------------------------------------------
+
+test_that("a refit is used only if it refits this hindcast, and no taxon twice", {
+  views <- list(
+    r1 = list(manifest = list(refit = list(hindcast = "h1", taxa = list("T01")))),
+    r2 = list(manifest = list(refit = list(hindcast = "h1", taxa = list("T01", "T02")))),
+    other = list(manifest = list(refit = list(hindcast = "h9", taxa = list("T03")))),
+    plain = list(manifest = list(purpose = "hindcast"))
+  )
+  view_of <- function(store, id, grid) views[[id]]
+  got <- atlas_score_refits(NULL, "r1", "h1", view_of = view_of)
+  expect_equal(got[[1]]$taxa, "T01")
+  expect_error(atlas_score_refits(NULL, "other", "h1", view_of = view_of), "not a refit of hindcast h1")
+  expect_error(atlas_score_refits(NULL, "plain", "h1", view_of = view_of), "not a refit")
+  expect_error(atlas_score_refits(NULL, c("r1", "r2"), "h1", view_of = view_of), "two refits both refit T01")
+  expect_length(atlas_score_refits(NULL, character(), "h1", view_of = view_of), 0L)
+})
+
+test_that("a refitted taxon is scored on the refit's maps, every other taxon on the hindcast's", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  seen <- list()
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) {
+    seen[[taxon]] <<- view$which %||% "hindcast"
+    list(maxnet = list(layers = world$layers, grade = "strong", learner = "maxnet", kind = "model"))
+  })
+  refit <- list(list(id = "r1", taxa = "T01", view = list(which = "refit")))
+  result <- with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = world$view, full_pull = world$pull,
+                                            reps = 20, quiet = TRUE, refit_views = refit))
+  expect_equal(seen[["T01"]], "refit")
+  expect_equal(seen[["T02"]], "hindcast")
+  expect_equal(result$settings$refits, list(list(release = "r1", taxa = list("T01"))))
+})
