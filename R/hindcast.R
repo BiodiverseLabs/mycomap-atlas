@@ -44,7 +44,13 @@
 #
 #   ./atlas plan-job --hindcast --from-release=<R_main> --validated-through=YYYY-MM-DD [--dry-run]
 #   ./atlas plan-job --record-names --from-release=<R_main> [--dry-run]
+#   ./atlas plan-job --hindcast --from-release=<hindcast priv-ID> --taxa=NAME[,NAME] --leave-out=ID[,ID]
+#                    [--validated-through=YYYY-MM-DD] [--dry-run]
 #   ./atlas run-job-ec2 --job=<ID>      (fits the shards, then finishes it on one worker)
+#
+# The third refits some of a finished hindcast's taxa without listed .org
+# records (atlas_plan_hindcast_refit): a private release of its own, the
+# hindcast's in everything but those records, the hindcast left untouched.
 
 atlas_is_private_release <- function(job) identical(job$kind, "private-release")
 
@@ -244,6 +250,417 @@ atlas_plan_private_release <- function(store = atlas_store(), from_release, purp
   invisible(job)
 }
 
+#' A finished private release's models table (models.tsv.gz), or NULL.
+atlas_private_models <- function(store, id) {
+  key <- atlas_benchmark_key(id, "models.tsv.gz")
+  if (!store$exists(key)) return(NULL)
+  file <- tempfile(fileext = ".tsv.gz")
+  on.exit(unlink(file), add = TRUE)
+  store$get(key, file)
+  utils::read.delim(gzfile(file), stringsAsFactors = FALSE)
+}
+
+#' A models table's rows as lists, leaving out what is missing.
+atlas_model_rows <- function(models) {
+  if (is.null(models) || !nrow(models)) return(list())
+  lapply(seq_len(nrow(models)), function(i) {
+    row <- lapply(as.list(models[i, , drop = FALSE]), function(v) if (length(v) == 1L && is.na(v)) NULL else v)
+    Filter(Negate(is.null), row)
+  })
+}
+
+#' Plan a hindcast refit: some of a finished hindcast's models fitted again
+#' without listed records, as the paper's pre-registered rule asks when a
+#' training record turns out to have been validated after the cutoff.
+#'
+#' The refit is the hindcast in everything but those records. Its pull is
+#' the hindcast's own (already cut at its date), read from the store, with
+#' the listed rows dropped in memory: each named by .org's id, or by its
+#' source and the source's own number ("Mushroom Observer:123456"), never
+#' by that number alone (the sources' numbers overlap). It fits exactly the
+#' hindcast's models of the named taxa (or of those algorithms, when given),
+#' with the hindcast job's settings, null tests, tuning and layers, and each
+#' model draws with its hindcast model's seed (seed_from), so its folds,
+#' background and null draws differ only where the records do. Survey sites,
+#' effort and background are built on the worker from the whole refit pull,
+#' as the hindcast's were from its own: the same sites, except that a
+#' left-out record no longer counts at its site, and a site it held alone is
+#' gone. Neither the pull it is made from, nor the box's pull, nor the drop
+#' list (R/exclude.R) is written: the refit's pull reaches its workers as
+#' the job's own private input, as any hindcast's does.
+#'
+#' Finished (atlas_finish_hindcast_refit_work), it is a private release of
+#' its own under private/vision-benchmark/<id>/, never promotable: the
+#' hindcast's, file for file, with only the refitted models' files and index
+#' entries replaced. The hindcast itself is untouched.
+#'
+#' leave_out may be empty: the refit then reproduces the hindcast's models,
+#' which is how the tests show nothing else changes. Refuses, writing
+#' nothing: a hindcast not finished; a left-out record not in its pull, or
+#' not a named taxon's; a taxon or algorithm with no model there; a taxon
+#' with a combined map (a swap would leave it stale); a model whose taxon
+#' falls outside the algorithm's range of sites without the records; and a
+#' cutoff other than the hindcast's.
+atlas_plan_hindcast_refit <- function(store = atlas_store(), hindcast, taxa, leave_out = character(),
+                                      algorithms = NULL, reason = NULL, rule = NULL, validated_through = NULL,
+                                      grid = "draft", shards = 1L, quiet = FALSE, dry_run = FALSE) {
+  say <- function(...) if (!isTRUE(quiet)) message(...)
+  taxa <- unique(trimws(as.character(taxa)))
+  taxa <- taxa[nzchar(taxa)]
+  if (!length(taxa)) stop("a hindcast refit needs --taxa=NAME[,NAME...]", call. = FALSE)
+  leave_out <- unique(trimws(as.character(leave_out)))
+  leave_out <- leave_out[nzchar(leave_out)]
+
+  # Planned only from a finished hindcast: its summary is written last.
+  manifest_key <- atlas_benchmark_key(hindcast, "release.json")
+  if (!store$exists(manifest_key) || !store$exists(atlas_benchmark_key(hindcast, "summary.json"))) {
+    stop("no finished private release ", hindcast, ": a refit is planned from a finished hindcast, ",
+         "named by --from-release=priv-...", call. = FALSE)
+  }
+  manifest <- atlas_store_text(store, manifest_key)
+  if (!identical(manifest$purpose, "hindcast") || !is.null(manifest$refit)) {
+    stop(hindcast, " is not a hindcast: only a hindcast's models are refitted this way", call. = FALSE)
+  }
+  hjob <- atlas_read_job(store, atlas_json_string(manifest$job) %||% hindcast, grid)
+  if (!atlas_is_private_release(hjob) || !identical(hjob$purpose, "hindcast")) {
+    stop("job ", hjob$id, " is not a hindcast", call. = FALSE)
+  }
+  cutoff <- atlas_json_string(hjob$validated_through)
+  if (!is.null(validated_through) && !identical(as.character(validated_through), cutoff)) {
+    stop("--validated-through=", validated_through, " is not the hindcast's cutoff (", cutoff, ")", call. = FALSE)
+  }
+
+  # The models refitted: the hindcast's own, of the named taxa.
+  index <- Filter(function(e) !isTRUE(e$refused), manifest$index %||% list())
+  modelled <- function(name) unique(vapply(Filter(function(e) identical(e$taxon, name), index),
+                                           function(e) as.character(e$algorithm), ""))
+  missing_taxa <- Filter(function(name) !length(modelled(name)), taxa)
+  if (length(missing_taxa)) {
+    stop("no model of ", paste(missing_taxa, collapse = ", "), " in hindcast ", hindcast, call. = FALSE)
+  }
+  models <- list()
+  for (name in taxa) {
+    have <- modelled(name)
+    wanted <- if (is.null(algorithms)) have else as.character(algorithms)
+    absent <- setdiff(wanted, have)
+    if (length(absent)) {
+      stop("no ", paste(absent, collapse = ", "), " model of ", name, " in hindcast ", hindcast, call. = FALSE)
+    }
+    for (algorithm in wanted) models[[length(models) + 1L]] <- list(taxon = name, algorithm = algorithm)
+  }
+  combined <- Filter(function(name) {
+    any(startsWith(vapply(manifest$files %||% list(), function(f) f$path, ""), atlas_refit_ensemble_prefix(name, grid)))
+  }, taxa)
+  if (length(combined)) {
+    stop(paste(combined, collapse = ", "), " has a combined map in hindcast ", hindcast,
+         ", which swapping one model would leave stale; not refitted", call. = FALSE)
+  }
+
+  pull_entry <- atlas_job_pull_entry(hjob)
+  if (is.null(pull_entry)) stop("hindcast job ", hjob$id, " carries no pull", call. = FALSE)
+  pull_file <- tempfile(fileext = ".tsv.gz")
+  on.exit(unlink(pull_file), add = TRUE)
+  store$get(atlas_object_key(pull_entry$sha256), pull_file)
+  pulled <- atlas_read_occurrences(pull_file)
+  if (!all(c("id", "source", "observation_id") %in% names(pulled))) {
+    stop("the hindcast's pull has no id, source or observation_id column", call. = FALSE)
+  }
+  ids <- as.character(pulled$id)
+  keys <- paste(pulled$source, pulled$observation_id, sep = ":")
+  dropped <- rep(FALSE, nrow(pulled))
+  for (k in leave_out) {
+    hit <- if (grepl(":", k, fixed = TRUE)) keys == k else ids == k
+    if (!any(hit)) {
+      stop("not in hindcast ", hindcast, "'s pull: ", k,
+           " (--leave-out takes .org record ids, or source:observation_id)", call. = FALSE)
+    }
+    if (sum(hit) > 1L) stop(k, " names ", sum(hit), " records in the pull; name each by its .org id", call. = FALSE)
+    dropped <- dropped | hit
+  }
+  others <- unique(pulled$scientific_name[dropped & !pulled$scientific_name %in% taxa])
+  if (length(others)) {
+    stop("a left-out record is ", paste(others, collapse = ", "), "'s, not a named taxon's: ",
+         "leaving it out would change that taxon's sites without refitting it", call. = FALSE)
+  }
+  # The hindcast's pull is already cut at its date: nothing outside it.
+  check <- atlas_filter_validated_through(pulled, cutoff, undated = "exclude")
+  if (check$counts$records_removed != 0L) {
+    stop("hindcast ", hindcast, "'s pull holds records outside its cutoff; nothing planned", call. = FALSE)
+  }
+  # Each model draws with its hindcast model's seed, the fingerprint of the
+  # record set it was fitted on, which the pull read back must still give.
+  seed_of <- list()
+  for (t in hjob$tasks) if (t$taxon %in% taxa) seed_of[[t$taxon]] <- t$fingerprint
+  again <- atlas_fingerprints_for(pulled, taxa)
+  for (name in taxa) {
+    if (!identical(as.character(seed_of[[name]] %||% ""), unname(again[[name]]))) {
+      stop("hindcast ", hindcast, "'s pull no longer gives ", name, "'s record set; nothing planned", call. = FALSE)
+    }
+  }
+
+  occurrences <- pulled[!dropped, , drop = FALSE]
+  rownames(occurrences) <- NULL
+  records <- lapply(which(dropped), function(i) {
+    list(id = ids[[i]], source = as.character(pulled$source[[i]]),
+         observation_id = as.character(pulled$observation_id[[i]]), taxon = pulled$scientific_name[[i]])
+  })
+  left_out_by_taxon <- lapply(stats::setNames(nm = taxa), function(name) {
+    as.list(sort(ids[dropped & pulled$scientific_name == name]))
+  })
+
+  # Each model is refitted only if its taxon is still in the algorithm's
+  # range of sites without the records, as the hindcast's planning asked.
+  min_presences <- hjob$fit$min_presences %||% 20
+  sites <- atlas_presence_cell_counts(atlas_occurrence_points(occurrences, grid))
+  areas <- vapply(index, function(e) {
+    if (is.numeric(e$area_km2) && length(e$area_km2) == 1L) e$area_km2 else NA_real_
+  }, numeric(1))
+  typical <- if (any(is.finite(areas))) stats::median(areas, na.rm = TRUE) else 5e6
+  area_of <- list()
+  for (e in index) area_of[[paste(e$algorithm, e$taxon)]] <- e$area_km2
+  fingerprints <- atlas_fingerprints_for(occurrences, taxa)
+  tasks <- lapply(models, function(m) {
+    algo <- atlas_algorithm(m$algorithm)
+    low <- atlas_algorithm_min(algo, min_presences)
+    high <- atlas_algorithm_max(algo) + ATLAS_RANGE_MARGIN
+    n <- sites$cells[match(m$taxon, sites$scientific_name)]
+    n <- if (is.na(n)) 0L else n
+    if (n < low || n > high) {
+      stop("without the left-out records ", m$taxon, " has ", n, " sites, outside ", m$algorithm, "'s ", low, " to ",
+           high, "; not refitted", call. = FALSE)
+    }
+    list(taxon = m$taxon, algorithm = m$algorithm, fingerprint = fingerprints[[m$taxon]],
+         seed_from = seed_of[[m$taxon]], cost = atlas_task_cost(m$algorithm, area_of[[paste(m$algorithm, m$taxon)]],
+                                                               typical))
+  })
+
+  # The hindcast's models of these taxa, as its models table lists them
+  # (as its index does, where it has no table).
+  refitted <- vapply(tasks, function(t) paste(t$algorithm, t$taxon), "")
+  original <- atlas_private_models(store, hindcast)
+  original <- if (!is.null(original)) {
+    atlas_model_rows(original[paste(original$algorithm, original$taxon) %in% refitted, , drop = FALSE])
+  } else {
+    lapply(Filter(function(e) paste(e$algorithm, e$taxon) %in% refitted, index),
+           function(e) e[intersect(names(e), c("taxon", "algorithm", "grade", "presences"))])
+  }
+  filter <- list(records_in_pull = nrow(pulled), records_left_out = sum(dropped), records_kept = nrow(occurrences),
+                 records_after_cutoff_kept = 0L)
+  seconds <- atlas_private_seconds(store, hjob$id, grid)
+  per_algorithm <- table(vapply(tasks, function(t) t$algorithm, ""))
+  cpu_hours <- sum(vapply(tasks, function(t) seconds[[t$algorithm]] %||% 600, numeric(1))) / 3600
+  estimate <- list(
+    models = length(tasks), taxa = length(taxa), per_algorithm = as.list(per_algorithm),
+    cpu_hours = round(cpu_hours, 2),
+    basis = paste("mean seconds per model of job", hjob$id, "where timed, else ATLAS_PRIVATE_SECONDS; an estimate")
+  )
+  plural <- function(n, word) paste0(n, " ", word, if (n == 1L) "" else "s")
+  if (isTRUE(dry_run)) {
+    say("hindcast refit of ", paste(refitted, collapse = ", "), " from ", hindcast, " (dry run, nothing written): ",
+        plural(sum(dropped), "record"), " left out of ", nrow(pulled), "; about ", estimate$cpu_hours, " CPU-h")
+    return(invisible(list(hindcast = hindcast, filter = filter, estimate = estimate, tasks = tasks,
+                          left_out = records)))
+  }
+  if (!is.character(reason) || length(reason) != 1L || !nzchar(trimws(reason))) {
+    stop("a hindcast refit needs --reason=\"why these records are left out\"", call. = FALSE)
+  }
+
+  costs <- vapply(tasks, function(t) t$cost, numeric(1))
+  assignment <- atlas_assign_shards(costs, max(1L, min(as.integer(shards), length(tasks))))
+  for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
+  id <- paste0("priv-", atlas_release_id(digest::digest(list(tasks, hindcast, "refit", sort(ids[dropped])),
+                                                        algo = "sha256")))
+  # The refit's pull, written in a scratch directory, never this machine's.
+  refit_pull <- atlas_in_scratch_data_dir({
+    file <- paste0("occurrences-", id, ".tsv.gz")
+    atlas_write_tsv_gz(occurrences, atlas_path("occurrences", file))
+    # Read back as the workers will: the hindcast's records but the left-out ones.
+    back <- atlas_read_occurrences(atlas_path("occurrences", file))
+    if (nrow(back) != nrow(occurrences) || !identical(atlas_fingerprint(back), atlas_fingerprint(occurrences))) {
+      stop("the refit's pull does not read back as it was written; nothing planned", call. = FALSE)
+    }
+    atlas_write_json(list(
+      stamp = id, pulled_at = hjob$pull$pulled_at %||% NA_character_, since = NA_character_,
+      records = nrow(occurrences), fingerprint = atlas_fingerprint(occurrences), file = file,
+      made_from = list(release = hjob$from_release, job = hjob$id, hindcast = hindcast, pull = pull_entry$sha256,
+                       purpose = "hindcast", validated_through = cutoff, records_left_out = sum(dropped))
+    ), atlas_path("occurrences", "latest.json"))
+    entries <- atlas_file_entries(c(file.path("occurrences", file), "occurrences/latest.json"))
+    atlas_upload_objects(store, entries)
+    entries
+  })
+  inputs <- Filter(function(e) !startsWith(e$path, "occurrences/"), hjob$inputs %||% list())
+  trained_ids <- atlas_save_trained_pull(store, grid, occurrences)
+  job <- list(
+    id = id, grid = grid, kind = "private-release", purpose = "hindcast",
+    created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    from_release = hjob$from_release, from_job = hjob$from_job, validated_through = cutoff,
+    # The pull this one is made from: the hindcast's.
+    from_pull = list(path = pull_entry$path, sha256 = pull_entry$sha256),
+    algorithms = as.list(unique(vapply(tasks, function(t) t$algorithm, ""))), shards = max(assignment),
+    # The hindcast's settings, null tests and tuning: only the records differ.
+    fit = hjob$fit,
+    layers_key = hjob$layers_key,
+    pull = hjob$pull,
+    inputs = c(refit_pull, inputs),
+    public = list(), tasks = tasks, retire = list(), deferred = 0L,
+    trained_ids = trained_ids,
+    filter = filter,
+    estimate = estimate,
+    refit = Filter(Negate(is.null), list(
+      hindcast = hindcast, hindcast_job = hjob$id, reason = trimws(reason),
+      rule = if (is.character(rule) && nzchar(trimws(rule))) trimws(rule),
+      taxa = as.list(taxa), left_out = records, left_out_by_taxon = left_out_by_taxon,
+      seeds = "each model draws with its hindcast model's seed (seed_from)",
+      original = original
+    )),
+    declared = paste0("The models ", paste(refitted, collapse = ", "), " of hindcast ", hindcast, " fitted again without ",
+                      plural(sum(dropped), "training record"), " (", trimws(reason), "), left out in memory; ",
+                      "otherwise the hindcast's pull, cutoff (", cutoff, "), settings, null tests, tuning and seeds. ",
+                      "Every other file is the hindcast's.")
+  )
+  atlas_store_json(store, paste0("jobs/", grid, "/", id, "/job.json"), job)
+  say("hindcast refit ", id, " of ", paste(refitted, collapse = ", "), " from ", hindcast, ": ",
+      plural(sum(dropped), "record"), " left out; ", plural(length(tasks), "model"), " in ",
+      plural(job$shards, "shard"))
+  invisible(job)
+}
+
+#' Where a taxon's combined map's files begin.
+atlas_refit_ensemble_prefix <- function(name, grid = "draft") {
+  paste0("models/", grid, "/ensemble/", basename(atlas_model_path(name, grid, extension = "")), ".")
+}
+
+#' Whether a release file is one of a refitted model's: its taxon's files
+#' in its algorithm's model folder.
+atlas_refit_owns <- function(path, tasks, grid = "draft") {
+  prefixes <- vapply(tasks, function(t) {
+    json <- atlas_model_relpaths(t$taxon, grid, t$algorithm, ".json")
+    sub("json$", "", json)
+  }, "")
+  any(startsWith(path, prefixes))
+}
+
+#' A refit's models beside the hindcast's they stand for: taxon, algorithm,
+#' both fingerprints, the records left out, and both fits' grades and
+#' scores (either left out where that fit has no model).
+atlas_refit_record <- function(refit, models, tasks = list()) {
+  key <- function(r) paste(r$algorithm, r$taxon)
+  before <- refit$original %||% list()
+  before <- stats::setNames(before, vapply(before, key, ""))
+  after <- atlas_model_rows(models)
+  after <- stats::setNames(after, vapply(after, key, ""))
+  task_of <- stats::setNames(tasks, vapply(tasks, key, ""))
+  entries <- lapply(sort(unique(c(names(before), names(after)))), function(k) {
+    first <- before[[k]] %||% after[[k]]
+    Filter(Negate(is.null), list(
+      taxon = first$taxon, algorithm = first$algorithm,
+      hindcast_fingerprint = task_of[[k]]$seed_from, refit_fingerprint = task_of[[k]]$fingerprint,
+      left_out = refit$left_out_by_taxon[[first$taxon]] %||% list(),
+      hindcast = before[[k]], refit = after[[k]]
+    ))
+  })
+  c(refit[intersect(names(refit), c("hindcast", "hindcast_job", "reason", "rule", "taxa", "left_out", "seeds"))],
+    list(models = entries))
+}
+
+#' On a worker: finish a hindcast refit from its shards, never in part. Its
+#' release is the hindcast's (private/vision-benchmark/<hindcast>/
+#' release.json) with each refitted model's files, counted by state as the
+#' hindcast's were, and index entry (marked refit_of) in place of the
+#' hindcast's; every other file entry is the hindcast's, byte for byte, the
+#' here index, prior and weak ranks among them, which were built with the
+#' hindcast's models. Its models table is the hindcast's with the refitted
+#' rows swapped (refit = TRUE), and the refit's record, in its summary and
+#' manifest, sets each refitted model beside the hindcast's.
+atlas_finish_hindcast_refit_work <- function(store, job, records, results, files, index, grid = "draft",
+                                             count = atlas_count_regions, quiet = FALSE) {
+  id <- job$id
+  hindcast <- job$refit$hindcast
+  key <- function(x) paste(x$algorithm, x$taxon)
+  refitted <- vapply(job$tasks, key, "")
+  fitted <- Filter(function(r) identical(r$status, "fitted"), results)
+  missing <- setdiff(refitted, vapply(fitted, key, ""))
+  if (length(missing)) {
+    stop("hindcast refit ", id, " is not finished: ", paste(missing, collapse = ", "),
+         " not fitted; the hindcast's models stand and nothing is built", call. = FALSE)
+  }
+  source <- atlas_store_text(store, atlas_benchmark_key(hindcast, "release.json"))
+  built <- atlas_in_scratch_data_dir({
+    atlas_fetch_entries(store, Filter(function(e) startsWith(e$path, "occurrences/"), job$inputs))
+    atlas_fetch_entries(store, files)
+    atlas_refresh_public_files()
+    counted <- count(grid = grid, only_missing = TRUE, quiet = quiet)
+    models <- atlas_private_models_table(grid)
+    paths <- atlas_release_files(grid)
+    entries <- atlas_file_entries(paths[vapply(paths, atlas_refit_owns, logical(1), tasks = job$tasks, grid = grid)])
+    atlas_upload_objects(store, entries)
+    list(counted = counted, models = models, entries = entries)
+  })
+  kept <- Filter(function(f) !atlas_refit_owns(f$path, job$tasks, grid), source$files %||% list())
+  release_files <- c(kept, built$entries)
+  release_files <- release_files[order(vapply(release_files, function(f) f$path, ""))]
+  new_entry <- stats::setNames(index, vapply(index, key, ""))
+  swapped <- lapply(source$index %||% list(), function(e) {
+    if (!key(e) %in% refitted) return(e)
+    c(new_entry[[key(e)]], list(refit_of = hindcast))
+  })
+
+  hindcast_models <- atlas_private_models(store, hindcast)
+  models <- if (is.null(hindcast_models)) built$models else {
+    hindcast_models$refit <- rep(FALSE, nrow(hindcast_models))
+    refit_models <- built$models
+    refit_models$refit <- rep(TRUE, nrow(refit_models))
+    for (column in setdiff(names(hindcast_models), names(refit_models))) refit_models[[column]] <- NA
+    for (column in setdiff(names(refit_models), names(hindcast_models))) hindcast_models[[column]] <- NA
+    out <- rbind(hindcast_models[!paste(hindcast_models$algorithm, hindcast_models$taxon) %in% refitted, , drop = FALSE],
+                 refit_models[, names(hindcast_models), drop = FALSE])
+    out[order(out$taxon, out$algorithm), , drop = FALSE]
+  }
+  record <- atlas_refit_record(job$refit, built$models, job$tasks)
+  uploaded <- character()
+  upload <- function(path, ...) {
+    k <- atlas_benchmark_key(id, ...)
+    store$put(k, path)
+    uploaded <<- c(uploaded, k)
+  }
+  models_file <- tempfile(fileext = ".tsv.gz")
+  atlas_write_tsv_gz(models, models_file)
+  upload(models_file, "models.tsv.gz")
+  manifest_file <- tempfile(fileext = ".json")
+  atlas_write_json(list(
+    id = id, grid = grid, kind = "private-release", purpose = job$purpose, job = id,
+    from_release = job$from_release, validated_through = job$validated_through,
+    created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    pull = job$pull, layers_key = job$layers_key, refit = record,
+    carried = paste0("Every file but the refitted models' is hindcast ", hindcast, "'s, byte for byte: its here ",
+                     "index, prior and weak ranks were built with its own models, the refitted ones' hindcast fits ",
+                     "among them."),
+    index = swapped, files = release_files
+  ), manifest_file)
+  upload(manifest_file, "release.json")
+  trained <- atlas_write_trained_ids(store, list(id = id, index = Filter(function(e) !isTRUE(e$refused), swapped)),
+                                     grid, prefer = atlas_json_string(job$trained_ids), quiet = TRUE)
+  summary <- Filter(Negate(is.null), list(
+    job = id, grid = grid, kind = "private-release", purpose = job$purpose,
+    from_release = job$from_release, validated_through = job$validated_through,
+    from_pull = job$from_pull,
+    pull = list(sha256 = (atlas_job_pull_entry(job) %||% list())$sha256),
+    finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    filter = job$filter,
+    models_planned = length(job$tasks), models_fitted = length(fitted),
+    counted = as.integer(built$counted %||% 0L),
+    files = as.list(uploaded),
+    trained_ids = list(key = atlas_trained_release_key(id, grid), records = trained$records),
+    cpu_hours = round(sum(vapply(results, function(r) as.numeric(r$seconds %||% 0), 0), na.rm = TRUE) / 3600, 2),
+    billing = atlas_job_billing(records, c(id, atlas_finish_id(id))),
+    refit = record,
+    declared = job$declared
+  ))
+  atlas_store_json(store, atlas_benchmark_key(id, "summary.json"), summary)
+  summary
+}
+
 #' What a job's workers were billed for, from its shard records: hours per
 #' instance type (each shard from its start to its record, so a worker's boot
 #' and image pull, and any worker lost before reporting, are not counted),
@@ -327,6 +744,15 @@ atlas_finish_private_release_work <- function(store = atlas_store(), id, grid = 
   index <- unlist(lapply(records, function(r) r$index), recursive = FALSE)
   for (r in Filter(function(r) identical(r$status, "refused"), results)) {
     index[[length(index) + 1L]] <- atlas_refusal_entry(r$taxon, r$algorithm, r$fingerprint, r$settings_key, r$presences)
+  }
+  # A hindcast refit is the hindcast with its refitted models swapped in.
+  if (!is.null(job$refit)) {
+    summary <- atlas_finish_hindcast_refit_work(store, job, records, results, files, index, grid,
+                                                count = count, quiet = quiet)
+    atlas_finish_private_record(store, id, grid, summary, defer)
+    say("hindcast refit ", id, ": ", summary$models_fitted, " of ", length(job$tasks), " models swapped into ",
+        job$refit$hindcast, "'s files; summary at ", atlas_benchmark_key(id, "summary.json"))
+    return(invisible(summary))
   }
 
   key <- function(...) atlas_benchmark_key(id, ...)
@@ -413,13 +839,18 @@ atlas_finish_private_release_work <- function(store = atlas_store(), id, grid = 
     declared = job$declared
   ))
   atlas_store_json(store, key("summary.json"), summary)
+  atlas_finish_private_record(store, id, grid, summary, defer)
+  say(job$purpose, " ", id, ": ", length(fitted), " of ", length(job$tasks), " models fitted; ",
+      sum(built$models$grade == "strong"), " strong; summary at ", key("summary.json"))
+  invisible(summary)
+}
+
+#' The finishing worker's record, last: the box places what it deferred.
+atlas_finish_private_record <- function(store, id, grid, summary, defer) {
   atlas_store_json(store, atlas_shard_key(atlas_finish_id(id), 1L, grid),
                    list(job = atlas_finish_id(id), shard = 1L, private_release = id,
                         finished_at = summary$finished_at,
                         deferred = if (isTRUE(defer)) store$deferred() else list()))
-  say(job$purpose, " ", id, ": ", length(fitted), " of ", length(job$tasks), " models fitted; ",
-      sum(built$models$grade == "strong"), " strong; summary at ", key("summary.json"))
-  invisible(summary)
 }
 
 #' On the box: once a private release's shards have reported, finish it on

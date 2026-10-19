@@ -137,9 +137,14 @@ atlas_background_sample <- function(pool, area, n = 10000, seed = 1L) {
 #' One row per site: presence is 1 where the taxon was collected, effort is
 #' log(records at the site, the taxon's own counted once), and cell, x and y
 #' are the site's centre, where its predictors are read.
+#'
+#' seed_from: draw with another record set's seed (its fingerprint) instead
+#' of this one's. Only a hindcast refit passes it (R/hindcast.R), so a model
+#' refitted without a record draws as its hindcast model did, and the two
+#' differ by the record alone.
 atlas_training_table <- function(name, points, n_background = 10000,
                                  buffer_km = 500, fingerprint = NULL,
-                                 thin_km = ATLAS_SITE_KM) {
+                                 thin_km = ATLAS_SITE_KM, seed_from = NULL) {
   points <- atlas_ensure_sites(points, thin_km)
   sites <- attr(points, "sites")
   own_sites <- points$site[points$scientific_name == name]
@@ -151,7 +156,7 @@ atlas_training_table <- function(name, points, n_background = 10000,
   columns <- c("cell", "x", "y")
   presences <- sites[found, , drop = FALSE]
   area <- atlas_accessible_area(presences$x, presences$y, buffer_km)
-  seed <- atlas_seed_from_fingerprint(fingerprint)
+  seed <- atlas_seed_from_fingerprint(seed_from %||% fingerprint)
   others <- sites[-found, , drop = FALSE]
   background <- if (nrow(others)) {
     atlas_background_sample(others, area, n = n_background, seed = seed)
@@ -187,7 +192,7 @@ atlas_build_training <- function(name, grid = "draft", n_background = 10000,
                                  buffer_km = 500, write = TRUE, quiet = FALSE,
                                  points = NULL, stack = NULL,
                                  occurrences = NULL, fingerprint = NULL,
-                                 thin_km = ATLAS_SITE_KM) {
+                                 thin_km = ATLAS_SITE_KM, seed_from = NULL) {
   if (is.null(points) || is.null(fingerprint)) {
     occurrences <- occurrences %||% atlas_read_occurrences()
     focal <- occurrences[occurrences$scientific_name == name, , drop = FALSE]
@@ -200,7 +205,7 @@ atlas_build_training <- function(name, grid = "draft", n_background = 10000,
   table <- atlas_training_table(
     name, points,
     n_background = n_background, buffer_km = buffer_km,
-    fingerprint = fingerprint, thin_km = thin_km
+    fingerprint = fingerprint, thin_km = thin_km, seed_from = seed_from
   )
   table <- atlas_add_predictors(table, grid, stack = stack)
 

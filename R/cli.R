@@ -118,6 +118,12 @@ atlas_usage <- function() {
   message("      --hindcast --from-release=ID --validated-through=YYYY-MM-DD [--dry-run]")
   message("                                fit every taxon afresh, graded, on the records first validated by the")
   message("                                date, as a private release (Atlas E2, Vision's R_train): never public")
+  message("      --hindcast --from-release=PRIV_ID --taxa=NAME[,NAME] --leave-out=ID[,ID] --reason=TEXT")
+  message("        [--rule=TEXT] [--algorithms=esm,...] [--dry-run]")
+  message("                                refit a finished hindcast's models of the named taxa without the listed")
+  message("                                records (.org id, or source:observation_id), left out in memory only (no")
+  message("                                pull or drop list changes); else its pull, cutoff, settings, nulls and")
+  message("                                seeds. A new private release: the hindcast's files, those models swapped")
   message("      --record-names --from-release=ID [--dry-run]")
   message("                                the same, with records under their own .org names (Atlas E9)")
   message("      --full-refresh --from-release=ID [--dry-run]")
@@ -617,7 +623,28 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "plan-job" = {
-      if (isTRUE(flags$full_refresh)) {
+      refit <- !is.null(flags$taxa) || !is.null(flags$leave_out)
+      if (refit && !isTRUE(flags$hindcast)) {
+        stop("--taxa and --leave-out refit a hindcast's models: they need --hindcast", call. = FALSE)
+      }
+      if (refit) {
+        if (!is.character(flags$taxa) || !is.character(flags$leave_out)) {
+          stop("a hindcast refit needs --taxa=NAME[,NAME...] and --leave-out=ID[,ID...]", call. = FALSE)
+        }
+        if (is.null(flags$from_release)) {
+          stop("a hindcast refit needs --from-release=ID, the hindcast's own (priv-...)", call. = FALSE)
+        }
+        atlas_plan_hindcast_refit(
+          atlas_flag_store(flags), hindcast = as.character(flags$from_release),
+          taxa = trimws(strsplit(flags$taxa, ",", fixed = TRUE)[[1]]),
+          leave_out = trimws(strsplit(flags$leave_out, ",", fixed = TRUE)[[1]]),
+          algorithms = if (is.character(flags$algorithms)) trimws(strsplit(flags$algorithms, ",", fixed = TRUE)[[1]]),
+          reason = if (is.character(flags$reason)) flags$reason, rule = if (is.character(flags$rule)) flags$rule,
+          validated_through = if (!is.null(flags$validated_through)) as.character(flags$validated_through),
+          grid = atlas_flag_grid(flags), shards = as.integer(atlas_flag_number(flags, "shards", 1)),
+          dry_run = isTRUE(flags$dry_run)
+        )
+      } else if (isTRUE(flags$full_refresh)) {
         if (is.null(flags$from_release)) stop("plan-job --full-refresh needs --from-release=ID", call. = FALSE)
         atlas_plan_full_refresh(
           atlas_flag_store(flags), from_release = as.character(flags$from_release), grid = atlas_flag_grid(flags),

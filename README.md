@@ -993,6 +993,74 @@ What each identity may do is enforced by AWS, not only by this code: see
 [deploy/aws/README.md](deploy/aws/README.md) for the policies, the setup and
 the box's settings.
 
+### Hindcasts: private releases
+
+A hindcast is Atlas as it would have been at a cutoff (the paper's E2, and
+MycoMap Vision's training prior). It fits every taxon afresh, with the
+release's own settings, null tests and tuning, on the release's pull cut to
+the records first validated by that date (`R/hindcast.R`). It is a private
+release: its files go under `private/vision-benchmark/<id>/`, never under
+`releases/`, so it cannot be promoted, served or archived.
+
+```bash
+./atlas plan-job --hindcast --from-release=<id> --validated-through=YYYY-MM-DD [--dry-run]
+./atlas run-job-ec2 --job=<priv-id>      # fits the shards, then finishes it privately
+```
+
+**Refitting a hindcast without some records.** The paper's pre-registered
+rule says what to do when one of a hindcast's training records turns out to
+have been validated after the cutoff: refit that taxon without the record
+before scoring. The refit names the finished hindcast, the taxa, the records
+(by .org id, or as `source:observation_id`, never the source's number alone)
+and why they are left out:
+
+```bash
+./atlas plan-job --hindcast --from-release=<hindcast priv-id> --taxa="Genus species"     --leave-out=<id>[,<id>] --reason="..." [--rule="..."] [--algorithms=esm]     [--validated-through=YYYY-MM-DD] [--dry-run]
+./atlas run-job-ec2 --job=<refit priv-id>
+```
+
+- The records are dropped in memory from the hindcast's own pull. No pull
+  file, data directory or drop list is written. `exclude-records` would
+  rewrite the box's pull and its persistent drop list, so it is the wrong
+  tool here.
+- It refits exactly the hindcast's models of the named taxa (or of the
+  given algorithms). Everything else is the hindcast's: its pull and cutoff,
+  settings, null tests, tuning and layers. Each model also draws with its
+  hindcast model's seed, so folds, background and null draws change only
+  where the records do. With nothing left out, the refit reproduces the
+  hindcast's models byte for byte.
+- Survey sites, effort and background are still built from the whole pull,
+  the hindcast's minus the left-out records. They match the hindcast's
+  except that a left-out record no longer counts at its site, and a site it
+  held alone is gone.
+- The refit is a new private release, never promotable, and the hindcast
+  stays untouched. Its `release.json` is the hindcast's, file for file:
+  only the refitted models' files (counted by state, as finishing counts
+  every map) and index entries are replaced. Each replaced entry is marked
+  `refit_of`. Every other file keeps the hindcast's bytes, including the
+  here index, prior and weak ranks, which were built with the hindcast's
+  fits. Its `models.tsv.gz` is the hindcast's with those rows swapped
+  (`refit` column). Its trained ids are the hindcast's minus the left-out
+  records, unless a kept model of the same taxon still trained on them.
+- `summary.json` and `release.json` record the refit (`refit`), as a
+  full-view refresh records the models it kept:
+  - the hindcast and its job;
+  - the reason and rule;
+  - each left-out record's .org id, source, observation_id and taxon;
+  - for each model, both fingerprints and both fits' grades and scores.
+- The plan refuses, writing nothing:
+  - a hindcast that is not finished;
+  - a left-out record not in the hindcast's pull, or belonging to a taxon
+    not named;
+  - a taxon or algorithm the hindcast has no model of;
+  - a taxon with a combined map, which swapping one model would leave stale;
+  - a model whose taxon would fall outside its algorithm's range of sites
+    without the records;
+  - a cutoff other than the hindcast's;
+  - a refit of a refit;
+  - a missing `--reason`;
+  - `--taxa` or `--leave-out` without `--hindcast`, or without each other.
+
 ## Data
 
 Everything lives under `data/`, which is never committed (override with

@@ -366,6 +366,14 @@ atlas_shard_result <- function(name, algorithm, row, fingerprint, settings_key) 
   ))
 }
 
+#' The seeds a shard's tasks ask for, by taxon: a hindcast refit's
+#' (seed_from, its hindcast model's fingerprint), or NULL for every other job.
+atlas_task_seeds <- function(tasks) {
+  seeded <- Filter(function(t) is.character(t$seed_from) && length(t$seed_from) == 1L, tasks)
+  if (!length(seeded)) return(NULL)
+  stats::setNames(lapply(seeded, function(t) t$seed_from), vapply(seeded, function(t) t$taxon, ""))
+}
+
 #' Run one shard of a job on this machine, and record what it produced.
 #'
 #' Fits exactly the pairs assigned to the shard, whatever this machine's own
@@ -474,6 +482,8 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       regmult = job$fit$regmult, correlation = job$fit$correlation,
       nulls = job$fit$nulls %||% ATLAS_NULL_REPS, tune = job$fit$tune %||% TRUE,
       quiet = TRUE, fit = fit, full = job$fit$full,
+      # A hindcast refit's tasks carry their hindcast models' seeds.
+      seeds = atlas_task_seeds(tasks),
       on_row = function(row, settings_key) {
         if (!row$taxon %in% taxa || row$taxon %in% reported) return(invisible(NULL))
         reported <<- c(reported, row$taxon)
