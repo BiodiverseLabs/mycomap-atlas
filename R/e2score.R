@@ -164,6 +164,7 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft",
   reason[keep & record %in% exclude] <- "excluded"
   asked <- c(exclude, hold)
   not_found <- sum(!asked %in% record[keep])
+  exclude_missing <- exclude[!exclude %in% record[keep]]
   finds <- data.frame(key = key, taxon = as.character(pull$scientific_name), x = placed$x, y = placed$y,
                       first_green_on = green, observed_after = seen_after, kept_apart = reason,
                       stringsAsFactors = FALSE)[keep, , drop = FALSE]
@@ -178,7 +179,7 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft",
   # at this cutoff holds (its pull), for the caller to check against.
   list(finds = structure(finds, kept_apart = counts, not_found = not_found), training = training,
        training_keys = sort(unique(key[dated & !after])),
-       excluded_keys = sort(unique(key[keep & record %in% exclude])))
+       excluded_keys = sort(unique(key[keep & record %in% exclude])), exclude_missing = exclude_missing)
 }
 
 #' The 5 km square a point falls in, as a key.

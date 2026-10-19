@@ -440,3 +440,59 @@ test_that("record ids come from a comma list or a file, and only whole numbers",
   expect_equal(atlas_score_ids(NULL), character())
   expect_error(atlas_score_ids("590501,inat:1"), "whole numbers")
 })
+
+
+test_that("an exclusion never covers a real mismatch: a wrong cutoff or an extra training record still fails", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  world$view$pull <- rbind(world$view$pull, data.frame(key = "inat:81", stringsAsFactors = FALSE))
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) NULL)
+  run <- function(view, ...) {
+    with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = view, full_pull = world$pull,
+                                    reps = 10, quiet = TRUE, exclude = "1081", ...))
+  }
+  # A hindcast whose cutoff is not the one its records were split at.
+  early <- world$view
+  early$manifest$validated_through <- "2026-06-15"
+  expect_error(run(early), "not the hindcast's")
+  # The hindcast lacks a record the split trains on.
+  short <- world$view
+  short$pull <- short$pull[short$pull$key != "inat:5", , drop = FALSE]
+  expect_error(run(short), "not the hindcast's")
+  # The hindcast trained on a later find that is held, not excluded.
+  held <- world$view
+  held$pull <- rbind(held$pull, data.frame(key = "inat:90", stringsAsFactors = FALSE))
+  expect_error(run(held, hold = "1090"), "not the hindcast's|not excluded")
+})
+
+test_that("a later find among the hindcast's training records stops the run unless it is excluded", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) NULL)
+  # The split check passes (record 81 is excluded), but a held find is also
+  # one of the hindcast's records: only exclusion may cover that.
+  view <- world$view
+  view$pull <- rbind(view$pull, data.frame(key = c("inat:81", "inat:90"), stringsAsFactors = FALSE))
+  expect_error(with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = view, full_pull = world$pull,
+                                               reps = 10, quiet = TRUE, exclude = c("1081", "1090"),
+                                               hold = "1090")),
+               NA)
+  expect_error(with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = view, full_pull = world$pull,
+                                               reps = 10, quiet = TRUE, exclude = "1081", hold = "1090")),
+               "not the hindcast's|not excluded")
+})
+
+test_that("an --exclude id that is no later find is refused, naming it, unless allowed", {
+  skip_if_not_installed("terra")
+  world <- score_world()
+  world$view$pull <- rbind(world$view$pull, data.frame(key = "inat:81", stringsAsFactors = FALSE))
+  local_mocked_bindings(atlas_score_model_maps = function(view, taxon) NULL)
+  run <- function(...) {
+    with_data_dir(atlas_score_study(store = NULL, hindcast = "h1", view = world$view, full_pull = world$pull,
+                                    reps = 10, quiet = TRUE, ...))
+  }
+  expect_error(run(exclude = c("1081", "109999")), "109999")
+  result <- run(exclude = c("1081", "109999"), allow_missing_excludes = TRUE)
+  expect_equal(result$settings$ids_not_found, 1L)
+  expect_equal(result$settings$excluded_leaks, 1L)
+})

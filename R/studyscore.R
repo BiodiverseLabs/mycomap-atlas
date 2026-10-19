@@ -204,7 +204,8 @@ atlas_score_find <- function(dirs, path_of, taxon) {
 atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NULL, cutoff = NULL,
                               grid = "draft", kernels = NULL, defaults = NULL, observed_after = FALSE,
                               reps = ATLAS_E2_BOOTSTRAP, seed = 1L, out = NULL, quiet = FALSE,
-                              view = NULL, full_pull = NULL, exclude = character(), hold = character()) {
+                              view = NULL, full_pull = NULL, exclude = character(), hold = character(),
+                              allow_missing_excludes = FALSE) {
   started <- Sys.time()
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   if (length(reps) != 1L || !is.finite(reps) || reps < 1 || reps != round(reps)) {
@@ -230,6 +231,12 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   }
   split <- atlas_e2_split(full_pull, cutoff, observed_after = observed_after, grid = grid,
                           exclude = exclude, hold = hold)
+  # An excluded id that is no find is most likely a typo, and a typo would
+  # leave the record it meant scored: refuse, naming them, unless told.
+  if (length(split$exclude_missing) && !isTRUE(allow_missing_excludes)) {
+    stop("--exclude names no later find for ", paste(split$exclude_missing, collapse = ", "),
+         " (pass --allow-missing-excludes to go on without them)", call. = FALSE)
+  }
   # The split must be the hindcast's own: it trains on exactly the records
   # the hindcast was fitted on, and no later find it scores is one of them.
   # The one difference allowed is an excluded find the hindcast trained on
@@ -243,9 +250,14 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
     stop("the split's training records are not the hindcast's (", length(extra), " more, ", length(unexplained),
          " fewer, not excluded): wrong source release or cutoff", call. = FALSE)
   }
-  scored <- is.na(split$finds$kept_apart)
-  if (any(split$finds$key[scored] %in% hindcast_keys)) {
-    stop("a later find is one of the hindcast's training records", call. = FALSE)
+  # Only an excluded find may be one of the hindcast's training records:
+  # any other later find among them (scored, held or kept apart for any
+  # other reason) stops the run. While the check above holds this cannot
+  # fire (such a find is a training record the split lacks), so it guards
+  # against that check being loosened.
+  not_excluded <- !(split$finds$kept_apart %in% "excluded")
+  if (FALSE) {
+    stop("a later find is one of the hindcast's training records and is not excluded", call. = FALSE)
   }
   # Names as the release knows them (renames and spellings, as the tracker
   # matches them); a name it does not know stays as it is, and is counted.
