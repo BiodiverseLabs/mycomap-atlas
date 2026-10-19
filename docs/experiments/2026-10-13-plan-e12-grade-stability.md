@@ -157,8 +157,9 @@ numbers only).
 
 ## Implementation (not a design change)
 
-The arms are `study-repro --draw` (Atlas branch study/e12-arms 04fb517,
-pending review and merge).
+The arms are `study-repro --draw`, and they run at Atlas main 679b2cc
+(branch study/e12-arms 04fb517; Steve reviewed it, and it was merged with
+the full suite at 1,187/0), in that commit's image.
 
 - **The sample.** Each worker recomputes the sample from the release by
   this plan's rule, with the same code as `study-e12-draw`. It records the
@@ -170,7 +171,7 @@ pending review and merge).
 - **Processes.** The models run in fresh worker processes, each in a fixed
   order. Every result records its worker, its place in that order, the
   process and the machine.
-- **Commands** (on atlas-box, after the merge):
+- **Commands** (on atlas-box, in the 679b2cc image):
   - a1: `plan-study --command=study-repro --shards=2 --args="--draw
     --release=20261013T191324Z-fa1b4198 --label=a1 --workers=16"`, run on
     r7i.8xlarge;
