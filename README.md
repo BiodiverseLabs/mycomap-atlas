@@ -1007,7 +1007,8 @@ Everything lives under `data/`, which is never committed (override with
 
 A record is eligible when it is **green in at least one validation project** (a
 red in another project does not rule it out), has coordinates that are present,
-unobscured, and accurate to within 1 km where an accuracy was recorded, sits in
+unobscured, and accurate to within 1 km where an accuracy was recorded (for an
+iNaturalist record, by iNaturalist's own answer, matched by source and number), sits in
 North America, and carries a species-level name (provisional temp codes
 included).
 

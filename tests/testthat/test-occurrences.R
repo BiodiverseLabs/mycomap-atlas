@@ -27,6 +27,22 @@ test_that("the obscured-coordinates check stays a per-record probe, inside the r
   expect_match(sql, "OR c.positional_accuracy > 1000) OFFSET 0)", fixed = TRUE)
 })
 
+test_that("only an iNaturalist record is checked against cached iNaturalist answers", {
+  # Sources number their records independently: matched by number alone, 20
+  # MO records and 1 MyCoPortal record sharing a number with an obscured
+  # iNaturalist observation were left out of every pull (2026-10-18).
+  sql <- atlas_occurrence_sql()
+  expect_match(sql, "AND (o.source <> 'iNaturalist' OR NOT EXISTS (SELECT 1 FROM observation_cache c", fixed = TRUE)
+  expect_identical(lengths(regmatches(sql, gregexpr("observation_cache", sql, fixed = TRUE))), 1L)
+})
+
+test_that("only MyCoPortal records mark a point as carrying several labels", {
+  # An MO record can carry a MyCoPortal record's number, and would lend its
+  # point that record's label (28 MO rows did on 2026-10-18).
+  clause <- atlas_mycoportal_location_clause()
+  expect_match(clause, "WHERE o2.source IN ('MycoPortal', 'MyCoPortal') AND o2.latitude IS NOT NULL", fixed = TRUE)
+})
+
 test_that("a Mushroom Observer record needs a visible GPS point or a small named location", {
   sql <- atlas_occurrence_sql()
   clause <- atlas_mo_location_clause()
@@ -107,7 +123,7 @@ test_that("a MyCoPortal record needs MyCoPortal's own coordinates or a label no 
                fixed = TRUE)
   expect_match(clause, "HAVING count(DISTINCT coalesce(p2.locality, '')) >= 2", fixed = TRUE)
   # NOT IN against a set with a NULL row would keep nothing: no NULL points.
-  expect_match(clause, "WHERE o2.latitude IS NOT NULL AND o2.longitude IS NOT NULL", fixed = TRUE)
+  expect_match(clause, "AND o2.latitude IS NOT NULL AND o2.longitude IS NOT NULL GROUP BY", fixed = TRUE)
 })
 
 test_that("every location condition opens as many brackets as it closes", {
