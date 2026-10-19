@@ -497,6 +497,15 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   tryCatch(atlas_pull_privacy(host = host, quiet = quiet), error = function(e) {
     warning("hidden-place list not refreshed: ", conditionMessage(e), call. = FALSE)
   })
+  # And .org's name-change log (R/namechanges.R), read from its cursor: its
+  # renames go into renames.json ahead of the guessed ones. Neither step can
+  # fail the pull, and only a full pull can say which names are gone.
+  tryCatch(atlas_pull_name_changes(host = host, quiet = quiet), error = function(e) {
+    warning("name-change log not kept: ", conditionMessage(e), call. = FALSE)
+  })
+  if (is.null(since) && !is.finite(max_rows)) {
+    atlas_record_org_renames(occurrences, quiet = quiet)
+  }
 
   if (!quiet) {
     message(sprintf("pulled %d records across %d taxa -> %s",

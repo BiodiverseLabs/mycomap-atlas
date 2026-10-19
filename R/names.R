@@ -220,13 +220,19 @@ atlas_detect_renames <- function(previous, current) {
 
 #' The renames known after a pull: the ones known before, the ones just found
 #' (a name renamed again keeps only its latest), and none for a name that is
-#' current again.
+#' current again. A row says where it came from: "detected" here, or "org"
+#' from .org's name-change log (R/namechanges.R), with that change's id and
+#' .org's own count of the records it renamed.
 atlas_update_renames <- function(existing, found, current_names, seen = format(Sys.Date())) {
-  columns <- c("from", "to", "records", "moved", "seen")
+  columns <- c("from", "to", "records", "moved", "seen", "source", "change", "org_records_changed")
   keep <- function(x) {
     if (is.null(x) || !NROW(x)) return(NULL)
     x <- as.data.frame(x, stringsAsFactors = FALSE)
     if (is.null(x$seen)) x$seen <- seen
+    if (is.null(x$source)) x$source <- "detected"
+    x$source[is.na(x$source)] <- "detected"
+    if (is.null(x$change)) x$change <- NA_integer_
+    if (is.null(x$org_records_changed)) x$org_records_changed <- NA_integer_
     x[, columns, drop = FALSE]
   }
   existing <- keep(existing)
@@ -235,7 +241,8 @@ atlas_update_renames <- function(existing, found, current_names, seen = format(S
   out <- rbind(existing, found)
   if (is.null(out)) {
     return(data.frame(from = character(), to = character(), records = integer(),
-                      moved = integer(), seen = character(), stringsAsFactors = FALSE))
+                      moved = integer(), seen = character(), source = character(),
+                      change = integer(), org_records_changed = integer(), stringsAsFactors = FALSE))
   }
   out <- out[!out$from %in% current_names, , drop = FALSE]
   out <- out[order(out$from), , drop = FALSE]

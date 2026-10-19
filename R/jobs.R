@@ -196,6 +196,14 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   fit <- list(min_presences = min_presences, n_background = n_background, buffer_km = buffer_km,
               folds = folds, block_km = block_km, regmult = regmult, correlation = correlation,
               nulls = nulls, tune = tune, guild_table = atlas_guild_table_key())
+  # Taxa that a merge or a split on .org touched since the base release's pull
+  # (R/namechanges.R): their fingerprints already force the refit, and the
+  # task says why. Only a reason; it never adds or removes a task.
+  reasons <- tryCatch(
+    atlas_name_change_reasons(atlas_read_name_changes()$changes, occurrences,
+                              since = atlas_json_string(base$pull$pulled_at) %||% NA_character_),
+    error = function(e) stats::setNames(character(), character())
+  )
   tasks <- list()
   retire <- list()
   for (algorithm in algorithms) {
@@ -214,10 +222,12 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     for (name in candidates) {
       entry <- index[[paste(algorithm, name)]]
       if (atlas_index_current(entry, fingerprints[[name]], settings, minimum, maximum)) next
-      tasks[[length(tasks) + 1L]] <- list(
+      task <- list(
         taxon = name, algorithm = algorithm, fingerprint = fingerprints[[name]],
         cost = atlas_task_cost(algorithm, entry$area_km2, typical)
       )
+      if (!is.na(reasons[name])) task$reason <- unname(reasons[[name]])
+      tasks[[length(tasks) + 1L]] <- task
     }
     for (entry in base$index %||% list()) {
       if (identical(entry$algorithm, algorithm) && !entry$taxon %in% candidates) {
@@ -308,6 +318,9 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
       shards, " shard", if (shards == 1L) "" else "s", "; ", length(retire), " to retire",
       if (deferred) paste0("; ", deferred, " left for a later job (--",
                            if (is.finite(sample)) "sample" else "limit", ")") else "")
+  for (taxon in unique(unlist(lapply(tasks, function(t) if (!is.null(t$reason)) t$taxon)))) {
+    say("  ", taxon, ": ", reasons[[taxon]])
+  }
   invisible(job)
 }
 
