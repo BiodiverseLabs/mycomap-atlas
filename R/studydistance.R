@@ -305,12 +305,14 @@ ATLAS_DISTANCE_PLAN_SECONDS <- 0.08
 atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
                                  out = NULL, shard = "1/1", workers = 1L,
                                  bandwidths = ATLAS_DISTANCE_BANDWIDTHS_KM,
-                                 plan_only = FALSE, quiet = FALSE, view = NULL) {
+                                 plan_only = FALSE, quiet = FALSE, view = NULL, limit = Inf) {
   # A bad --out is refused before the store is read at all.
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   view <- view %||% atlas_tracker_view(store, release, grid)
   expected <- atlas_distance_expected(view)
   taxa <- atlas_study_shard(sort(view$modelled), shard)
+  # A smoke run: the shard's first `limit` taxa only.
+  if (is.finite(limit)) taxa <- utils::head(taxa, max(1L, as.integer(limit)))
   plan <- atlas_distance_plan(unlist(expected[taxa]) %||% integer(), bandwidths)
   if (isTRUE(plan_only)) {
     if (!isTRUE(quiet)) {
@@ -321,6 +323,9 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
     return(invisible(plan))
   }
   out <- atlas_study_out(out, "distance-studies", grid, release)
+  # The kernels are drawn on the hindcast's own grid and layers: fetch them
+  # (a study job's worker starts with none), never over different ones.
+  atlas_distance_fetch_layers(store, view$manifest, grid)
   pull <- atlas_tracker_release_pull(store, view$manifest, grid, view$cache)
   points <- atlas_occurrence_points(pull, grid)
   fingerprints <- as.list(atlas_fingerprints_for(pull, taxa))
@@ -352,7 +357,30 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
                sub("[.]json$", ".log", result$path))
     atlas_study_publish(store, files[file.exists(files)], out$key, root = dirname(out$dir))
   }
+  atlas_study_guard(result$taxa, "distance baseline")
   invisible(c(result, list(out = out$dir)))
+}
+
+#' The layers of the job that made a release, on this machine: each fetched
+#' when missing; one present with other bytes stops the run, so a study never
+#' overwrites a machine's own layers (the box's live ones). The pull is read
+#' separately and never written here.
+atlas_distance_fetch_layers <- function(store, manifest, grid = "draft") {
+  job_id <- atlas_json_string(manifest$job)
+  if (is.null(job_id)) stop("the release names no job, so its layers cannot be found", call. = FALSE)
+  job <- atlas_read_job(store, job_id, grid)
+  layers <- Filter(function(e) startsWith(as.character(e$path), "layers/"), job$inputs %||% list())
+  if (!length(layers)) stop("job ", job_id, " lists no layers", call. = FALSE)
+  for (entry in layers) {
+    local <- file.path(atlas_data_dir(), entry$path)
+    if (file.exists(local) && !identical(atlas_sha256(local), entry$sha256)) {
+      stop("this machine's ", entry$path, " is not the one job ", job_id, " fitted on; run the study ",
+           "on a worker (plan-study), not over these layers", call. = FALSE)
+    }
+  }
+  missing <- Filter(function(e) !file.exists(file.path(atlas_data_dir(), e$path)), layers)
+  if (length(missing)) atlas_fetch_entries(store, missing)
+  invisible(length(missing))
 }
 
 #' The detection-site count the release recorded for each modelled taxon:

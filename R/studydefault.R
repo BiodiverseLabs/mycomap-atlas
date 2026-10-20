@@ -318,5 +318,6 @@ atlas_default_study <- function(store = atlas_store(), release, grid = "draft",
                sub("[.]json$", ".log", result$path))
     atlas_study_publish(store, files[file.exists(files)], out$key, root = dirname(out$dir))
   }
+  atlas_study_guard(result$taxa, "default-practice study")
   invisible(c(result, list(out = out$dir)))
 }

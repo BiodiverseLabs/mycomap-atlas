@@ -858,7 +858,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         out = if (is.null(flags$out)) NULL else as.character(flags$out),
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
-        plan_only = isTRUE(flags$plan_only)
+        plan_only = isTRUE(flags$plan_only),
+        limit = atlas_flag_number(flags, "limit", Inf)
       )
       invisible(0L)
     },
@@ -940,7 +941,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
           label = if (is.null(flags$label)) NULL else as.character(flags$label),
           order = as.character(flags$order %||% "seeded"),
           workers = as.integer(atlas_flag_number(flags, "workers", 1)),
-          nulls = if (is.null(flags$nulls)) NULL else as.integer(atlas_flag_number(flags, "nulls", ATLAS_NULL_REPS))
+          nulls = if (is.null(flags$nulls)) NULL else as.integer(atlas_flag_number(flags, "nulls", ATLAS_NULL_REPS)),
+          limit = atlas_flag_number(flags, "limit", Inf)
         )
         return(invisible(0L))
       }

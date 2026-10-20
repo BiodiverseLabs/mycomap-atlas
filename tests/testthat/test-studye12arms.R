@@ -118,6 +118,21 @@ test_that("an arm records its sample, order and shard, compares each fit with th
   expect_true(all(vapply(calls$asked, function(a) a$nulls, 0) == 19))
 })
 
+test_that("--limit fits only the shard's first models, for a smoke run, and keeps the whole sample's key", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  calls <- new.env()
+  result <- on_machine(machine(), atlas_e12_arm_study(setup$store, setup$main$id, limit = 2, fit_models = arm_runner(calls),
+                                                      seconds = no_seconds(), quiet = TRUE))
+  all <- atlas_e12_arm_models(setup$store, setup$main, seconds = no_seconds())
+  expect_length(result$models, 2L)
+  expect_equal(vapply(result$models, function(m) paste(m$algorithm, m$taxon), ""),
+               paste(all$algorithm, all$taxon)[1:2])
+  expect_equal(result$sample_key, attr(all, "sample_key"))
+  expect_equal(result$limit, 2L)
+  expect_equal(sum(vapply(calls$asked, function(a) nrow(a$models), 0)), 2)
+})
+
 test_that("models are dealt to worker processes in order, so order and split set each model's place", {
   expect_equal(atlas_e12_worker_parts(7, 3), c(1L, 2L, 3L, 1L, 2L, 3L, 1L))
   expect_equal(atlas_e12_worker_parts(2, 8), c(1L, 2L))

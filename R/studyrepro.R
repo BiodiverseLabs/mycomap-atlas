@@ -189,5 +189,10 @@ atlas_repro_study <- function(store = atlas_store(), release, source_job, taxa, 
                 if (isTRUE(m$against_release$identical)) "identical" else
                   paste("differs in", paste(unlist(m$against_release$differs), collapse = ", "))))
   }
+  # A run that fitted nothing is no answer: the shard fails, its file kept.
+  unfitted <- sum(vapply(models, function(m) any(vapply(m$runs, function(r) !identical(r$status, "fitted"), logical(1))),
+                         logical(1)))
+  if (unfitted) stop("study-repro: ", unfitted, " of ", length(models), " models were not fitted in every run",
+                     call. = FALSE)
   invisible(result)
 }
