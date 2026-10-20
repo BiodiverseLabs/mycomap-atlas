@@ -74,3 +74,19 @@ which the run's own settings also record, for the write-up:
   the pair in H6b and declare the asymmetry: one detection site of 15 in
   one taxon of about 6,100. 586958 itself is excluded from the scored test
   finds, as in E2.
+- **2026-10-20: first launch fitted nothing; relaunched after a fix.** The
+  first launch, study-20261019T182203Z-1552e567 (2026-10-19, image
+  8bfc98d), failed on all 6,094 taxa before any kernel was fitted. Its
+  workers had no predictor layers: a study job fetches no inputs for a
+  private hindcast, and every taxon then failed on a missing argument.
+  Nothing from that launch was read or used.
+  - **Fix:** Atlas fix/study-distance-layers 00e7209, merged as 6dbdba8.
+    The study now fetches the hindcast's layers itself (never the pull, and
+    never over different local layers). A shard where more than 5% of taxa
+    fail now fails as a whole.
+  - **Smoke run:** study-20261020T052710Z-4abaca1f, 5 taxa: 5 scored, 0
+    failed, 5 kernels.
+  - **Relaunch:** study-20261020T053446Z-1552e567 (image 6dbdba8, 3 shards,
+    30 workers each, r7i/r7a.8xlarge), launched 2026-10-20 05:34 UTC.
+  - The design, kernels and scoring are unchanged; the implementation
+    notes above still hold.

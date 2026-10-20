@@ -180,6 +180,13 @@ the full suite at 1,187/0), in that commit's image.
   - b: as a1 with `--label=b`, on r7a.8xlarge.
 - **Workers.** 16 per 256 GB worker leaves room for a rich Maxent fit's
   ~9 GB peak with nulls.
+- **Smoke run (2026-10-20, before any arm):**
+  study-20261020T052712Z-5b79132a, at Atlas 6dbdba8 (which adds
+  `--draw --limit` and the run guard). The first 4 drawn models, 2 worker
+  processes, r7i.large, production nulls. Result: 4 fitted, the same
+  records as the release 4/4, the same grade 4/4, identical to the release
+  4/4. The arms run at 6dbdba8 or later. A shard with more than 5% of its
+  models unfitted fails as a whole.
 
 ## Deviations
 
