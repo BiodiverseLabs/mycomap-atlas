@@ -50,10 +50,15 @@ atlas_fit_detection <- function(training, classes = NULL, regmult = 1,
   # maxnet's path, with every site weighted once: its last penalty is the
   # mean regularisation times detections over sites.
   lambda <- 10^(seq(4, 0, length.out = steps)) * mean(reg) * sum(presence) / length(presence)
-  model <- suppressWarnings(glmnet::glmnet(
+  # At Maxent's glmnet settings, set here rather than inherited: glmnet's are
+  # global to the process, and the small-model ensemble's fits turned out to
+  # depend on what an earlier fit left set (2026-10-20). This fit reads
+  # glmnet's convergence settings (its IRLS passes and thresholds), which no
+  # Atlas code changes, so no fit so far was affected; pinned all the same.
+  model <- atlas_with_glmnet_control(suppressWarnings(glmnet::glmnet(
     x = mm, y = presence, family = stats::binomial(link = "cloglog"),
     standardize = FALSE, penalty.factor = reg, lambda = lambda, offset = offset
-  ))
+  )), ATLAS_MAXENT_GLMNET_CONTROL)
   if (length(model$lambda) < steps) {
     stop("glmnet failed to complete the detection model's regularization path", call. = FALSE)
   }

@@ -69,10 +69,15 @@ atlas_fit_small_model <- function(training, pair, centre, scale, lambda = ATLAS_
 #' ensembles' maps to other bytes, where a1, with no Maxent before them, gave
 #' the release's own (2026-10-20). The release's ensembles were fitted at
 #' these defaults.
-atlas_with_glmnet_defaults <- function(expr) {
+atlas_with_glmnet_defaults <- function(expr) atlas_with_glmnet_control(expr)
+
+#' Evaluate expr with glmnet at its defaults changed by control (named
+#' glmnet.control settings), and put the process's settings back after.
+atlas_with_glmnet_control <- function(expr, control = list()) {
   saved <- glmnet::glmnet.control()
   glmnet::glmnet.control(factory = TRUE)
   on.exit(do.call(glmnet::glmnet.control, saved), add = TRUE)
+  if (length(control)) do.call(glmnet::glmnet.control, control)
   expr
 }
 
