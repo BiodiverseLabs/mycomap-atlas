@@ -343,7 +343,7 @@ atlas_cache_control <- function(path, query = "") {
   if (identical(path, "/api/here")) {
     return("private, no-store")
   }
-  if ((endsWith(path, "/map.png") || endsWith(path, "/ensemble.png")) &&
+  if ((endsWith(path, "/map.png") || endsWith(path, "/ensemble.png") || endsWith(path, "/card.png")) &&
       grepl("(^|&)v=", sub("^[?]", "", query))) {
     return("public, max-age=31536000, immutable")
   }

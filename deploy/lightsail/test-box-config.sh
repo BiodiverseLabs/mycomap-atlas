@@ -17,6 +17,8 @@
 #   - a client's own X-Forwarded-For never reaches the API;
 #   - an API error is the API's answer, not nginx's;
 #   - app routes fall back to index.html, missing assets do not;
+#   - a link-preview robot gets a species page from the API's share route,
+#     and everyone else the app;
 #   - plain HTTP is redirected.
 # --check-cloudflare compares cloudflare-real-ip.conf with Cloudflare's list.
 set -uo pipefail
@@ -245,6 +247,32 @@ code="$(get -o /dev/null -w '%{http_code}' https://atlas.mycomap.org/no-such-pag
 body="$(get https://atlas.mycomap.org/no-such-page)"
 [ "$code" = 404 ] && grep -q 'the app' <<<"$body" && pass "an unknown address is the app's page with a 404" \
   || fail "unknown address: $code $body"
+# Link previews: a robot's species page comes from the API's share route,
+# with the name still encoded and the query dropped; people and search
+# engines get the app, and so does a robot on any other page.
+fb='facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+imessage='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0'
+chrome='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36'
+fbapp='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/22A3354 [FBAN/FBIOS;FBAV/480.0.0.0]'
+for ua in "$fb" "$imessage" "Twitterbot/1.0" "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)"; do
+  body="$(get -A "$ua" 'https://atlas.mycomap.org/taxa/Mycena%20sp.%20%27IN10%27?fbclid=abc')"
+  grep -q '"path": "/share/taxa/Mycena%20sp.%20%27IN10%27"' <<<"$body" \
+    && pass "a link preview ($(cut -c1-24 <<<"$ua")) gets the species page's own tags" \
+    || fail "link preview of a species page ($ua): $body"
+done
+for ua in "$chrome" "$fbapp" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"; do
+  body="$(get -A "$ua" https://atlas.mycomap.org/taxa/Pluteus%20petasatus)"
+  grep -q 'the app' <<<"$body" && pass "a species page is the app for $(cut -c1-24 <<<"$ua")" \
+    || fail "species page for $ua: $body"
+done
+vary="$(get -A "$chrome" -o /dev/null -D - https://atlas.mycomap.org/taxa/Pluteus%20petasatus | grep -i '^vary' | tr -d '\r')"
+grep -qi 'user-agent' <<<"$vary" && pass "a species page says it varies by user agent" || fail "species page Vary: $vary"
+for path in / /maps /methods /taxa /embed/taxa/Pluteus%20petasatus; do
+  body="$(get -A "$fb" "https://atlas.mycomap.org$path")"
+  grep -q 'the app' <<<"$body" && pass "a link preview of $path gets the app's own tags" \
+    || fail "link preview of $path: $body"
+done
+
 # Every route the app declares must be one nginx serves as a page.
 routes="$(sed -n 's/.*path="\/\([a-z]*\).*/\1/p' "$here/../../web/src/App.tsx" | sort -u)"
 for route in $routes; do

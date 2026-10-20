@@ -10,6 +10,11 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/taxa/{name}/card.png`** is new: a species' link-preview card,
+  1200 x 630, with its name, its record count and its map (the one `best-map`
+  chooses) over Natural Earth land. The map alone, never the collections. 404
+  for a taxon with no map to show. Species pages link it with `?v=`, the map's
+  version, and that address is kept for good.
 - **`GET /api/taxa/{name}/map.png`** gains `view`: `accessible` (the
   default, unchanged: the map within 500 km of the taxon's records) or `full`,
   a strong map's full-extent view, to lay over the model's `full_map.bounds`.
@@ -231,6 +236,14 @@ changed and what it means for you.
 
 ### The site
 
+- **Shared links show Atlas's own card.** Facebook, X, iMessage, Slack and
+  other apps used to show the MycoMap logo and one generic line for every
+  page. Every page now shows a large card: the site's name, "habitat maps for
+  North America's fungi" and a habitat map. A species page shows its own
+  card: its name, its record count and its map, with a line saying the map
+  shows suitable habitat, not sightings. A species with no map yet says why.
+  Link-preview robots, and only them, get a species page's tags from the
+  server. People and search engines get the same page as before.
 - A running count on Home of how the maps stood up to records validated
   after they were made, linking to a new Methods section, "How the maps stood
   up", with the tables and the caveat that finds cluster where people already

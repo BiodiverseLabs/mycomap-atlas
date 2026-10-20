@@ -293,10 +293,9 @@ const AUDIENCES: { icon: Icon; title: string; text: string }[] = [
 ];
 
 export default function Home() {
-  usePageMeta({
-    description:
-      "Habitat maps for North America's fungi, modelled only from DNA-validated MycoMap records. Search for a species, or see what could grow where you are.",
-  });
+  // The site's own title and description (lib/pageMeta.ts), which its link
+  // preview carries too.
+  usePageMeta({});
   const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
   const models = useQuery({ queryKey: ["models"], queryFn: getModels });
   const tracker = useQuery({ queryKey: ["tracker"], queryFn: getTracker });
