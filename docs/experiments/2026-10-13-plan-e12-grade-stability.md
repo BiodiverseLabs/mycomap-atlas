@@ -236,6 +236,20 @@ waits for all three arms and the block-only step.
 - **a2 (2026-10-20): running.** study-20261020T212937Z-cfac20a6, image
   6dbdba8, 3 shards on r7i.8xlarge, `--order=reverse`.
 
+- **Reading note (2026-10-20, after a1, before b).** The release's own
+  machine family for the 507 cannot be recovered. R_main's job
+  (20261013T022520Z-2cb67f32) and the targeted and retire jobs recorded no
+  machine per shard or model. Their instances are gone, and gate 2 placed
+  its three taxa by which family's refit matched, not from a record. So
+  arm (c) has no family to report by. a1 matched the release for all 507,
+  so b against a1 is the cross-family test by itself:
+  - a model where b differs from a1 is family-sensitive, and its release fit
+    was on r7i;
+  - a model where b matches a1 is stable across families, whichever family
+    fitted it in the release.
+  The flip rate is then b's differences over the 507 (weighted by cell, as
+  planned), and "stable" holds whatever the release's family mix.
+
 ## Deviations
 
 None yet.
