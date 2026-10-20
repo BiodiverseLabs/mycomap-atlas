@@ -125,3 +125,12 @@ which the run's own settings also record, for the write-up:
     fitted on different families within one release (its maxnet on one, its
     random forest on the other), so their folds can differ. The kernel's
     bandwidth is chosen on the maxnet model's folds, as recorded.
+  - **Patch run (2026-10-20): all 35 match on r7a.**
+    study-20261020T221806Z-9620406f, image a49a698 (fix/e6b-patch-taxa
+    c76884d merged), one r7a.xlarge (AMD EPYC 9R14), 22:18 to 22:23 UTC.
+    `--taxa` held the 35. Result: 35 scored, 0 refused, 0 mismatch, 0
+    failed, 35 kernels. Every rebuilt block and set of folds matched the
+    hindcast's record on the hindcast's own family, so no taxon stays out of
+    H6b. The kernels are scored as
+    `--kernels-from=study-20261020T053446Z-1552e567,study-20261020T221806Z-9620406f`
+    (study-20261020T222337Z-05216058).
