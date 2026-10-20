@@ -217,6 +217,25 @@ the full suite at 1,187/0), in that commit's image.
   the worker layer check) are in the distance and default-practice
   studies, which the arms do not use.
 
+## Runs
+
+Logged by the rebuild lane as ops reports them. Numbers only; the reading
+waits for all three arms and the block-only step.
+
+- **a1 (2026-10-20): done.** study-20261020T182524Z-717cf60a, image
+  6dbdba8, 2 shards, both on r7i.8xlarge. 507 models drawn (254 + 253), 507
+  fitted. Against the frozen release: same records 507, same grade 507,
+  identical 507.
+- **b (2026-10-20): first launch lost, nothing saved.**
+  study-20261020T182526Z-95330a0a. Its 8 r7a.8xlarge spot workers were
+  reclaimed between 18:30 and 19:15 UTC (Server.SpotInstanceTermination),
+  and the orchestrator stopped after 4 attempts on shard 1 without a
+  result. No model from it is read. Steve chose to run b again on spot
+  later, with the same plan and image; that is a relaunch, not a design
+  change.
+- **a2 (2026-10-20): running.** study-20261020T212937Z-cfac20a6, image
+  6dbdba8, 3 shards on r7i.8xlarge, `--order=reverse`.
+
 ## Deviations
 
 None yet.
