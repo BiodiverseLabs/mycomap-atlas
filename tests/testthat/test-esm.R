@@ -359,3 +359,37 @@ test_that("where an algorithm still withholds a map, the withheld fit is current
   expect_true(indexed$map_withheld)
   expect_false(indexed$map)
 })
+
+# Few detections among heavy-tailed sites, where glmnet's own settings move a
+# small model's fit (the sparse taxa ensembles are for).
+heavy_tailed_training <- function(seed = 4, n1 = 8, n0 = 2000) {
+  set.seed(seed)
+  training <- data.frame(presence = c(rep(1L, n1), rep(0L, n0)),
+                         x = stats::runif(n0 + n1, 0, 1e6), y = stats::runif(n0 + n1, 0, 1e6))
+  for (v in paste0("v", 1:6)) {
+    z <- stats::rt(n0 + n1, df = 2)
+    z[seq_len(n1)] <- stats::rnorm(n1, 1.5, 0.3)
+    training[[v]] <- z
+  }
+  training$effort <- stats::rexp(n0 + n1)
+  training
+}
+
+test_that("an ensemble fits the same whether or not a Maxent model was fitted before it in the process", {
+  skip_if_not_installed("glmnet")
+  on.exit(glmnet::glmnet.control(factory = TRUE), add = TRUE)
+  training <- heavy_tailed_training()
+  sites <- training[seq(1, nrow(training), by = 3), ]
+  suitability <- function() {
+    suppressWarnings(atlas_esm_suitability(atlas_fit_esm(training, predictors = paste0("v", 1:6), seed = 1L), sites))
+  }
+  glmnet::glmnet.control(factory = TRUE)
+  fresh <- suitability()
+  # What every Maxent fit leaves set in its process (R/fit.R).
+  glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
+  after_maxent <- suitability()
+  expect_identical(after_maxent, fresh)
+  # The process's own settings are put back, for the Maxent fits that follow.
+  expect_equal(glmnet::glmnet.control()$pmin, 1e-08)
+  expect_equal(glmnet::glmnet.control()$fdev, 0)
+})

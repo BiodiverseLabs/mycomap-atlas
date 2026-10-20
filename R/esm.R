@@ -55,10 +55,25 @@ atlas_fit_small_model <- function(training, pair, centre, scale, lambda = ATLAS_
     stop("glmnet is needed for small models: install.packages('glmnet')", call. = FALSE)
   }
   x <- atlas_esm_features(training, pair, centre, scale)
-  glmnet::glmnet(
+  atlas_with_glmnet_defaults(glmnet::glmnet(
     x, training$presence, family = "binomial", alpha = 0, lambda = lambda,
     weights = atlas_balanced_weights(training$presence), standardize = FALSE
-  )
+  ))
+}
+
+#' Evaluate expr with glmnet at its own settings, as a fresh R process has
+#' them, and put the process's settings back after. glmnet.control is global
+#' to the process, and every Maxent fit sets pmin and fdev (R/fit.R) and
+#' leaves them set, so a small model fitted after a Maxent model in the same
+#' process came out slightly different: E12's arm a2 refitted 191 of 225
+#' ensembles' maps to other bytes, where a1, with no Maxent before them, gave
+#' the release's own (2026-10-20). The release's ensembles were fitted at
+#' these defaults.
+atlas_with_glmnet_defaults <- function(expr) {
+  saved <- glmnet::glmnet.control()
+  glmnet::glmnet.control(factory = TRUE)
+  on.exit(do.call(glmnet::glmnet.control, saved), add = TRUE)
+  expr
 }
 
 #' One small model's prediction, as a probability.
