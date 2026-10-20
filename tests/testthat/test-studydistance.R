@@ -283,6 +283,41 @@ test_that("a taxon whose rebuild differs from the release's record is refused, n
   expect_equal(unlist(none$differs), "no record")
 })
 
+test_that("two shards of one study job started in the same second never write the same results file", {
+  stamp <- "20261020T053446Z"
+  outs <- lapply(c("1/3", "2/3", "3/3"), function(s) {
+    atlas_study_out("study/job/", "distance-studies", "draft", "h1", shard = s, stamp = stamp)
+  })
+  prefixes <- vapply(outs, `[[`, "", "prefix")
+  expect_equal(prefixes, c("distance-h1-shard-1of3", "distance-h1-shard-2of3", "distance-h1-shard-3of3"))
+  # The results file is <prefix>-<stamp>.json and the directory <prefix>-<stamp>.
+  expect_false(anyDuplicated(paste0(prefixes, "-", stamp, ".json")) > 0)
+  expect_false(anyDuplicated(vapply(outs, `[[`, "", "dir")) > 0)
+  # Without a shard the name is as before.
+  expect_equal(atlas_study_out(NULL, "distance-studies", "draft", "h1", stamp = stamp)$prefix, "distance-h1")
+})
+
+test_that("every sharded study command puts its shard in its results name", {
+  # The commands whose label carried no shard pass it to atlas_study_out;
+  # calibration and the E12 arms put it in their label themselves.
+  pkg <- environment(atlas_study_out)
+  calls_to <- function(x, name) {
+    if (!is.call(x)) return(list())
+    found <- if (identical(x[[1]], as.name(name))) list(x) else list()
+    parts <- as.list(x)
+    # (An empty argument, as in x[, 1], is skipped, not evaluated.)
+    for (i in seq_along(parts)[-1]) {
+      if (!identical(parts[[i]], quote(expr = ))) found <- c(found, calls_to(parts[[i]], name))
+    }
+    found
+  }
+  for (fn in c("atlas_distance_study", "atlas_default_study", "atlas_rescan_study", "atlas_repro_study")) {
+    found <- calls_to(body(get(fn, envir = pkg)), "atlas_study_out")
+    expect_length(found, 1L)
+    expect_identical(found[[1]]$shard, as.name("shard"), info = fn)
+  }
+})
+
 test_that("shards split a study's taxa without overlap or gap", {
   names <- sprintf("taxon %02d", 1:23)
   parts <- lapply(1:4, function(i) atlas_study_shard(names, paste0(i, "/4")))

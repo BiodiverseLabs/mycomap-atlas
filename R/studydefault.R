@@ -289,7 +289,7 @@ atlas_default_study <- function(store = atlas_store(), release, grid = "draft",
     }
     return(invisible(plan))
   }
-  out <- atlas_study_out(out, "default-studies", grid, release)
+  out <- atlas_study_out(out, "default-studies", grid, release, shard = shard)
   pull <- atlas_tracker_release_pull(store, view$manifest, grid, view$cache)
   points <- atlas_occurrence_points(pull, grid)
   fingerprints <- as.list(atlas_fingerprints_for(pull, taxa))

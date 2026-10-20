@@ -322,7 +322,7 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
     }
     return(invisible(plan))
   }
-  out <- atlas_study_out(out, "distance-studies", grid, release)
+  out <- atlas_study_out(out, "distance-studies", grid, release, shard = shard)
   # The kernels are drawn on the hindcast's own grid and layers: fetch them
   # (a study job's worker starts with none), never over different ones.
   atlas_distance_fetch_layers(store, view$manifest, grid)

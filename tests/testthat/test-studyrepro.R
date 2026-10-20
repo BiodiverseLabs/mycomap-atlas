@@ -32,7 +32,24 @@ test_that("runs that reproduce the release are reported as agreeing, and the res
   added <- sub("^/", "", setdiff(sort(unlist(setup$store$list(""))), before))
   expect_length(added, 1L)
   expect_match(added, "^study/repro-test/.*[.]json$")
+  expect_match(added, "shard-1of1[.]json$")
   expect_equal(atlas_current_release(setup$store)$id, main$id)
+})
+
+test_that("two shards of one repro job publish two results files, not one over the other", {
+  skip_if_not_installed("terra")
+  setup <- refresh_setup()
+  main <- setup$main
+  before <- sort(unlist(setup$store$list("")))
+  for (shard in c("1/2", "2/2")) {
+    on_machine(machine(), atlas_repro_study(
+      setup$store, release = main$id, source_job = atlas_json_string(main$job),
+      taxa = "Taxon A|Taxon B", runs = 2L, out = "study/repro-test/", label = "r7i", shard = shard,
+      run = repro_runner(setup$store, main), quiet = TRUE))
+  }
+  added <- sub("^/", "", setdiff(sort(unlist(setup$store$list(""))), before))
+  expect_length(added, 2L)
+  expect_match(added, "shard-[12]of2[.]json$")
 })
 
 test_that("a run whose tuning scores move is reported, with which parts differ and by how much", {

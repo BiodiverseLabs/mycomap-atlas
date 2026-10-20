@@ -272,6 +272,73 @@ test_that("a baseline run is taken whole and only if it was run on this hindcast
   expect_error(atlas_score_run(again, "h1"), "two shards")
 })
 
+# A distance study's shards as a study job publishes them: under
+# study/<job>/, every shard's results file and kernels directory named
+# distance-<release>-<stamp>, the same prefix with different stamps.
+published_kernels <- function(store, job, release, shards, taxa_of = function(i) sprintf("T%02d", i)) {
+  for (i in seq_along(shards)) {
+    stamp <- sprintf("20261020T0101%02dZ", i)
+    key <- sprintf("study/%s/distance-%s-%s", job, release, stamp)
+    file <- tempfile(fileext = ".json")
+    jsonlite::write_json(list(settings = list(release = release, shard = shards[[i]]),
+                              taxa = lapply(taxa_of(i), function(t) list(taxon = t, status = "scored"))),
+                         file, auto_unbox = TRUE)
+    store$put(paste0(key, ".json"), file)
+    for (taxon in taxa_of(i)) {
+      tif <- tempfile(fileext = ".tif")
+      writeLines(paste("kernel of", taxon), tif)
+      store$put(sprintf("%s/kernels/%s.tif", key, tolower(taxon)), tif)
+    }
+  }
+}
+
+test_that("--kernels-from fetches every shard of a distance study job and finds each taxon's kernel", {
+  store <- fresh_store()
+  published_kernels(store, "e6b", "h1", c("1/2", "2/2"))
+  fetched <- atlas_score_fetch_kernels(store, "e6b")
+  expect_length(fetched$paths, 2L)
+  expect_equal(fetched$kernels, 2L)
+  run <- atlas_score_run(fetched$paths, "h1", dirs = fetched$dir)
+  expect_length(run$rows, 2L)
+  for (taxon in c("T01", "T02")) {
+    expect_true(file.exists(atlas_score_find(run$dirs, atlas_distance_raster_path, taxon)), info = taxon)
+  }
+  # By name alone the shards' directories cannot be told apart: that is why
+  # the fetch merges them.
+  expect_error(atlas_score_run(fetched$paths, "h1"), "no directory|more than one")
+  expect_error(atlas_score_fetch_kernels(store, "nothing"), "no results file under study/nothing/")
+})
+
+test_that("--kernels-from reads shard-numbered names and the older names without a shard alike", {
+  store <- fresh_store()
+  published_kernels(store, "e6b", "h1", c("1/3", "2/3"))
+  # Shard 3 as a study job now names it: shard-3of3, the same start second.
+  out <- atlas_study_out("study/e6b/", "distance-studies", "draft", "h1", shard = "3/3",
+                         stamp = "20261020T010101Z")
+  expect_equal(out$prefix, "distance-h1-shard-3of3")
+  results <- file.path(dirname(out$dir), paste0(out$prefix, "-20261020T010101Z.json"))
+  jsonlite::write_json(list(settings = list(release = "h1", shard = "3/3"),
+                            taxa = list(list(taxon = "T03", status = "scored"))), results, auto_unbox = TRUE)
+  dir.create(file.path(out$dir, "kernels"))
+  writeLines("kernel of T03", file.path(out$dir, "kernels", "t03.tif"))
+  atlas_study_publish(store, c(results, file.path(out$dir, "kernels", "t03.tif")), out$key, root = dirname(out$dir))
+  fetched <- atlas_score_fetch_kernels(store, "e6b")
+  expect_length(fetched$paths, 3L)
+  expect_equal(fetched$kernels, 3L)
+  run <- atlas_score_run(fetched$paths, "h1", dirs = fetched$dir)
+  expect_length(run$rows, 3L)
+  expect_true(file.exists(atlas_score_find(run$dirs, atlas_distance_raster_path, "T03")))
+})
+
+test_that("--kernels-from refuses a kernel that two shards both hold, and both kernel sources at once", {
+  store <- fresh_store()
+  published_kernels(store, "e6b", "h1", c("1/2", "2/2"), taxa_of = function(i) "T01")
+  expect_error(atlas_score_fetch_kernels(store, "e6b"), "a kernel appears in two shards")
+  expect_error(atlas_score_study(store = NULL, hindcast = "h1", kernels = "a.json", kernels_from = "e6b",
+                                 view = list(), full_pull = data.frame(), quiet = TRUE),
+               "--kernels or --kernels-from, not both")
+})
+
 # A small hindcast as study-score reads it: its manifest, its pull's keys
 # and names; and the full pull of the release it came from.
 score_world <- function() {

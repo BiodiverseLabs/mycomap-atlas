@@ -164,9 +164,12 @@ atlas_study_check_key <- function(key) {
 #' Where a study run writes: a local directory, and the store prefix it is
 #' copied to afterwards (atlas_study_publish). out is a store prefix under
 #' study/ or private/study/, or NULL for data/<kind>/<grid>/ on this machine
-#' only.
-atlas_study_out <- function(out, kind, grid, label) {
-  stamp <- format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")
+#' only. shard ("i/n") goes into the name as shard-<i>of<n>: a study job's
+#' shards publish to one prefix, and names that differ only by their start
+#' second overwrite each other when two shards start in the same second.
+atlas_study_out <- function(out, kind, grid, label, shard = NULL,
+                            stamp = format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC")) {
+  if (!is.null(shard)) label <- paste(label, "shard", sub("/", "of", as.character(shard)))
   slug <- gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", as.character(label)))
   # The results file is <prefix>-<stamp>.json (atlas_run_study adds the
   # stamp); the run's other files go in the directory beside it.

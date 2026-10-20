@@ -232,6 +232,7 @@ atlas_usage <- function() {
   message("      --from-release=ID         optional: refused unless it is the hindcast's source release")
   message("      --cutoff=YYYY-MM-DD       optional: refused unless it is the hindcast's cutoff")
   message("      --kernels=a.json,...      every shard's results file of one E6b run on this hindcast")
+  message("      --kernels-from=JOB        or the E6b study job's results and kernels, fetched from the store")
   message("      --defaults=a.json,...     every shard's results file of one E6a run on this hindcast")
   message("      --observed-after          only finds also observed after the cutoff")
   message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
@@ -920,7 +921,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         out = if (is.null(flags$out)) NULL else as.character(flags$out),
         exclude = atlas_score_ids(flags$exclude), hold = atlas_score_ids(flags$hold),
         allow_missing_excludes = isTRUE(flags$allow_missing_excludes),
-        refits = files(flags$refits) %||% character()
+        refits = files(flags$refits) %||% character(),
+        kernels_from = if (is.null(flags$kernels_from)) NULL else as.character(flags$kernels_from)
       )
       invisible(0L)
     },

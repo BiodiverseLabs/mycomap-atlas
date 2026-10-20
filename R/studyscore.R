@@ -163,7 +163,7 @@ atlas_score_baselines_core <- function(places, model_maps_for, kernel_maps_for =
 #' A baseline run, taken whole: its results files must all be of release
 #' hindcast and cover every shard 1..n of one split, each once. Returns the
 #' run's directories (where its maps are) and its rows.
-atlas_score_run <- function(paths, hindcast) {
+atlas_score_run <- function(paths, hindcast, dirs = NULL) {
   results <- lapply(paths, function(p) jsonlite::fromJSON(p, simplifyVector = FALSE))
   releases <- vapply(results, function(r) as.character(r$settings$release %||% NA), "")
   if (!all(releases %in% hindcast)) {
@@ -180,7 +180,30 @@ atlas_score_run <- function(paths, hindcast) {
   rows <- do.call(c, lapply(results, function(r) r$taxa))
   taxa <- vapply(rows, function(r) as.character(r$taxon), "")
   if (anyDuplicated(taxa)) stop("a taxon appears in two shards: ", taxa[duplicated(taxa)][[1]], call. = FALSE)
-  list(dirs = vapply(paths, atlas_score_default_dir, ""), rows = rows)
+  list(dirs = dirs %||% vapply(paths, atlas_score_default_dir, ""), rows = rows)
+}
+
+#' A distance study's results from the store (study/<job>/), for scoring on
+#' a machine that did not run it (an EC2 study job): every shard's results
+#' file, and every kernel raster merged into one directory. The shards'
+#' own directories share one name prefix with different stamps, so they are
+#' not told apart by name; merged, each taxon's kernel is found once (a
+#' taxon is in one shard only). Returns the results files and that directory.
+atlas_score_fetch_kernels <- function(store, job_id, dest = tempfile("kernels-")) {
+  prefix <- paste0("study/", job_id, "/")
+  keys <- sub("^/", "", store$list(prefix))
+  rest <- substring(keys, nchar(prefix) + 1L)
+  results <- keys[grepl("^[^/]+[.]json$", rest)]
+  rasters <- keys[grepl("/kernels/[^/]+[.]tif$", rest)]
+  if (!length(results)) stop("no results file under ", prefix, call. = FALSE)
+  if (anyDuplicated(basename(rasters))) {
+    stop("a kernel appears in two shards under ", prefix, ": ", basename(rasters)[duplicated(basename(rasters))][[1]],
+         call. = FALSE)
+  }
+  paths <- file.path(dest, "results", basename(results))
+  for (i in seq_along(results)) store$get(results[[i]], paths[[i]])
+  for (key in rasters) store$get(key, file.path(dest, "kernels", basename(key)))
+  list(paths = paths, dir = dest, kernels = length(rasters))
 }
 
 #' The first of a run's directories that holds the taxon's file, or NULL.
@@ -205,9 +228,13 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
                               grid = "draft", kernels = NULL, defaults = NULL, observed_after = FALSE,
                               reps = ATLAS_E2_BOOTSTRAP, seed = 1L, out = NULL, quiet = FALSE,
                               view = NULL, full_pull = NULL, exclude = character(), hold = character(),
-                              allow_missing_excludes = FALSE, refits = character(), refit_views = NULL) {
+                              allow_missing_excludes = FALSE, refits = character(), refit_views = NULL,
+                              kernels_from = NULL) {
   started <- Sys.time()
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
+  if (!is.null(kernels) && !is.null(kernels_from)) {
+    stop("give --kernels or --kernels-from, not both", call. = FALSE)
+  }
   if (length(reps) != 1L || !is.finite(reps) || reps < 1 || reps != round(reps)) {
     stop("reps must be a whole number of resamples, 1 or more", call. = FALSE)
   }
@@ -224,7 +251,12 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   }
   cutoff <- made$validated_through
   from_release <- made$from_release
-  kernel_run <- if (!is.null(kernels)) atlas_score_run(kernels, hindcast)
+  kernel_run <- if (!is.null(kernels)) {
+    atlas_score_run(kernels, hindcast)
+  } else if (!is.null(kernels_from)) {
+    fetched <- atlas_score_fetch_kernels(store, kernels_from)
+    atlas_score_run(fetched$paths, hindcast, dirs = fetched$dir)
+  }
   default_run <- if (!is.null(defaults)) atlas_score_run(defaults, hindcast)
   if (is.null(full_pull)) {
     full_pull <- atlas_tracker_release_pull(store, atlas_tracker_manifest(store, from_release, grid), grid)
@@ -274,7 +306,9 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
     list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
          settings = list(hindcast = hindcast, from_release = from_release, cutoff = cutoff,
                          observed_after = observed_after, reps = as.integer(reps), seed = as.integer(seed),
-                         grid = grid, kernel_shards = length(kernels), default_shards = length(defaults),
+                         grid = grid, kernel_shards = if (!is.null(kernels)) length(kernels) else
+                           if (!is.null(kernels_from)) length(fetched$paths) else 0L,
+                         kernels_from = kernels_from, default_shards = length(defaults),
                          excluded = length(unique(exclude)), held = length(unique(hold)),
                          excluded_leaks = length(intersect(missing, split$excluded_keys)),
                          ids_not_found = attr(split$finds, "not_found") %||% 0L,
