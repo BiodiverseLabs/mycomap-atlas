@@ -187,6 +187,16 @@ the full suite at 1,187/0), in that commit's image.
   records as the release 4/4, the same grade 4/4, identical to the release
   4/4. The arms run at 6dbdba8 or later. A shard with more than 5% of its
   models unfitted fails as a whole.
+- **Image for the arms (2026-10-20).** All three arms (a1, a2 and b) run
+  on the 6dbdba8 image, the one the smoke run passed on: not the 679b2cc
+  image named above, and not a later one. 6dbdba8 is 679b2cc plus
+  fix/study-distance-layers 00e7209. 00e7209 does not change how `--draw`
+  fits a model: the arms' worker fit is the same code. For the arms it adds
+  only `--limit` (the smoke run's first models; the arms set no limit) and
+  the stop when more than 5% of a shard's models are unfitted, checked
+  after its results file is written. Its other changes (the layer fetch,
+  the worker layer check) are in the distance and default-practice
+  studies, which the arms do not use.
 
 ## Deviations
 
