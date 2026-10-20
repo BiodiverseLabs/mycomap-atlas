@@ -134,4 +134,23 @@ grade.
 
 ## Deviations
 
-None yet.
+- **2026-10-20, before launch (implementation only; no hypothesis,
+  criterion, count or learner changes): glmnet's settings are set in each
+  fit, not inherited from the process.** glmnet keeps its settings for the
+  whole R process, and every Maxent fit sets two of them (pmin = 1e-8,
+  fdev = 0) and leaves them set. E12's arm a2 found that the small-model
+  ensemble (ESM) fit after a Maxent model in the same process gives a
+  slightly different map: 191 of 225 maps differed in their bytes, with no
+  grade changed (E12 plan, 2026-10-20). Production fits ESM in worker
+  processes of its own, so every released ensemble was fitted at glmnet's
+  defaults. `study-virtual` can fit Maxent and ESM species in one worker,
+  so E1's ESM arm would have depended on the order of its species.
+  - **ESM** now fits at glmnet's defaults, as every released ensemble was
+    (Atlas fix/esm-glmnet-defaults 5b58f30).
+  - **The detection model** (E14's effort arm, on the same species) reads
+    only glmnet's convergence settings, which no Atlas code changes, so it
+    was never affected. It is pinned all the same, to Maxent's settings,
+    since it shares Maxent's features and penalty path (Atlas
+    fix/detection-glmnet-pin a8861ab).
+  - The cost pilot ran before these changes. Its timings stand, and none of
+    its fits is reported.
