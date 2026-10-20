@@ -233,8 +233,14 @@ waits for all three arms and the block-only step.
   result. No model from it is read. Steve chose to run b again on spot
   later, with the same plan and image; that is a relaunch, not a design
   change.
-- **a2 (2026-10-20): running.** study-20261020T212937Z-cfac20a6, image
-  6dbdba8, 3 shards on r7i.8xlarge, `--order=reverse`.
+- **a2 (2026-10-20): done, and did not match a1.**
+  study-20261020T212937Z-cfac20a6, image 6dbdba8, 3 shards on r7i.8xlarge
+  (41 to 45 min each), `--order=reverse`. 507 fitted; same records 507,
+  same grade 507, identical to the release 316. All 191 that differ are
+  ensembles (ESM), 191 of the 225 drawn: the map's bytes in 190, the map
+  and pooled Boyce in 1 (*Heliocybe sulcata*, 0.054 against 0.055).
+  Maxent 128/128, RF 114/114 and boosted trees 40/40 are identical. Cause
+  and handling: Deviations, 2026-10-20.
 
 - **Reading note (2026-10-20, after a1, before b).** The release's own
   machine family for the 507 cannot be recovered. R_main's job
@@ -252,4 +258,43 @@ waits for all three arms and the block-only step.
 
 ## Deviations
 
-None yet.
+- **2026-10-20, after a2 and before b: a fix to the ensembles' fits, and
+  a2 run again.** a2's first run (study-20261020T212937Z-cfac20a6) gave
+  other map bytes for 191 of the 225 drawn ensembles, with every grade
+  unchanged, where a1 gave the release's own for all 225. By this plan's
+  Reading, a difference between a1 and a2 is non-determinism within one
+  machine type, to be explained and fixed before the study reports.
+  - **Cause.** glmnet's settings are global to an R process, and every
+    Maxent fit sets two of them (pmin = 1e-8, fdev = 0) and leaves them
+    set. An ensemble's small models (ridge glmnet) inherit whatever the
+    process holds. In a2, every ensemble had a Maxent fit before it in its
+    worker process, and 191 differ. In a1, none had, and all 225 match.
+    Production fits each learner in a fresh pool of worker processes, and
+    every fitting shard of R_main, the targeted job, the full-view refresh,
+    the hindcast and the leave-out refit ran with 32 workers. So every
+    released ensemble was fitted at glmnet's own defaults. In a local test,
+    the same ensemble fitted under the two settings differed in every cell
+    of sparse, heavy-tailed data (by up to 0.027 in suitability), and not
+    at all on tamer data.
+  - **Fix.** Atlas fix/esm-glmnet-defaults 5b58f30 fits each small model at
+    glmnet's defaults and puts the process's settings back after. That is
+    the state every released ensemble was fitted in, so released maps are
+    reproduced and not changed. fix/detection-glmnet-pin a8861ab, stacked
+    on it, pins the detection model too (E1 and E14 only; it was never
+    affected). Maxent, RF and boosted trees are unchanged.
+  - **a2 again**, on the image built from Atlas main at the merge of
+    a8861ab (it holds 5b58f30): the same command as the first a2, 3 shards
+    on r7i.8xlarge spot, `--order=reverse`, the same draw and nulls.
+    Expected: identical to the release for all 507. The ensembles' fits no
+    longer depend on what ran before them, and nothing else changed. If any
+    model still differs from a1, b does not run until it is explained.
+  - **a1 stands.** Its ensembles ran with no Maxent fit before them, at
+    glmnet's defaults, which is what the fix pins. The other learners' code
+    is unchanged.
+  - **b then runs** on the same image as a2's rerun, on one r7a.8xlarge
+    on-demand (`--shards=1 --workers=16`; Steve, 2026-10-20). Spot
+    capacity for 2 × r7a.8xlarge could not be had (first launch,
+    study-20261020T182526Z-95330a0a, reclaimed). Every r7a size is the same
+    processor family, and fits are deterministic within a family (gate 2).
+    A different shard split moves models to other worker processes, which
+    a2's rerun tests.
