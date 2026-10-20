@@ -90,3 +90,38 @@ which the run's own settings also record, for the write-up:
     30 workers each, r7i/r7a.8xlarge), launched 2026-10-20 05:34 UTC.
   - The design, kernels and scoring are unchanged; the implementation
     notes above still hold.
+- **2026-10-20, before scoring: 35 kernels refused over a processor-family
+  difference in the block size; they are rebuilt on the fitting family.**
+  The relaunch scored 6,059 of 6,094 taxa, refused 0 and failed 0. It
+  refused 35 as "mismatch": the kernel's check found that its rebuilt folds
+  were not the hindcast model's. For each of the 35, the records, detection
+  sites, design (full) and seed matched. Only the block size differed, and
+  so the folds.
+  - **Cause.** A full-design model's block size is the blockCV variogram
+    range, rounded to 5 km. The kernel is checked against the taxon's
+    maxnet model, and all 35 of those were fitted on r7a.8xlarge (AMD). All
+    three E6b shards ran on r7i.8xlarge (Intel). On the other family the
+    variogram fit lands on a different range for these taxa: gaps of 5 to
+    240 km (*Hemimycena* sp. 'lactea-PNW04': 300 km rebuilt against 60 km
+    recorded). Same-family fits are deterministic (E12 plan, gate 2).
+  - **Rate.** Every one of the hindcast's 1,256 full-design taxa has a
+    maxnet model: 1,144 fitted on r7a and 112 on r7i. 35 of the 1,144 (3.1%)
+    measured a different block on r7i; none of the 112 did. No small-model
+    taxon was refused, as their blocks are a fixed 100 km. The hindcast's
+    8,606 fitted models: r7a 2,554, r7i 6,052; full-design models r7a
+    1,366, r7i 1,446.
+  - **Handling (Steve, 2026-10-20): rebuild, so that nothing drops out of
+    H6b.** The 35 are rebuilt on r7a by the same procedure and the same
+    check (`study-distance --taxa`, Atlas fix/e6b-patch-taxa), and
+    study-score reads that job as a patch over the main run
+    (`--kernels-from=MAIN,PATCH`). The patch may hold only taxa the main run
+    did not score. A taxon that still differs on r7a stays out of the paired
+    scores, and is counted here when the patch has run. Four of the 35 have
+    a strong hindcast model: *Crassisporium funariophilum*, *Cystoagaricus
+    subamarus*, *Lactarius griseus* and *Lactarius luculentus* var.
+    *laetus*.
+  - **For the write-up.** Production's own spatial folds depend on the
+    processor family for some full-design taxa. A taxon's models can be
+    fitted on different families within one release (its maxnet on one, its
+    random forest on the other), so their folds can differ. The kernel's
+    bandwidth is chosen on the maxnet model's folds, as recorded.

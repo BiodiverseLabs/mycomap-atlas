@@ -126,6 +126,25 @@
 - If flips concentrate in small-site tuned Maxent, say so, and test whether
   a more stable tuning rule (a fixed path, or a tie tolerance) removes them;
   that is a method change for a later release, not the frozen one.
+- **The block size is a second machine effect (added 2026-10-20, before any
+  arm).** E6b found that a full-design model's block size depends on the
+  processor family for some taxa. The block is the blockCV variogram range
+  rounded to 5 km, and the same records gave gaps of 5 to 240 km between
+  r7a and r7i (*Hemimycena* sp. 'lactea-PNW04': 300 against 60 km). That
+  was 35 of the 1,144 hindcast taxa whose maxnet was fitted on r7a (E6b
+  prereg, Deviations, 2026-10-20). A different block means different
+  folds, and so different tuning, AUC, null test and possibly grade. So
+  a-vs-b differences in full-design models (Maxent, RF, boosted trees) have
+  two possible sources, the block and the tuning; ESM's blocks are a fixed
+  100 km.
+  - The arms do not record the block. After the arms, a short step computes
+    the variogram block alone (no fit) for every drawn full-design model,
+    once on r7i and once on r7a. Same-family runs are deterministic (gate 2),
+    so these are the blocks the arms used.
+  - The reading then splits each a-vs-b difference into "block changed" or
+    "same block", and reports the grade-flip rate for each. Only the
+    "same block" share is the tuning or numerics effect that the bullet
+    above reads.
 
 ## Cost
 
