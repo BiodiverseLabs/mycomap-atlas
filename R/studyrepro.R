@@ -180,7 +180,9 @@ atlas_repro_study <- function(store = atlas_store(), release, source_job, taxa, 
                    match_release = sum(vapply(models, function(m) isTRUE(m$against_release$identical), logical(1)))),
     models = models
   )
-  where <- atlas_study_out(out, "repro-studies", grid, paste(label %||% "repro", release))
+  # Its results file carries no stamp, so without the shard two shards of
+  # one job would always write the same key.
+  where <- atlas_study_out(out, "repro-studies", grid, paste(label %||% "repro", release), shard = shard)
   path <- file.path(where$dir, paste0(where$prefix, ".json"))
   atlas_write_json(result, path)
   if (!is.null(where$key)) atlas_study_publish(store, path, where$key, where$dir)

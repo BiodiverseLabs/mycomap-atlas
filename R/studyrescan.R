@@ -357,7 +357,7 @@ atlas_rescan_study <- function(store = atlas_store(), release, grid = "draft",
     }
     return(invisible(c(plan, list(strata = atlas_rescan_strata(population, sample)))))
   }
-  out <- atlas_study_out(out, "rescan-studies", grid, release)
+  out <- atlas_study_out(out, "rescan-studies", grid, release, shard = shard)
   records <- lapply(stats::setNames(ids, ids), function(id) {
     model <- atlas_rescan_parse(id)
     path <- atlas_model_relpaths(model$taxon, grid, model$algorithm, ".json")[[1]]
