@@ -110,6 +110,31 @@ test_that("a detection model's chance of detection rises with effort, never past
   expect_true(all(c(quiet, busy) > 0 & c(quiet, busy) <= 1))
 })
 
+test_that("the detection model fits the same whatever glmnet settings the process holds", {
+  skip_if_not_installed("maxnet")
+  skip_if_not_installed("glmnet")
+  on.exit(glmnet::glmnet.control(factory = TRUE), add = TRUE)
+  world <- confounded_world()
+  fit <- function() {
+    model <- atlas_fit_detection(world, classes = "lq")
+    c(model$alpha, model$betas)
+  }
+  # A fresh process: glmnet's own settings.
+  glmnet::glmnet.control(factory = TRUE)
+  fresh <- fit()
+  # After a Maxent fit in the same process (R/fit.R).
+  do.call(glmnet::glmnet.control, ATLAS_MAXENT_GLMNET_CONTROL)
+  after_maxent <- fit()
+  # Convergence settings this fit does read, left by anything else.
+  glmnet::glmnet.control(factory = TRUE)
+  glmnet::glmnet.control(thresh = 1e-02, mxitnr = 2)
+  other <- fit()
+  expect_identical(after_maxent, fresh)
+  expect_identical(other, fresh)
+  # The process's own settings are put back.
+  expect_equal(glmnet::glmnet.control()$mxitnr, 2)
+})
+
 test_that("the detection model refuses a table without effort", {
   skip_if_not_installed("maxnet")
   world <- confounded_world()

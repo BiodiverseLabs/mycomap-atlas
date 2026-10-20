@@ -113,6 +113,10 @@ atlas_spatial_folds <- function(x, y, k = 5, block_km = 200, seed = 1L,
 # the predictions matched maxnet's own to r = 1.00000 for linear and quadratic
 # features, 35 times faster, and to r = 0.99999 with hinges, 1.4 times faster.
 ATLAS_MAXNET_PATH_STEPS <- 20L
+# The glmnet settings a Maxent fit runs at, as maxnet sets them: fitted
+# probabilities kept above 1e-8, and no early end to the penalty path
+# (fdev = 0), which the path's last penalty is read from.
+ATLAS_MAXENT_GLMNET_CONTROL <- list(pmin = 1e-08, fdev = 0)
 
 # glmnet's passes over the data, summed along the path, that a short path may
 # take before it gives up and maxnet's own 200 steps are fitted instead.
@@ -350,7 +354,7 @@ atlas_maxnet <- function(p, data, f = maxnet::maxnet.formula(p, data), regmult =
     scale <- background_weight / mean(background_weight[p == 0])
     weights <- p + (1 - p) * 100 * scale
   }
-  glmnet::glmnet.control(pmin = 1e-08, fdev = 0)
+  do.call(glmnet::glmnet.control, ATLAS_MAXENT_GLMNET_CONTROL)
   path <- function(steps) {
     lambda <- 10^(seq(4, 0, length.out = steps)) * sum(reg) / length(reg) * sum(p) / sum(weights)
     # A short path gets a pass budget (ATLAS_MAXNET_SHORT_PATH_PASSES);
