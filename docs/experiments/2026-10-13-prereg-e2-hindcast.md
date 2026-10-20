@@ -275,3 +275,70 @@ finish).
     place centre, but none has that name.
   **Handling:** no further exclusion and no further refit. This entry
   records that the 4 excludes matched nothing, and why.
+
+## Results
+
+Run 2026-10-19 (`study-score`, one-shard EC2 study job
+study-20261019T181851Z-35fc3d63, started 18:20:38 UTC, 2,861 s). Results
+file: study/study-20261019T181851Z-35fc3d63/score-priv-20261018T171648Z-9e3ab153-20261019T182038Z.json.
+Numbers only; read out by the rebuild lane.
+
+**Settings.** Hindcast priv-20261018T171648Z-9e3ab153, from release
+20261013T191324Z-fa1b4198, cutoff 2026-08-17, observed_after false, 10,000
+bootstrap resamples of taxa, seed 1. Refit used: priv-20261019T042158Z-09936f85
+(*Sparassis spathulata*). Excludes: 4 given, 4 not found among the later
+finds, 0 known leaks (as recorded in Deviations, 2026-10-19). Kept apart:
+undated 0, off-grid 0, observed-before 0, excluded 0, held 0.
+
+**Places.** 7,509 places (taxon × 5 km cell) across 3,655 taxa; 0 off the grid.
+
+**Primary hypotheses** (95% percentile intervals, bootstrap over taxa):
+
+| | Estimate | 95% interval | Taxa | Holds |
+|---|---|---|---|---|
+| H2a: strong, top-half share | 0.9145 | [0.8856, 0.9419] | 214 | yes |
+| H2b: strong − failed, top-half share | 0.1305 | [0.0898, 0.1719] | 735 | yes |
+| H2c: strong, beats-effort share | 0.7854 | [0.7627, 0.8056] | 214 | yes |
+
+C2: supported (H2a, H2b and H2c all hold).
+
+**Secondary hypotheses, map tiers:**
+
+| | Estimate | 95% interval | Taxa | Holds |
+|---|---|---|---|---|
+| H2d: moderate, top-half share | 0.8876 | [0.8684, 0.9058] | 660 | yes |
+| H2e: moderate, beats-effort share | 0.7536 | [0.7396, 0.7674] | 660 | yes |
+| H2f: indicative, top-half share | 0.8655 | [0.8537, 0.8767] | 1,666 | yes |
+| moderate-z, top-half share | 0.8981 | [0.8774, 0.9174] | 515 | (reported) |
+| moderate-z, beats-effort share | 0.7623 | [0.7477, 0.7770] | 515 | (reported) |
+
+**By grade** (per-model rows; "places" = ranked places; all places / new
+places > 5 km / known places):
+
+| Grade | Rows | Taxa | Ranked places | Top half | Top tenth | Mean rank | Beats effort | Boyce |
+|---|---|---|---|---|---|---|---|---|
+| strong, all | 736 | 214 | 486 | 0.9145 | 0.4957 | 0.8186 | 0.7854 | 0.968 |
+| strong, new | 506 | 183 | 334 | 0.8783 | 0.4000 | 0.7730 | 0.7369 | 0.971 |
+| strong, known | 230 | 89 | 152 | 0.9870 | 0.6870 | 0.9099 | 0.8823 | 0.843 |
+| weak, all | 11,690 | 2,082 | 5,094 | 0.8696 | 0.4566 | 0.7894 | 0.7166 | 1.000 |
+| weak, new | 8,650 | 1,882 | 3,788 | 0.8394 | 0.3713 | 0.7520 | 0.6742 | 0.999 |
+| weak, known | 3,040 | 773 | 1,306 | 0.9509 | 0.6858 | 0.8900 | 0.8305 | 0.999 |
+| failed, all | 1,177 | 528 | 904 | 0.7840 | 0.3433 | 0.7178 | 0.6716 | 0.995 |
+| failed, new | 939 | 485 | 695 | 0.7409 | 0.2666 | 0.6774 | 0.6266 | 0.991 |
+| failed, known | 238 | 135 | 209 | 0.9286 | 0.6008 | 0.8534 | 0.8227 | 0.976 |
+| untested, all | 23 | 2 | 23 | not tested (< 30 places) | | | | |
+
+Rows outside the area of applicability: strong 1, weak 16, failed 1.
+Beyond reach (500 km): strong 45, weak 477, failed 139.
+
+**By tier**, all places: moderate 2,237 rows, 660 taxa, 1,519 places, top
+half 0.8876, top tenth 0.5120, beats effort 0.7536, Boyce 0.999; indicative
+9,448 rows, 1,666 taxa, 4,335 places, 0.8655, 0.4437, 0.7080, 1.000; failed
+(by tier) 1,182 rows, 531 taxa, 909 places, 0.7841, 0.3426, 0.6714, 0.996;
+moderate-z 1,641 rows, 515 taxa, 1,159 places, 0.8981, 0.5156, 0.7623, 0.998.
+New places only: moderate 0.8534 / 0.7099 (top half / beats effort);
+indicative 0.8362 / 0.6662; moderate-z 0.8636 / 0.7228.
+
+**Combined maps**, all places: 523 rows, 214 taxa, 486 places, top half
+0.9218, top tenth 0.5185, beats effort 0.7868, Boyce 0.981; new places
+0.8892 / 0.7392; known places 0.9934 / 0.8915.
