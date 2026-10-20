@@ -183,6 +183,45 @@ atlas_score_run <- function(paths, hindcast, dirs = NULL) {
   list(dirs = dirs %||% vapply(paths, atlas_score_default_dir, ""), rows = rows)
 }
 
+#' The kernels of one or more distance study jobs, read as one run. The
+#' first job is the whole run (every shard of it); each later job is a patch
+#' (study-distance --taxa) of taxa no earlier job scored: its scored taxa
+#' replace the earlier unscored rows (a mismatch, refusal or failure), and
+#' the rest stay as they were. Refused: a patch taxon an earlier job already
+#' scored, or one the first job never tried. fetch is replaceable for tests.
+atlas_score_kernel_runs <- function(store, jobs, hindcast, fetch = atlas_score_fetch_kernels) {
+  jobs <- as.character(jobs)
+  if (!length(jobs) || anyDuplicated(jobs)) stop("--kernels-from needs distinct job ids", call. = FALSE)
+  runs <- lapply(jobs, function(job) {
+    fetched <- fetch(store, job)
+    c(atlas_score_run(fetched$paths, hindcast, dirs = fetched$dir), list(job = job, files = length(fetched$paths)))
+  })
+  taxon_of <- function(rows) vapply(rows, function(r) as.character(r$taxon), "")
+  rows <- runs[[1]]$rows
+  from <- rep(jobs[[1]], length(rows))
+  patched <- list()
+  for (run in runs[-1]) {
+    for (r in run$rows) {
+      at <- match(as.character(r$taxon), taxon_of(rows))
+      if (is.na(at)) {
+        stop("patch job ", run$job, " holds ", r$taxon, ", which ", jobs[[1]], " never tried", call. = FALSE)
+      }
+      if (identical(rows[[at]]$status, "scored")) {
+        stop("patch job ", run$job, " holds ", r$taxon, ", which ", from[[at]], " already scored", call. = FALSE)
+      }
+      if (!identical(r$status, "scored")) next
+      rows[[at]] <- r
+      from[[at]] <- run$job
+      patched[[run$job]] <- c(patched[[run$job]], as.character(r$taxon))
+    }
+  }
+  # Each taxon has a kernel in at most one job (refused above otherwise), so
+  # the order of the directories does not decide which kernel is found.
+  list(dirs = unlist(lapply(runs, `[[`, "dirs")), rows = rows,
+       files = sum(vapply(runs, `[[`, 0L, "files")),
+       patched = lapply(patched, function(t) as.list(sort(t))))
+}
+
 #' A distance study's results from the store (study/<job>/), for scoring on
 #' a machine that did not run it (an EC2 study job): every shard's results
 #' file, and every kernel raster merged into one directory. The shards'
@@ -254,8 +293,7 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   kernel_run <- if (!is.null(kernels)) {
     atlas_score_run(kernels, hindcast)
   } else if (!is.null(kernels_from)) {
-    fetched <- atlas_score_fetch_kernels(store, kernels_from)
-    atlas_score_run(fetched$paths, hindcast, dirs = fetched$dir)
+    atlas_score_kernel_runs(store, kernels_from, hindcast)
   }
   default_run <- if (!is.null(defaults)) atlas_score_run(defaults, hindcast)
   if (is.null(full_pull)) {
@@ -307,8 +345,10 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
          settings = list(hindcast = hindcast, from_release = from_release, cutoff = cutoff,
                          observed_after = observed_after, reps = as.integer(reps), seed = as.integer(seed),
                          grid = grid, kernel_shards = if (!is.null(kernels)) length(kernels) else
-                           if (!is.null(kernels_from)) length(fetched$paths) else 0L,
-                         kernels_from = kernels_from, default_shards = length(defaults),
+                           if (!is.null(kernels_from)) kernel_run$files else 0L,
+                         kernels_from = if (!is.null(kernels_from)) as.list(kernels_from),
+                         kernels_patched = if (!is.null(kernels_from)) kernel_run$patched,
+                         default_shards = length(defaults),
                          excluded = length(unique(exclude)), held = length(unique(hold)),
                          excluded_leaks = length(intersect(missing, split$excluded_keys)),
                          ids_not_found = attr(split$finds, "not_found") %||% 0L,

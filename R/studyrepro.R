@@ -29,11 +29,11 @@ ATLAS_REPRO_RUNS <- 2L
 #' The taxa a --taxa flag names: separated by "|", since names hold spaces
 #' and commas never. plan-study splits a study's arguments at spaces, so a
 #' name may be percent-encoded there (Stropharia%20hardii, %27 for a quote).
-atlas_repro_taxa <- function(text) {
+atlas_repro_taxa <- function(text, command = "study-repro") {
   taxa <- trimws(strsplit(as.character(text %||% ""), "|", fixed = TRUE)[[1]])
   taxa <- vapply(taxa, utils::URLdecode, "", USE.NAMES = FALSE)
   taxa <- unique(taxa[nzchar(taxa)])
-  if (!length(taxa)) stop("study-repro needs --taxa='Name one|Name two'", call. = FALSE)
+  if (!length(taxa)) stop(command, " needs --taxa='Name one|Name two'", call. = FALSE)
   taxa
 }
 

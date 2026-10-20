@@ -302,15 +302,31 @@ ATLAS_DISTANCE_PLAN_SECONDS <- 0.08
 #' the kernels see exactly the records its models did. shard "i/n" takes
 #' every n-th taxon from the i-th, so n machines split a run without
 #' overlap. plan_only prints the work and stops.
+#'
+#' only_taxa runs those taxa alone, each of which the release must model: a
+#' patch run, such as E6b's 35 taxa whose variogram block the r7i workers
+#' measured differently from the r7a machines that fitted them (2026-10-20),
+#' rebuilt on the fitting family. study-score --kernels-from reads it after
+#' the main run.
 atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
                                  out = NULL, shard = "1/1", workers = 1L,
                                  bandwidths = ATLAS_DISTANCE_BANDWIDTHS_KM,
-                                 plan_only = FALSE, quiet = FALSE, view = NULL, limit = Inf) {
+                                 plan_only = FALSE, quiet = FALSE, view = NULL, limit = Inf,
+                                 only_taxa = NULL) {
   # A bad --out is refused before the store is read at all.
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   view <- view %||% atlas_tracker_view(store, release, grid)
   expected <- atlas_distance_expected(view)
-  taxa <- atlas_study_shard(sort(view$modelled), shard)
+  modelled <- sort(view$modelled)
+  if (!is.null(only_taxa)) {
+    unknown <- setdiff(only_taxa, modelled)
+    if (length(unknown)) {
+      stop("--taxa names taxa release ", release, " does not model: ", paste(unknown, collapse = ", "),
+           call. = FALSE)
+    }
+    modelled <- intersect(modelled, only_taxa)
+  }
+  taxa <- atlas_study_shard(modelled, shard)
   # A smoke run: the shard's first `limit` taxa only.
   if (is.finite(limit)) taxa <- utils::head(taxa, max(1L, as.integer(limit)))
   plan <- atlas_distance_plan(unlist(expected[taxa]) %||% integer(), bandwidths)
@@ -331,7 +347,7 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
   fingerprints <- as.list(atlas_fingerprints_for(pull, taxa))
   records <- lapply(stats::setNames(taxa, taxa), function(taxon) atlas_distance_record(view, taxon))
   args <- list(grid = grid, out_dir = out$dir, bandwidths = bandwidths, records = records)
-  settings <- list(release = release, shard = shard, bandwidths_km = bandwidths,
+  settings <- list(release = release, shard = shard, only_taxa = only_taxa, bandwidths_km = bandwidths,
                    kernel = "sum of Gaussians over detection survey sites, log units",
                    folds = "production design: full models, else small-model ensembles",
                    # For the write-up (method lane review): the kernel's own AUC

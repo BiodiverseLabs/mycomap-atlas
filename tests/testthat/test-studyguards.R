@@ -70,6 +70,36 @@ test_that("the distance study fails its shard when its taxa fail, after writing 
   })
 })
 
+test_that("--taxa runs only the taxa named, and refuses one the release does not model", {
+  asked <- NULL
+  local_mocked_bindings(
+    atlas_distance_fetch_layers = function(...) 0L,
+    atlas_tracker_release_pull = function(...) data.frame(),
+    atlas_occurrence_points = function(...) data.frame(),
+    atlas_fingerprints_for = function(pull, taxa) stats::setNames(rep("f", length(taxa)), taxa),
+    atlas_distance_record = function(...) NULL,
+    atlas_run_study = function(sample, settings, ...) {
+      asked <<- list(taxa = sample$scientific_name, only = settings$only_taxa)
+      list(taxa = lapply(sample$scientific_name, function(t) list(status = "scored")), path = tempfile())
+    },
+    atlas_distance_expected = function(view) list(A = 4L, B = 5L, C = 6L)
+  )
+  view <- list(grid = "draft", modelled = c("C", "A", "B"), manifest = list(job = "j"), cache = tempfile())
+  with_data_dir({
+    atlas_distance_study(NULL, "h1", view = view, quiet = TRUE, only_taxa = c("C", "A"))
+    expect_equal(asked$taxa, c("A", "C"))
+    expect_equal(asked$only, c("C", "A"))
+    asked <- NULL
+    expect_error(atlas_distance_study(NULL, "h1", view = view, quiet = TRUE, only_taxa = c("A", "Z")),
+                 "--taxa names taxa release h1 does not model: Z")
+    expect_null(asked)
+  })
+  # As the CLI reads it: percent-encoded, since study args split on spaces.
+  expect_equal(atlas_repro_taxa("Lyophyllaceae%20sp.%20%27PNW01%27|Stropharia%20hardii", "study-distance"),
+               c("Lyophyllaceae sp. 'PNW01'", "Stropharia hardii"))
+  expect_error(atlas_repro_taxa("", "study-distance"), "study-distance needs --taxa")
+})
+
 test_that("--limit takes only the shard's first taxa, for a smoke run", {
   asked <- NULL
   local_mocked_bindings(
