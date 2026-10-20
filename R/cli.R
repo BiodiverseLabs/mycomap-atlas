@@ -190,6 +190,7 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th taxon from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               taxa at once (default 1)")
+  message("      --taxa='A|B'              only these taxa (percent-encoded; each modelled by the release)")
   message("  study-rescan       paper E1c: the standard test (19 scattered nulls) on a stratified")
   message("                     sample of a release's models, beside their shift grades")
   message("      --release=ID              the (frozen) release whose models and pull it uses")
@@ -232,7 +233,9 @@ atlas_usage <- function() {
   message("      --from-release=ID         optional: refused unless it is the hindcast's source release")
   message("      --cutoff=YYYY-MM-DD       optional: refused unless it is the hindcast's cutoff")
   message("      --kernels=a.json,...      every shard's results file of one E6b run on this hindcast")
-  message("      --kernels-from=JOB        or the E6b study job's results and kernels, fetched from the store")
+  message("      --kernels-from=JOB,...    or the E6b study job's results and kernels, fetched from the store;")
+  message("                                later jobs are patches (study-distance --taxa) whose kernels")
+  message("                                replace the first job's mismatches for those taxa")
   message("      --defaults=a.json,...     every shard's results file of one E6a run on this hindcast")
   message("      --observed-after          only finds also observed after the cutoff")
   message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
@@ -860,7 +863,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         plan_only = isTRUE(flags$plan_only),
-        limit = atlas_flag_number(flags, "limit", Inf)
+        limit = atlas_flag_number(flags, "limit", Inf),
+        only_taxa = if (is.null(flags$taxa)) NULL else atlas_repro_taxa(flags$taxa, "study-distance")
       )
       invisible(0L)
     },
@@ -922,7 +926,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         exclude = atlas_score_ids(flags$exclude), hold = atlas_score_ids(flags$hold),
         allow_missing_excludes = isTRUE(flags$allow_missing_excludes),
         refits = files(flags$refits) %||% character(),
-        kernels_from = if (is.null(flags$kernels_from)) NULL else as.character(flags$kernels_from)
+        kernels_from = files(flags$kernels_from)
       )
       invisible(0L)
     },

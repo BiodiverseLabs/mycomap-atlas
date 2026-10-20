@@ -339,6 +339,65 @@ test_that("--kernels-from refuses a kernel that two shards both hold, and both k
                "--kernels or --kernels-from, not both")
 })
 
+# A distance study job as it publishes: each shard's rows (taxon = status)
+# in its results file, and a kernel for each scored taxon only.
+distance_job <- function(store, job, release, shards) {
+  for (i in seq_along(shards)) {
+    key <- sprintf("study/%s/distance-%s-shard-%s-20261020T0101%02dZ", job, release,
+                   sub("/", "of", names(shards)[[i]]), i)
+    status <- shards[[i]]
+    file <- tempfile(fileext = ".json")
+    jsonlite::write_json(list(settings = list(release = release, shard = names(shards)[[i]]),
+                              taxa = lapply(names(status), function(t) list(taxon = t, status = status[[t]]))),
+                         file, auto_unbox = TRUE)
+    store$put(paste0(key, ".json"), file)
+    for (taxon in names(status)[unlist(status) == "scored"]) {
+      tif <- tempfile(fileext = ".tif")
+      writeLines(paste("kernel of", taxon, "from", job), tif)
+      store$put(sprintf("%s/kernels/%s.tif", key, tolower(taxon)), tif)
+    }
+  }
+}
+
+test_that("a patch job's kernels replace the main run's mismatches, and nothing else", {
+  store <- fresh_store()
+  distance_job(store, "e6b", "h1", list("1/2" = list(T01 = "scored", T02 = "mismatch"),
+                                        "2/2" = list(T03 = "scored", T04 = "mismatch")))
+  distance_job(store, "patch", "h1", list("1/1" = list(T02 = "scored", T04 = "mismatch")))
+  run <- atlas_score_kernel_runs(store, c("e6b", "patch"), "h1")
+  status <- stats::setNames(vapply(run$rows, `[[`, "", "status"), vapply(run$rows, `[[`, "", "taxon"))
+  expect_equal(status[c("T01", "T02", "T03", "T04")], c(T01 = "scored", T02 = "scored", T03 = "scored", T04 = "mismatch"))
+  expect_equal(run$files, 3L)
+  expect_equal(run$patched, list(patch = list("T02")))
+  # T02's kernel is the patch's; T04, still a mismatch, has none.
+  found <- atlas_score_find(run$dirs, atlas_distance_raster_path, "T02")
+  expect_equal(readLines(found), "kernel of T02 from patch")
+  expect_null(atlas_score_find(run$dirs, atlas_distance_raster_path, "T04"))
+  # One job alone reads as before.
+  alone <- atlas_score_kernel_runs(store, "e6b", "h1")
+  expect_null(atlas_score_find(alone$dirs, atlas_distance_raster_path, "T02"))
+  expect_length(alone$patched, 0L)
+})
+
+test_that("a patch is refused for a taxon already scored or never tried, and for a repeated job", {
+  store <- fresh_store()
+  distance_job(store, "e6b", "h1", list("1/1" = list(T01 = "scored", T02 = "mismatch")))
+  distance_job(store, "twice", "h1", list("1/1" = list(T01 = "scored")))
+  distance_job(store, "retried", "h1", list("1/1" = list(T01 = "mismatch")))
+  distance_job(store, "stranger", "h1", list("1/1" = list(T09 = "scored")))
+  distance_job(store, "other", "h2", list("1/1" = list(T02 = "scored")))
+  expect_error(atlas_score_kernel_runs(store, c("e6b", "twice"), "h1"), "patch job twice holds T01, which e6b already scored")
+  # Even when the patch did not score it: a patch is only of unscored taxa.
+  expect_error(atlas_score_kernel_runs(store, c("e6b", "retried"), "h1"), "patch job retried holds T01, which e6b already scored")
+  # A second patch may not redo what the first patch scored.
+  distance_job(store, "patch", "h1", list("1/1" = list(T02 = "scored")))
+  distance_job(store, "again", "h1", list("1/1" = list(T02 = "scored")))
+  expect_error(atlas_score_kernel_runs(store, c("e6b", "patch", "again"), "h1"), "holds T02, which patch already scored")
+  expect_error(atlas_score_kernel_runs(store, c("e6b", "stranger"), "h1"), "holds T09, which e6b never tried")
+  expect_error(atlas_score_kernel_runs(store, c("e6b", "other"), "h1"), "not of hindcast h1")
+  expect_error(atlas_score_kernel_runs(store, c("e6b", "e6b"), "h1"), "distinct job ids")
+})
+
 # A small hindcast as study-score reads it: its manifest, its pull's keys
 # and names; and the full pull of the release it came from.
 score_world <- function() {
