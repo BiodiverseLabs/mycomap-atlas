@@ -270,8 +270,15 @@ atlas_parse_flags <- function(args) {
     if (!nzchar(key)) stop("empty flag name in: ", arg, call. = FALSE)
     flags[[gsub("-", "_", key)]] <- value
   }
-  flags
+  structure(flags, class = "atlas_flags")
 }
+
+#' A flag by its exact name, NULL when it was not given. A plain list's `$`
+#' takes a unique prefix, so flags$kernels read --kernels-from=... when only
+#' that was given, and study-score refused the run as given both (E6b's
+#' scoring job, 2026-10-20). Five pairs of flag names nest so: algorithm(s),
+#' kernels(_from), only(_missing), pool(_from), record(_names).
+`$.atlas_flags` <- function(x, name) .subset2(x, name)
 
 #' "2,4,none" as c(2, 4, Inf). "none" means no cap.
 atlas_parse_constants <- function(value) {
