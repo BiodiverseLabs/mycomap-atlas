@@ -13,7 +13,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa. Lineage in section 3.3. Zenodo: layers doi:10.5281/zenodo.23463069; models doi:10.5281/zenodo.23463939. [PENDING: code commit DOI] |
+| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa: the published records and taxa, after the 76-record exclusion list. Most models were fitted on the same 2026-10-12 pull before that list (R_main and the full-view refresh; the targeted job's 7 models on it less 22 rows), so the 76 records sit in other taxa's backgrounds but trained no published model as a presence (S2.4, S10). Lineage in section 3.3. Zenodo: layers doi:10.5281/zenodo.23463069; models doi:10.5281/zenodo.23463939. [PENDING: code commit DOI] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -627,7 +627,10 @@ Zenodo DOI, format, size and licence:]
 - **Training records** (new; Steve, 2026-10-13): published for the paper's
   frozen release(s) only; the per-release lists of trained records that the
   nightly pipeline keeps stay private. The ids of every record that
-  trained the frozen release, one row each: source (iNaturalist, Mushroom
+  trained the frozen release, one row each, listed by the fitting job and
+  pull that actually trained each model (R_main and the full-view refresh
+  on the 2026-10-12 pull before the exclusion list, the targeted job on
+  that pull less 22 rows), not by the cleaned pull the manifest names: source (iNaturalist, Mushroom
   Observer, MyCoPortal, GenBank, MycoMap sequence); source id; taxon (the
   DNA name used); the approved sequence id where that sequence is public at
   source (its mycomap.org sequence page or GenBank accession); the taxon
@@ -1004,7 +1007,7 @@ data, command, result, release, commit).
 
 | ID | Also needed for a combined paper | Priority |
 |---|---|---|
-| E19 | Training-record table for the frozen release (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
+| E19 | Training-record table for the frozen release, per fitting job and its pull (what actually trained each model; three pulls stand behind fa1b4198, S10) (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
 | E24 | **E2 half done**: both tiers clear their chance bars on later finds but not the distance kernel, so they carry no claims and are drawn as weak (Steve, 2026-10-20, chosen after E6b and reported as such); E1 half pending. Looser map tiers (moderate, indicative) judged on simulated species (E1) and later finds (E2), pre-specified with the thresholds Steve's choice will be read against (`docs/experiments/2026-10-13-plan-map-tiers.md`; Steve, 2026-10-13: "some form of map for most species") | P1 |
 | E23 | Cost and time ledger (`costs.md`): per run, CPU-hours, billed instance-hours, instance types, wall time, compute USD, storage added; standing monthly costs (Steve, 2026-10-13) | P1 |
@@ -1161,6 +1164,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.18.2 (2026-10-21).** Provenance: the published pull is after the 76-record exclusion, most models were fitted on the pull before it (front matter, 4.1, E19); Zenodo models description edit drafted for Steve.
 - **0.18.1 (2026-10-21).** Open decision 7 decided (Steve): block recorded once and reused; r7i pinned until then; no OpenBLAS kernel forcing; per-result machine record.
 - **0.18.0 (2026-10-21).** E12 complete (plan-e12 095a899): every
   cross-family difference comes with a changed spatial block, 0 of 277
