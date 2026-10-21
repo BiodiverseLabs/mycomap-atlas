@@ -148,10 +148,7 @@ the pace of validation varies.]
   id not in the release's pull, and a counts-only switch. Today study-score
   accepts only a private hindcast.
 - **Kernels.** study-distance on fa1b4198, about E6b's size: 3 × 8xlarge
-  for about 1–1.5 h, about USD 3–5 on spot. Run on r7i, then refit any
-  block mismatch on r7a as in E6b (fa1b4198 has no per-model machine
-  record). The kernels depend only on the frozen pull, so they are built
-  before the read-out.
+  for about 1–1.5 h, about USD 3–5 on spot (Implementation, above).
 - **Read-out.** A fresh pull made on the operations box (in a separate
   data directory, so the live site keeps its pull) and staged to a private
   store prefix, then scored on one small EC2 worker (about USD 0.30), since
@@ -180,6 +177,25 @@ are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
   name_same_day, off_grid; then the scorer's own classes (no model,
   unknown name, outside the area of applicability, beyond reach). The
   counts of names undone, by rename and respelling, are reported.
+- **The distance kernels (written 2026-10-21, before they run).** Steve
+  moved them from November to as soon as an image builds.
+  `study-distance` on release 20261013T191324Z-fa1b4198 (Atlas main at a
+  commit holding the E6b fixes and e3-readout 44d007a), 3 shards of 30
+  workers, every shard on r7i.8xlarge (Intel): one processor family,
+  unlike E6b's first run, whose mixed r7i and r7a shards caused its 35
+  refusals (E6b prereg, Deviations, 2026-10-20). Each kernel's folds are
+  checked against the release's recorded model, as in E6b. A taxon refused
+  as a mismatch on r7i is rebuilt on r7a (AMD) in one patch job
+  (`study-distance --taxa`), and study-score reads both
+  (`--kernels-from=MAIN,PATCH`); fa1b4198 records no per-model machine, so
+  this is how the family that fitted each model is found. E6b's patch
+  matched all 35 on r7a, so a taxon matching on neither family is expected
+  rarely if at all; such a taxon keeps no kernel, is left out of H3c and
+  the other kernel comparisons, and is counted by its reason. The kernels
+  depend only on the frozen pull: their results files hold per-taxon
+  kernel rows (bandwidth, AUC on the training folds) and never a test
+  find, so they are built before the read-out with no look at any test
+  find. Cost about USD 3–5 on spot, plus cents for the patch.
 
 ## Deviations
 
