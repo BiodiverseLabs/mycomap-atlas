@@ -109,7 +109,8 @@ revise the paper plan and let's continue".)
    weak or failed, and they are still published, drawn faint with their
    grade, because the grade is the contribution, not the map count. Every map
    is versioned, citable and reproducible from a pinned container and
-   archived data. [PENDING E16, E12]
+   archived data. [Grade counts done (3.3); E12 done except the block step;
+   E16 descriptives PENDING]
 
 **Q1 (pre-declared question, not a claim). Do the maps carry habitat
 information another system can use?** The registered test: used as the place
@@ -119,7 +120,7 @@ projection of strong maps, weighted by trust, against no place signal
 300–1,500 km from the nearest DNA record). Pre-declared before any result
 (Vision repository, `docs/atlas-environment.md`). The outcome is reported
 either way, a null result included. Q1 is the first section cut if the
-monograph runs long. [PENDING E21, E22]
+monograph runs long. [Answered: yes, weakly; Results 3.9]
 
 Secondary: ensembles of small models give maps from 3 sites with labels that
 say how little such a map can claim (E7a, E18); host trees and soil pH matter
@@ -657,17 +658,31 @@ Zenodo DOI, format, size and licence:]
 The paper cites one frozen release by id and DOI: the finished release of
 the full-view refresh of the cleaned October 2026 release (section 2.1:
 76 erroneous records removed in two cleanings), after its finishing step:
-**20261013T191324Z-fa1b4198** [PENDING: DOIs]. The live atlas keeps
+**20261013T191324Z-fa1b4198**, archived as doi:10.5281/zenodo.23463939,
+with its layers as doi:10.5281/zenodo.23463069. The live atlas keeps
 rebuilding nightly once the nightly resumes [CHECK: off at present]; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
 
 ### 4.3 Usage notes
 
-[PENDING: how to read a grade; use strong maps only for claims; suitability
-is not occurrence; AOA hatching; ranks are within-taxon; the API (best-map,
-maps/best, prior; rate limits); citing a release; reusing CC BY-SA maps; how
-to report a problem.]
+*Draft, 2026-10-21.* Read the grade before the map. Only strong maps
+support a claim about habitat; in the hindcast they were also the only
+grade to rank later finds better than distance to known records, and
+mostly through finds 100 to 500 km away. Weak maps, including the moderate
+and indicative tiers, describe which ground near known records resembles
+occupied ground, but they predict later finds no better than distance
+does, and failed maps did worse. Suitability is a relative rank within one
+taxon, fitted against other collectors' sites rather than true absences:
+it is not a probability of occurrence and is not comparable between taxa.
+Outside the area of applicability, hatched on every map, the model is
+extrapolating, and nothing is drawn beyond a taxon's 500 km accessible
+area. Maps of taxa with 3 to 19 sites are ensembles of small models and
+say little on their own. Records whose location the source hides,
+obscures or may hide never appear in a published record-level layer.
+Cite a map by its release id and the release's DOI; maps and rasters are
+CC BY-SA 4.0, so derived maps carry the same licence. [CHECK: the public
+API's endpoints and rate limits; how users report a problem.]
 
 ### 4.4 What it costs (E23)
 
@@ -1127,6 +1142,8 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.5 (2026-10-21).** 4.2 cites both DOIs; 4.3 usage notes drafted;
+  claim status tags for Q1 and C4 updated.
 - **0.17.4 (2026-10-21).** Introduction trimmed to ~800 words; abstract Q1
   sentence; nightly and the training-record deposit stated as they are;
   stale section notes updated.
