@@ -208,7 +208,7 @@ test_that("the new-find tracker sees nothing new in a refresh: the same maps, ve
   skip_if_not_installed("terra")
   setup <- refresh_setup()
   refreshed <- run_refresh(setup)$release
-  cache <- file.path(tempdir(), paste0("tracker-cache-", as.integer(stats::runif(1, 1, 1e9))))
+  cache <- tempfile("tracker-cache-")
   before <- atlas_tracker_view(setup$store, setup$main$id, "draft", cache)
   after <- atlas_tracker_view(setup$store, refreshed$id, "draft", cache)
   for (taxon in c("Taxon A", "Taxon B", "Taxon C")) {
