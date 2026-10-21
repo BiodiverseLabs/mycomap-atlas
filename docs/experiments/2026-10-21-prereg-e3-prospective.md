@@ -227,3 +227,37 @@ read by any of these jobs.
   the test finds alone would need a change to the pull, which is not
   planned. The test set,
   hypotheses and scores are unchanged.
+- **2026-10-21, before the read-out and before any patch: the kernels are
+  rebuilt from the pull each model was fitted on, not the release's own.**
+  The main kernel run (study-20261021T052559Z-eff180db) scored 5,679 taxa
+  and refused 690 as "mismatch": 649 with the same records, seed and block
+  but other folds, 26 with another block and other folds, 15 with another
+  block only. None differed in records, presences, design or seed. No test
+  find was read.
+  - **Cause.** Three pulls stand behind fa1b4198. Its manifest names the
+    retirement job's pull, occurrences-20261012T051017Z-x73b85b36: the
+    2026-10-12 pull less 76 rows the drop list removed on 2026-10-13 (22
+    bogus iNaturalist links at 06:15 UTC, then 54 non-fungal sequence names
+    at 13:34). Most of its models were fitted on the pull before either drop:
+    R_main (9,534 tasks) and the full-view refresh (576 models, which still
+    used the original pull). The targeted job's 7 models used the pull with
+    only the first 22 rows dropped. A taxon's background sample is drawn from
+    other taxa's records nearby, so a training table rebuilt from the
+    release's pull differs, and its folds with it, wherever one of the 76
+    rows lay within reach, though the taxon's own records do not. E6b did
+    not meet this: the hindcast was fitted on the pull it names. E12 did not
+    either: its refits use each model's fitting job's inputs.
+  - **Handling.**
+    - The 690 are rebuilt with `study-distance --pull-from=<job>` (Atlas
+      fix/distance-pull-from 714c35f, reviewed before it runs), first from
+      R_main's job on r7i.
+    - Any still refused are rebuilt from the targeted job's pull, or on r7a
+      for a block that differs by processor family (the registered patch).
+    - Every rebuild keeps the same strict check against the release's
+      recorded folds, and study-score reads every job
+      (`--kernels-from=MAIN,PATCH,...`).
+    - A taxon that still matches no pull and no family keeps no kernel and is
+      counted, as registered.
+  - **Unchanged.** The design, the hypotheses, the test finds and the scorer.
+    The test finds' training set and known places stay the release's pull,
+    which lacks only the 76 erroneous rows.
