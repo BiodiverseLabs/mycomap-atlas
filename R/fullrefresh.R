@@ -173,7 +173,8 @@ atlas_plan_full_refresh <- function(store = atlas_store(), from_release, grid = 
   offset <- 0L
   for (k in seq_along(groups)) {
     g <- groups[[k]]
-    assignment <- atlas_assign_shards(vapply(tasks[g], function(t) t$cost, numeric(1)), per_group[[k]])
+    assignment <- atlas_assign_shards(vapply(tasks[g], function(t) t$cost, numeric(1)), per_group[[k]],
+                                      groups = vapply(tasks[g], function(t) t$taxon, ""))
     for (i in seq_along(g)) tasks[[g[[i]]]]$shard <- offset + assignment[[i]]
     for (s in unique(assignment)) shard_inputs[[as.character(offset + s)]] <- sources$jobs[[names(groups)[[k]]]]$inputs
     offset <- offset + max(assignment)

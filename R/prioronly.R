@@ -135,7 +135,7 @@ atlas_plan_prior_only <- function(store = atlas_store(), from_release, validated
   ))
   costs <- vapply(tasks, function(t) t$cost, numeric(1))
   if (!is.null(tasks_per_shard)) shards <- atlas_shard_count(length(tasks), shards, tasks_per_shard)
-  assignment <- atlas_assign_shards(costs, shards)
+  assignment <- atlas_assign_shards(costs, shards, groups = vapply(tasks, function(t) t$taxon, ""))
   for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
 
   id <- paste0("train-", atlas_release_id(digest::digest(list(tasks, from_release, validated_through),

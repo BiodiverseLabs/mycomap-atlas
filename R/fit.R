@@ -1070,7 +1070,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
                             tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
                             guilds = atlas_guild_table(), importance = TRUE, full = NULL,
-                            seed_from = NULL) {
+                            seed_from = NULL, recorded_block = NULL) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
@@ -1135,10 +1135,20 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   }
 
   seed <- attr(training, "seed")
-  block <- if (atlas_block_is_auto(block_km)) {
-    atlas_block_size(training, seed = seed)
-  } else {
+  # A block measured once for this taxon and record set (recorded_block,
+  # list(block_km, range_km): another learner's, an earlier attempt's, or the
+  # released model's) is reused rather than measured again. The variogram it
+  # comes from can land on another range on another processor family (E12,
+  # 2026-10-21), and folds, tuning and grade follow the block. The settings
+  # still say "auto", so a model fitted on a recorded block is current
+  # exactly when one that measured it would be.
+  block <- if (!atlas_block_is_auto(block_km)) {
     list(block_km = as.numeric(block_km), range_km = NA_real_, source = "fixed")
+  } else if (isTRUE(is.finite(suppressWarnings(as.numeric(recorded_block$block_km %||% NA)))[1])) {
+    list(block_km = as.numeric(recorded_block$block_km),
+         range_km = suppressWarnings(as.numeric(recorded_block$range_km %||% NA)), source = "recorded")
+  } else {
+    atlas_block_size(training, seed = seed)
   }
   blocks <- atlas_presence_blocks(training, block$block_km)
   if (blocks < min_blocks) {
