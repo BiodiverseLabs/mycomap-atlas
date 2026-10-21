@@ -1,10 +1,10 @@
 # Pre-registration: prospective tracking on the frozen release (paper E3)
 
-- **Status.** DRAFT, 2026-10-21, by the paper lane, for review by the
-  method lane (reviewed 2026-10-21, edits applied) and Steve's approval. Not registered until Steve approves
-  it and it is committed with that note. Nobody scores any test find before
-  then. Changes after registration go under "Deviations", dated, before
-  the read-out.
+- **Status.** **REGISTERED 2026-10-21**, before any outcome look: no test
+  find has been counted or scored. Drafted by the paper lane, reviewed by
+  the method lane (edits applied), approved by Steve with the read-out date
+  2026-12-15 (relayed by the Atlas coordinator, 2026-10-21). Changes after
+  registration go under "Deviations", dated, before the read-out.
 - **Question.** Does a map's grade predict how it ranks records validated
   after the release was made, under the same rules as the hindcast (E2) and
   the distance baseline (E6b)? Serves C2. E2 tested the grade on a refit
@@ -112,11 +112,11 @@ place.
 
 ## Read-out
 
-- **Date.** [PENDING: Steve. Proposed 2026-12-15, which leaves time to
-  write it up for a January submission.] One read-out; no interim look at
-  outcomes. Before the read-out, only the count of finds by grade may be
-  read (no ranks), to judge whether H3a–H3c will have 30 places; the
-  scorer's counts-only switch gives that and nothing else.
+- **Date.** **2026-12-15** (Steve): test finds are those first validated
+  from 2026-10-14 to 2026-12-15 inclusive, and the scoring run follows
+  (about 2026-12-16). One read-out; no interim look at outcomes. The only
+  interim look allowed is `--counts-only`: the count of finds by grade (no
+  ranks), to judge whether H3a–H3c will have 30 places.
 - **Recorded at the read-out:** the read-out pull's commit and id, and the
   name-change log's cursor (the last change it holds).
 - **What the result does to C2.** H3a–H3c hold: the published maps behave
