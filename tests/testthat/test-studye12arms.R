@@ -177,3 +177,150 @@ test_that("study-repro --draw is a command, and the plain study-repro still need
   expect_error(atlas_main(c("study-repro", "--draw")), "needs --release")
   expect_error(atlas_main(c("study-repro", "--release=x")), "needs --release=ID --source-job=ID --taxa")
 })
+
+# ---- the block-only step (study-repro --draw --blocks) ------------------------
+
+# The synthetic landscape with a taxon found in five small patches, so its
+# variogram range (about 55 km) sits inside the block's 50-300 km limits and
+# moves with the training table (the landscape's own taxon hits the ceiling).
+patchy_world <- function() {
+  world <- synthetic_landscape()
+  set.seed(11)
+  centres <- cbind(c(2e5, 5e5, 8e5, 3e5, 7e5), c(2e5, 7e5, 3e5, 8e5, 6e5))
+  k <- sample(5, 60, replace = TRUE)
+  focal <- data.frame(scientific_name = "Patchy fungus",
+                      x = pmin(pmax(centres[k, 1] + stats::rnorm(60, 0, 2e4), 1), 1e6 - 1),
+                      y = pmin(pmax(centres[k, 2] + stats::rnorm(60, 0, 2e4), 1), 1e6 - 1))
+  focal$cell <- terra::cellFromXY(world$stack, as.matrix(focal[, c("x", "y")]))
+  xy <- terra::xyFromCell(world$stack, focal$cell)
+  focal$x <- xy[, 1]
+  focal$y <- xy[, 2]
+  background <- world$points[world$points$scientific_name != "Eastern fungus", ]
+  list(stack = world$stack, points = rbind(background, focal[, names(background)]))
+}
+
+test_that("the block-only step measures the block a real fit records, from the same table", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  skip_if_not_installed("blockCV")
+  world <- patchy_world()
+  fit <- atlas_fit_taxon("Patchy fungus", points = world$points, stack = world$stack,
+                         fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                         buffer_km = 300, predict = FALSE, write = FALSE, quiet = TRUE,
+                         nulls = 0, tune = FALSE, importance = FALSE)
+  models <- data.frame(taxon = "Patchy fungus", algorithm = "maxnet", fingerprint = "f00dfeed",
+                       stringsAsFactors = FALSE)
+  row <- atlas_e12_block_worker(models, list(n_background = 500, buffer_km = 300), points = world$points,
+                                stack = world$stack)[[1]]
+  expect_equal(row$status, "measured")
+  expect_equal(row$source, "blockCV")
+  expect_lt(row$block_km, ATLAS_BLOCK_CEILING_KM)
+  expect_equal(row$block_km, fit$metrics$block_km)
+  expect_equal(row$presences, fit$metrics$presences)
+  # The table matters: another background size gives this taxon another block.
+  other <- atlas_e12_block_worker(models, list(n_background = 2000, buffer_km = 300), points = world$points,
+                                  stack = world$stack)[[1]]
+  expect_false(identical(other$block_km, row$block_km))
+  world <- synthetic_landscape()
+  models$taxon <- "Eastern fungus"
+  # A job with a fixed block reports it as fixed, without a variogram.
+  fixed <- atlas_e12_block_worker(models, list(n_background = 500, buffer_km = 300, block_km = 150),
+                                  points = world$points, stack = world$stack)[[1]]
+  expect_equal(fixed$block_km, 150)
+  expect_equal(fixed$source, "fixed")
+  # A model whose table cannot be built is reported, not fatal.
+  lost <- data.frame(taxon = "Nowhere fungus", algorithm = "maxnet", fingerprint = "f00dfeed", stringsAsFactors = FALSE)
+  expect_equal(atlas_e12_block_worker(lost, list(), points = world$points, stack = world$stack)[[1]]$status, "failed")
+})
+
+# A stand-in for the block workers: measures nothing, answers a block per
+# model, and keeps what it was asked.
+block_runner <- function(calls = new.env(), block = 100) {
+  calls$asked <- list()
+  function(models, fit_settings, grid = "draft", workers = 1L) {
+    calls$asked[[length(calls$asked) + 1L]] <- list(models = models, fit = fit_settings, workers = workers)
+    lapply(seq_len(nrow(models)), function(i) {
+      list(taxon = models$taxon[[i]], algorithm = models$algorithm[[i]], status = "measured",
+           presences = 25L, block_km = block, range_km = block, source = "blockCV")
+    })
+  }
+}
+
+test_that("the block-only step takes only full-design models, each on its own job's settings, beside the release's block", {
+  skip_if_not_installed("terra")
+  world <- two_job_release()
+  calls <- new.env()
+  before <- sort(unlist(world$store$list("")))
+  result <- on_machine(machine(), atlas_e12_block_study(world$store, world$second$id, label = "r7i",
+                                                        out = "study/e12-blocks-test/", block_models = block_runner(calls),
+                                                        seconds = no_seconds(), quiet = TRUE))
+  all <- atlas_e12_arm_models(world$store, world$second, seconds = no_seconds())
+  full <- all[all$algorithm %in% ATLAS_E12_BLOCK_LEARNERS, , drop = FALSE]
+  expect_gt(nrow(full), 0L)
+  expect_equal(result$sample_key, attr(all, "sample_key"))
+  expect_equal(result$full_design, nrow(full))
+  expect_equal(length(result$models), nrow(full))
+  asked <- do.call(rbind, lapply(calls$asked, function(a) a$models))
+  expect_true(all(asked$algorithm %in% ATLAS_E12_BLOCK_LEARNERS))
+  # Each call holds one fitting job's models, with that job's fit settings.
+  first <- atlas_read_job(world$store, world$first$job)
+  second <- atlas_read_job(world$store, world$second$job)
+  for (a in calls$asked) {
+    owner <- if (all(a$models$taxon == "Taxon B")) second else first
+    expect_false(any(a$models$taxon == "Taxon B") && !all(a$models$taxon == "Taxon B"))
+    expect_identical(a$fit, owner$fit)
+  }
+  # Each row stands beside the block its release fit recorded.
+  base <- world$second
+  for (m in result$models) {
+    recorded <- atlas_e12_release_block(world$store, base, m$taxon, m$algorithm)
+    expect_identical(m$release_block_km, recorded)
+    expect_identical(m$same_as_release, isTRUE(all.equal(100, recorded)))
+  }
+  expect_equal(result$summary$measured, nrow(full))
+  added <- sub("^/", "", setdiff(sort(unlist(world$store$list(""))), before))
+  expect_length(added, 1L)
+  expect_match(added, "^study/e12-blocks-test/.*shard-1of1[.]json$")
+})
+
+test_that("only full-design models have their block measured", {
+  drawn <- data.frame(algorithm = c("maxnet", "esm", "rf", "xgboost", "esm"), taxon = c("A", "B", "C", "D", "E"),
+                      stringsAsFactors = FALSE)
+  expect_equal(atlas_e12_block_models(drawn)$taxon, c("A", "C", "D"))
+})
+
+test_that("a release's recorded block is read from its model's metrics, and a match is told from a change", {
+  store <- fresh_store()
+  metrics <- tempfile(fileext = ".json")
+  jsonlite::write_json(list(taxon = "Taxon A", block_km = 165), metrics, auto_unbox = TRUE)
+  sha <- atlas_sha256(metrics)
+  store$put(atlas_object_key(sha), metrics)
+  base <- list(files = list(list(path = atlas_model_relpaths("Taxon A", "draft", "maxnet", ".json"), sha256 = sha)))
+  expect_equal(atlas_e12_release_block(store, base, "Taxon A", "maxnet"), 165)
+  expect_true(is.na(atlas_e12_release_block(store, base, "Taxon A", "rf")))
+  # In the study: the same block as the release, and another one.
+  skip_if_not_installed("terra")
+  world <- two_job_release()
+  local_mocked_bindings(atlas_e12_release_block = function(store, base, taxon, algorithm, grid = "draft") {
+    if (identical(taxon, "Taxon A")) 100 else 165
+  })
+  result <- on_machine(machine(), atlas_e12_block_study(world$store, world$second$id, block_models = block_runner(),
+                                                        seconds = no_seconds(), quiet = TRUE))
+  same <- vapply(result$models, function(m) m$same_as_release, logical(1))
+  taxa <- vapply(result$models, function(m) m$taxon, "")
+  expect_true(all(same[taxa == "Taxon A"]))
+  expect_false(any(same[taxa != "Taxon A"]))
+  expect_equal(result$summary$same_as_release, sum(taxa == "Taxon A"))
+})
+
+test_that("study-repro --draw --blocks runs the block-only step", {
+  got <- NULL
+  local_mocked_bindings(atlas_e12_block_study = function(...) { got <<- list(...); invisible(list()) },
+                        atlas_e12_arm_study = function(...) stop("the arm ran instead"),
+                        atlas_flag_store = function(flags) NULL)
+  atlas_main(c("study-repro", "--draw", "--blocks", "--release=r1", "--label=r7a", "--workers=4",
+               "--shard=1/1", "--out=study/x/"))
+  expect_equal(got$release, "r1")
+  expect_equal(got$label, "r7a")
+  expect_equal(got$workers, 4L)
+})
