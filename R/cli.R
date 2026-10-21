@@ -218,6 +218,7 @@ atlas_usage <- function() {
   message("      --workers=N               species at once (default 1)")
   message("  study-repro --draw paper E12's refit arms: the drawn models of --release=ID, graded, each on its")
   message("                     own fitting job's inputs ([--label] [--order=seeded|reverse] [--workers=N])")
+  message("      --blocks                  only each drawn full-design model's spatial block, no fit")
   message("  study-e12-draw     paper E12 step 0: the seeded stratified draw on a release and its cost from")
   message("                     recorded fit times, to a local CSV (--release=ID [--out=e12-draw.csv]); read-only")
   message("  study-repro        paper E12 gate: refit models in fresh processes on one machine, twice or more,")
@@ -955,6 +956,17 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       # Paper E12's refit arms: the plan's drawn models, graded (R/studye12arms.R).
       if (isTRUE(flags$draw)) {
         if (is.null(flags$release)) stop("study-repro --draw needs --release=ID", call. = FALSE)
+        # The block-only step: each drawn full-design model's block, no fit.
+        if (isTRUE(flags$blocks)) {
+          atlas_e12_block_study(
+            atlas_flag_store(flags), release = as.character(flags$release), grid = atlas_flag_grid(flags),
+            out = if (is.null(flags$out)) NULL else as.character(flags$out),
+            shard = as.character(flags$shard %||% "1/1"),
+            label = if (is.null(flags$label)) NULL else as.character(flags$label),
+            workers = as.integer(atlas_flag_number(flags, "workers", 1))
+          )
+          return(invisible(0L))
+        }
         atlas_e12_arm_study(
           atlas_flag_store(flags), release = as.character(flags$release), grid = atlas_flag_grid(flags),
           out = if (is.null(flags$out)) NULL else as.character(flags$out),
