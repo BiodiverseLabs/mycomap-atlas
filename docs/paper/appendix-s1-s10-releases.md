@@ -83,8 +83,12 @@ corrected cells file.
 
 Each shard's record names its instance type,
 processor and BLAS library file, and since the hindcast each model's
-record does too. [PENDING: the BLAS build, thread setting and kernel, which
-the records do not yet name.]
+record does too. Fits run one BLAS thread per worker process (OpenBLAS
+0.3.26, pthread build; OPENBLAS_NUM_THREADS and OMP_NUM_THREADS are set to 1
+in every worker since 2026-09-30, checked by a test). E12's first rerun ran
+with up to 32 threads per worker and still matched the release on all 507
+models, so the thread count does not change a fit. [PENDING: the CPU kernel
+OpenBLAS selects, which the records do not yet name.]
 [PENDING: after the block step, a recommendation for releases: measure each
 taxon's block once and reuse it, and/or pin the processor family or one
 OpenBLAS kernel (Steve's decision).]
