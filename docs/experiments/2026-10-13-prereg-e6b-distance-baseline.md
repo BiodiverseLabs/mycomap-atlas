@@ -199,6 +199,15 @@ No strong-model place lies beyond 500 km.
 2026-10-19). It has 1 later-find place (new, 100–500 km) of the 486 in
 H6b.
 
+**Weak models and their kernels, same places** (reported, no interval;
+11,690 rows, 2,082 taxa, 5,094 ranked places on each side):
+
+| Places | Top half, weak / kernel | Top tenth, weak / kernel | Mean rank, weak / kernel |
+|---|---|---|---|
+| all | 0.8696 / 0.8936 | 0.4566 / 0.5158 | 0.7894 / 0.8167 |
+| new (> 5 km) | 0.8394 / 0.8624 | 0.3713 / 0.4316 | 0.7520 / 0.7793 |
+| known | 0.9509 / 0.9776 | 0.6858 / 0.7421 | 0.8900 / 0.9171 |
+
 **Secondary: the kernel over its own 500 km reach**, all taxa: 6,206 rows,
 462 beyond reach; top-half share 0.882 (new places 0.853, known 0.971,
 100–500 km 0.707).
