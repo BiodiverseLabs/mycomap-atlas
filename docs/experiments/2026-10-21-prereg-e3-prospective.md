@@ -231,6 +231,14 @@ read by any of these jobs.
     until it reports. Nothing from it is used.
   - **Rerun:** study-20261021T185333Z-a972d74e, the same image, arguments
     and taxa list, on one r7i.4xlarge on-demand (Steve), launched 18:53 UTC.
+  - **Result (2026-10-21).** r7i.4xlarge (Intel Xeon Platinum 8488C),
+    18:56 to 19:11 UTC, rebuilt from R_main's pull: 681 of the 690 scored
+    (681 kernels), 9 mismatch, 0 refused otherwise, 0 failed. All 9 are
+    full-design taxa (20 to 36 sites) checked against a Maxent model R_main
+    fitted, and all differ in block (5 also in folds): the processor-family
+    variogram effect E6b and E12 found. R_main ran on a mix of instance
+    families (Intel and AMD, two generations each) and recorded no machine
+    per model, so the 9 are rebuilt on the AMD family next.
 
 ## Deviations
 
