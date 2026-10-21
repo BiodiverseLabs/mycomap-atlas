@@ -411,7 +411,8 @@ did. The five that differed, Maxent and random-forest models at 20 to
 49 sites, are all and only the models whose spatial block, estimated from
 a variogram, differed between the families; none of the 277 models with
 the same block differed (95% upper bound 1.4%). Shown for the 507-model
-sample (Appendix S1: Section S10, which also gives the cost and time of
+sample. Later releases record each taxon's block once and reuse it, so a
+refit on either family uses the same folds [PENDING: merge commit] (Appendix S1: Section S10, which also gives the cost and time of
 every run).
 
 ### 2.7 Pre-declared question: a place signal for photo identification
