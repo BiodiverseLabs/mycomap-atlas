@@ -124,8 +124,9 @@ OpenBLAS selects, which the records do not yet name.]
 For releases after the frozen one (decided 2026-10-21), each taxon's block
 is recorded once and reused for every learner, retry and refit, which
 changes no released number and lets the frozen release refit identically
-on either family from its recorded blocks [PENDING: the Atlas commit that
-merges it]; until that is in place, production fits run on r7i only
+on either family from its recorded blocks (merged on Atlas main c56d2dc,
+2026-10-21, with the per-result machine record); production fits run on
+r7i only until a release is fitted with it
 (plan-e12, Decision, 2026-10-21). Each result will also record its BLAS
 build, thread setting and processor [PENDING: in place from the release
 that carries it].

@@ -412,7 +412,7 @@ did. The five that differed, Maxent and random-forest models at 20 to
 a variogram, differed between the families; none of the 277 models with
 the same block differed (95% upper bound 1.4%). Shown for the 507-model
 sample. Later releases record each taxon's block once and reuse it, so a
-refit on either family uses the same folds [PENDING: merge commit] (Appendix S1: Section S10, which also gives the cost and time of
+refit on either family uses the same folds (Atlas main c56d2dc) (Appendix S1: Section S10, which also gives the cost and time of
 every run).
 
 ### 2.7 Pre-declared question: a place signal for photo identification
@@ -613,12 +613,15 @@ Zenodo DOI, format, size and licence:]
   Steve's approval, 2026-10-18: version draft-2026-09-30-df57c9d4, 11 files,
   0.14 GB. The frozen release's predictor stack has 69 bands in eight
   layers (counted from the deposited files and the manifest, layers key
-  df57c9d4); the record's summary said 68 by mistake, and a metadata-only
-  correction is with Steve.
+  df57c9d4); the record's summary said 68 by mistake, corrected by a
+  metadata-only edit.
 - **Models series** (Zenodo, one version per archived release).
   **Published:** doi:10.5281/zenodo.23463939 (concept
   doi:10.5281/zenodo.23463938), the frozen release 20261013T191324Z-fa1b4198,
-  26 files, 13.24 GB, derived from the layers record. Per model the
+  26 files, 13.24 GB, derived from the layers record. Its description
+  says (metadata-only edit, 2026-10-21, Steve) that the published counts
+  are after the 76-record exclusion and that most models were fitted on
+  the pull before it. Per model the
   suitability raster, AOA dissimilarity raster, map image and metrics JSON
   (scores, null test, grade, importance, settings); combined maps and
   disagreement layers; full-extent rasters for strong models; per-taxon
@@ -1168,6 +1171,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.18.4 (2026-10-21).** Zenodo models description edit live; block reuse and machine record merged (Atlas main c56d2dc); S2.4 detail on the 71 taxa.
 - **0.18.3 (2026-10-21).** Open decision 8 decided (Steve): Zenodo description edit approved (ops applies); lineage table in the next models version with E19/E20.
 - **0.18.2 (2026-10-21).** Provenance: the published pull is after the 76-record exclusion, most models were fitted on the pull before it (front matter, 4.1, E19); Zenodo models description edit drafted for Steve.
 - **0.18.1 (2026-10-21).** Open decision 7 decided (Steve): block recorded once and reused; r7i pinned until then; no OpenBLAS kernel forcing; per-result machine record.

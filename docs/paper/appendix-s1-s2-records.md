@@ -174,8 +174,13 @@ versioned: each pull's manifest records its SHA-256 and the number of rows
 removed (Atlas commit 643b444), and it applies to every later pull. Only
 the taxa the removed records named were refitted or retired; other models'
 survey sites, effort and background were built from the whole pull and
-still include the 76 records (under 0.06% of the pull's records). No
-removed record is a presence of any published model: rebuilding all 6,369
+still include the 76 records (under 0.06% of the pull's records). The 76
+records name 71 taxa, of which only 2 have published models (*Agaricus
+bitorquis* and *Clitocybe deceptiva*, 6 models), all fitted by the targeted
+job (20261013T062143Z-2ffed182), whose pull holds neither record; the
+full-view refresh fitted none of the 71 (operations lane's check before the
+Zenodo description edit, 2026-10-21). No removed record is a presence of
+any published model: rebuilding all 6,369
 modelled taxa's record sets from the cleaned pull for E3's kernels, every
 one matched its model's recorded fingerprint, which is the exact record set
 (E3 prereg, Runs, main kernel run, 2026-10-21: 0 of 6,369 differ in
