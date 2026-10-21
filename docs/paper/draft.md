@@ -682,11 +682,11 @@ area. Maps of taxa with 3 to 19 sites are ensembles of small models and
 say little on their own. Records whose location the source hides,
 obscures or may hide never appear in a published record-level layer.
 Cite a map by its release id and the release's DOI; maps and rasters are
-CC BY-SA 4.0, so derived maps carry the same licence. Everything on the
-site is also served by a public, read-only API described in
+CC BY-SA 4.0, so derived maps carry the same licence. The site's data
+are also served by a public, read-only API described in
 `/api/openapi.json` (taxa, a taxon's best map and models, map images,
 region lists, the location prior and the Zenodo downloads); full-resolution
-rasters need a free token, issued per mycomap.org account. Anonymous use is
+rasters need sign-in or a token, issued per mycomap.org account. Anonymous use is
 limited to 300 requests a minute, 1,200 with a token and 6,000 with a bulk
 token. Problems with a map are reported from the site's "Report a map
 problem" link, which opens an issue on the code repository, or to
