@@ -31,7 +31,13 @@ wall time and USD 0 of cloud cost (electricity not counted; say so).
 ## Ledger
 
 Figures marked ≈ are estimates or come from progress notes, not from billing;
-they are replaced by billed figures where AWS can still provide them.
+they are replaced by billed figures where AWS can still provide them. Rows
+from 2026-10-19 on are computed by the operations lane (2026-10-21) as
+instance-hours from the workers' shard records × the us-east-2 on-demand
+Linux price (USD/h: r7i.large 0.1323, r7i.xlarge 0.2646, r7i.8xlarge
+2.1168, r7a.large 0.15214, r7a.xlarge 0.30428, r7a.8xlarge 2.43424); for
+spot runs that is an upper bound (≤). They leave out the Lightsail box,
+the orchestrator, S3 and boot time before a worker writes its start.
 
 | Date (UTC) | Element | Run id | Where | Models | Fit CPU-h | Wall | Compute USD | Storage | Notes |
 |---|---|---|---|---|---|---|---|---|---|
@@ -40,15 +46,27 @@ they are replaced by billed figures where AWS can still provide them.
 | 2026-10-06 | Virtual-species null study (development) | virtual-20261006T091510Z | local PC | 99 species × 3 designs | [PENDING from results file] | ≈ 2 days (shared PC) | 0 (local) | — | basis of E1b |
 | 2026-10-12 | Rebuild pilot (development) | 20261012T135059Z-fd7c13c5 | EC2 spot, 4 × m7i.8xlarge | 281 planned, 211 timed | [PENDING job-timing] | 2 h (cap) | ≈ 6.5 | — | one shard stalled on one taxon (fixed before the full run) |
 | 2026-10-13 | October rebuild, first launch | 20261013T001819Z-2cb67f32 | EC2 spot, ≤ 4 workers | 9,534 planned | [PENDING] | [PENDING] | [PENDING] (cap ≈ 32) | ≈ 16 GB per release with rasters [CHECK] | relaunched as below |
-| 2026-10-13 | October rebuild (full job) → R_main 20261013T061352Z-78dd82de | 20261013T022520Z-2cb67f32 | EC2 spot, image 0a9dde4 | 9,534 planned; 9,042 fitted, 492 refused, 0 failed; 797 retired | [PENDING job-timing] | [PENDING] | [PENDING billing] | [PENDING] | 4 spot reclaims, all resumed; 118,657 training records |
+| 2026-10-13 | October rebuild (full job) → R_main 20261013T061352Z-78dd82de | 20261013T022520Z-2cb67f32 | EC2 spot, image 0a9dde4 | 9,534 planned; 9,042 fitted, 492 refused, 0 failed; 797 retired | [PENDING job-timing] | 4 shards, started 02:28–03:57, finished 05:43–06:09 UTC; 8.42 instance-h (shard records, no instance type) | [PENDING billing] | [PENDING] | 4 spot reclaims, all resumed; 118,657 training records |
 | 2026-10-13 | Targeted refit (cleaned release; 22 records removed) | 20261013T062143Z-2ffed182 | EC2 spot, image 0a9dde4 | 7 (2 taxa) | [PENDING] | [PENDING] | [PENDING billing] | [PENDING] | |
 | 2026-10-13 | Second cleaning: *Elaeagnus umbellata* retired | 20261013T133656Z-6a0564db | — | 1 retired | 0 | [PENDING] | ≈ 0 | — | no refits |
 | 2026-10-13 | Full-view refresh | full-20261013T140649Z-5cf5b864 → 20261013T155140Z-026d3a26 | EC2 spot (r7i ×3, r7a ×1 by last attempt), image 8b8566f | 576 strong models refitted; 573 full views replaced, 3 kept | ≈ 35 (estimate) | [PENDING] | [PENDING billing] | [PENDING] | |
-| 2026-10-13 | Finishing (v5) → frozen release | → 20261013T191324Z-fa1b4198 | EC2 spot | — | [PENDING] | ends 19:13 UTC | [PENDING billing] | 38,216 files in the release [PENDING: GB] | continent export, prior, privacy-filtered cells |
-| 2026-10-18 | Hindcast (E2; also Vision's training run) | priv-20261018T171648Z-9e3ab153 | EC2 spot, on-demand finish | 9,115 planned; 8,606 fitted, 509 refused, 0 failed | 289 | ends 22:23 UTC | ≈ 5.71 | [PENDING] | spot reclaims on all 4 shards at 17:57 (shard 2 twice more); 110,615 trained ids |
+| 2026-10-13 | Finishing (v5) → frozen release | → 20261013T191324Z-fa1b4198 | EC2 spot | — | [PENDING] | ends 19:13 UTC | [PENDING billing] | 38,216 files, 14.45 GB (sum of the manifest's file sizes) | continent export, prior, privacy-filtered cells |
+| 2026-10-18 | Hindcast (E2; also Vision's training run) | priv-20261018T171648Z-9e3ab153 | EC2 spot, on-demand finish | 9,115 planned; 8,606 fitted, 509 refused, 0 failed | 289 | ends 22:23 UTC | ≈ 5.71 (the job's own estimate in summary.json; billing to confirm) | [PENDING] | spot reclaims on all 4 shards at 17:57 (shard 2 twice more); 110,615 trained ids |
 | 2026-10-13 | E1 cost pilot (development; `2026-10-13-e1-cost-pilot.md`) | — | local PC, 2 processes × 1 core | 4 virtual species, Maxent + RF + ESM, scatter and shift ×99 per learner | 0.56 | 29 min | 0 (local) | 0 | per null CV: Maxent ≈ 5.2 s, RF ≈ 2.2 s, ESM ≈ 4.4 s; no species at 200+ sites |
 | 2026-10-13 | E6a cost pilot (development; `2026-10-13-e6a-cost-pilot.md`) | — | local PC, 1 core | 2 taxa, default maxnet, 5-fold CV + 3 nulls each | 0.25 | 16 min | 0 (local) | 0 | lqh at 31 sites ≈ 16 min per taxon with 19 nulls; lqph at 102 sites ≈ 28 min |
-| — | E6b, E1c, E1, E9, E6a | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
+| 2026-10-19 | Sparassis leave-out refit (E2 deviation) | priv-20261019T042158Z-09936f85 | EC2 | 1 | [PENDING] | [PENDING] | [PENDING billing] (no cost in summary.json) | — | |
+| 2026-10-19 | E2 scoring | study-20261019T181851Z-35fc3d63 | 1 × r7i.xlarge, spot | — | — | 18:20–19:08 UTC; 0.80 instance-h | ≤ 0.21 | — | |
+| 2026-10-19 | E12 gate, r7i | study-20261019T180106Z-5b4bbf44 | 1 × r7i.large, spot | 3 × 2 runs | — | 18:03–18:09; 0.11 instance-h | ≤ 0.01 | — | |
+| 2026-10-19 | E12 gate, r7a | study-20261019T181116Z-179c6d90 | 1 × r7a.large, spot | 3 × 2 runs | — | 18:13–18:19; 0.11 instance-h | ≤ 0.02 | — | |
+| 2026-10-20 | E6b kernels | study-20261020T053446Z-1552e567 | 3 × r7i.8xlarge, spot | 6,059 kernels | — | 05:36–08:19 (shards 1.54, 1.64, 1.57 h); 4.75 instance-h | ≤ 10.06 | — | |
+| 2026-10-20 | E6b kernels, r7a patch | study-20261020T221806Z-9620406f | 1 × r7a.xlarge, spot | 35 kernels | — | 22:19–22:22; 0.04 instance-h | ≤ 0.01 | — | |
+| 2026-10-20 | E6b scoring | study-20261020T232528Z-05216058 | 1 × r7i.xlarge, spot | — | — | 23:27–00:55; 1.48 instance-h | ≤ 0.39 | — | |
+| 2026-10-20 | E12 arm a1 | study-20261020T182524Z-717cf60a | 2 × r7i.8xlarge, spot | 507 | — | 18:28–19:37; 2.08 instance-h | ≤ 4.39 | — | |
+| 2026-10-20 | E12 arm a2, first run | study-20261020T212937Z-cfac20a6 | 3 × r7i.8xlarge, spot | 507 | — | 21:32–22:17; 2.10 instance-h | ≤ 4.45 | — | found the glmnet leak |
+| 2026-10-21 | E12 arm a2, rerun | study-20261021T002552Z-cfac20a6 | 3 × r7i.8xlarge, spot | 507 | — | 00:28–01:16; 2.21 instance-h | ≤ 4.69 | — | |
+| 2026-10-20 | E12 arm b, first launch (lost) | study-20261020T182526Z-95330a0a | r7a.8xlarge, spot | 0 | — | reclaimed 8 times in ~45 min; no shard record | unknown, small | — | |
+| 2026-10-21 | E12 arm b | study-20261021T011833Z-c7b64a0a | 1 × r7a.8xlarge, on-demand | 507 | — | 01:20–02:53; 1.55 instance-h | ≈ 3.77 | — | |
+| — | E1c, E1, E9, E6a, E3 read-out and kernels | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
 
