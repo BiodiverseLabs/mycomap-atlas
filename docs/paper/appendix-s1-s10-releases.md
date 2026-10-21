@@ -29,15 +29,29 @@ full-view refresh met these tolerances for 573. The other three are tuned
 Maxent models whose settings choice differed: one near-tie (*Russula* sp.
 'compacta-PA01'), and two (*Stropharia hardii*, *Gliophorus fumosus*) where
 the cross-validated scores of every candidate differed across machines,
-from the same records and background; the mechanism is under
-investigation (E12). The release keeps their original fits and lists both
+from the same records and background. E12 found the mechanism: fits
+are bit-identical within a processor family (Intel r7i, AMD r7a) and the
+three models' release fits are each reproduced on exactly one family. The release keeps their original fits and lists both
 fits' settings and tuning scores. The other 573 models' chosen settings,
 tuning scores, blocked AUC, pooled Boyce and per-fold AUC were identical to
 four decimals, so no score drift sits behind matching maps; the changes
 are confined to 3 of 121 tuned Maxent models and none of 455 other models.
 On one machine, repeated fits in fresh processes and different orders were
-bit-identical. E12 measures how often grades differ across processor
-families [PENDING E12]. Our refit checks enforce the tolerances
+bit-identical. E12 (`docs/experiments/2026-10-13-plan-e12-grade-stability.md`)
+refitted 507 drawn models, with their null tests, on r7i twice: both runs
+matched the release on all 507. The second run first differed in 191 of
+225 small-model ensembles (maps only; every grade unchanged): glmnet's
+settings are global to an R process, Maxent sets two of them, and an
+ensemble fitted after a Maxent model in the same worker inherited them.
+Every released model was fitted in a fresh worker pool at glmnet's
+defaults, so released maps are unaffected; each fit now sets glmnet's
+settings itself and restores them (Atlas 5b58f30), and the rerun matched
+on 507 of 507. A second machine effect: the spatial block, the blockCV
+variogram range rounded to 5 km, can depend on the processor family: of
+the 1,144 hindcast taxa whose Maxent was fitted on r7a, 35 had another
+block when rebuilt on r7i, by 5 to 240 km, and so other folds. How often grades differ
+across families is arm b, on r7a, split into changes with and without a
+change of block [PENDING E12 arm b]. Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
@@ -50,7 +64,9 @@ model is refitted. Everything else published is map-derived or coarse
 corrected cells file.
 
 Each shard's record names its instance type,
-processor and BLAS. [PENDING E12: the numbers from the rerun.]
+processor and BLAS, and since the hindcast each model's record does too.
+[PENDING E12 arm b: grade agreement, setting flips and map tolerance across
+families; a recommendation on pinning the family for releases.]
 
 ## S10.2 Cost and time
 
