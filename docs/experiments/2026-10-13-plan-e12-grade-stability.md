@@ -247,6 +247,28 @@ waits for all three arms and the block-only step.
   `--order=reverse`, finished 01:16 UTC. 507 fitted; same records 507, same
   grade 507, identical to the release 507. The 191 ensembles that differed
   in the first a2 are now identical. a1 and a2 agree model for model.
+- **b (2026-10-21): done.** study-20261021T011833Z-c7b64a0a, image 1a9c3ae,
+  one r7a.8xlarge on-demand (AMD EPYC 9R14), `--shards=1 --workers=16`,
+  seeded order, 01:20 to 02:53 UTC (93 min). 507 fitted; same records 507,
+  same grade 505, identical to the release 502. Every ensemble (225) and
+  every boosted-trees model (40) is identical; Maxent 127 of 128 and random
+  forest 110 of 114. The 5 that differ, all at 20–49 sites, all with the
+  same records:
+
+  | Taxon | Learner | Grade, release → b | Parts that differ | Largest tuning-score change; correlation of the tuning tables |
+  |---|---|---|---|---|
+  | *Leucopholiota decorosa* | Maxent | failed → weak | settings, tuning, AUC, Boyce, fold AUC, map | 0.132; −0.575 |
+  | *Galerina* sp. 'WI01' | RF | weak → weak | settings, tuning, AUC, Boyce, fold AUC, map | 0.0547; −0.912 |
+  | *Stropharia hardii* | RF | weak → weak | settings, tuning, AUC, Boyce, fold AUC, map | 0.029; −0.958 |
+  | *Clavulinopsis appalachiensis* | RF | weak → strong | tuning, AUC, Boyce, fold AUC (same settings and map) | 0.0598; 0.286 |
+  | *Tricholoma focale* | RF | weak → weak | settings, tuning, AUC, Boyce, fold AUC, map | 0.0345; −0.493 |
+
+  *Leucopholiota decorosa*'s Maxent: the release chose lq, regmult 2 (AUC
+  0.556, Boyce −0.107); b chose lqh, regmult 0.5 (AUC 0.604, Boyce 0.251).
+  All five taxa are among the 35 whose variogram block differed between
+  r7a and r7i in E6b (E6b prereg, Deviations, 2026-10-20), there on the
+  hindcast's records. Whether each of the five rebuilt another block here
+  is what the block-only step measures; the reading waits for it.
 
 - **Reading note (2026-10-20, after a1, before b).** The release's own
   machine family for the 507 cannot be recovered. R_main's job
