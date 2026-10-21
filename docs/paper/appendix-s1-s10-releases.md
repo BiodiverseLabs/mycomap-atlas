@@ -45,8 +45,11 @@ Boyce by 0.001; every grade unchanged): glmnet's
 settings are global to an R process, Maxent sets two of them, and an
 ensemble fitted after a Maxent model in the same worker inherited them.
 Production fits each learner in its own pool of worker processes, so
-every released ensemble was fitted at glmnet's defaults and released maps
-are unaffected. Each ensemble fit now runs at glmnet's defaults and
+by construction every released ensemble was fitted at glmnet's defaults
+and released maps are unaffected; the shard logs that survive (only each
+shard's last attempt was kept) confirm that every fitting shard ran so,
+and the direct evidence for the drawn sample is a1, which matched the
+release on all 507. Each ensemble fit now runs at glmnet's defaults and
 restores the process's settings (Atlas 5b58f30; the detection model of E14
 is pinned likewise, a8861ab, though it was never affected), and the rerun
 matched on 507 of 507. A second machine effect: the spatial block, the blockCV

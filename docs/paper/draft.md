@@ -398,8 +398,10 @@ reproduces the release byte for byte: 507 drawn models, refitted twice in
 different orders and worker splits, matched it on all 507 (E12). The test
 found one fault on the way: glmnet's settings are global to an R process,
 so a small-model ensemble fitted after a Maxent model in the same worker
-inherited Maxent's; production fits each learner in its own pool of
-workers, so no released map is affected, and each fit now sets its own. Across processor families,
+inherited Maxent's. Production fits each learner in its own pool of
+workers, so by construction no released map is affected, which the
+surviving shard logs and a first rerun matching the release confirm; each
+fit now sets its own. Across processor families,
 some tuned Maxent models choose other settings, and the spatial block,
 estimated from a variogram, can differ for some taxa [PENDING E12 arm b:
 how often grades differ across families] (Appendix S1: Section S10, which
@@ -769,7 +771,8 @@ the area of applicability.
 **The question asked of MycoMap Vision.** Used as a photo-identification
 model's place signal, the maps helped a little on their own but no more
 than a simple distance to known DNA records, and the continent-wide
-projection did not hold beyond 500 km (Q1). The likeliest reasons are
+projection did not hold beyond 500 km (Q1; Section 3.9 and
+`docs/experiments/2026-10-18-q1-atlas-arms.md`). The likeliest reasons are
 coverage (under a tenth of identifications concern a strongly mapped
 species) and that a habitat map and a distance kernel are built from the
 same records; their one distinct use was as a cue to whether an answer is
@@ -927,7 +930,7 @@ data, command, result, release, commit).
 | E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. 230–300 CPU-h ($12–15), from the cost pilot (`2026-10-13-e6a-cost-pilot.md`) | P1 |
 | E6b | **Done 2026-10-21** (study-20261020T232528Z-05216058): H6b holds, +0.0435 [0.0147, 0.0755], top-half share only; new places [0, 0.0996] not; moderate and indicative do not beat the kernel; advantage from 100–500 km finds (Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
-| E12 | **Running**: gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected; the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a, on-demand) running, then the block-only step. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
+| E12 | **Running**: gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected by construction (separate worker pools per learner; surviving shard logs; a1 = release on 507/507); the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a, on-demand) running, then the block-only step. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
 | E17 | ODMAP protocol (`docs/paper/appendix-s1-odmap.md`) | all | **Draft 2026-10-13**; final check against the frozen release | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
@@ -1070,6 +1073,11 @@ revised (Path).
    species get some form of map; rules and the evidence thresholds fixed
    before E1 and E2 (E24). Steve chooses which tiers feed which products
    after both results; whether they appear in the paper is separate.
+   **Decided 2026-10-20 (Steve), after E6b:** a tier carries downstream
+   claims only if it beats the distance-only map, so only strong does;
+   moderate and indicative stay drawn as faint weak maps
+   (`2026-10-13-plan-map-tiers.md`). Stated in the paper as chosen after
+   the result. E1's tier rates are still reported as registered.
 4. **Crediting contributors:** the full plan in section 6 adopted (Steve,
    2026-10-13). No individuals named for now (Steve, 2026-10-13); revisit
    before submission. Data item: observer name or username per training record for the
@@ -1082,6 +1090,12 @@ revised (Path).
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
    release. The 0.1° cells question is settled too.
+7. **Reproducibility across processor families (Steve, after E12 arm b):**
+   whether future releases measure each taxon's spatial block once and
+   reuse it across learners and machines, and/or force one OpenBLAS kernel
+   (or pin the processor family), so that a refit on another machine gives
+   the same folds and settings. Affects releases after the frozen one, and
+   how 2.6 and S10 state reproducibility.
 
 ---
 
