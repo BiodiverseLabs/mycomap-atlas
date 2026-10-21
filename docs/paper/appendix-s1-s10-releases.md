@@ -105,8 +105,9 @@ OpenBLAS kernel (Steve's decision).]
 ## S10.1b The public API
 
 All endpoints are GET and described in `/api/openapi.json` (as served by
-image 5753802, 2026-10-21; `card.jpg` and `/share/taxa/{name}` arrive with
-the next deploy).
+image 7915ff8, deployed 2026-10-21). `/api/taxa/{name}/card.jpg` serves a
+1200 × 630 preview image for each of the 470 taxa with a strong map (404
+otherwise), and link-preview robots get `/share/taxa/{name}`.
 
 - Site and data: `/api/openapi.json`, `/api/sources`, `/api/downloads`
   (Zenodo), `/api/status`, `/api/me`, `/api/layers`, `/api/algorithms`,

@@ -208,6 +208,16 @@ them.
   `--workers=30`, launched 05:26 UTC. The r7a patch for any mismatch is
   logged here when it runs.
 
+## Runs
+
+Logged as the operations lane reports them; numbers only.
+
+- **Kernels, main (launched 2026-10-21 about 05:26 UTC).**
+  study-20261021T052559Z-eff180db, image 7915ff8 (Atlas main with
+  e3-readout 44d007a and the E12 block step b407054), 3 × r7i.8xlarge, 30
+  workers each; Steve confirmed it directly with the operations lane. The
+  r7a patch for any mismatch follows.
+
 ## Deviations
 
 - **2026-10-21, after registration and before any outcome look: same-day
