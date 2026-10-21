@@ -74,10 +74,22 @@ five that differed are full models at 20 to 49 sites, all with the same
 records: one Maxent model went from failed to weak with other settings,
 three random forests stayed weak with other settings, and one random
 forest went from weak to strong with the same settings and map but other
-tuning and fold scores. All five are taxa whose spatial block differed
-between families in the hindcast (E6b), so the block is the likely cause;
-whether each one's block differed on the frozen records is what the
-block-only step shows [PENDING E12 block step]. Our refit checks enforce the tolerances
+tuning and fold scores. A block-only step recomputed the variogram
+block, without any fit, for the 282 drawn full-design models on both
+families: on r7i all 282 equal the release's recorded block, and on r7a
+277 do. The five whose block differs on r7a (by 10 to 90 km) are exactly
+the five that differed in arm b. Split by block: of the 277 models with
+the same block, 277 are identical and keep their grade (95% upper bound on
+the difference rate 1.4%, Wilson); of the 5 with a changed block, none is
+identical and 3 keep their grade. The block changes for 4.67% of the
+release's full-design models (weighted), which is the whole of arm b's
+1.55% differing share, and both grade changes are block changes. So within
+one processor family refits are bit-identical to the release, and across
+families they differ all and only where the spatial block differs. This
+is shown for the 507-model sample; the refresh's three tuned-Maxent flips
+(gate 2) fit the same mechanism (*Stropharia hardii* is in both) but are
+not all in the sample (plan-e12, the block-only step and the reading,
+2026-10-21). Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
@@ -98,9 +110,10 @@ r7i ran with up to 32 threads per worker and both matched the release on
 all 507 models, so the thread count does not change a fit (plan-e12,
 implementation notes). [PENDING: the CPU kernel
 OpenBLAS selects, which the records do not yet name.]
-[PENDING: after the block step, a recommendation for releases: measure each
-taxon's block once and reuse it, and/or pin the processor family or one
-OpenBLAS kernel (Steve's decision).]
+For releases after the frozen one, the recommendation is to record each
+taxon's block once and reuse it, which changes no released number and
+lets the frozen release refit identically on either family from its
+recorded blocks [PENDING: Steve's decision].
 
 ## S10.1b The public API
 
