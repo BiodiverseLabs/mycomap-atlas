@@ -196,6 +196,7 @@ atlas_usage <- function() {
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               taxa at once (default 1)")
   message("      --taxa='A|B'              only these taxa (percent-encoded; each modelled by the release)")
+  message("      --pull-from=JOB           rebuild from that job's pull and layers, not the release's own")
   message("  study-rescan       paper E1c: the standard test (19 scattered nulls) on a stratified")
   message("                     sample of a release's models, beside their shift grades")
   message("      --release=ID              the (frozen) release whose models and pull it uses")
@@ -892,7 +893,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         plan_only = isTRUE(flags$plan_only),
         limit = atlas_flag_number(flags, "limit", Inf),
-        only_taxa = if (is.null(flags$taxa)) NULL else atlas_repro_taxa(flags$taxa, "study-distance")
+        only_taxa = if (is.null(flags$taxa)) NULL else atlas_repro_taxa(flags$taxa, "study-distance"),
+        pull_from = if (is.null(flags$pull_from)) NULL else as.character(flags$pull_from)
       )
       invisible(0L)
     },
