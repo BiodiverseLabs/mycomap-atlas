@@ -88,10 +88,15 @@ revise the paper plan and let's continue".)
    and their use to grade thousands of automatically built maps. On the
    atlas's real models, [X]% of the maps a standard test (19 scattered nulls)
    calls good are not shown to beat collecting. [pre-freeze; E1, E1b, E1c]
-2. **C2. The grade predicts how a map does on data it never saw.** Records
-   validated after the training cut, and after each release, fall on
-   higher-ranked ground on strong maps than on weak or failed ones, and strong
-   maps beat a collecting-effort baseline. [PENDING E2, E3, E6]
+2. **C2. The grade predicts how a map does on records it never saw, and
+   only strong maps beat distance to known records.** Of the later finds in a
+   hindcast, strong maps placed 91.4% in their top half, weak maps 87.0% and
+   failed maps 78.4% (strong − failed 13.0 points, 95% interval 9.0–17.2).
+   On the same places strong maps placed 4.4 points (1.5–7.6) more than a
+   map of distance to the taxon's known sites, a gain that comes from finds
+   more than 100 km away; near known records distance alone does as well.
+   Weak maps, and both looser tiers within them, do no better than distance.
+   [E2, E6b done; prospective E3 PENDING]
 3. **C3. Labelling by the approved sequence rather than the record's own
    name changes the maps, and about half the modellable taxa have no formal
    name.** [PENDING E9, E16] A comparison with morphology-named records
@@ -147,8 +152,10 @@ with 100 or more sites, while the clustering-preserving test passed
 the atlas's [9,042] models, [576] across [470] taxa were graded strong; the
 standard test would have called [X]% of the rest good [PENDING E1c]. Maps
 graded strong placed records validated after the training cutoff in their
-top half [Y]% of the time, against [Z]% for failed maps and [W]% for a
-model of distance to known records [PENDING E2, E6b]. Naming records by
+top half 91% of the time, against 78% for failed maps and 87% for a map of
+distance to known records on the same places; weak maps did no better than
+distance, and the strong maps' advantage came from finds more than 100 km
+from known records. Naming records by
 their sequences rather than their own names changed the maps of [N] taxa,
 and about half the modelled taxa have no formal name [PENDING E9, E16]. A
 pre-registered test asked whether the maps help a photo-identification
@@ -330,9 +337,14 @@ p ≤ 0.05 and its Boyce index is above zero; **weak** when it ranks held-out
 ground better than chance (AUC above 0.5 and Boyce above zero) without
 passing; and **failed** otherwise. Only strong maps feed anything that
 makes a claim (combined maps, state lists, the location prior for MycoMap
-Vision); weak and failed maps are published faint with their grade. Two
-looser tiers, moderate and indicative, are judged against pre-stated
-thresholds in Appendix S1: Section S5.
+Vision); weak and failed maps are published faint with their grade. Weak
+maps were split, before any independent test, into two looser tiers:
+moderate (shift p ≤ 0.20) and indicative (the rest), with registered bars
+for showing them as labelled maps (Appendix S1: Section S5). After the
+comparison with distance (Section 3.4) one rule was added, and it was chosen
+after seeing that result: a grade carries downstream claims only if it ranks
+later finds better than the distance-only map. Only strong does, so both
+tiers are drawn as weak maps.
 
 ### 2.4 Calibrating the null test on simulated species
 
@@ -366,8 +378,11 @@ people collect. Results are reported by grade, pre-registered with the
 criteria for supporting the grade's claim (Appendix S1: Section S6).
 
 Atlas is compared on the same finds with two baselines (Appendix S1:
-Section S7): a model that knows only the distance to a taxon's known sites
-(Bahn & McGill 2007), and Maxent as commonly run (default settings, a
+Section S7). The first knows only the distance to a taxon's known sites
+(Bahn & McGill 2007; Hijmans 2012): a sum of Gaussian kernels over its
+training survey sites, with the bandwidth (5 to 400 km) chosen on the
+taxon's own spatial folds, re-ranked over each model's area of
+applicability so that the two are scored on the same places. The second is Maxent as commonly run (default settings, a
 random background, random cross-validation and a scattered null test).
 
 ### 2.6 Releases and reproducibility
@@ -451,20 +466,53 @@ taxa have a strong map; combined maps; share of reach inside AOA; and the
 standard test on real models (E1c): the share of maps 19 scattered nulls call
 good that are not shown to beat collecting.] → **Table 1**, **Figure 4** (example maps across grades); detail in S4.
 
-### 3.4 How the maps did on records they never saw (E2, E3, E15)
+### 3.4 How the maps did on records they never saw (E2, E6b, E3)
 
-[PENDING: rank of hindcast and prospective finds by grade; top half / top
-tenth / Boyce / beats-effort with intervals; new sites vs near known sites;
-inside vs outside AOA; combined vs single maps.] → **Figure 3**; every split in S6.
+*Hindcast (E2, E6b; pre-registered, results as registered).* Refitted on the
+124,955 records first validated by 17 August 2026, the pipeline fitted 8,606
+models (509 refused); the records validated after the cutoff gave 7,509
+later-find places (taxon × 5 km cell) across 3,655 taxa. Strong maps placed
+91.4% of later finds in their top half (95% interval 88.6–94.2; 214 taxa),
+weak maps 87.0% and failed maps 78.4%; the strong − failed difference was
+13.0 points (9.0–17.2; 735 taxa). Strong maps also put 78.5% of finds
+(76.3–80.6) above the cells where other taxa's finds landed, against 71.7%
+for weak and 67.2% for failed maps, and 49.6%, 45.7% and 34.3% in their top
+tenth. All three registered criteria hold. The order of the grades, not the
+distance from 50%, is the evidence: even failed maps place most later finds
+in their top half, because later finds cluster near earlier ones.
 
-*Background, old grading (exploratory; `2026-10-18-tracker-backfill-old-grading.md`):*
-on the releases live before the rebuild, records first validated 3–12
-October at new sites fell in the maps' top half 82% of the time (chance
-50%; 817 ranked places) and beat collecting effort 66% of the time; maps
-that passed the old scattered-null test barely beat those that did not
-(beats-effort 0.67 vs 0.63), as C1 predicts. Finds 500 km or more from any
-known record are beyond the maps' reach by construction, so that band
-measures range growth or reach drawn too narrowly, not map skill.
+On the same places, the distance-only map placed 87.1% of strong-map finds
+in its top half, so strong maps placed 4.4 points more (1.5–7.6; 202 taxa).
+The gain is in the top-half share only; the mean rank of finds did not
+differ (+0.004, −0.017 to 0.027). It came from far finds: within 25 km of
+known sites distance alone did as well or better (97.4% against 100%), from
+25 to 100 km the two tied (92.8%), and from 100 to 500 km strong maps led
+(76.0% against 61.1%; descriptive, without intervals). At places more than
+5 km from any training site the gain was about the same (+4.8 points) but on
+fewer places, and its interval reached zero (0.0–10.0; 168 taxa). Weak maps
+ranked later finds below the distance map (87.0% against 89.4% in the top
+half), and so did both looser tiers, although each cleared its registered
+bar against chance: moderate −1.4 points (−3.3 to 0.5; 628 taxa),
+indicative −2.6 (−3.9 to −1.4; 1,571 taxa). Four training records later
+found to have been validated after the cutoff were kept out of the test
+finds (none was among them), and the one affected small-site model was
+refitted without its record before scoring (Appendix S1: Section S6).
+
+*Prospective tracking (E3).* [PENDING: rank of finds on the live release by
+grade, against the distance map, from the tracker's start date.] Under the
+grading live before the rebuild, records first validated 3–12 October at new
+sites fell in the maps' top half 82% of the time, and maps that passed
+the old scattered-null test barely beat those that did not (beats-effort
+0.67 against 0.63), as C1 predicts (exploratory;
+`2026-10-18-tracker-backfill-old-grading.md`).
+
+→ **Figure 3**: (a) top-half and beats-effort shares by grade, each beside
+the distance map on the same places, with intervals; (b) strong maps against
+the distance map by distance band (5–25, 25–100, 100–500 km); (c) prospective
+finds by grade (E3). Every split (new and known places, top tenth, Boyce,
+tiers, inside and outside the area of applicability, combined maps, beyond
+reach) in S6. Boyce is reported in S6 only: it is near 1 for every grade on
+these finds and does not separate them.
 
 ### 3.5 Against standard practice (E6)
 
@@ -615,16 +663,19 @@ good [PENDING E1c]. That gap is the point of the method rather than a
 shortfall of the data. On simulated species collected the way MycoMap's
 records are, the scattered null passed most species that follow no habitat
 at all, and every one with a hundred sites or more; the shifted null passed
-almost none of them, and [PENDING E2] its strong maps placed records
-validated later on higher-ranked ground than weak or failed maps. A strong
+almost none of them, and its strong maps placed records validated later
+on higher-ranked ground than weak or failed maps, and than distance to known
+records. A strong
 grade therefore says something a high AUC does not: that the map beats the
 species' own pattern of collecting on ground it never saw. The price is
 power. A strong grade caught about a quarter of simulated species that did
 follow a habitat, and more sites did not raise that share [PENDING E1: by
 breadth and signal strength]. "Not strong" therefore means "not shown",
 not "wrong", which is why weak and failed maps are published, faint and
-labelled, rather than withheld, and why looser tiers were judged on the
-same two kinds of evidence [PENDING E24].
+labelled, rather than withheld. The two looser tiers within "weak" cleared
+their registered bars against chance on later finds but did no better than
+distance, so they are drawn as weak maps and carry no claims [PENDING E1:
+their false-pass rates].
 
 **Why shifted nulls are strict.** A shifted copy of a species' records keeps
 its clustering, and on a continent whose climate varies smoothly it often
@@ -643,10 +694,12 @@ to clustered occurrence data faces the same problem, whatever its learners.
 Three practices carry over: grade each map against nulls that keep its own
 clustering and stay on surveyed ground; calibrate that grade on simulated
 species that inherit the real sampling, so its error rates are known; and
-test the grade on records collected or validated after the maps were made
-[PENDING E2, E3]. A distance-only model is a necessary baseline: where
-habitat adds nothing over distance to known records, a map should not claim
-otherwise [PENDING E6b]. And because the grade is the contribution, an
+test the grade on records collected or validated after the maps were made,
+against distance to known records and not only against chance. In our
+hindcast a distance-only map placed 87% of later finds in its top half, so
+a bar at 50% cannot tell a habitat map from distance, and our weak maps,
+which clear it easily, did no better than distance. Where habitat adds
+nothing over distance, a map should not claim otherwise. And because the grade is the contribution, an
 atlas should report how many of its maps earn it, not only how many it
 draws.
 
@@ -695,6 +748,16 @@ Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
 different settings on different processors [PENDING E12: how often grades
 differ]. The maps can only be as good as where people collect and
 sequence.
+
+**Where habitat adds over distance.** Near known records, distance alone
+ranked later finds as well as a strong map or better; the strong maps'
+advantage came from finds 100 to 500 km away (Section 3.4). That is where a
+habitat model should help, since it can say that unvisited ground resembles
+occupied ground, and it is also where finds are fewest, which is why the
+gain at new places has an interval that reaches zero. A map's use near
+known records is therefore not prediction but description, of which
+nearby ground is suitable; its predictive value lies at a distance, inside
+the area of applicability.
 
 **The question asked of MycoMap Vision.** Used as a photo-identification
 model's place signal, the maps helped a little on their own but no more
@@ -1018,6 +1081,8 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.0 (2026-10-21).** E2 and E6b written up: Results 3.4, C2,
+  abstract, Methods 2.3 (tiers, the post-hoc distance bar) and 2.5 (kernel).
 - **0.16.5 (2026-10-19).** Models record published
   (doi:10.5281/zenodo.23463939); both data records cited.
 - **0.16.4 (2026-10-18).** First DOI: Zenodo layers published; hindcast
