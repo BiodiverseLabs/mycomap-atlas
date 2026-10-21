@@ -122,3 +122,35 @@ test_that("--limit takes only the shard's first taxa, for a smoke run", {
     expect_equal(asked, c("A", "B", "C"))
   })
 })
+
+test_that("--pull-from rebuilds from the named job's pull and layers, and the release's own without it", {
+  asked <- list()
+  local_mocked_bindings(
+    atlas_distance_fetch_layers = function(store, manifest, grid = "draft") { asked$layers <<- manifest$job; 0L },
+    atlas_tracker_release_pull = function(store, manifest, grid, cache = NULL) { asked$pull <<- manifest$job; data.frame() },
+    atlas_occurrence_points = function(...) data.frame(),
+    atlas_fingerprints_for = function(pull, taxa) stats::setNames(rep("f", length(taxa)), taxa),
+    atlas_distance_record = function(...) NULL,
+    atlas_run_study = function(sample, settings, ...) {
+      asked$settings <<- settings
+      list(taxa = lapply(sample$scientific_name, function(t) list(status = "scored")), path = tempfile())
+    },
+    atlas_distance_expected = function(view) list(A = 4L)
+  )
+  view <- list(grid = "draft", modelled = "A", manifest = list(job = "release-job"), cache = tempfile())
+  with_data_dir({
+    atlas_distance_study(NULL, "h1", view = view, quiet = TRUE)
+    expect_equal(asked$pull, "release-job")
+    expect_equal(asked$layers, "release-job")
+    atlas_distance_study(NULL, "h1", view = view, quiet = TRUE, pull_from = "fitting-job")
+    expect_equal(asked$pull, "fitting-job")
+    expect_equal(asked$layers, "fitting-job")
+    expect_equal(asked$settings$pull_from, "fitting-job")
+    expect_equal(asked$settings$pull_job, "fitting-job")
+  })
+  got <- NULL
+  local_mocked_bindings(atlas_distance_study = function(...) { got <<- list(...); invisible(list()) },
+                        atlas_flag_store = function(flags) NULL)
+  atlas_main(c("study-distance", "--release=r1", "--pull-from=job-1", "--shard=1/1"))
+  expect_equal(got$pull_from, "job-1")
+})

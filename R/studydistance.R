@@ -312,7 +312,7 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
                                  out = NULL, shard = "1/1", workers = 1L,
                                  bandwidths = ATLAS_DISTANCE_BANDWIDTHS_KM,
                                  plan_only = FALSE, quiet = FALSE, view = NULL, limit = Inf,
-                                 only_taxa = NULL) {
+                                 only_taxa = NULL, pull_from = NULL) {
   # A bad --out is refused before the store is read at all.
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   view <- view %||% atlas_tracker_view(store, release, grid)
@@ -339,15 +339,24 @@ atlas_distance_study <- function(store = atlas_store(), release, grid = "draft",
     return(invisible(plan))
   }
   out <- atlas_study_out(out, "distance-studies", grid, release, shard = shard)
-  # The kernels are drawn on the hindcast's own grid and layers: fetch them
-  # (a study job's worker starts with none), never over different ones.
-  atlas_distance_fetch_layers(store, view$manifest, grid)
-  pull <- atlas_tracker_release_pull(store, view$manifest, grid, view$cache)
+  # The training tables are rebuilt from the pull and layers of the job that
+  # made the release, or, with pull_from, of the named job: a release can hold
+  # models another job fitted on another pull. fa1b4198 names the pull the
+  # drop list cleaned on 2026-10-13, but most of its models were fitted on
+  # the pull before it; other taxa's records are a taxon's background, so its
+  # folds came out otherwise (E3's kernels, 2026-10-21). The strict check
+  # against the release's recorded folds is unchanged.
+  source <- if (is.null(pull_from)) view$manifest else list(id = as.character(pull_from), job = as.character(pull_from))
+  # The kernels are drawn on that job's grid and layers: fetch them (a study
+  # job's worker starts with none), never over different ones.
+  atlas_distance_fetch_layers(store, source, grid)
+  pull <- atlas_tracker_release_pull(store, source, grid, view$cache)
   points <- atlas_occurrence_points(pull, grid)
   fingerprints <- as.list(atlas_fingerprints_for(pull, taxa))
   records <- lapply(stats::setNames(taxa, taxa), function(taxon) atlas_distance_record(view, taxon))
   args <- list(grid = grid, out_dir = out$dir, bandwidths = bandwidths, records = records)
-  settings <- list(release = release, shard = shard, only_taxa = only_taxa, bandwidths_km = bandwidths,
+  settings <- list(release = release, shard = shard, only_taxa = only_taxa, pull_from = pull_from,
+                   pull_job = atlas_json_string(source$job), bandwidths_km = bandwidths,
                    kernel = "sum of Gaussians over detection survey sites, log units",
                    folds = "production design: full models, else small-model ensembles",
                    # For the write-up (method lane review): the kernel's own AUC
