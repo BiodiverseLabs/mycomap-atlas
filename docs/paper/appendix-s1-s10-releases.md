@@ -110,10 +110,13 @@ r7i ran with up to 32 threads per worker and both matched the release on
 all 507 models, so the thread count does not change a fit (plan-e12,
 implementation notes). [PENDING: the CPU kernel
 OpenBLAS selects, which the records do not yet name.]
-For releases after the frozen one, the recommendation is to record each
-taxon's block once and reuse it, which changes no released number and
-lets the frozen release refit identically on either family from its
-recorded blocks [PENDING: Steve's decision].
+For releases after the frozen one (decided 2026-10-21), each taxon's block
+is recorded once and reused for every learner, retry and refit, which
+changes no released number and lets the frozen release refit identically
+on either family from its recorded blocks; until that is in place,
+production fits run on r7i only. Each result will also record its BLAS
+build, thread setting and processor [PENDING: in place from the release
+that carries it].
 
 ## S10.1b The public API
 

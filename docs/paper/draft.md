@@ -1145,21 +1145,22 @@ revised (Path).
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
    release. The 0.1° cells question is settled too.
-7. **Reproducibility across processor families (Steve; PENDING):**
-   E12 found the spatial block to be the only cross-family effect (all 5
-   differences, 0 of 277 same-block models). The method lane recommends
-   (to Steve via the coordinator): record each taxon's block once and reuse
-   it, which changes no released number and lets the frozen release refit
-   identically on AMD from its recorded blocks; pin production to r7i until
-   that is merged; and do not force an OpenBLAS kernel (no evidence the
-   block goes through BLAS). Affects releases after the frozen one, and
-   how 2.6 and S10 state reproducibility.
+7. **Reproducibility across processor families: decided 2026-10-21
+   (Steve).** E12 found the spatial block to be the only cross-family
+   effect (all 5 differences, 0 of 277 same-block models; shown for the
+   507-model sample). Approved: (A) record each taxon's block once and
+   reuse it for every learner, retry and refit (method lane builds it; it
+   changes no released number); (B) pin production fits to r7i until (A)
+   is merged (operations lane applies it). Not adopted: forcing an OpenBLAS
+   kernel. Also approved: a machine record per result (BLAS build, threads,
+   processor; method lane), which fills S10's pending kernel note.
 
 ---
 
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.18.1 (2026-10-21).** Open decision 7 decided (Steve): block recorded once and reused; r7i pinned until then; no OpenBLAS kernel forcing; per-result machine record.
 - **0.18.0 (2026-10-21).** E12 complete (plan-e12 095a899): every
   cross-family difference comes with a changed spatial block, 0 of 277
   same-block models differ; Open decision 7 carries the method lane's
