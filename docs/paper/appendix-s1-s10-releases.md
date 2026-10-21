@@ -56,9 +56,20 @@ matched on 507 of 507. A second machine effect: the spatial block, the blockCV
 variogram range rounded to 5 km (full models only; ensembles use a fixed
 100 km block), can depend on the processor family: of
 the 1,144 hindcast taxa whose Maxent was fitted on r7a, 35 had another
-block when rebuilt on r7i, by 5 to 240 km, and so other folds. How often grades differ
-across families is arm b, on r7a, split into changes with and without a
-change of block [PENDING E12 arm b]. Our refit checks enforce the tolerances
+block when rebuilt on r7i, by 5 to 240 km, and so other folds. Across processor families
+(arm b, one AMD r7a.8xlarge against a1 on Intel r7i), 502 of 507 refits
+were identical and 505 kept their grade (raw rates 99.0% and 99.6%, before
+the plan's cell weighting). Every ensemble (225) and boosted-trees model
+(40) was identical; Maxent 127 of 128 and random forests 110 of 114. The
+five that differed are full models at 20 to 49 sites, all with the same
+records: one Maxent model went from failed to weak with other settings,
+three random forests stayed weak with other settings, and one random
+forest went from weak to strong with the same settings and map but other
+tuning and fold scores. All five are taxa whose spatial block differed
+between families in the hindcast (E6b), so the block is the likely cause;
+whether each one's block differed on the frozen records is what the
+block-only step shows [PENDING E12 block step; cell-weighted rates and κ
+follow it]. Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
@@ -74,8 +85,9 @@ Each shard's record names its instance type,
 processor and BLAS library file, and since the hindcast each model's
 record does too. [PENDING: the BLAS build, thread setting and kernel, which
 the records do not yet name.]
-[PENDING E12 arm b: grade agreement, setting flips and map tolerance across
-families; a recommendation on pinning the family for releases.]
+[PENDING: after the block step, a recommendation for releases: measure each
+taxon's block once and reuse it, and/or pin the processor family or one
+OpenBLAS kernel (Steve's decision).]
 
 ## S10.2 Cost and time
 

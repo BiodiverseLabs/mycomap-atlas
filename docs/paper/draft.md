@@ -399,11 +399,14 @@ so a small-model ensemble fitted after a Maxent model in the same worker
 inherited Maxent's. Production fits each learner in its own pool of
 workers, so by construction no released map is affected, which the
 surviving shard logs and a first rerun matching the release confirm; each
-fit now sets its own. Across processor families,
-some tuned Maxent models choose other settings, and the spatial block,
-estimated from a variogram, can differ for some taxa [PENDING E12 arm b:
-how often grades differ across families] (Appendix S1: Section S10, which
-also gives the cost and time of every run).
+fit now sets its own. On the other processor family, 502 of the 507
+refits were identical and 505 kept their grade (one failed → weak, one
+weak → strong); every ensemble and boosted-trees model was identical, and
+the five that differed are Maxent and random-forest models at 20 to 49
+sites, all of taxa whose spatial block, estimated from a variogram,
+differed between families in the hindcast [PENDING E12 block step:
+whether the block explains them] (Appendix S1: Section S10, which also
+gives the cost and time of every run).
 
 ### 2.7 Pre-declared question: a place signal for photo identification
 
@@ -773,9 +776,8 @@ place's centre; about 11% of eligible Mushroom Observer records (880 of
 8,003) were placed that way in the frozen pull. Fetching their Mushroom
 Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
 (Appendix S1: Section S2). Fits are deterministic within a processor family
-but not across families: some tuned Maxent models choose other settings,
-and some taxa's spatial blocks differ, by up to 240 km [PENDING E12 arm b:
-the share of grades that change]. The maps can only be as good as where people collect and
+but not quite across families: 2 of 507 refits changed grade on the other
+family, and some taxa's spatial blocks differ, by up to 240 km. The maps can only be as good as where people collect and
 sequence.
 
 **Where habitat adds over distance.** Near known records, distance alone
@@ -950,7 +952,7 @@ data, command, result, release, commit).
 | E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. 230–300 CPU-h ($12–15), from the cost pilot (`2026-10-13-e6a-cost-pilot.md`) | P1 |
 | E6b | **Done 2026-10-21** (study-20261020T232528Z-05216058): H6b holds, +0.0435 [0.0147, 0.0755], top-half share only; new places [0, 0.0996] not; moderate and indicative do not beat the kernel; advantage from 100–500 km finds (Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
-| E12 | **Running**: gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected by construction (separate worker pools per learner; surviving shard logs; a1 = release on 507/507); the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a, on-demand) running, then the block-only step. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
+| E12 | **Running**: gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected by construction (separate worker pools per learner; surviving shard logs; a1 = release on 507/507); the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a) done 2026-10-21: 502/507 identical, 505/507 same grade (one failed → weak, one weak → strong), the 5 that differ all full models at 20–49 sites among E6b's 35 block-flip taxa; the block-only step (code in review, Steve's go) decides the attribution. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
 | E17 | ODMAP protocol (`docs/paper/appendix-s1-odmap.md`) | all | **Draft 2026-10-13**; final check against the frozen release | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
@@ -1062,7 +1064,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
 | 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
 | 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
-| 9 | **E12** reproducibility rerun (**running**: a1 and a2 = release 507/507, glmnet leak fixed 5b58f30, arm b on r7a under way); E16 descriptives; E17 ODMAP | the frozen release; per-model machine records (feat/result-machine c099bc7, awaiting Steve's review; best merged before the hindcast so every paper job records which processor fitted each model) | December 2026 |
+| 9 | **E12** reproducibility rerun (**running**: a1 and a2 = release 507/507, glmnet leak fixed 5b58f30, arm b on r7a done, 505/507 same grade; block-only step next, Steve's go); E16 descriptives; E17 ODMAP | the frozen release; per-model machine records (feat/result-machine c099bc7, awaiting Steve's review; best merged before the hindcast so every paper job records which processor fitted each model) | December 2026 |
 | 10 | Q1 arms (E21, E22) | Vision side, after E2 | November 2026 |
 | 11 | P2 items as time allows: E4 full, E6c, E7, E8, E10, E11, E15 | each its own go | December 2026 – January 2027 |
 | 12 | **Submission**, once E1, E2, E6a/b, E9, E12, E16 and E17 are done, with whatever E3 has accumulated; more E3 added at revision | Steve | **aim January 2027** |
@@ -1122,6 +1124,9 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.2 (2026-10-21).** E12 arm b: 502/507 identical and 505/507 same
+  grade across processor families (2.6, S10, Limitations); attribution to
+  the block pending the block-only step.
 - **0.17.1 (2026-10-21).** grade_tiers written up (3.3, C4, abstract,
   Discussion): 9,041 models of 6,369 taxa, 576 strong of 470 taxa; none
   strong at 100+ sites. The earlier 9,042 was R_main's fitted count
