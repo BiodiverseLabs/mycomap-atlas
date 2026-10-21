@@ -195,5 +195,7 @@ are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
   removed row is not in it, and a record renamed by a sequence flag
   carries only its final name), so each rule's count is reported as the
   pull records it, over all its records: the drop list's removed rows,
-  the Mushroom Observer rules' counts, and the naming audit. The test set,
+  the Mushroom Observer rules' counts, and the naming audit. Counts among
+  the test finds alone would need a change to the pull, which is not
+  planned. The test set,
   hypotheses and scores are unchanged.
