@@ -226,6 +226,11 @@ read by any of these jobs.
   de79392e…, equal to the file's), one r7i.4xlarge (spot): the 690 rebuilt
   from R_main's pull, the one most of the release's models were fitted on.
   Steve confirmed it directly with the operations lane.
+  - It left no result: its spot worker was reclaimed four times, the last
+    at 17:10 UTC with 648 of the 690 done, and a study shard keeps nothing
+    until it reports. Nothing from it is used.
+  - **Rerun:** study-20261021T185333Z-a972d74e, the same image, arguments
+    and taxa list, on one r7i.4xlarge on-demand (Steve), launched 18:53 UTC.
 
 ## Deviations
 
