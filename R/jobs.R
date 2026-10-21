@@ -489,7 +489,10 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   # Which machine fits this attempt's models. The shard's record names the
   # last attempt's machine only; a model saved by an earlier attempt, before
   # its worker was reclaimed, keeps the one that fitted it.
-  here <- atlas_machine_info()
+  # With workers, the fits run in worker processes started with one BLAS
+  # thread each (ATLAS_WORKER_ENV); with one, in this process, as it is.
+  here <- atlas_machine_info(blas_threads = if (as.integer(workers) > 1L) ATLAS_WORKER_ENV[["OPENBLAS_NUM_THREADS"]] else
+    Sys.getenv("OPENBLAS_NUM_THREADS", unset = ""))
 
   # A full-view refresh gives each shard the inputs of the job that fitted
   # its models (R/fullrefresh.R).
@@ -550,7 +553,7 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
     last_save <<- Sys.time()
     if (isTRUE(progress)) {
       atlas_store_json(store, atlas_shard_key(id, shard, grid, progress = TRUE), list(
-        job = id, shard = shard, machine = atlas_machine_info(),
+        job = id, shard = shard, machine = here,
         saved_at = format(last_save, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
         results = results, files = files, index = index
       ))
@@ -619,7 +622,7 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
     job = id, shard = shard,
     # Which machine fitted it: floating point's last bits depend on the
     # processor's matrix kernels (R/fullrefresh.R).
-    machine = atlas_machine_info(),
+    machine = here,
     started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     counts = as.list(statuses),
@@ -636,17 +639,54 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
 
 #' What machine this is, for a shard's record: the EC2 instance type (the
 #' worker script passes it in), the processor and the BLAS library.
-atlas_machine_info <- function() {
-  cpu <- if (file.exists("/proc/cpuinfo")) {
-    line <- grep("^model name", readLines("/proc/cpuinfo", warn = FALSE), value = TRUE)
+#'
+#' Also the BLAS build behind R's matrix arithmetic and how many threads it
+#' runs (blas_threads: the value set for the processes that fit, "default"
+#' when none is, meaning one per core), the cores, and the processor's vector
+#' extensions, which decide the kernels OpenBLAS picks: fits are bit-identical
+#' within a processor family and can differ across families (E12,
+#' 2026-10-21). blas_threads is ATLAS_WORKER_ENV's for a shard's fits, whose
+#' worker processes start with it (R/batch.R).
+atlas_machine_info <- function(blas_threads = Sys.getenv("OPENBLAS_NUM_THREADS", unset = "")) {
+  cpuinfo <- if (file.exists("/proc/cpuinfo")) readLines("/proc/cpuinfo", warn = FALSE) else character()
+  cpu <- {
+    line <- grep("^model name", cpuinfo, value = TRUE)
     if (length(line)) trimws(sub("^[^:]*:", "", line[[1]]))
   }
   blas <- tryCatch(basename(as.character(extSoftVersion()[["BLAS"]])), error = function(e) NULL)
-  Filter(Negate(is.null), list(
-    instance_type = if (nzchar(Sys.getenv("ATLAS_INSTANCE_TYPE", unset = ""))) Sys.getenv("ATLAS_INSTANCE_TYPE"),
-    cpu = cpu,
-    blas = if (length(blas) && nzchar(blas)) blas
+  Filter(Negate(is.null), c(
+    list(
+      instance_type = if (nzchar(Sys.getenv("ATLAS_INSTANCE_TYPE", unset = ""))) Sys.getenv("ATLAS_INSTANCE_TYPE"),
+      cpu = cpu,
+      blas = if (length(blas) && nzchar(blas)) blas
+    ),
+    atlas_blas_build(tryCatch(La_library(), error = function(e) "")),
+    list(
+      blas_threads = if (length(blas_threads) && nzchar(blas_threads)) as.character(blas_threads) else "default",
+      cores = tryCatch(as.integer(parallel::detectCores()), error = function(e) NULL),
+      vector_extensions = atlas_vector_extensions(cpuinfo)
+    )
   ))
+}
+
+#' The BLAS build and version, read from the LAPACK library R loaded:
+#' Debian's OpenBLAS lives at .../openblas-pthread/libopenblasp-r0.3.26.so.
+#' Empty for any other library.
+atlas_blas_build <- function(lapack) {
+  lapack <- as.character(lapack %||% "")
+  if (!length(lapack) || !nzchar(lapack[[1]]) || !grepl("openblas", lapack[[1]], ignore.case = TRUE)) return(list())
+  version <- regmatches(lapack[[1]], regexpr("(?<=-r)[0-9]+([.][0-9]+)*", lapack[[1]], perl = TRUE))
+  list(blas_build = basename(dirname(lapack[[1]])), blas_version = if (length(version)) version)
+}
+
+#' Which of the vector extensions that pick OpenBLAS's kernels the processor
+#' has, from /proc/cpuinfo's flags: a comma list, or NULL when unknown.
+atlas_vector_extensions <- function(cpuinfo) {
+  line <- grep("^flags", cpuinfo, value = TRUE)
+  if (!length(line)) return(NULL)
+  flags <- strsplit(trimws(sub("^[^:]*:", "", line[[1]])), "[[:space:]]+")[[1]]
+  have <- intersect(c("sse4_2", "avx", "avx2", "fma", "avx512f", "avx512bw", "avx512vl", "avx512_bf16", "amx_bf16"), flags)
+  if (length(have)) paste(have, collapse = ",")
 }
 
 #' How many of a shard's tasks its saved progress holds: the orchestrator
