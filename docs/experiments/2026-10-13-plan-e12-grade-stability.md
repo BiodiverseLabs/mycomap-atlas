@@ -380,6 +380,21 @@ waits for all three arms and the block-only step.
   - In one machine family the fits are deterministic (a1 = a2 = the
     release, 507 of 507, once the ensembles' glmnet settings were fixed).
     Across families, the one difference found is the variogram block.
+- **Decision (Steve, 2026-10-21), after the reading.** For releases after
+  the frozen one:
+  - (A) each taxon's spatial block is measured once and recorded, and every
+    learner, retry, shard and refit of that taxon on the same records reuses
+    the recorded block (a refit of a released model takes the block its
+    metrics hold). Built and reviewed as its own Atlas branch;
+  - (B) until (A) is merged, production fits run on r7i only;
+  - not forcing an OpenBLAS kernel: nothing shows the block's difference
+    goes through BLAS.
+  - The basis is this reading, shown for the 507-model sample: across
+    families the only difference found is the block. Gate 2's refresh
+    flips fit the same mechanism (*Stropharia hardii* is in both), but not
+    all of their taxa are in the sample, so "the block is the only
+    cross-family effect" is not shown for every taxon. The frozen release is
+    unchanged by either step.
 
 ## Deviations
 
