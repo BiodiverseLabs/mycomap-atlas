@@ -138,7 +138,10 @@ test_that("a read-out scores the published release's own maps and writes no reco
     list(maxnet = list(layers = layers, grade = "strong", tier = "strong", learner = "maxnet", kind = "model"))
   })
   fresh <- list(pull = w$fresh, manifest = list(file = "occurrences-x.tsv.gz", pulled_at = "2026-12-15T05:00:00Z",
-                                                records = nrow(w$fresh), since = NA),
+                                                records = nrow(w$fresh), since = NA,
+                                                exclusions = list(hash = "abc", removed = 22L),
+                                                mo_left_out = list(location_box = 5L),
+                                                names = list(rule = "dna", by_status = list(dna = 70L, record = 10L))),
                 changes = list(cursor = 8, changes = w$changes))
   with_data_dir({
     result <- atlas_e3_study(store = NULL, release = "r1", from = "2026-10-14", until = "2026-12-15", reps = 50,
@@ -148,6 +151,10 @@ test_that("a read-out scores the published release's own maps and writes no reco
     expect_false(is.null(result$e3$H3a$estimate))
     expect_equal(result$e3$H3c$why, "no kernels given")
     expect_equal(result$settings$fresh_pull$name_change_cursor, 8)
+    # Each pull rule's own count, as the pull recorded it.
+    expect_equal(result$settings$fresh_pull$exclusions$removed, 22L)
+    expect_equal(result$settings$fresh_pull$mo_left_out$location_box, 5L)
+    expect_equal(result$settings$fresh_pull$names$by_status$dna, 70L)
     expect_equal(result$settings$release_pulled_at, "2026-10-12T05:10:17Z")
     text <- paste(readLines(result$path, warn = FALSE), collapse = "\n")
     expect_false(grepl("iNaturalist:|inat:", text))

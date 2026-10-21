@@ -262,10 +262,14 @@ atlas_e3_study <- function(store = atlas_store(), release, from, until, finds_pu
     until = as.character(until), grid = grid, reps = as.integer(reps), seed = as.integer(seed),
     counts_only = isTRUE(counts_only), kernels_from = if (!is.null(kernels_from)) as.list(kernels_from),
     image_commit = Sys.getenv("ATLAS_COMMIT", unset = NA),
+    # Each pull rule's own count, as the pull recorded it (the pre-registration
+    # asks for them): the drop list's hash and removed rows, the Mushroom
+    # Observer records left out and why, and how the pull named its records
+    # (by DNA, by record name, and the sequences its flags set aside).
     fresh_pull = list(file = manifest$file %||% NA, pulled_at = manifest$pulled_at %||% NA,
                       records = manifest$records %||% NA, exclusions = manifest$exclusions,
-                      mo_left_out = manifest$mo_left_out, name_change_cursor = fresh$changes$cursor %||% NA,
-                      staged_at = finds_pull)
+                      mo_left_out = manifest$mo_left_out, names = manifest$names,
+                      name_change_cursor = fresh$changes$cursor %||% NA, staged_at = finds_pull)
   )
   finds <- list(test_finds = split$test_finds, kept_apart = split$kept_apart, names_undone = split$names_undone,
                 places = nrow(places), off_grid_places = attr(places, "off_grid") %||% 0L)
