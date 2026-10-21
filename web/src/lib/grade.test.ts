@@ -29,7 +29,10 @@ test("weak and failed maps are faint, and never told they have no habitat signal
   assert.equal(isFaint("untested"), false);
   assert.equal(isFaint("weak"), true);
   assert.equal(isFaint("failed"), true);
-  assert.match(gradeNote("weak") ?? "", /^Skill on held-out ground, but not shown to beat clustered collecting/);
+  assert.match(gradeNote("weak") ?? "", /^Skill on held-out ground, but not shown to beat clustered collecting\./);
+  // What later finds showed (E6b), and still read as a hint.
+  assert.match(gradeNote("weak") ?? "", /no better than distance to the taxon's known records/);
+  assert.match(gradeNote("weak") ?? "", /read this map as a hint, not a finding\.$/);
   assert.match(gradeNote("failed") ?? "", /^No better than chance on held-out ground/);
   assert.equal(gradeNote("strong"), null);
   for (const g of ["strong", "weak", "failed", "untested"] as const) {

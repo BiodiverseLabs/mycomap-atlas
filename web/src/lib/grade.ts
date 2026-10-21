@@ -45,7 +45,10 @@ export function isFaint(grade: Grade): boolean {
 /** The line laid over a faint map, or null for one that is not. */
 export function gradeNote(grade: Grade): string | null {
   if (grade === "weak") {
-    return "Skill on held-out ground, but not shown to beat clustered collecting: read this map as a hint, not a finding.";
+    // The middle sentence is what E6b measured on later finds (2026-10-20):
+    // weak maps ranked them no better than a map of distance to the taxon's
+    // known records did.
+    return "Skill on held-out ground, but not shown to beat clustered collecting. On records found after the maps were made, maps graded like this ranked those finds no better than distance to the taxon's known records did: read this map as a hint, not a finding.";
   }
   if (grade === "failed") return "No better than chance on held-out ground: this map says little about habitat.";
   return null;
