@@ -4,22 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <title>MycoMap Atlas</title>
+    <title>MycoMap Atlas: habitat maps for North America's fungi</title>
     <!-- The defaults. Each page sets its own while it is shown
          (src/lib/pageMeta.ts, whose test checks these agree with it); link
-         previews, which run no script, see these. -->
-    <meta name="description" content="Species distribution models for fungi, built from DNA-validated MycoMap records." />
+         previews, which run no script, see these. A species page's preview
+         comes from the API instead (R/card.R; tests/testthat/test-card.R
+         checks it says the same as this). The card is public/og-card.png,
+         1200 x 630, drawn by tools/site-card.R. -->
+    <meta name="description" content="Where North America's fungi are likely to find habitat, modelled only from DNA-validated MycoMap records and environmental layers. Open to use and check." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="MycoMap Atlas" />
-    <meta property="og:title" content="MycoMap Atlas" />
-    <meta property="og:description" content="Species distribution models for fungi, built from DNA-validated MycoMap records." />
+    <meta property="og:title" content="MycoMap Atlas: habitat maps for North America's fungi" />
+    <meta property="og:description" content="Where North America's fungi are likely to find habitat, modelled only from DNA-validated MycoMap records and environmental layers. Open to use and check." />
     <meta property="og:url" content="https://atlas.mycomap.org/" />
-    <meta property="og:image" content="https://atlas.mycomap.org/mycomap-logo.png" />
-    <meta property="og:image:alt" content="The MycoMap logo" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="MycoMap Atlas" />
-    <meta name="twitter:description" content="Species distribution models for fungi, built from DNA-validated MycoMap records." />
-    <meta name="twitter:image" content="https://atlas.mycomap.org/mycomap-logo.png" />
+    <meta property="og:image" content="https://atlas.mycomap.org/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MycoMap Atlas: habitat maps for North America's fungi, beside a habitat map of Trametes ochracea" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MycoMap Atlas: habitat maps for North America's fungi" />
+    <meta name="twitter:description" content="Where North America's fungi are likely to find habitat, modelled only from DNA-validated MycoMap records and environmental layers. Open to use and check." />
+    <meta name="twitter:image" content="https://atlas.mycomap.org/og-card.png" />
+    <meta name="twitter:image:alt" content="MycoMap Atlas: habitat maps for North America's fungi, beside a habitat map of Trametes ochracea" />
   </head>
   <body>
     <div id="root"></div>

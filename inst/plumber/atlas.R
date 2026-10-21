@@ -648,6 +648,41 @@ function(name, algorithm = "", width = "1200", points = "1", res) {
   res
 }
 
+#* A taxon's link-preview card: 1200 x 630, its name and its map, for
+#* Facebook, X, iMessage and Slack. Drawn when its release was finished,
+#* never here: 404 when it has no map, or no card yet for the map it has now.
+#* @get /api/taxa/<name>/card.jpg
+function(name, res) {
+  path <- atlas_card_for(atlas_decode_name(name))
+  if (is.null(path)) {
+    return(atlas_json_error(res, 404L, "no card for this taxon: no map to show, or its card is not drawn yet"))
+  }
+  res$status <- 200L
+  res$setHeader("Content-Type", "image/jpeg")
+  res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
+  res$body <- readBin(path, "raw", file.info(path)$size)
+  res
+}
+
+#* A species page as a link preview reads it: the page's own title,
+#* description and card. nginx sends link-preview robots here from
+#* /taxa/<name> (deploy/lightsail/nginx/atlas.conf); everyone else gets the
+#* app. Outside /api: a page, not part of the API.
+#* @get /share/taxa/<name>
+function(name, res) {
+  if (is.null(cache$renames_read)) {
+    cache$renames <- atlas_read_renames()
+    cache$renames_read <- TRUE
+  }
+  share <- atlas_taxon_share(atlas_decode_name(name), cached_taxa(), cache$renames, site_origin)
+  res$status <- share$status
+  res$setHeader("Content-Type", "text/html; charset=utf-8")
+  res$setHeader("Cache-Control", if (share$status == 200L) "public, max-age=3600" else "no-store")
+  res$setHeader("X-Content-Type-Options", "nosniff")
+  res$body <- atlas_share_html(share)
+  res
+}
+
 #* Where a taxon has been collected, aggregated to the public grid.
 #* @get /api/taxa/<name>/cells
 #* @serializer unboxedJSON

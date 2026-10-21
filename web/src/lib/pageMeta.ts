@@ -4,8 +4,12 @@
 // not run the app (pageMeta.test.ts checks the two agree).
 
 export const SITE_NAME = "MycoMap Atlas";
+// The home page's title, and the site's link preview (Steve chose these words,
+// 2026-10-20). R/card.R carries the same for a species page's preview.
+export const SITE_TITLE = "MycoMap Atlas: habitat maps for North America's fungi";
 export const SITE_DESCRIPTION =
-  "Species distribution models for fungi, built from DNA-validated MycoMap records.";
+  "Where North America's fungi are likely to find habitat, modelled only from " +
+  "DNA-validated MycoMap records and environmental layers. Open to use and check.";
 
 // Search results show about this many characters of a description.
 export const DESCRIPTION_MAX = 160;
@@ -26,10 +30,10 @@ export interface MetaTag {
   content: string | null;
 }
 
-/** "Maps · MycoMap Atlas"; the site's name alone for the home page. */
+/** "Maps · MycoMap Atlas"; the site's own title for the home page. */
 export function documentTitle(title?: string): string {
   const own = (title ?? "").replace(/\s+/g, " ").trim();
-  return own && own !== SITE_NAME ? `${own} · ${SITE_NAME}` : SITE_NAME;
+  return own && own !== SITE_NAME && own !== SITE_TITLE ? `${own} · ${SITE_NAME}` : SITE_TITLE;
 }
 
 /** On one line, and cut at a word to fit a search result. */

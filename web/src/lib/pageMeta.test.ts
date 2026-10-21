@@ -6,6 +6,7 @@ import {
   DESCRIPTION_MAX,
   SITE_DESCRIPTION,
   SITE_NAME,
+  SITE_TITLE,
   documentTitle,
   metaDescription,
   metaTags,
@@ -18,10 +19,17 @@ test("a page's title names the page first, then the site", () => {
   assert.equal(documentTitle("  What could   grow here? "), "What could grow here? · MycoMap Atlas");
 });
 
-test("the home page's title is the site's name alone, never doubled", () => {
-  assert.equal(documentTitle(), SITE_NAME);
-  assert.equal(documentTitle(""), SITE_NAME);
-  assert.equal(documentTitle(SITE_NAME), SITE_NAME);
+test("the home page's title is the site's own, never doubled", () => {
+  assert.equal(documentTitle(), SITE_TITLE);
+  assert.equal(documentTitle(""), SITE_TITLE);
+  assert.equal(documentTitle(SITE_NAME), SITE_TITLE);
+  assert.equal(documentTitle(SITE_TITLE), SITE_TITLE);
+  assert.ok(SITE_TITLE.startsWith(SITE_NAME), "the site's title starts with its name");
+});
+
+test("the site's description fits a search result and a link preview whole", () => {
+  assert.ok(SITE_DESCRIPTION.length <= DESCRIPTION_MAX, `${SITE_DESCRIPTION.length} characters`);
+  assert.equal(metaDescription(SITE_DESCRIPTION), SITE_DESCRIPTION);
 });
 
 test("a page with no description of its own gets the site's", () => {
@@ -77,7 +85,7 @@ test("index.html, which crawlers that run no script read, carries the same defau
   const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8").replace(/\s+/g, " ");
   const content = (attr: string, key: string) =>
     html.match(new RegExp(`<meta ${attr}="${key}" content="([^"]*)"`))?.[1];
-  assert.equal(html.match(/<title>([^<]*)<\/title>/)?.[1], SITE_NAME);
+  assert.equal(html.match(/<title>([^<]*)<\/title>/)?.[1], SITE_TITLE);
   for (const [attr, key] of [
     ["name", "description"],
     ["property", "og:description"],
@@ -85,7 +93,32 @@ test("index.html, which crawlers that run no script read, carries the same defau
   ]) {
     assert.equal(content(attr, key), SITE_DESCRIPTION, key);
   }
-  assert.equal(content("property", "og:title"), SITE_NAME);
-  assert.equal(content("name", "twitter:title"), SITE_NAME);
+  assert.equal(content("property", "og:title"), SITE_TITLE);
+  assert.equal(content("name", "twitter:title"), SITE_TITLE);
+  assert.equal(content("property", "og:site_name"), SITE_NAME);
   assert.equal(content("name", "robots"), undefined, "the shell itself must never be noindex");
+});
+
+// A PNG's width and height, from its header.
+function pngSize(path: URL): [number, number] {
+  const bytes = readFileSync(path);
+  assert.equal(bytes.subarray(1, 4).toString("latin1"), "PNG");
+  return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
+}
+
+test("link previews get a large card: an absolute https picture, 1200 by 630, that exists", () => {
+  const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8").replace(/\s+/g, " ");
+  const content = (attr: string, key: string) =>
+    html.match(new RegExp(`<meta ${attr}="${key}" content="([^"]*)"`))?.[1];
+  assert.equal(content("name", "twitter:card"), "summary_large_image");
+  assert.equal(content("property", "og:type"), "website");
+  assert.equal(content("property", "og:url"), "https://atlas.mycomap.org/");
+  const image = content("property", "og:image") ?? "";
+  assert.match(image, /^https:\/\/atlas\.mycomap\.org\/[^?#]+\.png$/);
+  assert.equal(content("name", "twitter:image"), image);
+  assert.equal(content("property", "og:image:width"), "1200");
+  assert.equal(content("property", "og:image:height"), "630");
+  assert.ok((content("property", "og:image:alt") ?? "").length > 20, "the card is described");
+  const file = new URL(`../../public${new URL(image).pathname}`, import.meta.url);
+  assert.deepEqual(pngSize(file), [1200, 630]);
 });
