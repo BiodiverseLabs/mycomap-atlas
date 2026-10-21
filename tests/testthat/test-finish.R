@@ -46,14 +46,18 @@ test_that("a release no worker has finished is not finished", {
   expect_false(atlas_release_finished(list(finished = list(version = ATLAS_FINISH_VERSION - 1L))))
 })
 
-test_that("a finishing worker counts the maps, builds the index and prior, and reports only what changed", {
+test_that("a finishing worker counts the maps, builds the index, prior and cards, and reports only what changed", {
   skip_if_not_installed("terra")
   setup <- published()
   record <- on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
   paths <- vapply(record$files, `[[`, "", "path")
   prior <- paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json", "models.tsv", "aoa.tsv.gz",
                                     if (requireNamespace("nanoparquet", quietly = TRUE)) c("ranks.parquet", "aoa.parquet")))
-  expect_setequal(paths, c("index/draft/here.rds", "models/draft/taxon-a.json", prior))
+  # And the link-preview card of its one strong map, named for that map.
+  cards <- grep("^models/draft/cards/", paths, value = TRUE)
+  expect_length(cards, 1L)
+  expect_match(cards, "^models/draft/cards/taxon-a-[0-9a-f]{12}[.]jpg$")
+  expect_setequal(setdiff(paths, cards), c("index/draft/here.rds", "models/draft/taxon-a.json", prior))
   expect_equal(record$counted, 1L)
   expect_equal(record$release, setup$release$id)
   # Uploaded: the box needs only the record and the objects it names.

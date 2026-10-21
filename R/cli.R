@@ -84,6 +84,9 @@ atlas_usage <- function() {
   message("  redraw-maps        redraw every map's PNG from its stored raster")
   message("  count-regions      count every stored map by state, for the likely-in lists")
   message("  finish-release     on a worker: count, index and report one release (R/finish.R)")
+  message("  finish-current     on the box: finish the current release on EC2 if it is not finished")
+  message("                     under the current rule, as the nightly job does, and nothing else")
+  message("  build-cards        draw the link-preview card of every taxon with a map (R/card.R)")
   message("      --workers=N               maps at once (default 1)")
   message("  build-here-index   index every map by 20 km cell, for \"what could grow here\"")
   message("      --cell-km=N               cell size (default 20)")
@@ -573,6 +576,17 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         only_missing = isTRUE(flags$only_missing)
       )
+      invisible(0L)
+    },
+    "finish-current" = {
+      store <- atlas_flag_store(flags)
+      finished <- atlas_finish_on_ec2(store, atlas_flag_grid(flags))
+      message(if (is.null(finished)) "the current release is already finished under the current rule" else
+                paste("finished release", finished$id))
+      invisible(0L)
+    },
+    "build-cards" = {
+      atlas_build_cards(grid = atlas_flag_grid(flags))
       invisible(0L)
     },
     "finish-release" = {

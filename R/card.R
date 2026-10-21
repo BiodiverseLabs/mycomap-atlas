@@ -18,6 +18,7 @@ ATLAS_CARD_WIDTH <- 1200L
 ATLAS_CARD_HEIGHT <- 630L
 # Where the panel ends and the map begins, as a share of the width.
 ATLAS_CARD_SPLIT <- 0.42
+ATLAS_CARD_JPEG_QUALITY <- 88L
 ATLAS_CARD_COLOURS <- list(
   panel = "#f6f3ec", ink = "#4a3728", soft = "#7a6a5a", green = "#6f9a2a",
   sea = "#dce8ef", land = "#fbf9f4", rule = "#d8d0c4"
@@ -171,8 +172,15 @@ atlas_write_card_image <- function(path, title, italic = FALSE, lines = characte
   corners <- atlas_mercator_xy(c(view$west, view$east), c(view$south, view$north), lon_0)
 
   type <- if (isTRUE(capabilities("cairo"))) "cairo" else getOption("bitmapType")
-  grDevices::png(path, width = ATLAS_CARD_WIDTH, height = ATLAS_CARD_HEIGHT, res = 144,
-                 type = type, bg = k$panel)
+  # A species card is a JPEG, a third the size of the PNG and as good at
+  # 1200 x 630; the site card stays a PNG.
+  if (grepl("[.]jpe?g$", path, ignore.case = TRUE)) {
+    grDevices::jpeg(path, width = ATLAS_CARD_WIDTH, height = ATLAS_CARD_HEIGHT, res = 144,
+                    quality = ATLAS_CARD_JPEG_QUALITY, type = type, bg = k$panel)
+  } else {
+    grDevices::png(path, width = ATLAS_CARD_WIDTH, height = ATLAS_CARD_HEIGHT, res = 144,
+                   type = type, bg = k$panel)
+  }
   on.exit(grDevices::dev.off(), add = TRUE)
   # The API is one long-lived R process: hand back what the drawing used.
   on.exit(invisible(gc()), add = TRUE)
@@ -262,6 +270,68 @@ atlas_write_card_image <- function(path, title, italic = FALSE, lines = characte
   invisible(path)
 }
 
+# ---- cards drawn when a release is finished ---------------------------------
+# The API never draws a card (Steve, 2026-10-20): it is one R process in a
+# 900 MB container, and a burst of first scrapes must never be what kills
+# it. Each taxon with a map to show gets its card when its release is
+# finished (R/finish.R, on an EC2 worker), as a release file the box pulls.
+# The API only serves the file. A card is named for the map it shows, by
+# the map PNG's md5, so a card drawn from an older map is never served for
+# a newer one: until finishing draws the new one, the page shows the site's
+# card instead.
+
+#' Where a release's cards are kept.
+atlas_card_dir <- function(grid = "draft") atlas_path("models", grid, "cards")
+
+#' The card of a taxon's map: its slug and the first 12 hex digits of the
+#' map PNG's md5.
+atlas_card_file <- function(name, map_png, grid = "draft") {
+  slug <- basename(atlas_model_path(name, grid, "", "maxnet"))
+  file.path(atlas_card_dir(grid), sprintf("%s-%s.jpg", slug, substr(unname(tools::md5sum(map_png)), 1, 12)))
+}
+
+#' The card to serve for a taxon now, or NULL: none when it has no map to
+#' show, or when its card has not been drawn for the map it has now.
+atlas_card_for <- function(name, grid = "draft", choice = atlas_best_choice(name, grid)) {
+  if (is.null(choice)) return(NULL)
+  path <- atlas_card_file(name, choice$png, grid)
+  if (file.exists(path)) path else NULL
+}
+
+#' Draw the card of every taxon with a map to show, and remove the cards of
+#' maps no longer shown. A card already drawn for the same map is kept.
+#' Returns the taxa drawn, kept and removed, and how long it took.
+atlas_build_cards <- function(grid = "draft", quiet = FALSE, taxa = NULL,
+                              draw = atlas_write_card_image) {
+  say <- function(...) if (!isTRUE(quiet)) message(...)
+  started <- Sys.time()
+  dir <- atlas_card_dir(grid)
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  counts <- atlas_path("occurrences", "taxa-latest.json")
+  counts <- if (file.exists(counts)) jsonlite::fromJSON(counts, simplifyVector = TRUE) else NULL
+  names <- taxa %||% sort(unique(atlas_model_index(grid)$taxon))
+  wanted <- character()
+  drawn <- 0L
+  for (name in names) {
+    choice <- atlas_best_choice(name, grid)
+    if (is.null(choice)) next
+    path <- atlas_card_file(name, choice$png, grid)
+    wanted <- c(wanted, path)
+    if (file.exists(path)) next
+    records <- if (is.data.frame(counts)) counts$records[match(name, counts$scientific_name)] else NA
+    draw(path, name, italic = TRUE, lines = atlas_card_line(records),
+         metrics = list(bounds = choice$bounds, grade = choice$grade), overlay = choice$png)
+    drawn <- drawn + 1L
+  }
+  stale <- setdiff(normalizePath(list.files(dir, pattern = "[.]jpg$", full.names = TRUE), winslash = "/"),
+                   normalizePath(wanted, winslash = "/", mustWork = FALSE))
+  unlink(stale)
+  seconds <- as.numeric(difftime(Sys.time(), started, units = "secs"))
+  say("cards: ", drawn, " drawn, ", length(wanted) - drawn, " kept, ", length(stale), " removed, in ",
+      round(seconds), " s")
+  invisible(list(drawn = drawn, kept = length(wanted) - drawn, removed = length(stale), seconds = seconds))
+}
+
 # ---- the tags a link preview reads ------------------------------------------
 # A link preview runs no script, so it never sees the tags the app sets for a
 # page (web/src/lib/pageMeta.ts). The site's own tags sit in web/index.html;
@@ -337,8 +407,13 @@ atlas_taxon_share <- function(requested, taxa, renames = NULL, origin = atlas_si
   }
   out$description <- paste0("Where ", name, " is likely to find habitat in North America, modelled from ",
                             count, ". Suitable habitat, not sightings.")
-  out$image <- sprintf("%s/api/taxa/%s/card.png?v=%s", origin, encoded, unname(tools::md5sum(choice$png)))
-  out$image_alt <- paste("Habitat map of", name, "in North America, from MycoMap Atlas")
+  # Its own card once finishing has drawn it for this map; the site's until then.
+  card <- atlas_card_for(name, grid, choice)
+  if (!is.null(card)) {
+    out$image <- sprintf("%s/api/taxa/%s/card.jpg?v=%s", origin, encoded,
+                         sub("^.*-([0-9a-f]+)[.]jpg$", "\\1", basename(card)))
+    out$image_alt <- paste("Habitat map of", name, "in North America, from MycoMap Atlas")
+  }
   out
 }
 

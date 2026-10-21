@@ -567,9 +567,9 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
   if (!isTRUE(keep_local)) {
     published <- vapply(manifest$files, function(e) e$path, character(1))
     local <- substring(
-      normalizePath(unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
+      normalizePath(c(unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
         list.files(atlas_model_dir(grid, a), pattern = "[.](json|tif|png)$", full.names = TRUE)
-      })), winslash = "/"),
+      })), list.files(atlas_card_dir(grid), pattern = "[.]jpg$", full.names = TRUE)), winslash = "/"),
       nchar(normalizePath(root, winslash = "/")) + 2L
     )
     stale <- setdiff(local, published)

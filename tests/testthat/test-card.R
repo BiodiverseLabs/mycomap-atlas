@@ -9,6 +9,22 @@ card_png_size <- function(bytes) {
   c(width = number(17), height = number(21))
 }
 
+# A JPEG's width and height, from its start-of-frame marker.
+jpeg_size <- function(bytes) {
+  if (is.character(bytes)) bytes <- readBin(bytes, "raw", file.info(bytes)$size)
+  i <- 3L
+  while (i < length(bytes)) {
+    marker <- as.integer(bytes[i + 1L])
+    size <- as.integer(bytes[i + 2L]) * 256L + as.integer(bytes[i + 3L])
+    if (marker %in% c(0xC0, 0xC1, 0xC2)) {
+      return(c(width = as.integer(bytes[i + 7L]) * 256L + as.integer(bytes[i + 8L]),
+               height = as.integer(bytes[i + 5L]) * 256L + as.integer(bytes[i + 6L])))
+    }
+    i <- i + 2L + size
+  }
+  NULL
+}
+
 card_green_pixels <- function(path) {
   v <- png::readPNG(path) * 255
   sum(v[, , 2] > v[, , 1] + 30 & v[, , 2] > v[, , 3] + 30)
@@ -197,6 +213,10 @@ test_that("every quote, angle bracket and ampersand in a tag is escaped", {
 test_that("a species page's card names it, counts its records, and links its own page and picture", {
   skip_if_not_installed("terra")
   with_card_data({
+    # Before finishing has drawn its card, the site's.
+    before <- atlas_taxon_share("Trametes versicolor", card_taxa(), origin = "https://atlas.example.org")
+    expect_equal(before$image, "https://atlas.example.org/og-card.png")
+    atlas_build_cards(quiet = TRUE)
     share <- atlas_taxon_share("Trametes versicolor", card_taxa(), origin = "https://atlas.example.org")
     expect_equal(share$status, 200L)
     expect_equal(share$title, "Trametes versicolor \u2014 MycoMap Atlas")
@@ -204,7 +224,7 @@ test_that("a species page's card names it, counts its records, and links its own
       "Where Trametes versicolor is likely to find habitat in North America, modelled from",
       "1,234 DNA-validated MycoMap records. Suitable habitat, not sightings."))
     expect_equal(share$url, "https://atlas.example.org/taxa/Trametes%20versicolor")
-    expect_match(share$image, "^https://atlas[.]example[.]org/api/taxa/Trametes%20versicolor/card[.]png[?]v=[0-9a-f]{32}$")
+    expect_match(share$image, "^https://atlas[.]example[.]org/api/taxa/Trametes%20versicolor/card[.]jpg[?]v=[0-9a-f]{12}$")
 
     html <- atlas_share_html(share)
     expect_equal(meta_content(html, "property", "og:title"), share$title)
@@ -367,23 +387,69 @@ call_card <- function(api, path, query = "") {
   suppressMessages(api$call(req))
 }
 
+test_that("finishing draws one card per map shown, keeps it while the map stands, and replaces it when the map changes", {
+  skip_if_not_installed("terra")
+  with_card_data({
+    first <- atlas_build_cards(quiet = TRUE)
+    expect_equal(first$drawn, 1L)
+    card <- atlas_card_for("Trametes versicolor")
+    expect_match(basename(card), "^trametes-versicolor-[0-9a-f]{12}[.]jpg$")
+    expect_equal(unname(jpeg_size(card)), c(1200, 630))
+    expect_equal(atlas_build_cards(quiet = TRUE)$kept, 1L)
+    # A redrawn map: its card is drawn again under the new map's name, the old one removed.
+    map <- atlas_model_path("Trametes versicolor", "draft", ".png", "maxnet")
+    cat("redrawn", file = map, append = TRUE)
+    expect_null(atlas_card_for("Trametes versicolor"))
+    again <- atlas_build_cards(quiet = TRUE)
+    expect_equal(c(again$drawn, again$removed), c(1L, 1L))
+    expect_false(file.exists(card))
+    expect_true(file.exists(atlas_card_for("Trametes versicolor")))
+  })
+})
+
+test_that("a taxon with no map to show gets no card", {
+  with_data_dir({
+    atlas_write_json(card_taxa("Mycena sp. 'IN10'", 2L, 2L), atlas_path("occurrences", "taxa-latest.json"))
+    expect_equal(atlas_build_cards(taxa = "Mycena sp. 'IN10'", quiet = TRUE)$drawn, 0L)
+    expect_length(list.files(atlas_card_dir()), 0L)
+  })
+})
+
 test_that("anyone can fetch a species' card, kept for good under its map's version", {
   skip_if_not_installed("terra")
   with_card_data({
+    atlas_build_cards(quiet = TRUE)
     api <- card_api()
-    out <- call_card(api, "/api/taxa/Trametes%20versicolor/card.png", "v=abc")
+    out <- call_card(api, "/api/taxa/Trametes%20versicolor/card.jpg", "v=abc")
     expect_equal(out$status, 200L)
-    expect_equal(out$headers[["Content-Type"]], "image/png")
-    expect_equal(unname(card_png_size(out$body)), c(1200, 630))
+    expect_equal(out$headers[["Content-Type"]], "image/jpeg")
+    expect_equal(unname(jpeg_size(out$body)), c(1200, 630))
     expect_equal(out$headers[["Cache-Control"]], "public, max-age=31536000, immutable")
-    expect_equal(call_card(api, "/api/taxa/Nothing%20here/card.png")$status, 404L)
+    expect_equal(call_card(api, "/api/taxa/Nothing%20here/card.jpg")$status, 404L)
   })
+})
+
+test_that("the API never draws a card: with none drawn for the map, it answers 404 and writes nothing", {
+  skip_if_not_installed("terra")
+  with_card_data({
+    out <- call_card(card_api(), "/api/taxa/Trametes%20versicolor/card.jpg", "v=abc")
+    expect_equal(out$status, 404L)
+    expect_equal(out$headers[["Cache-Control"]], "no-store")
+    expect_length(list.files(atlas_card_dir(), recursive = TRUE), 0L)
+    expect_length(list.files(file.path(tempdir(), "atlas-cards")), 0L)
+  })
+  # Nothing in the API can draw one.
+  api_code <- paste(readLines(repo_file("inst", "plumber", "atlas.R"), warn = FALSE), collapse = "
+")
+  for (drawer in c("atlas_write_card_image", "atlas_build_cards", "atlas_card_picture", "grDevices::")) {
+    expect_false(grepl(drawer, api_code, fixed = TRUE), label = drawer)
+  }
 })
 
 test_that("a species with no map has no card of its own", {
   with_data_dir({
     atlas_write_json(card_taxa("Mycena sp. 'IN10'", 2L, 2L), atlas_path("occurrences", "taxa-latest.json"))
-    out <- call_card(card_api(), "/api/taxa/Mycena%20sp.%20%27IN10%27/card.png")
+    out <- call_card(card_api(), "/api/taxa/Mycena%20sp.%20%27IN10%27/card.jpg")
     expect_equal(out$status, 404L)
   })
 })
@@ -391,6 +457,7 @@ test_that("a species with no map has no card of its own", {
 test_that("the share page is HTML with the species' own tags, and an unknown name is a 404", {
   skip_if_not_installed("terra")
   with_card_data({
+    atlas_build_cards(quiet = TRUE)
     api <- card_api()
     out <- call_card(api, "/share/taxa/Trametes%20versicolor")
     expect_equal(out$status, 200L)
@@ -399,7 +466,7 @@ test_that("the share page is HTML with the species' own tags, and an unknown nam
     html <- if (is.raw(out$body)) rawToChar(out$body) else out$body
     expect_equal(meta_content(html, "property", "og:title"), "Trametes versicolor \u2014 MycoMap Atlas")
     expect_equal(meta_content(html, "property", "og:url"), "https://atlas.example.org/taxa/Trametes%20versicolor")
-    expect_match(meta_content(html, "property", "og:image"), "/api/taxa/Trametes%20versicolor/card[.]png[?]v=")
+    expect_match(meta_content(html, "property", "og:image"), "/api/taxa/Trametes%20versicolor/card[.]jpg[?]v=")
 
     missing <- call_card(api, "/share/taxa/Nothing%20here")
     expect_equal(missing$status, 404L)

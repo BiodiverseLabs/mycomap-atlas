@@ -10,11 +10,13 @@ changed and what it means for you.
 
 ### API
 
-- **`GET /api/taxa/{name}/card.png`** is new: a species' link-preview card,
-  1200 x 630, with its name, its record count and its map (the one `best-map`
-  chooses) over Natural Earth land. The map alone, never the collections. 404
-  for a taxon with no map to show. Species pages link it with `?v=`, the map's
-  version, and that address is kept for good.
+- **`GET /api/taxa/{name}/card.jpg`** is new: a species' link-preview card,
+  a 1200 x 630 JPEG with its name, its record count and its map (the one
+  `best-map` chooses) over Natural Earth land. The map alone, never the
+  collections. Cards are drawn when a release is finished, never on request.
+  404 for a taxon with no map to show, or whose card is not drawn yet for the
+  map it has now. Species pages link it with `?v=`, the map's version, and
+  that address is kept for good.
 - **`GET /api/taxa/{name}/map.png`** gains `view`: `accessible` (the
   default, unchanged: the map within 500 km of the taxon's records) or `full`,
   a strong map's full-extent view, to lay over the model's `full_map.bounds`.

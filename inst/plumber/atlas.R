@@ -649,32 +649,16 @@ function(name, algorithm = "", width = "1200", points = "1", res) {
 }
 
 #* A taxon's link-preview card: 1200 x 630, its name and its map, for
-#* Facebook, X, iMessage and Slack. The map alone, never the collections.
-#* @get /api/taxa/<name>/card.png
+#* Facebook, X, iMessage and Slack. Drawn when its release was finished,
+#* never here: 404 when it has no map, or no card yet for the map it has now.
+#* @get /api/taxa/<name>/card.jpg
 function(name, res) {
-  decoded <- atlas_decode_name(name)
-  row <- atlas_taxon_row(cached_taxa(), decoded)
-  if (is.null(row)) {
-    return(atlas_json_error(res, 404L, "no such taxon in the current pull"))
-  }
-  choice <- atlas_best_choice(decoded)
-  if (is.null(choice)) {
-    return(atlas_json_error(res, 404L, "no map for this taxon yet"))
-  }
-  # Drawn once per map version; a later request reads the file.
-  key <- digest::digest(list("card", decoded, unname(tools::md5sum(choice$png)), row$records))
-  dir <- file.path(tempdir(), "atlas-cards")
-  dir.create(dir, showWarnings = FALSE)
-  path <- file.path(dir, paste0(key, ".png"))
-  if (!file.exists(path)) {
-    atlas_write_card_image(
-      path, decoded, italic = TRUE, lines = atlas_card_line(row$records),
-      metrics = list(bounds = choice$bounds, grade = choice$grade), overlay = choice$png,
-      site = site_origin
-    )
+  path <- atlas_card_for(atlas_decode_name(name))
+  if (is.null(path)) {
+    return(atlas_json_error(res, 404L, "no card for this taxon: no map to show, or its card is not drawn yet"))
   }
   res$status <- 200L
-  res$setHeader("Content-Type", "image/png")
+  res$setHeader("Content-Type", "image/jpeg")
   res$setHeader("Link", ATLAS_MAP_LICENSE_LINK)
   res$body <- readBin(path, "raw", file.info(path)$size)
   res
