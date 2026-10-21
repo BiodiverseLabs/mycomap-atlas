@@ -129,8 +129,9 @@ most for ectomycorrhizal fungi, climate for the rest (E8).
 
 ## Abstract
 
-*Draft skeleton, 2026-10-13 (≤ 350 words, no citations or URLs, as the
-journal requires). Final wording once the numbers are in.*
+*Draft, 2026-10-21 (≤ 350 words, no citations or URLs, as the journal
+requires). E2, E6b, grade counts and Q1 are in; E1, E1c and E9 are
+placeholders.*
 
 Automated pipelines now fit distribution models for thousands of species,
 but they report each map's skill with scores that clustered collecting
@@ -155,18 +156,18 @@ distance to known records on the same places; weak maps did no better than
 distance, and the strong maps' advantage came from finds more than 100 km
 from known records. Naming records by
 their sequences rather than their own names changed the maps of [N] taxa,
-and about half the modelled taxa have no formal name [PENDING E9, E16]. A
-pre-registered test asked whether the maps help a photo-identification
-model place its answers [PENDING Q1]. The grade, not the number of maps, is
+and about half the modelled taxa have no formal name [PENDING E9, E16]. In a
+pre-registered test, the maps helped a photo-identification model place its
+answers only slightly, and no more than distance to known records. The grade, not the number of maps, is
 the contribution: it tells users which maps to trust. Maps, models,
-layers, code and the identifiers of every training record are archived
-with DOIs for reuse.
+layers and code are archived with DOIs, and the identifiers of every
+training record will be.
 
 ---
 
 ## 1. Introduction
 
-*First prose draft, 2026-10-13 (~1,000 words). Citations are author–year;
+*Prose draft, trimmed 2026-10-21 (~800 words). Citations are author–year;
 the verified list is `references.md`. [CHECK] marks a fact still to source.*
 
 Species distribution models now sit behind conservation assessments, survey
@@ -184,24 +185,22 @@ regions [CHECK: cite cryptic diversity in macrofungi]. A map fitted to a
 morphological name averages over whatever the name covers, and it is
 confidently wrong where the lineages part. DNA barcodes resolve many of
 these cases [CHECK: ITS barcode reference], and community science now
-produces sequenced, georeferenced collections at a continental scale:
-volunteers collect and photograph a specimen, a sequencing network reads
-its barcode, and validators compare the sequence with reference data before
-the record's name is accepted. Many of the lineages found this way have no
-formal name yet and carry provisional names that are clusters of sequences
-rather than described species. They can be mapped as long as a map belongs
-to its set of records rather than to a name that may later change.
+produces sequenced, georeferenced collections at a continental scale, each
+name accepted only after validators compare its sequence with reference
+data. Many lineages found this way have no formal name yet, only a
+provisional name for a cluster of sequences. They can still be mapped, as
+long as a map belongs to its set of records rather than to a name that may
+later change.
 
 The second is clustered collecting. Records concentrate where collectors
 and sequencing projects are: in the data used here, six states and
-provinces hold 61% of the records and Indiana alone 12%. Two practices
-address this when fitting and evaluating a model. A target-group background
-compares a species' records with other records collected the same way
+provinces hold 61% of the records and Indiana alone 12%. A target-group
+background compares a species' records with other records collected the same way
 (Phillips et al. 2009). Spatially blocked cross-validation scores a model on
 whole regions it did not see (Roberts et al. 2017; Valavi et al. 2019).
-Neither makes a score absolute. Within a few hundred kilometres of a
-cluster of records, almost any smooth predictor separates the cluster from
-its background, so a model can score well without learning habitat:
+Neither makes a score absolute: near a cluster of records almost any
+smooth predictor separates it from its background, so a model can score
+well without learning habitat:
 predictors made from paintings matched real environmental layers for many
 species (Fourcade et al. 2018). A map's score alone therefore cannot say
 whether the map knows anything.
@@ -214,38 +213,40 @@ that clustering alone can clear. Null patterns that keep spatial structure
 were proposed in macroecology, where they found most bird–climate
 associations no better than chance (Beale et al. 2008). That result was
 disputed, partly because shifted patterns keep the environment's own
-spatial structure and so may be too strict a test (Araújo et al. 2009;
-Peterson et al. 2009; Beale et al. 2009). Structure-keeping nulls are now
+structure and may be too strict (Araújo et al. 2009; Peterson et al. 2009;
+Beale et al. 2009). Structure-keeping nulls are now
 available for distribution models, as simulated occurrences that keep
 within- and between-species structure (Osborne et al. 2022) and as
 environmental layers shifted and rotated under the sampling area (Ridder et
 al. 2024). What is still missing is a measurement of how often each kind of
 null test passes a species with no habitat signal, and how often it passes
-one with a signal, under realistic target-group sampling. Without those two
-error rates an atlas cannot say how far to trust a map that passed, and none
+one with a signal, under realistic target-group sampling. Without them an
+atlas cannot say how far to trust a map that passed, and none
 of the large automated atlases grades its maps this way [CHECK: confirm for
 the main existing atlases]. A habitat model should also beat a model that
 knows only how far a place is from known records (Bahn & McGill 2007).
 
 This paper describes MycoMap Atlas, which maps every North American fungus
 defined by DNA with enough sites to fit a model, from validated
-community-science collections, and rebuilds the maps every night. Its
+community-science collections, and is designed to rebuild them every
+night. Its
 central method is a calibrated trust grade. We make four claims. First
 (C1), on virtual species collected at the atlas's real survey sites, the
 usual scattered null test passes most species that follow no habitat at
 all, while a null that keeps each species' clustering and stays on surveyed
 sites holds false passes near the nominal rate, at a measured cost in power.
 Second (C2), the grade this test gives each map (strong, weak or failed)
-predicts how the map ranks records validated after it was made. Third (C3),
+predicts how the map ranks records validated after it was made, and only
+strong maps beat distance to known records. Third (C3),
 labelling records by their approved sequence rather than by the record's
 own name changes the maps, and about half of the modellable taxa have no
 formal name. Fourth (C4), the whole pipeline runs automatically at a
 continental scale and says which of its maps to trust: most are weak or
 failed, and they are published with that grade rather than hidden. We also
 report a test registered in advance: whether the maps carry habitat
-information that another system, a photo-identification model, can use
-(Q1). The maps, models, layers, code and the identifiers of every training
-record are archived for reuse.
+information that a photo-identification model can use (Q1). The maps,
+models, layers and code are archived for reuse, and the identifiers of
+every training record will be.
 
 ---
 
@@ -422,7 +423,8 @@ records before that date (Appendix S1: Section S9).
 
 ## 3. Results
 
-*Everything here is pending the frozen release. Each subsection names its
+*Numbers come only from the registry entries in `docs/experiments`. Done:
+3.3 (grades), 3.4 (E2, E6b), 3.9 (Q1). Each other subsection names its
 figure or table and the analysis that fills it.*
 
 ### 3.1 The records and the taxa (E16)
@@ -679,8 +681,9 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
 
 ## 5. Discussion
 
-*First prose draft, 2026-10-13 (~900 words). Results are placeholders; the
-reading of each paragraph is fixed only once its numbers are in.*
+*Prose draft; E2, E6b, the grade counts and Q1 are written in
+(2026-10-21). Paragraphs that rest on E1, E1c, E8 and E9 are fixed only once
+their numbers are in.*
 
 **The cost of an honest grade.** Most of the atlas's maps are not strong:
 576 of 9,041 models, and 470 of 6,369 modelled taxa. The
@@ -1124,6 +1127,9 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.4 (2026-10-21).** Introduction trimmed to ~800 words; abstract Q1
+  sentence; nightly and the training-record deposit stated as they are;
+  stale section notes updated.
 - **0.17.3 (2026-10-21).** Presubmission inquiry on hold until E1 (Steve);
   "designed to rebuild nightly" while the nightly is off; training-record
   ids "will be deposited".
