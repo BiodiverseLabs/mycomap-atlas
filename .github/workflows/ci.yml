@@ -10,10 +10,20 @@ on:
 permissions:
   contents: read
 
+# Every job runs on Ubuntu 24.04, the production box's release, not on
+# ubuntu-latest: GitHub moves ubuntu-latest to Ubuntu 26 from 2026-10-19, and
+# the release image's build began failing in seconds, before any R step, on
+# 9926e1b, 69a7f8e and 0bdb934 while the same Dockerfile built locally
+# (2026-10-21). Pinned, a runner change reaches CI when it is chosen.
+# Revisit when the production box moves past 24.04, or when GitHub retires
+# the 24.04 runner image. What each job takes from the runner: the R tests
+# and the box check run in containers (rocker/geospatial, ubuntu:24.04) and
+# need only its Docker; the release image is built with its Docker; the web
+# build pins Node 22 and pnpm 10.26.1 itself; the data guard uses its git.
 jobs:
   guard:
     name: No data files
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -26,7 +36,7 @@ jobs:
 
   box:
     name: Server configuration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -37,7 +47,7 @@ jobs:
 
   r:
     name: R tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # The same base as the release image (Dockerfile), so CI and releases
     # agree about R and GDAL.
     container: rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
@@ -60,7 +70,7 @@ jobs:
 
   image:
     name: Release image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Only this job may write packages, and only its last step, which runs for
     # pushes to main, uses that: a pull request never publishes an image.
     permissions:
@@ -106,7 +116,7 @@ jobs:
 
   web:
     name: Web build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
