@@ -241,6 +241,12 @@ waits for all three arms and the block-only step.
   and pooled Boyce in 1 (*Heliocybe sulcata*, 0.054 against 0.055).
   Maxent 128/128, RF 114/114 and boosted trees 40/40 are identical. Cause
   and handling: Deviations, 2026-10-20.
+- **a2 again (2026-10-21): identical to the release.**
+  study-20261021T002552Z-cfac20a6, image 1a9c3ae (Atlas main with
+  5b58f30 and a8861ab), 3 shards on r7i.8xlarge (40.4, 43.9 and 48.5 min),
+  `--order=reverse`, finished 01:16 UTC. 507 fitted; same records 507, same
+  grade 507, identical to the release 507. The 191 ensembles that differed
+  in the first a2 are now identical. a1 and a2 agree model for model.
 
 - **Reading note (2026-10-20, after a1, before b).** The release's own
   machine family for the 507 cannot be recovered. R_main's job
@@ -298,3 +304,7 @@ waits for all three arms and the block-only step.
     processor family, and fits are deterministic within a family (gate 2).
     A different shard split moves models to other worker processes, which
     a2's rerun tests.
+  - **Result of a2's rerun (2026-10-21):** 507 of 507 identical to the
+    release (study-20261021T002552Z-cfac20a6, image 1a9c3ae), as expected.
+    The fix is confirmed, and a different split and order no longer change
+    any fit. b may run.
