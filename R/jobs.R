@@ -102,7 +102,18 @@ atlas_task_cost <- function(algorithm, area_km2, typical_area = 5e6) {
 
 #' Split tasks into n shards of nearly equal cost: the costliest task goes to
 #' the least-loaded shard, repeatedly. Returns a shard number per task.
-atlas_assign_shards <- function(costs, n) {
+#'
+#' With groups (one label per task, the taxon), a group's tasks all go to one
+#' shard, so one machine fits every learner of a taxon and they share its
+#' block (atlas_shard_blocks): on two processor families its learners could
+#' measure two blocks (E12, 2026-10-21).
+atlas_assign_shards <- function(costs, n, groups = NULL) {
+  if (!is.null(groups)) {
+    groups <- as.character(groups)
+    labels <- unique(groups)
+    per <- atlas_assign_shards(vapply(labels, function(g) sum(costs[groups == g]), numeric(1)), n)
+    return(per[match(groups, labels)])
+  }
   n <- max(1L, min(as.integer(n), length(costs)))
   load <- numeric(n)
   shard <- integer(length(costs))
@@ -275,7 +286,7 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     costs <- vapply(tasks, function(t) t$cost, numeric(1))
     # With tasks_per_shard, shards is a ceiling: a small job gets one worker.
     if (!is.null(tasks_per_shard)) shards <- atlas_shard_count(length(tasks), shards, tasks_per_shard)
-    assignment <- atlas_assign_shards(costs, shards)
+    assignment <- atlas_assign_shards(costs, shards, groups = vapply(tasks, function(t) t$taxon, ""))
     for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
     shards <- max(assignment)
   } else {
@@ -375,8 +386,77 @@ atlas_shard_result <- function(name, algorithm, row, fingerprint, settings_key) 
     # what its full-extent view added (time and bytes).
     seconds = row$seconds %||% NULL,
     full_seconds = row$full_seconds %||% NULL,
-    full_bytes = row$full_bytes %||% NULL
+    full_bytes = row$full_bytes %||% NULL,
+    # The block it was fitted on, kept in the shard's progress so a later
+    # attempt (on another machine) reuses it.
+    block_km = row$block_km %||% NULL,
+    block_range_km = row$block_range_km %||% NULL,
+    block_source = row$block_source %||% NULL
   ))
+}
+
+# Where a measured block may be reused from: blockCV's, its fallback, or one
+# already reused. A "fixed" block is a setting, not a measurement.
+ATLAS_REUSABLE_BLOCK_SOURCES <- c("blockCV", "fallback", "recorded")
+
+#' A shard's result or a model's metrics as a recorded block, or NULL.
+atlas_block_of <- function(x) {
+  km <- suppressWarnings(as.numeric(x$block_km %||% NA))
+  if (!isTRUE(is.finite(km)[1]) || !isTRUE(as.character(x$block_source %||% "") %in% ATLAS_REUSABLE_BLOCK_SOURCES)) {
+    return(NULL)
+  }
+  list(block_km = km[[1]], range_km = suppressWarnings(as.numeric(x$block_range_km %||% NA))[[1]])
+}
+
+#' The blocks the released models of these taxa were fitted on, by algorithm
+#' and taxon ("rf|Taxon"), where the model was fitted on the same records
+#' (fingerprint) and the same training table (background, buffer, site
+#' thinning, layers) as this job's tasks would be. base is the release
+#' manifest; fingerprints the tasks' record sets, by taxon. Each metrics file
+#' is read once, from the store.
+atlas_release_blocks <- function(store, base, fingerprints, fit, layers, grid = "draft") {
+  out <- list()
+  if (is.null(base) || !length(fingerprints)) return(out)
+  shas <- stats::setNames(vapply(base$files %||% list(), function(f) f$sha256, ""),
+                          vapply(base$files %||% list(), function(f) f$path, ""))
+  same <- function(a, b) isTRUE(all.equal(suppressWarnings(as.numeric(a)), suppressWarnings(as.numeric(b))))
+  for (entry in base$index %||% list()) {
+    taxon <- as.character(entry$taxon %||% "")
+    if (!taxon %in% names(fingerprints) || isTRUE(entry$refused)) next
+    if (!identical(as.character(entry$fingerprint %||% ""), as.character(fingerprints[[taxon]]))) next
+    path <- atlas_model_relpaths(taxon, grid, entry$algorithm, ".json")
+    if (is.na(shas[path])) next
+    file <- tempfile(fileext = ".json")
+    m <- tryCatch({
+      store$get(atlas_object_key(shas[[path]]), file)
+      jsonlite::fromJSON(file, simplifyVector = FALSE)
+    }, error = function(e) NULL, finally = unlink(file))
+    s <- m$settings
+    if (is.null(m) || is.null(s)) next
+    if (!same(s$n_background, fit$n_background %||% 10000) || !same(s$buffer_km, fit$buffer_km %||% 500) ||
+        !same(s$thin_km, fit$thin_km %||% ATLAS_SITE_KM) || !identical(as.character(s$layers), as.character(layers))) {
+      next
+    }
+    block <- atlas_block_of(m)
+    if (!is.null(block)) out[[paste(entry$algorithm, taxon, sep = "|")]] <- block
+  }
+  out
+}
+
+#' The block each of an algorithm's taxa is fitted on in this shard, by
+#' taxon: the released model of this algorithm's own (a refit reproduces
+#' it); else one this job already fitted the taxon on (an earlier learner, or
+#' an earlier attempt's saved result); else another learner's in the release.
+#' A taxon with none measures its block, and the learners after it reuse it.
+atlas_shard_blocks <- function(algorithm, taxa, released, fitted) {
+  out <- list()
+  for (taxon in taxa) {
+    own <- released[[paste(algorithm, taxon, sep = "|")]]
+    other <- Filter(Negate(is.null), lapply(c("maxnet", "rf", "xgboost"), function(a) released[[paste(a, taxon, sep = "|")]]))
+    pick <- own %||% fitted[[taxon]] %||% (if (length(other)) other[[1]])
+    if (!is.null(pick)) out[[taxon]] <- pick
+  }
+  if (length(out)) out
 }
 
 #' The seeds a shard's tasks ask for, by taxon: a hindcast refit's
@@ -418,6 +498,17 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
     base <- atlas_store_text(store, paste0("releases/", grid, "/", job$from_release, ".json"))
     stats::setNames(vapply(base$files, function(f) f$sha256, ""), vapply(base$files, function(f) f$path, ""))
   }
+  # The blocks its models were fitted on, from the release this job builds
+  # on, for the taxa whose records it holds unchanged.
+  base_id <- job$from_release %||% job$base_release
+  released_blocks <- tryCatch({
+    key <- paste0("releases/", grid, "/", base_id, ".json")
+    base_release <- if (is.character(base_id) && length(base_id) == 1L && store$exists(key)) atlas_store_text(store, key)
+    fingerprints_all <- stats::setNames(vapply(mine, function(t) as.character(t$fingerprint %||% ""), ""),
+                                        vapply(mine, function(t) t$taxon, ""))
+    atlas_release_blocks(store, base_release, fingerprints_all[!duplicated(names(fingerprints_all))], job$fit,
+                         atlas_layers_key(grid), grid)
+  }, error = function(e) list())
   saved <- atlas_shard_progress(store, id, shard, grid)
   say("shard ", shard, ": ", length(mine), " models to fit",
       if (length(saved$results)) paste0(" (", length(saved$results), " saved by an earlier worker)"),
@@ -436,6 +527,13 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
   results <- saved$results
   files <- saved$files
   index <- saved$index
+  # Blocks this job has fitted taxa on: an earlier attempt's saved results,
+  # then each learner as it is fitted here.
+  fitted_blocks <- list()
+  for (r in results) {
+    block <- atlas_block_of(r)
+    if (!is.null(block) && is.null(fitted_blocks[[r$taxon]])) fitted_blocks[[r$taxon]] <- block
+  }
   pending <- list(results = list(), files = list(), index = list())
   stored <- store$list("objects/")
   uploaded <- list(count = 0L, bytes = 0)
@@ -466,6 +564,8 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
                                                job$tolerance %||% ATLAS_REFRESH_TOLERANCE)
     }
     pending$results[[length(pending$results) + 1L]] <<- result
+    block <- atlas_block_of(result)
+    if (!is.null(block) && is.null(fitted_blocks[[name]])) fitted_blocks[[name]] <<- block
     if (identical(row$status, "fitted")) {
       paths <- atlas_model_relpaths(name, grid, algorithm)
       paths <- paths[file.exists(file.path(atlas_data_dir(), paths))]
@@ -497,6 +597,7 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       quiet = TRUE, fit = fit, full = job$fit$full,
       # A hindcast refit's tasks carry their hindcast models' seeds.
       seeds = atlas_task_seeds(tasks),
+      blocks = atlas_shard_blocks(algorithm, taxa, released_blocks, fitted_blocks),
       on_row = function(row, settings_key) {
         if (!row$taxon %in% taxa || row$taxon %in% reported) return(invisible(NULL))
         reported <<- c(reported, row$taxon)

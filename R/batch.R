@@ -60,6 +60,11 @@ atlas_batch_fit_one <- function(name, fingerprint, fit, args) {
   seeds <- args$seeds
   args$seeds <- NULL
   if (!is.null(seeds[[name]])) args$seed_from <- seeds[[name]]
+  # A block recorded for this taxon (R/jobs.R, atlas_shard_blocks) is reused;
+  # without one the fit measures it, as before.
+  blocks <- args$blocks
+  args$blocks <- NULL
+  if (!is.null(blocks[[name]])) args$recorded_block <- blocks[[name]]
   row <- tryCatch(
     {
       result <- do.call(fit, c(list(name = name, fingerprint = fingerprint), args))
@@ -72,6 +77,11 @@ atlas_batch_fit_one <- function(name, fingerprint, fit, args) {
         boyce = m$boyce,
         boyce_mean = m$boyce_mean,
         map = !is.null(m$raster),
+        # The block it was fitted on, and where that came from, so later
+        # learners and attempts of the taxon reuse it.
+        block_km = m$block_km %||% NULL,
+        block_range_km = if (is.numeric(m$block_range_km) && is.finite(m$block_range_km)) m$block_range_km,
+        block_source = m$block_source %||% NULL,
         # What the full-extent view cost, for a pilot to price it.
         full_seconds = m$full_map$seconds %||% NULL,
         full_bytes = m$full_map$bytes %||% NULL
@@ -269,7 +279,8 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
                             occurrences = NULL, points = NULL, stack = NULL,
                             layers = NULL, algorithm = "maxnet",
                             nulls = ATLAS_NULL_REPS, tune = TRUE,
-                            fit = atlas_fit_taxon, on_row = NULL, full = NULL, seeds = NULL) {
+                            fit = atlas_fit_taxon, on_row = NULL, full = NULL, seeds = NULL,
+                            blocks = NULL) {
   algo <- atlas_algorithm(algorithm)
   prune <- prune %||% algo$prune
   min_presences <- atlas_algorithm_min(algo, min_presences)
@@ -364,6 +375,7 @@ atlas_fit_batch <- function(grid = "draft", limit = Inf, predict = TRUE,
   # fit is called exactly as before.
   if (!is.null(full)) args$full <- full
   if (!is.null(seeds)) args$seeds <- seeds
+  if (!is.null(blocks)) args$blocks <- blocks
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
     atlas_write_batch_summary(summary, rows, grid, stamp, algo$id)

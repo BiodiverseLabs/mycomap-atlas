@@ -197,7 +197,7 @@ atlas_plan_private_release <- function(store = atlas_store(), from_release, purp
 
   costs <- vapply(tasks, function(t) t$cost, numeric(1))
   if (!is.null(tasks_per_shard)) shards <- atlas_shard_count(length(tasks), shards, tasks_per_shard)
-  assignment <- atlas_assign_shards(costs, shards)
+  assignment <- atlas_assign_shards(costs, shards, groups = vapply(tasks, function(t) t$taxon, ""))
   for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
   id <- paste0("priv-", atlas_release_id(digest::digest(list(tasks, from_release, purpose, validated_through),
                                                         algo = "sha256")))
@@ -466,7 +466,8 @@ atlas_plan_hindcast_refit <- function(store = atlas_store(), hindcast, taxa, lea
   }
 
   costs <- vapply(tasks, function(t) t$cost, numeric(1))
-  assignment <- atlas_assign_shards(costs, max(1L, min(as.integer(shards), length(tasks))))
+  assignment <- atlas_assign_shards(costs, max(1L, min(as.integer(shards), length(tasks))),
+                                    groups = vapply(tasks, function(t) t$taxon, ""))
   for (i in seq_along(tasks)) tasks[[i]]$shard <- assignment[[i]]
   id <- paste0("priv-", atlas_release_id(digest::digest(list(tasks, hindcast, "refit", sort(ids[dropped])),
                                                         algo = "sha256")))

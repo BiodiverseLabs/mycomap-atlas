@@ -214,7 +214,7 @@ fake_bigmap <- function(offsets) {
 
 test_that("a species is averaged from 250 m samples onto 1 km cells, and reused next time", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("bigmap-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("bigmap-")
   window <- c(xmin = 0, xmax = 4000, ymin = 0, ymax = 2000)
   server <- fake_bigmap(c(SPCD_0202_Pseudotsuga_menziesii = 0))
   got <- atlas_bigmap_fetch_species("SPCD_0202_Pseudotsuga_menziesii", window, dir,
@@ -244,7 +244,7 @@ other_hosts <- function() {
 
 test_that("BIGMAP's sums put each species in its genus, conifers in the conifer band", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("bigmap-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("bigmap-")
   offsets <- c(SPCD_0000_Total = 1000, SPCD_0122_Pinus_ponderosa = 10,
                SPCD_0131_Pinus_taeda = 20, SPCD_0068_Juniperus_virginiana = 30,
                SPCD_0802_Quercus_alba = 40, SPCD_0316_Acer_rubrum = 50, other_hosts())
@@ -266,7 +266,7 @@ test_that("BIGMAP's sums put each species in its genus, conifers in the conifer 
 })
 
 test_that("a BIGMAP without one of the host genera is refused, not built with a hole", {
-  dir <- file.path(tempdir(), paste0("bigmap-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("bigmap-")
   functions <- c("SPCD_0122_Pinus_ponderosa", "SPCD_0802_Quercus_alba")
   expect_error(
     atlas_bigmap_sums(dir, c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000),
@@ -324,7 +324,7 @@ test_that("NFI's listing is read from its directory page", {
 
 test_that("NFI's sums add a genus's species and its _Spp, over identified trees", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("nfi-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("nfi-")
   dir.create(file.path(dir, "nfi"), recursive = TRUE)
   # A small square of NFI's own Lambert grid in northern Ontario, every pixel
   # the same, so the averages are known.
@@ -609,7 +609,7 @@ test_that("a second host set can never share production's files, nor name raw/ho
 
 test_that("the decay-host layer reads only its own genera, into its own files, and leaves production's caches alone", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("decay-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("decay-")
   dir.create(file.path(dir, "bigmap-species"), recursive = TRUE)
   # Production's caches, and a species file of an interrupted production read.
   sentinels <- file.path(dir, c("bigmap-1km.tif", "nfi-1km.tif",
@@ -657,7 +657,7 @@ test_that("the decay-host layer needs only its genera from NFI, and a genus NFI 
   expect_setequal(production$file, files[4:6])
 
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("nfi-decay-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("nfi-decay-")
   dir.create(file.path(dir, "nfi-decay"), recursive = TRUE)
   lcc <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
   values <- c(Species_Acer_Rub = 30, Species_Acer_Spp = 10, Species_Thuj_Occ = 5)
@@ -680,7 +680,7 @@ test_that("the decay-host layer needs only its genera from NFI, and a genus NFI 
 
 test_that("each decay genus is a share of the host layer's own tree total", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("decay-build-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("decay-build-")
   hosts_dir <- file.path(dir, "hosts")
   dir.create(hosts_dir, recursive = TRUE)
   set <- atlas_host_set("hostsdecay")
@@ -722,7 +722,7 @@ test_that("each decay genus is a share of the host layer's own tree total", {
 })
 
 test_that("the decay-host layer refuses before reading anything when production's totals are not built", {
-  dir <- file.path(tempdir(), paste0("decay-empty-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("decay-empty-")
   asked <- character()
   refuse <- function(url, dest) {
     asked <<- c(asked, url)
@@ -740,7 +740,7 @@ test_that("the decay-host layer refuses before reading anything when production'
 
 test_that("a cache write that fails leaves no cache file for the next run to trust", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("half-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("half-")
   offsets <- c(SPCD_0122_Pinus_ponderosa = 10, SPCD_0802_Quercus_alba = 40, other_hosts())
   server <- fake_bigmap(offsets)
   window <- c(xmin = 0, xmax = 1000, ymin = 0, ymax = 1000)
@@ -779,7 +779,7 @@ test_that("a cache write that fails leaves no cache file for the next run to tru
 
 test_that("a leftover .part is never read as the cache, and the next write replaces it", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("part-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("part-")
   dir.create(dir, recursive = TRUE)
   writeBin(as.raw(1:8), file.path(dir, "bigmap-1km.tif.part"))
   offsets <- c(SPCD_0122_Pinus_ponderosa = 10, SPCD_0802_Quercus_alba = 40, other_hosts())
@@ -845,7 +845,7 @@ test_that("Canada's species files map to the FIA species they are", {
 
 test_that("the species layer sums each species on its own, keeps its species files, and leaves production's caches alone", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("species-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("species-")
   dir.create(dir, recursive = TRUE)
   sentinels <- file.path(dir, c("bigmap-1km.tif", "nfi-1km.tif"))
   for (f in sentinels) writeBin(as.raw(1:64), f)
@@ -914,7 +914,7 @@ test_that("the further host genera include walnut, hackberry, bald cypress, redw
 test_that("in Canada, the bands NFI does not map are projected once between them, and read 0", {
   skip_if_not_installed("terra")
   files <- paste0("NFI_MODIS250m_2011_kNN_Species_", c("Quer_Rub", "Popu_Tri"), "_v1.tif")
-  dir <- file.path(tempdir(), paste0("nfi-species-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("nfi-species-")
   set <- atlas_host_set("hostspecies")
   # Two species NFI maps, three it does not.
   set$species <- c(833L, 747L, 838L, 802L, 110L)
@@ -950,7 +950,7 @@ test_that("in Canada, the bands NFI does not map are projected once between them
 
 test_that("an NFI band already on disk is read back, not projected again, so a build resumes", {
   skip_if_not_installed("terra")
-  dir <- file.path(tempdir(), paste0("nfi-resume-", as.integer(stats::runif(1, 1, 1e9))))
+  dir <- tempfile("nfi-resume-")
   dir.create(dir)
   lcc <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
   x <- terra::rast(xmin = 0, xmax = 20000, ymin = 5700000, ymax = 5720000, resolution = 250, crs = lcc)

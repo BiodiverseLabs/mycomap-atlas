@@ -116,7 +116,7 @@ test_that("a private release is finished privately, with its own grades, and not
   expect_identical(atlas_current_release(setup$store)$id, current_before)
   # The tracker's reader reads it as it reads a release: its own pull, maps
   # and grades (what Atlas E2 and E9 score with).
-  cache <- file.path(tempdir(), paste0("tracker-cache-", as.integer(stats::runif(1, 1, 1e9))))
+  cache <- tempfile("tracker-cache-")
   view <- atlas_tracker_view(setup$store, job$id, "draft", cache)
   expect_equal(nrow(view$pull), nrow(job_pull(setup$store, job)))
   expect_equal(atlas_tracker_maps(view, "Taxon C")$grade, "strong")

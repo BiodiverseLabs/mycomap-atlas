@@ -21,5 +21,5 @@ computed_data <- function() {
 }
 
 new_store <- function() {
-  atlas_local_store(file.path(tempdir(), paste0("store-", as.integer(stats::runif(1, 1, 1e9)))))
+  atlas_local_store(tempfile("store-"))
 }

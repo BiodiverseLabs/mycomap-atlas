@@ -37,7 +37,7 @@ orchestrator_data <- function(occurrences, layer_md5 = "m1") {
   writeLines("not a real layer", file.path(atlas_layer_dir("draft"), "fake.tif"))
 }
 
-machine <- function() file.path(tempdir(), paste0("machine-", as.integer(stats::runif(1, 1, 1e9))))
+machine <- function() tempfile("machine-")
 on_machine <- function(dir, code) with_env(c(ATLAS_DATA_DIR = dir), code)
 fresh_store <- function() atlas_local_store(machine())
 
