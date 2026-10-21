@@ -1,7 +1,7 @@
 # Pre-registration: prospective tracking on the frozen release (paper E3)
 
 - **Status.** DRAFT, 2026-10-21, by the paper lane, for review by the
-  method lane and Steve's approval. Not registered until Steve approves
+  method lane (reviewed 2026-10-21, edits applied) and Steve's approval. Not registered until Steve approves
   it and it is committed with that note. Nobody scores any test find before
   then. Changes after registration go under "Deviations", dated, before
   the read-out.
@@ -20,9 +20,9 @@ replaced it. Every record first validated after its pull
 whether it is scored the day it turns green or at a read-out months later.
 So no prospective find is lost while the nightly is off. The test needs
 this file registered before anyone looks, and one scoring run at the
-read-out date. If a new release goes live before the read-out, each find is
-scored on the release live when its validation day began (the tracker's
-rule), and finds scored on another release are reported apart.
+read-out date. Every find first validated from 2026-10-14 is scored on
+fa1b4198 whatever release is live by then, since any such find is unseen
+by it; the nightly can resume without ending E3.
 
 The old-grading backfill (`2026-10-18-tracker-backfill-old-grading.md`)
 scored finds up to 2026-10-12 on older releases only; no find has been
@@ -32,38 +32,47 @@ scored on fa1b4198.
 
 - **Maps.** Release fa1b4198, as published: grades, area of applicability,
   500 km reach.
-- **Test finds.** Records eligible under the release's own pull rules, read
-  from a fresh pull at the read-out, whose first validation date
+- **Test finds.** Records eligible under the read-out pull's rules at a named
+  commit, read from a fresh pull at the read-out, whose first validation date
   (`first_green_on`) is on or after **2026-10-14** (the first full day the
   release was live) and on or before the read-out date, and whose record
   id is not in the frozen pull. Finds first validated on 2026-10-12 or
   2026-10-13 (after the pull, before the release was live) are reported
   apart.
-  - **Pull rules at the read-out.** The frozen pull's own eligibility rules
-    and exclusions (the rules that made x73b85b36, including its exclusion
-    list of 76 erroneous records), plus every exclusion added since, applied
-    to test finds: Mushroom Observer records deleted at the source with no
-    cached answer; sequences flagged wrong (wrong specimen) or contaminant;
-    and the current drop list. The corrected first-validation lookup (Atlas
-    8edc15d, first-green dates keyed by source) is used, so the
-    cross-source date collision found in E2 cannot move a record into the
-    test set. The Atlas commit that makes the read-out pull is named here
+  - **Pull rules at the read-out.** The Atlas pull at a commit named here
     at registration and not changed after: [PENDING: SHA, from the method
-    lane]. Each rule's count of removed finds is reported.
+    lane]. Its rule changes since x73b85b36 are listed with it: the
+    source-keyed first-validation lookup (Atlas 8edc15d); the Mushroom
+    Observer location-box rule; and Mushroom Observer records deleted at
+    the source with no cached answer dropped. Also applied to test finds:
+    sequences flagged wrong (wrong specimen) or contaminant, and the
+    current drop list, as the pull at that commit applies them [CHECK:
+    method lane, whether both are already pull rules]. The frozen pull's
+    exclusion list of 76 erroneous records still applies. Each rule's count
+    of removed finds is reported.
+  - **Leak paths and their guards.** A record in the frozen pull: excluded
+    by its id. A first-validation date moved across the cutoff by a
+    cross-source collision: prevented by 8edc15d, and caught by the id rule
+    in any case. A record green before the pull but missing from it:
+    excluded by the date rule. A cross-post twin of a training record (the
+    same find posted to two sources): cannot be detected for these records
+    (the twin lists come from MycoMap Vision's v1 photo hashes, which hold
+    no record validated after 2026-10-14), so it is a stated limitation; a
+    near twin falls among known places, and E2 did not exclude twins
+    either.
 - **Unit.** A place: one taxon in one 5 km cell, as E2.
 - **Matching.** A find counts for a taxon by the name the frozen release
-  uses for it. A renaming of the same taxon since the pull (a new label for
-  the same sequence cluster, from the name-change log) is mapped back to
-  the release's name. A re-identification (the record now belongs to
-  another taxon) uses the record's current identity. A find whose current
-  identity has no model in the release, including one renamed or
-  re-identified into such a taxon, is kept apart and counted as "no
-  model", by kind of change. Finds under a name the release does not know
-  and that no log entry maps are kept apart and counted.
+  uses for it. Renames and respellings logged after the find's first
+  validation (mycomap.org's dated, record-level name-change log, read by
+  every pull into `occurrences/name-changes.json`, Atlas ee9f3fe) are
+  mapped back to the release's name. Merges and splits, which have no
+  unique inverse, and names that no log entry maps, are kept apart and
+  counted. A find whose identity has no model in the release, including
+  one renamed or re-identified into such a taxon, is kept apart and
+  counted as "no model", by kind of change.
 - **Kept apart, with counts:** as E2 (taxa with no model, unknown names,
-  beyond reach, outside the area of applicability); finds that are
-  cross-post twins of a training record (the twin lists of S2.4b); and
-  finds whose record id or twin is in the frozen pull.
+  beyond reach, outside the area of applicability); merges, splits and
+  unmapped names; and finds whose record id is in the frozen pull.
 
 - **Privacy.** Scoring runs in Atlas's private compute, where exact
   coordinates stay. Anything published from E3 (the registry entry, the
@@ -102,7 +111,10 @@ place.
 - **Date.** [PENDING: Steve. Proposed 2026-12-15, which leaves time to
   write it up for a January submission.] One read-out; no interim look at
   outcomes. Before the read-out, only the count of finds by grade may be
-  read (no ranks), to judge whether H3a–H3c will have 30 places.
+  read (no ranks), to judge whether H3a–H3c will have 30 places; the
+  scorer's counts-only switch gives that and nothing else.
+- **Recorded at the read-out:** the read-out pull's commit and id, and the
+  name-change log's cursor (the last change it holds).
 - **What the result does to C2.** H3a–H3c hold: the published maps behave
   as the hindcast's did, and C2 cites both. H3c fails with H3a and H3b
   holding: C2 states that the published strong maps beat chance and failed
@@ -126,11 +138,17 @@ the pace of validation varies.]
 
 ## Cost
 
-A fresh pull and one scoring run on the operations box; one study-distance
-run for the kernels on the frozen pull (EC2, about the size of E6b's). The
-kernels depend only on the frozen pull, so they are built before the
-read-out and the read-out itself is one scoring run.
-[PENDING: estimate from E6b's ledger row.]
+- **Code.** A small study-score mode, built and reviewed before the
+  read-out (about 1–2 days with tests, after Steve's approval): a published
+  release, a local fresh pull, first validation on or after a date, record
+  id not in the release's pull, and a counts-only switch. Today study-score
+  accepts only a private hindcast.
+- **Kernels.** study-distance on fa1b4198, about E6b's size: 3 × 8xlarge
+  for about 1–1.5 h, about USD 3–5 on spot. Run on r7i, then refit any
+  block mismatch on r7a as in E6b (fa1b4198 has no per-model machine
+  record). The kernels depend only on the frozen pull, so they are built
+  before the read-out.
+- **Read-out.** A fresh pull and one scoring run on the operations box.
 
 ## Deviations
 
