@@ -10,7 +10,7 @@ card_png_size <- function(bytes) {
 }
 
 card_green_pixels <- function(path) {
-  v <- terra::values(terra::rast(path), mat = TRUE)
+  v <- terra::values(atlas_card_picture(path, Inf), mat = TRUE)
   sum(v[, 2] > v[, 1] + 30 & v[, 2] > v[, 3] + 30)
 }
 
@@ -67,6 +67,34 @@ test_that("a card is 1200 by 630, Facebook's shape, with the map's colour on it"
     # The brand's own green is on both; the map's colour on one.
     expect_gt(card_green_pixels(with_map), card_green_pixels(without) + 10000)
   })
+})
+
+test_that("a card reads its map and logo at the size it draws them, so it stays small in the API's memory", {
+  skip_if_not_installed("terra")
+  write_png <- function(nrows, ncols) {
+    r <- terra::rast(nrows = nrows, ncols = ncols, nlyrs = 4, xmin = 0, xmax = ncols, ymin = 0, ymax = nrows)
+    terra::values(r) <- rep(c(10, 200, 30, 255), each = terra::ncell(r))
+    path <- tempfile(fileext = ".png")
+    terra::writeRaster(r, path, datatype = "INT1U", overwrite = TRUE)
+    path
+  }
+  big <- write_png(1000, 2000)
+  panel <- ceiling((1 - ATLAS_CARD_SPLIT) * ATLAS_CARD_WIDTH) * ATLAS_CARD_HEIGHT
+  # Never more than the panel holds, and no more than the map covers on it.
+  whole <- expect_no_warning(atlas_card_overlay(big))
+  expect_lte(terra::ncell(whole), panel * 1.02)  # regular sampling rounds up a little
+  expect_gt(terra::ncell(whole), panel / 2)
+  covered <- atlas_card_overlay(big, most = 50000)
+  expect_lte(terra::ncell(covered), 50000 * 1.02)
+  expect_gt(terra::ncell(covered), 25000)
+  # Still the same picture: same shape, so it lands where it should.
+  expect_equal(terra::ncol(covered) / terra::nrow(covered), 2, tolerance = 0.05)
+  # A small overlay is read as it is.
+  expect_equal(terra::ncell(atlas_card_overlay(write_png(100, 200))), 200 * 100)
+  # The logo is drawn 84 pixels tall: it is read small, not at 600 x 830.
+  logo <- repo_file("web", "public", "mycomap-logo.png")
+  skip_if_not(file.exists(logo), "no web app in this tree")
+  expect_lte(terra::ncell(expect_no_warning(atlas_card_picture(logo, 25000L))), 25000 * 1.02)
 })
 
 test_that("a card never carries the collections: it takes no places to draw", {

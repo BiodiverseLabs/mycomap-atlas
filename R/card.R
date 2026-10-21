@@ -43,6 +43,33 @@ atlas_card_wrap <- function(text, width, cex, font = 1, max_lines = 3L) {
   lines
 }
 
+#' A picture (a map overlay, the logo) read at no more than `most` pixels.
+#'
+#' Cards are drawn inside the API, whose container has 900 MB and already
+#' holds 350 to 600 of it (atlas-box, 2026-10-20). Read whole, a 1500 x 700
+#' overlay cost about 160 MB and the 600 x 830 logo 75 MB, kept; read at the
+#' size the card draws them, a fraction of that, and the card shows no less.
+#' A PNG has no map coordinates, which terra warns about; here that is
+#' expected, so the warning is dropped.
+atlas_card_picture <- function(path, most) {
+  withCallingHandlers({
+    image <- terra::rast(path)
+    if (terra::ncell(image) <= most) image else {
+      terra::spatSample(image, size = most, method = "regular", as.raster = TRUE)
+    }
+  }, warning = function(w) {
+    if (grepl("unknown extent", conditionMessage(w), fixed = TRUE)) invokeRestart("muffleWarning")
+  })
+}
+
+#' A map overlay read at no more pixels than it covers on the card (most),
+#' and never more than the card's map panel holds.
+atlas_card_overlay <- function(path, most = Inf) {
+  panel <- ceiling((1 - ATLAS_CARD_SPLIT) * ATLAS_CARD_WIDTH) * ATLAS_CARD_HEIGHT
+  most <- if (is.finite(most) && most >= 1) min(panel, ceiling(most)) else panel
+  atlas_card_picture(path, most)
+}
+
 #' The line under a species' name on its card.
 atlas_card_line <- function(records) {
   records <- suppressWarnings(as.numeric(records %||% NA))
@@ -77,7 +104,8 @@ atlas_card_logo <- local({
   logo <- NULL
   function(path = atlas_card_logo_path()) {
     if (is.null(logo) && !is.null(path) && file.exists(path)) {
-      img <- terra::rast(path)
+      # Drawn 84 pixels tall: twice that is plenty.
+      img <- atlas_card_picture(path, 25000L)
       v <- terra::values(img, mat = TRUE)
       alpha <- if (ncol(v) >= 4) v[, 4] else rep(255, nrow(v))
       cols <- grDevices::rgb(v[, 1], v[, 2], v[, 3], alpha, maxColorValue = 255)
@@ -112,6 +140,8 @@ atlas_write_card_image <- function(path, title, italic = FALSE, lines = characte
   grDevices::png(path, width = ATLAS_CARD_WIDTH, height = ATLAS_CARD_HEIGHT, res = 144,
                  type = type, bg = k$panel)
   on.exit(grDevices::dev.off(), add = TRUE)
+  # The API is one long-lived R process: hand back what the drawing used.
+  on.exit(invisible(gc()), add = TRUE)
 
   # The map, filling the right of the card: the view padded to the panel's
   # shape, with a little room around the map's own edge.
@@ -137,13 +167,17 @@ atlas_write_card_image <- function(path, title, italic = FALSE, lines = characte
   atlas_draw_polygons(countries, col = k$land, border = NA)
   atlas_draw_polygons(lakes, col = k$sea, border = NA)
   if (has_map) {
-    image <- terra::rast(overlay)
+    at <- atlas_mercator_xy(c(bounds$west, bounds$east), c(bounds$south, bounds$north), lon_0)
+    # Read at the pixels it covers on the card, never more than the panel.
+    drawn <- abs(diff(graphics::grconvertX(at[, "x"], "user", "device"))) *
+      abs(diff(graphics::grconvertY(at[, "y"], "user", "device")))
+    image <- atlas_card_overlay(overlay, most = drawn)
     rgba <- terra::values(image, mat = TRUE)
     faint <- !identical(atlas_metrics_grade(metrics), "strong")
     alpha <- rgba[, 4] * ATLAS_IMAGE_OPACITY[[if (faint) "faint" else "standard"]]
     colours <- grDevices::rgb(rgba[, 1], rgba[, 2], rgba[, 3], alpha, maxColorValue = 255)
     raster <- grDevices::as.raster(matrix(colours, nrow = terra::nrow(image), byrow = TRUE))
-    at <- atlas_mercator_xy(c(bounds$west, bounds$east), c(bounds$south, bounds$north), lon_0)
+    rm(rgba, colours)
     graphics::rasterImage(raster, at[1, "x"], at[1, "y"], at[2, "x"], at[2, "y"], interpolate = TRUE)
   }
   atlas_draw_lines(regions, col = "#a59c8f", lwd = 0.5)
