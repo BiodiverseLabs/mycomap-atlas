@@ -216,6 +216,18 @@ the full suite at 1,187/0), in that commit's image.
   after its results file is written. Its other changes (the layer fetch,
   the worker layer check) are in the distance and default-practice
   studies, which the arms do not use.
+- **BLAS threads (implementation note, recorded 2026-10-21).**
+  Production's fit workers start with one BLAS thread each:
+  `atlas_make_workers` (Atlas R/batch.R) sets OPENBLAS_NUM_THREADS=1 and
+  OMP_NUM_THREADS=1 in every worker process, as it has since 2026-09-30, so
+  every released model was fitted with one BLAS thread. The arms start
+  their worker processes with `parallel::makePSOCKcluster` (R/studye12arms.R),
+  and the Atlas image sets neither variable. So in a1, a2 and b, OpenBLAS
+  0.3.26 (pthread build) ran with its default, one thread per core: up to
+  32 on the 8xlarge workers. Boosted trees are pinned to one thread either
+  way (`nthread = 1`). a1 and the rerun of a2 (r7i) matched the release on
+  507 of 507, so the BLAS thread count, one against up to 32, changed no
+  fit.
 - **The block-only step (written 2026-10-21, before it runs).** It is
   `study-repro --draw --blocks` (Atlas study/e12-blocks b407054, merged
   before the run). It takes the same drawn sample as the arms (the same
