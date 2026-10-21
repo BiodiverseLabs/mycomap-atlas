@@ -58,8 +58,17 @@ variogram range rounded to 5 km (full models only; ensembles use a fixed
 the 1,144 hindcast taxa whose Maxent was fitted on r7a, 35 had another
 block when rebuilt on r7i, by 5 to 240 km, and so other folds. Across processor families
 (arm b, one AMD r7a.8xlarge against a1 on Intel r7i), 502 of 507 refits
-were identical and 505 kept their grade (raw rates 99.0% and 99.6%, before
-the plan's cell weighting). Every ensemble (225) and boosted-trees model
+were identical and 505 kept their grade. Weighted back to the frozen
+release by the draw's 24 cells (9,040 models; the one untested model is in
+no cell), 98.45% of models are identical across families (differing share
+1.55%, 95% interval 0.37–3.03%) and 99.57% keep their grade (grade changes
+0.43%, 0.00–1.24%); Cohen's κ on grades is 0.9895 (0.9940 unweighted).
+Intervals are from a bootstrap of models within cells (10,000 resamples),
+each cell weighted by its share of the release. The two Intel reruns were
+identical to the release for 100% of models (κ = 1). By learner, no
+ensemble of small models differed (0% of 6,041) and 4.67% of the 2,999
+full-design models did (plan-e12, weighted rates, with its script
+`2026-10-21-e12-reading.R`). Every ensemble (225) and boosted-trees model
 (40) was identical; Maxent 127 of 128 and random forests 110 of 114. The
 five that differed are full models at 20 to 49 sites, all with the same
 records: one Maxent model went from failed to weak with other settings,
@@ -68,8 +77,7 @@ forest went from weak to strong with the same settings and map but other
 tuning and fold scores. All five are taxa whose spatial block differed
 between families in the hindcast (E6b), so the block is the likely cause;
 whether each one's block differed on the frozen records is what the
-block-only step shows [PENDING E12 block step; cell-weighted rates and κ
-follow it]. Our refit checks enforce the tolerances
+block-only step shows [PENDING E12 block step]. Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location

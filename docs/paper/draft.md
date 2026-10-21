@@ -109,8 +109,9 @@ revise the paper plan and let's continue".)
    weak or failed, and they are still published, drawn faint with their
    grade, because the grade is the contribution, not the map count. Every map
    is versioned, citable and reproducible from a pinned container and
-   archived data. [Grade counts done (3.3); E12 done except the block step;
-   E16 descriptives PENDING]
+   archived data; a grade is reproduced exactly on the same processor
+   family and changes for about 0.4% of models on another. [Grade counts
+   done (3.3); E12 done except the block step; E16 descriptives PENDING]
 
 **Q1 (pre-declared question, not a claim). Do the maps carry habitat
 information another system can use?** The registered test: used as the place
@@ -403,9 +404,11 @@ workers, so by construction no released map is affected, which the
 surviving shard logs and a first rerun matching the release confirm; each
 fit now sets its own. On the other processor family, 502 of the 507
 refits were identical and 505 kept their grade (one failed → weak, one
-weak → strong); every ensemble and boosted-trees model was identical, and
-the five that differed are Maxent and random-forest models at 20 to 49
-sites, all of taxa whose spatial block, estimated from a variogram,
+weak → strong). Weighted back to the whole release, about 0.4% of grades
+would change on the other family (95% interval 0.0–1.2%; Cohen's κ 0.99);
+no ensemble of small models differed, and 4.7% of the full-design models
+did. The five that differed are Maxent and random-forest models at 20 to
+49 sites, all of taxa whose spatial block, estimated from a variogram,
 differed between families in the hindcast [PENDING E12 block step:
 whether the block explains them] (Appendix S1: Section S10, which also
 gives the cost and time of every run).
@@ -802,8 +805,9 @@ place's centre; about 11% of eligible Mushroom Observer records (880 of
 8,003) were placed that way in the frozen pull. Fetching their Mushroom
 Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
 (Appendix S1: Section S2). Fits are deterministic within a processor family
-but not quite across families: 2 of 507 refits changed grade on the other
-family, and some taxa's spatial blocks differ, by up to 240 km. The maps can only be as good as where people collect and
+but not quite across families: about 0.4% of grades (95% interval
+0.0–1.2%) would change on the other family, all among full-design models,
+and some taxa's spatial blocks differ, by up to 240 km. The maps can only be as good as where people collect and
 sequence.
 
 **Where habitat adds over distance.** Near known records, distance alone
@@ -978,7 +982,7 @@ data, command, result, release, commit).
 | E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. 230–300 CPU-h ($12–15), from the cost pilot (`2026-10-13-e6a-cost-pilot.md`) | P1 |
 | E6b | **Done 2026-10-21** (study-20261020T232528Z-05216058): H6b holds, +0.0435 [0.0147, 0.0755], top-half share only; new places [0, 0.0996] not; moderate and indicative do not beat the kernel; advantage from 100–500 km finds (Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
-| E12 | **Running**: gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected by construction (separate worker pools per learner; surviving shard logs; a1 = release on 507/507); the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a) done 2026-10-21: 502/507 identical, 505/507 same grade (one failed → weak, one weak → strong), the 5 that differ all full models at 20–49 sites among E6b's 35 block-flip taxa; the block-only step (code in review, Steve's go) decides the attribution. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
+| E12 | **Running**: gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected by construction (separate worker pools per learner; surviving shard logs; a1 = release on 507/507); the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a) done 2026-10-21: 502/507 identical, 505/507 same grade (one failed → weak, one weak → strong), the 5 that differ all full models at 20–49 sites among E6b's 35 block-flip taxa; weighted to the release: identical 98.45%, grade changes 0.43% [0.00%, 1.24%], κ 0.9895; ESM 0%, full models 4.67% (3f86472); the block-only step (b407054, confirmed by Steve) decides the attribution. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
 | E17 | ODMAP protocol (`docs/paper/appendix-s1-odmap.md`) | all | **Draft 2026-10-13**; final check against the frozen release | Writing from Methods + code | 1–2 days | P1 |
 | E4 | Presence–absence test: GlobalFungi + MycoMap soil cores, by UNITE species hypothesis | C2 | No | Feasibility first: how many Atlas taxa map 1:1 to an SH with enough North American samples | Feasibility 2–3 days; full 1–2 weeks; small compute | P1 feasibility, P2 full |
 | E6c | Morphology-named GBIF Maxent for formally named species, scored on DNA-defined finds | C3 | No | GBIF download with DOI; name matching; same pipeline | ~100 CPU-h, ~1 week | P2 |
@@ -1151,6 +1155,9 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.9 (2026-10-21).** E12 weighted rates (plan-e12 3f86472): grade
+  changes across families 0.43% [0.00, 1.24], κ 0.9895; ESM 0%, full models
+  4.67%; in 2.6, Limitations, C4 and S10.
 - **0.17.8 (2026-10-21).** 4.3: API, rate limits and problem reporting (ops).
 - **0.17.7 (2026-10-21).** E3 registered (Steve): one read-out of finds
   validated 2026-10-14 to 2026-12-15 on fa1b4198; Path 3c, 3.4.
