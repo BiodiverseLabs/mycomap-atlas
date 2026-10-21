@@ -40,14 +40,18 @@ On one machine, repeated fits in fresh processes and different orders were
 bit-identical. E12 (`docs/experiments/2026-10-13-plan-e12-grade-stability.md`)
 refitted 507 drawn models, with their null tests, on r7i twice: both runs
 matched the release on all 507. The second run first differed in 191 of
-225 small-model ensembles (maps only; every grade unchanged): glmnet's
+225 small-model ensembles (the map's bytes, and in one model its pooled
+Boyce by 0.001; every grade unchanged): glmnet's
 settings are global to an R process, Maxent sets two of them, and an
 ensemble fitted after a Maxent model in the same worker inherited them.
-Every released model was fitted in a fresh worker pool at glmnet's
-defaults, so released maps are unaffected; each fit now sets glmnet's
-settings itself and restores them (Atlas 5b58f30), and the rerun matched
-on 507 of 507. A second machine effect: the spatial block, the blockCV
-variogram range rounded to 5 km, can depend on the processor family: of
+Production fits each learner in its own pool of worker processes, so
+every released ensemble was fitted at glmnet's defaults and released maps
+are unaffected. Each ensemble fit now runs at glmnet's defaults and
+restores the process's settings (Atlas 5b58f30; the detection model of E14
+is pinned likewise, a8861ab, though it was never affected), and the rerun
+matched on 507 of 507. A second machine effect: the spatial block, the blockCV
+variogram range rounded to 5 km (full models only; ensembles use a fixed
+100 km block), can depend on the processor family: of
 the 1,144 hindcast taxa whose Maxent was fitted on r7a, 35 had another
 block when rebuilt on r7i, by 5 to 240 km, and so other folds. How often grades differ
 across families is arm b, on r7a, split into changes with and without a
@@ -64,7 +68,9 @@ model is refitted. Everything else published is map-derived or coarse
 corrected cells file.
 
 Each shard's record names its instance type,
-processor and BLAS, and since the hindcast each model's record does too.
+processor and BLAS library file, and since the hindcast each model's
+record does too. [PENDING: the BLAS build, thread setting and kernel, which
+the records do not yet name.]
 [PENDING E12 arm b: grade agreement, setting flips and map tolerance across
 families; a recommendation on pinning the family for releases.]
 

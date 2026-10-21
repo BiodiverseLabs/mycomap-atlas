@@ -398,8 +398,8 @@ reproduces the release byte for byte: 507 drawn models, refitted twice in
 different orders and worker splits, matched it on all 507 (E12). The test
 found one fault on the way: glmnet's settings are global to an R process,
 so a small-model ensemble fitted after a Maxent model in the same worker
-inherited Maxent's; every released model was fitted in a fresh worker and
-is unaffected, and each fit now sets its own. Across processor families,
+inherited Maxent's; production fits each learner in its own pool of
+workers, so no released map is affected, and each fit now sets its own. Across processor families,
 some tuned Maxent models choose other settings, and the spatial block,
 estimated from a variogram, can differ for some taxa [PENDING E12 arm b:
 how often grades differ across families] (Appendix S1: Section S10, which
