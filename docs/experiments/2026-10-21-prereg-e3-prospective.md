@@ -39,17 +39,21 @@ scored on fa1b4198.
   id is not in the frozen pull. Finds first validated on 2026-10-12 or
   2026-10-13 (after the pull, before the release was live) are reported
   apart.
-  - **Pull rules at the read-out.** The Atlas pull at a commit named here
-    at registration and not changed after: [PENDING: SHA, from the method
-    lane]. Its rule changes since x73b85b36 are listed with it: the
-    source-keyed first-validation lookup (Atlas 8edc15d); the Mushroom
-    Observer location-box rule; and Mushroom Observer records deleted at
-    the source with no cached answer dropped. Also applied to test finds:
-    sequences flagged wrong (wrong specimen) or contaminant, and the
-    current drop list, as the pull at that commit applies them [CHECK:
-    method lane, whether both are already pull rules]. The frozen pull's
-    exclusion list of 76 erroneous records still applies. Each rule's count
-    of removed finds is reported.
+  - **Pull rules at the read-out.** As on Atlas main 0bdb934: first
+    validation keyed by source (8edc15d); name changes (ee9f3fe); sequence
+    flags (9379a64 contaminant, 06cf6ea wrong observation or specimen,
+    31709fa ONT Trashcan reads), under which a flagged sequence never names
+    a record, so the record keeps its other clean sequences' name, or its
+    record name if none is left; the drop list (643b444); and the Mushroom
+    Observer rules as there (the location box, and records deleted at the
+    source with no cached answer dropped). The frozen 2026-10-12 pull
+    predates the three sequence flags. The read-out applies the operations
+    box's drop list (copied in if the read-out pull runs in its own data
+    directory), and records its hash and removed count. The frozen pull's
+    exclusion list of 76 erroneous records still applies. The read-out runs
+    at a later commit that adds only the study-score mode, named at the
+    read-out; any other change to the pull rules before then is a dated
+    deviation. Each rule's count of removed or renamed finds is reported.
   - **Leak paths and their guards.** A record in the frozen pull: excluded
     by its id. A first-validation date moved across the cutoff by a
     cross-source collision: prevented by 8edc15d, and caught by the id rule
