@@ -208,6 +208,16 @@ read by any of these jobs.
   --release=20261013T191324Z-fa1b4198`, 3 × r7i.8xlarge, 30 workers each;
   Steve confirmed it directly with the operations lane. The r7a patch for
   any mismatch follows.
+  - **Result (2026-10-21).** All 3 shards on r7i.8xlarge (Intel Xeon
+    Platinum 8488C), 05:28 to 07:08 UTC. 6,369 modelled taxa: 5,679 scored
+    (5,679 kernels), 690 refused as "mismatch", 0 refused otherwise, 0
+    failed. Of the 690: 649 differ in folds only, 26 in block and folds, 15
+    in block only.
+  - Every taxon's record set and detection sites, rebuilt from the release's
+    pull, equal its model's recorded fingerprint and presences: 0 of 6,369
+    differ in either (the check tests both for every taxon, scored or
+    refused). The differences are in folds and blocks only (Deviations,
+    2026-10-21).
 
 ## Deviations
 
