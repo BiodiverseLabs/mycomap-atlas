@@ -92,4 +92,36 @@ rebuild lane and Steve, outside this plan.
 
 ## Deviations
 
-None yet.
+- **2026-10-20, chosen AFTER seeing E6b's results (Steve): a tier carries
+  downstream claims only if it beats the distance-only baseline.** This
+  adds to the bar for downstream claims above (Explore, likely-by-state
+  lists, the Vision prior and the other uses listed there). It was not
+  stated before the results, and is reported as a post-hoc choice.
+  - **The criterion.** On the same places, the tier's top-half share minus
+    the distance kernel's has a 95% lower bound above 0. That is the test
+    H6b applies to strong maps (bootstrap over taxa, as E2).
+  - **Why.** The bar stated above asks whether a tier ranks later finds
+    better than chance (lower bounds above 0.5). A model that knows only
+    the distance to a taxon's known records already clears it by a wide
+    margin: the kernel's top-half share is 0.871 on the strong maps'
+    places, and 0.882 over its own reach. So that bar cannot tell a habitat
+    map from distance to known records. A downstream claim says the map
+    adds something about habitat, and a tier that does no better than
+    distance does not support that.
+  - **What it decides** (E6b prereg, Results):
+    - strong: beats the kernel, +0.0435 [0.0147, 0.0755], so it carries
+      claims.
+    - moderate: does not beat it, −0.0142 [−0.0334, 0.0050], and its mean
+      rank of finds is lower than the kernel's, −0.0168 [−0.0299, −0.0037].
+      So moderate carries no downstream claims, whatever E1 shows.
+    - indicative: ranks below the kernel, −0.0263 [−0.0393, −0.0140], so
+      it carries no downstream claims.
+  - **E1 is unchanged.** It runs and is reported as pre-registered,
+    including every tier's false-pass rate and power. The bar stated above
+    and every tier's E2 numbers are reported in full as well (Appendix S1,
+    S5 and S6).
+- **2026-10-20 (Steve): indicative maps stay as today's faint "weak" map.**
+  No promotion on the species page and no new claim, although they clear
+  the labelled-display bar above (top-half lower bound 0.854). They rank
+  later finds below a distance-only map. Display of moderate maps on the
+  species page is not decided here.

@@ -202,3 +202,31 @@ H6b.
 **Secondary: the kernel over its own 500 km reach**, all taxa: 6,206 rows,
 462 beyond reach; top-half share 0.882 (new places 0.853, known 0.971,
 100–500 km 0.707).
+
+## Notes for the write-up (rebuild lane, 2026-10-20)
+
+Not results: a reading of the numbers above for the Discussion, descriptive
+only (the bands carry no intervals).
+
+- **Near known records, distance alone does as well as or better than a
+  strong habitat map, and the strong maps' advantage comes from far
+  finds.**
+
+  | Band | Strong map | Kernel |
+  |---|---|---|
+  | 5–25 km | 0.974 | 1.000 |
+  | 25–100 km | 0.928 | 0.928 |
+  | 100–500 km | 0.760 | 0.611 |
+
+  This is the "habitat adds over distance at far finds" question the
+  Design anticipated (What the result does to C2's wording).
+- **New places.** The new-places split (more than 5 km) gains about as much
+  as the whole (+0.0478 against +0.0435), but on fewer places, and its
+  interval reaches 0. It reads as too little power, not as no effect. The
+  new places that carry the gain are the far ones.
+- **Wording.** H6b measures later finds at all places, so C2 should say
+  "later finds", not "new finds". The advantage is in the top-half share;
+  the mean rank of finds does not differ.
+- **Tiers.** Moderate and indicative maps do not beat the kernel, and
+  indicative ranks below it. They now carry no downstream claims
+  (plan-map-tiers, Deviations, 2026-10-20).
