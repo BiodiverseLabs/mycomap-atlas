@@ -218,6 +218,14 @@ read by any of these jobs.
     differ in either (the check tests both for every taxon, scored or
     refused). The differences are in folds and blocks only (Deviations,
     2026-10-21).
+- **Kernels, patch 1 (launched 2026-10-21 14:27 UTC).**
+  study-20261021T142054Z-a972d74e, image c56d2dc (Atlas main with
+  fix/distance-pull-from 714c35f), `study-distance
+  --release=20261013T191324Z-fa1b4198 --pull-from=20261013T022520Z-2cb67f32
+  --workers=8 --taxa=<the 690 refused>` (the stored list's sha256
+  de79392e…, equal to the file's), one r7i.4xlarge (spot): the 690 rebuilt
+  from R_main's pull, the one most of the release's models were fitted on.
+  Steve confirmed it directly with the operations lane.
 
 ## Deviations
 
