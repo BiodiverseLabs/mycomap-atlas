@@ -28,10 +28,9 @@
 # export gains the prior's map strength per taxon and models and rank spread
 # per cell, an unknown area of applicability where no model has a threshold
 # (it read as inside), and a .tsv.gz always beside its parquet (Vision,
-# 2026-10-13). 6: a link-preview card for each taxon with a map to show
-# (R/card.R), so the API never draws one. Finishing again refits nothing: it
-# reads the release's maps and adds what it builds.
-ATLAS_FINISH_VERSION <- 6L
+# 2026-10-13). Finishing again refits nothing: it reads the release's maps
+# and adds what it builds.
+ATLAS_FINISH_VERSION <- 5L
 
 #' Whether a release has been finished under the current rule.
 atlas_release_finished <- function(release) {
@@ -51,7 +50,7 @@ atlas_finish_id <- function(release_id) paste0("finish-", release_id)
 atlas_finish_release_work <- function(store = atlas_store(), release, grid = "draft", workers = 1L,
                                       quiet = FALSE, count = atlas_count_regions,
                                       build_index = atlas_build_finish_indexes,
-                                      ensembles = atlas_build_ensembles, cards = atlas_build_cards) {
+                                      ensembles = atlas_build_ensembles) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   started <- Sys.time()
   manifest <- atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
@@ -61,17 +60,13 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
   # The combined maps: built for each taxon with two or more strong maps,
   # removed for one that has fallen below. The release gets both.
   ensemble_dir <- atlas_path("models", grid, "ensemble")
-  card_dir <- atlas_card_dir(grid)
   ensemble_files <- function() {
-    files <- c(list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE),
-               list.files(card_dir, pattern = "[.]jpg$", full.names = TRUE))
+    files <- list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE)
     substring(normalizePath(files, winslash = "/"), nchar(normalizePath(atlas_data_dir(), winslash = "/")) + 2L)
   }
   had <- ensemble_files()
   ensembles(grid = grid, quiet = quiet)
   build_index(grid = grid, quiet = quiet)
-  # After the combined maps: a card shows the map best-map chooses.
-  cards(grid = grid, quiet = quiet)
 
   # What differs from the release: counted metrics, the combined maps, the
   # new index and prior.
@@ -82,8 +77,7 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
     list.files(atlas_model_dir(grid, a), pattern = "[.]json$", full.names = TRUE)
   }), use.names = FALSE)
   built <- c(atlas_here_index_path(grid), file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES),
-             list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE),
-             list.files(card_dir, pattern = "[.]jpg$", full.names = TRUE))
+             list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE))
   candidates <- substring(normalizePath(c(metrics, built), winslash = "/", mustWork = FALSE),
                           nchar(normalizePath(root, winslash = "/")) + 2L)
   candidates <- candidates[file.exists(file.path(root, candidates))]
@@ -107,7 +101,7 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
                                      ATLAS_CONTINENT_PREFIX))
   )
   atlas_store_json(store, atlas_shard_key(id, 1L, grid), record)
-  say("finished release ", release, ": counted ", record$counted, " maps by state, built the combined maps, index, prior and cards; ",
+  say("finished release ", release, ": counted ", record$counted, " maps by state, built the combined maps, index and prior; ",
       length(changed), " files changed, ", uploaded$count, " uploaded (",
       round(uploaded$bytes / 1048576, 1), " MB)")
   invisible(record)

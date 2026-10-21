@@ -62,15 +62,17 @@ and nginx replaces that header with the visitor's address from Cloudflare.
   `deploy.sh <sha>`. The commit must be on main (CI publishes its image) and
   the package public.
 - **Run the nightly job now**: `sudo systemctl start atlas-nightly`.
-- **Finish the current release again** on EC2, and nothing else (after a
-  change raises the finish rule, such as the link-preview cards), then serve
-  it as the nightly job would:
+- **Draw the link-preview cards** for the release the box serves, beside it
+  and never in it (R/card.R), and publish them for the next pull. The
+  nightly job does this after every pull; by hand, for a release pulled
+  before cards existed:
   ```bash
   source /etc/atlas/image.env
-  sudo docker run --rm --name atlas-finish --network host --memory 1g     --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data     -v /home/atlas/.ssh:/home/atlas/.ssh:ro "$ATLAS_IMAGE" finish-current
-  sudo docker run --rm --network host --memory 1g --env-file /etc/atlas/atlas.env     -v /srv/atlas/data:/data "$ATLAS_IMAGE" pull-release --no-rasters
-  sudo systemctl restart atlas-api
+  sudo docker run --rm --name atlas-cards --network host --memory 400m \
+    --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data "$ATLAS_IMAGE" build-cards --upload
   ```
+  The API serves them as soon as they are drawn, with no restart. Without
+  `--upload` they are drawn on the box only and a later pull removes them.
 - **Logs**: `journalctl -u atlas-api`, `journalctl -u atlas-nightly`, and
   nginx's in `/var/log/nginx/`.
 - **Is it up**: `curl -s http://127.0.0.1:5100/api/status` on the box.

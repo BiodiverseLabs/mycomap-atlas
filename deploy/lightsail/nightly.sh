@@ -4,8 +4,9 @@
 # In the image of the deployed commit: pull the validated records from
 # mycomap.org, plan what changed, fit it on EC2 and publish the release
 # (`atlas nightly`); then, whatever that did, bring this server up to the
-# current release without its rasters, restart the API on it, and write the
-# sitemap for it into the web root, where nginx serves it beside robots.txt.
+# current release without its rasters, restart the API on it, draw its
+# link-preview cards beside it, and write the sitemap for it into the web
+# root, where nginx serves it beside robots.txt.
 #
 # Exits non-zero if any step failed, so the unit shows as failed.
 set -uo pipefail
@@ -24,6 +25,9 @@ status=0
 run atlas-nightly nightly || status=$?
 if run atlas-pull pull-release --no-rasters; then
   systemctl restart atlas-api
+  # Link-preview cards for the release now served, drawn beside it (never in
+  # it) and published for the next pull; cards already drawn are kept.
+  run atlas-cards build-cards --upload || status=1
   if run atlas-sitemap sitemap --out=/data/sitemap.xml; then
     install -m 644 /srv/atlas/data/sitemap.xml /srv/atlas/web/sitemap.xml
   else

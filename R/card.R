@@ -270,24 +270,42 @@ atlas_write_card_image <- function(path, title, italic = FALSE, lines = characte
   invisible(path)
 }
 
-# ---- cards drawn when a release is finished ---------------------------------
+# ---- cards drawn for a release, beside it --------------------------------------
 # The API never draws a card (Steve, 2026-10-20): it is one R process in a
 # 900 MB container, and a burst of first scrapes must never be what kills
-# it. Each taxon with a map to show gets its card when its release is
-# finished (R/finish.R, on an EC2 worker), as a release file the box pulls.
-# The API only serves the file. A card is named for the map it shows, by
-# the map PNG's md5, so a card drawn from an older map is never served for
-# a newer one: until finishing draws the new one, the page shows the site's
-# card instead.
+# it. Cards are drawn for the release a machine serves, from the maps it
+# already holds, by atlas build-cards: on the box, in a container of its
+# own (about 180 MB at its peak, measured in the release image).
+#
+# A release is never written to add them (Steve, 2026-10-20): fa1b4198 is the
+# paper's frozen release and the Zenodo deposit, and finishing it again would
+# make a new release current. So cards sit beside a release, not in it:
+# data/cards/<grid>/<release>/ on a machine; in the store, content-addressed
+# objects under objects/ like every published file, listed by
+# cards/<grid>/<release>.json. pull-release fetches that list for a web
+# server. The API only serves the file. A card is named for the map it
+# shows, by the map PNG's md5, so a card drawn from an older map is never
+# served for a newer one: until the new one is drawn, the page shows the
+# site's card instead.
 
-#' Where a release's cards are kept.
-atlas_card_dir <- function(grid = "draft") atlas_path("models", grid, "cards")
+#' The release whose cards this machine serves: the one it pulled, or
+#' "local" on a machine that never pulled one.
+atlas_card_release <- function(grid = "draft") atlas_status_release(grid)$id %||% "local"
+
+#' Where a release's cards are kept on this machine.
+atlas_card_dir <- function(grid = "draft", release = atlas_card_release(grid)) {
+  atlas_path("cards", grid, release)
+}
+
+#' The store key listing a release's cards.
+atlas_card_index_key <- function(grid, release) paste0("cards/", grid, "/", release, ".json")
 
 #' The card of a taxon's map: its slug and the first 12 hex digits of the
 #' map PNG's md5.
-atlas_card_file <- function(name, map_png, grid = "draft") {
+atlas_card_file <- function(name, map_png, grid = "draft", release = atlas_card_release(grid)) {
   slug <- basename(atlas_model_path(name, grid, "", "maxnet"))
-  file.path(atlas_card_dir(grid), sprintf("%s-%s.jpg", slug, substr(unname(tools::md5sum(map_png)), 1, 12)))
+  file.path(atlas_card_dir(grid, release),
+            sprintf("%s-%s.jpg", slug, substr(unname(tools::md5sum(map_png)), 1, 12)))
 }
 
 #' The card to serve for a taxon now, or NULL: none when it has no map to
@@ -298,14 +316,18 @@ atlas_card_for <- function(name, grid = "draft", choice = atlas_best_choice(name
   if (file.exists(path)) path else NULL
 }
 
-#' Draw the card of every taxon with a map to show, and remove the cards of
-#' maps no longer shown. A card already drawn for the same map is kept.
-#' Returns the taxa drawn, kept and removed, and how long it took.
-atlas_build_cards <- function(grid = "draft", quiet = FALSE, taxa = NULL,
+#' Draw the card of every taxon with a map to show in the release this
+#' machine holds, and remove the cards of maps no longer shown. A card
+#' already drawn for the same map is kept. With a store, upload the cards and
+#' write the release's card list beside it; the release itself is never
+#' written. Returns how many were drawn, kept and removed, the time taken,
+#' and the list's key.
+atlas_build_cards <- function(grid = "draft", store = NULL, quiet = FALSE, taxa = NULL,
                               draw = atlas_write_card_image) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   started <- Sys.time()
-  dir <- atlas_card_dir(grid)
+  release <- atlas_card_release(grid)
+  dir <- atlas_card_dir(grid, release)
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
   counts <- atlas_path("occurrences", "taxa-latest.json")
   counts <- if (file.exists(counts)) jsonlite::fromJSON(counts, simplifyVector = TRUE) else NULL
@@ -315,7 +337,7 @@ atlas_build_cards <- function(grid = "draft", quiet = FALSE, taxa = NULL,
   for (name in names) {
     choice <- atlas_best_choice(name, grid)
     if (is.null(choice)) next
-    path <- atlas_card_file(name, choice$png, grid)
+    path <- atlas_card_file(name, choice$png, grid, release)
     wanted <- c(wanted, path)
     if (file.exists(path)) next
     records <- if (is.data.frame(counts)) counts$records[match(name, counts$scientific_name)] else NA
@@ -326,10 +348,54 @@ atlas_build_cards <- function(grid = "draft", quiet = FALSE, taxa = NULL,
   stale <- setdiff(normalizePath(list.files(dir, pattern = "[.]jpg$", full.names = TRUE), winslash = "/"),
                    normalizePath(wanted, winslash = "/", mustWork = FALSE))
   unlink(stale)
+
+  key <- NULL
+  if (!is.null(store)) {
+    data_root <- normalizePath(atlas_data_dir(), winslash = "/")
+    paths <- substring(normalizePath(sort(wanted), winslash = "/"), nchar(data_root) + 2L)
+    entries <- atlas_file_entries(paths)
+    uploaded <- atlas_upload_objects(store, entries)
+    key <- atlas_card_index_key(grid, release)
+    atlas_store_json(store, key, list(
+      release = release, grid = grid, commit = Sys.getenv("ATLAS_COMMIT", "unknown"),
+      built_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), files = entries
+    ))
+    say("cards: uploaded ", uploaded$count, " (", round(uploaded$bytes / 1048576, 1), " MB), listed at ", key)
+  }
   seconds <- as.numeric(difftime(Sys.time(), started, units = "secs"))
-  say("cards: ", drawn, " drawn, ", length(wanted) - drawn, " kept, ", length(stale), " removed, in ",
-      round(seconds), " s")
-  invisible(list(drawn = drawn, kept = length(wanted) - drawn, removed = length(stale), seconds = seconds))
+  say("cards for release ", release, ": ", drawn, " drawn, ", length(wanted) - drawn, " kept, ",
+      length(stale), " removed, in ", round(seconds), " s")
+  invisible(list(release = release, drawn = drawn, kept = length(wanted) - drawn,
+                 removed = length(stale), seconds = seconds, key = key))
+}
+
+#' Bring a release's cards onto this machine, as listed beside it in the
+#' store, and drop every other release's. Nothing listed yet: no cards, and
+#' pages show the site's card. Never fails a pull: a card is a nicety.
+atlas_pull_cards <- function(store, grid = "draft", release, quiet = FALSE) {
+  say <- function(...) if (!isTRUE(quiet)) message(...)
+  result <- tryCatch({
+    cards_root <- atlas_path("cards", grid)
+    for (other in setdiff(list.files(cards_root), release)) unlink(file.path(cards_root, other), recursive = TRUE)
+    key <- atlas_card_index_key(grid, release)
+    dir <- atlas_card_dir(grid, release)
+    if (!store$exists(key)) {
+      unlink(dir, recursive = TRUE)
+      list(fetched = 0L, listed = 0L)
+    } else {
+      index <- atlas_store_text(store, key)
+      dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+      got <- atlas_fetch_entries(store, index$files)
+      listed <- vapply(index$files, function(e) basename(e$path), character(1))
+      unlink(file.path(dir, setdiff(list.files(dir), listed)))
+      list(fetched = got$fetched, listed = length(listed))
+    }
+  }, error = function(e) {
+    message("cards not pulled: ", conditionMessage(e))
+    list(fetched = 0L, listed = 0L, error = conditionMessage(e))
+  })
+  say("cards for release ", release, ": ", result$listed, " listed, ", result$fetched, " fetched")
+  invisible(result)
 }
 
 # ---- the tags a link preview reads ------------------------------------------

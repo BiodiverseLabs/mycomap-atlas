@@ -567,9 +567,9 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
   if (!isTRUE(keep_local)) {
     published <- vapply(manifest$files, function(e) e$path, character(1))
     local <- substring(
-      normalizePath(c(unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
+      normalizePath(unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
         list.files(atlas_model_dir(grid, a), pattern = "[.](json|tif|png)$", full.names = TRUE)
-      })), list.files(atlas_card_dir(grid), pattern = "[.]jpg$", full.names = TRUE)), winslash = "/"),
+      })), winslash = "/"),
       nchar(normalizePath(root, winslash = "/")) + 2L
     )
     stale <- setdiff(local, published)
@@ -592,6 +592,9 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
          created_at = manifest$created_at, commit = manifest$commit),
     if (!is.null(manifest$pull)) list(data = manifest$pull)
   ), atlas_path("releases", grid, "pulled.json"))
+  # A web server (no rasters) also serves the cards drawn beside the release
+  # (R/card.R); a worker has no use for them.
+  if (!isTRUE(rasters)) atlas_pull_cards(store, grid, manifest$id, quiet = quiet)
   say("release ", manifest$id, ": downloaded ", fetched, " of ", length(wanted),
       " files (", round(bytes / 1048576, 1), " MB)",
       if (removed) paste0(", removed ", removed, " local model files it does not have") else "")

@@ -781,7 +781,7 @@
         ],
         "operationId": "getTaxonCard",
         "summary": "A taxon's link-preview card",
-        "description": "The picture Facebook, X, iMessage and Slack show for a species page: a 1200 x 630 JPEG with the MycoMap Atlas name, the taxon's name and record count, and its map (the one /api/taxa/{name}/best-map chooses) over Natural Earth land and borders. The map alone, never the collections. Drawn when the release was finished, never on request. Taxon pages link it with ?v=, the map's version, and that address is kept for good.",
+        "description": "The picture Facebook, X, iMessage and Slack show for a species page: a 1200 x 630 JPEG with the MycoMap Atlas name, the taxon's name and record count, and its map (the one /api/taxa/{name}/best-map chooses) over Natural Earth land and borders. The map alone, never the collections. Drawn for each release beside it, never on request. Taxon pages link it with ?v=, the map's version, and that address is kept for good.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"

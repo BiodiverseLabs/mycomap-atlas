@@ -13,7 +13,7 @@ changed and what it means for you.
 - **`GET /api/taxa/{name}/card.jpg`** is new: a species' link-preview card,
   a 1200 x 630 JPEG with its name, its record count and its map (the one
   `best-map` chooses) over Natural Earth land. The map alone, never the
-  collections. Cards are drawn when a release is finished, never on request.
+  collections. Cards are drawn for each release beside it, never on request.
   404 for a taxon with no map to show, or whose card is not drawn yet for the
   map it has now. Species pages link it with `?v=`, the map's version, and
   that address is kept for good.

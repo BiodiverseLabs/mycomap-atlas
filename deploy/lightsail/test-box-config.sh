@@ -88,6 +88,9 @@ grep -qx 'ExecStart=/usr/local/lib/atlas/uptime.sh' "$here/systemd/atlas-uptime.
   && grep '^systemctl enable' "$here/setup-box.sh" | grep -q 'atlas-uptime.timer' \
   && pass "the uptime check runs every 5 minutes, enabled by setup" \
   || fail "atlas-uptime: the service, its 5-minute timer and setup's enable disagree"
+grep -q 'run atlas-cards build-cards --upload' "$here/nightly.sh" \
+  && pass "the nightly job draws the served release's link-preview cards beside it" \
+  || fail "nightly.sh must run build-cards --upload after pulling the release"
 grep -q 'run atlas-sitemap sitemap --out=/data/sitemap.xml' "$here/nightly.sh" \
   && grep -q 'install -m 644 /srv/atlas/data/sitemap.xml /srv/atlas/web/sitemap.xml' "$here/nightly.sh" \
   && grep -qF 'cp /srv/atlas/data/sitemap.xml "$web.next/sitemap.xml"' "$here/deploy.sh" \
