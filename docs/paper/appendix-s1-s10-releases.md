@@ -89,7 +89,18 @@ families they differ all and only where the spatial block differs. This
 is shown for the 507-model sample; the refresh's three tuned-Maxent flips
 (gate 2) fit the same mechanism (*Stropharia hardii* is in both) but are
 not all in the sample (plan-e12, the block-only step and the reading,
-2026-10-21). Our refit checks enforce the tolerances
+2026-10-21).
+
+Three pulls stand behind the frozen release: the original pull of
+2026-10-12, on which R_main and the full-view refresh fitted most models;
+the same pull with 22 rows dropped, for the targeted job's 7 models; and
+the release's own, with all 76 drop-list rows out, which its manifest
+names. No model's own records differ between them, but a taxon's
+background comes from other taxa's records within its reach, so its folds
+depend on which pull it was fitted on. An exact refit therefore uses each
+model's fitting job's inputs, as E12 and the refresh do, not the single
+pull the manifest names; rebuilding from that pull changed the folds of
+taxa near the dropped rows (E3 prereg, Deviations, 2026-10-21). Our refit checks enforce the tolerances
 and flag anything beyond them.
 
 Published records follow their source's privacy: records whose location
