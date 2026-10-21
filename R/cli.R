@@ -9,6 +9,8 @@ atlas_usage <- function() {
   message("      --chunk-size=N       records per query (default 10000)")
   message("      --max-rows=N         stop after N records (smoke test)")
   message("      --dry-run            print the SQL and exit")
+  message("  stage-pull         copy this machine's pull and name-change log to --out=private/study/<name>/,")
+  message("                     for a study job to score (paper E3)")
   message("  build-layers       build environmental layers onto a grid")
   message("      --grid=draft|production   which grid (default draft, 5 km)")
   message("      --only=a,b                build only these layers")
@@ -236,6 +238,9 @@ atlas_usage <- function() {
   message("      --from-release=ID         optional: refused unless it is the hindcast's source release")
   message("      --cutoff=YYYY-MM-DD       optional: refused unless it is the hindcast's cutoff")
   message("      --kernels=a.json,...      every shard's results file of one E6b run on this hindcast")
+  message("      --release=ID --from=D --until=D  paper E3 instead: a published release on the finds first")
+  message("                                validated from D to D after it (--finds-pull=PREFIX staged, else")
+  message("                                this machine's pull; --counts-only for counts and no score)")
   message("      --kernels-from=JOB,...    or the E6b study job's results and kernels, fetched from the store;")
   message("                                later jobs are patches (study-distance --taxa) whose kernels")
   message("                                replace the first job's mismatches for those taxa")
@@ -386,6 +391,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         atlas_exclude_records(as.character(flags$ids), by = as.character(flags$by %||% "id"),
                               reason = as.character(flags$reason %||% ""))
       }
+      invisible(0L)
+    },
+    "stage-pull" = {
+      # This machine's pull, for a study job to score (paper E3).
+      if (is.null(flags$out)) stop("stage-pull needs --out=private/study/<name>/", call. = FALSE)
+      keys <- atlas_stage_pull(atlas_flag_store(flags), as.character(flags$out))
+      message("staged ", length(keys), " files: ", paste(keys, collapse = ", "), " (private)")
       invisible(0L)
     },
     "pull-occurrences" = {
@@ -928,8 +940,26 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "study-score" = {
-      if (is.null(flags$hindcast)) stop("study-score needs --hindcast=ID", call. = FALSE)
       files <- function(value) if (is.null(value)) NULL else trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
+      # Paper E3: a published release on the finds first validated after it
+      # (R/studye3.R).
+      if (!is.null(flags$release)) {
+        if (!is.null(flags$hindcast)) stop("give --release (E3) or --hindcast (E2), not both", call. = FALSE)
+        if (is.null(flags$from) || is.null(flags$until)) {
+          stop("study-score --release needs --from=YYYY-MM-DD and --until=YYYY-MM-DD", call. = FALSE)
+        }
+        atlas_e3_study(
+          atlas_flag_store(flags), release = as.character(flags$release),
+          from = as.character(flags$from), until = as.character(flags$until),
+          finds_pull = if (is.null(flags$finds_pull)) NULL else as.character(flags$finds_pull),
+          grid = atlas_flag_grid(flags), kernels_from = files(flags$kernels_from),
+          counts_only = isTRUE(flags$counts_only),
+          reps = atlas_flag_number(flags, "reps", ATLAS_E2_BOOTSTRAP),
+          out = if (is.null(flags$out)) NULL else as.character(flags$out)
+        )
+        return(invisible(0L))
+      }
+      if (is.null(flags$hindcast)) stop("study-score needs --hindcast=ID (E2) or --release=ID (E3)", call. = FALSE)
       atlas_score_study(
         atlas_flag_store(flags), hindcast = as.character(flags$hindcast),
         from_release = if (is.null(flags$from_release)) NULL else as.character(flags$from_release),
