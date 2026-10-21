@@ -216,6 +216,30 @@ the full suite at 1,187/0), in that commit's image.
   after its results file is written. Its other changes (the layer fetch,
   the worker layer check) are in the distance and default-practice
   studies, which the arms do not use.
+- **The block-only step (written 2026-10-21, before it runs).** It is
+  `study-repro --draw --blocks` (Atlas study/e12-blocks b407054, merged
+  before the run). It takes the same drawn sample as the arms (the same
+  sample key), keeps the full-design models (Maxent, random forest, boosted
+  trees: 282 of the 507), and for each one builds the training table its fit
+  builds: the fitting job's inputs and settings, and the model's
+  fingerprint, so the same sites and seed. It then measures the spatial
+  block alone (`atlas_block_size`), with no fit, and records it beside the
+  block the release fit recorded. ESM's block is a fixed 100 km and is not
+  measured.
+  - Runs: once on r7i.2xlarge (`--label=r7i`) and once on r7a.2xlarge
+    (`--label=r7a`), one shard each, `--workers=4`. Each about 20 to 40
+    minutes, well under $1 together.
+  - Fits are deterministic within a family (gate 2), so each run's blocks
+    are the ones that family's arms fitted on: r7i for a1 and a2, r7a for b.
+  - Reading: each of b's 5 differing models, and each of the 277 that did
+    not differ, is classed "block changed" (r7i ≠ r7a) or "same block". The
+    cross-family grade changes are reported in each class, as this plan's
+    Reading already sets out (2026-10-20). A model whose r7i block differs
+    from its release's recorded block is reported too: the release itself
+    was fitted on both families.
+  - Test before the run: on a synthetic taxon whose block sits inside the
+    50 to 300 km limits, the step gives exactly the block a real fit
+    records.
 
 ## Runs
 
