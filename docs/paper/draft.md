@@ -138,7 +138,7 @@ inflates, and the usual null test does not correct for it. Fungi add a
 second problem: morphological names often hide several lineages. We built
 MycoMap Atlas, which maps every North American fungus defined by an
 approved DNA sequence with at least three survey sites, from [133,235]
-validated community-science records of [16,252] taxa, rebuilt nightly.
+validated community-science records of [16,252] taxa, designed to rebuild nightly [CHECK: the nightly is off; restate when it resumes].
 Records are compared with the other places people collected and
 sequenced; Maxent, random forests, boosted trees and ensembles of small
 models are tuned and scored on spatially blocked folds; and each map is
@@ -656,7 +656,7 @@ The paper cites one frozen release by id and DOI: the finished release of
 the full-view refresh of the cleaned October 2026 release (section 2.1:
 76 erroneous records removed in two cleanings), after its finishing step:
 **20261013T191324Z-fa1b4198** [PENDING: DOIs]. The live atlas keeps
-rebuilding nightly; every release stays in the content-addressed store, and
+rebuilding nightly once the nightly resumes [CHECK: off at present]; every release stays in the content-addressed store, and
 archived ones keep their Zenodo DOIs, so later maps never overwrite the
 paper's.
 
@@ -1059,7 +1059,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **done**: run 2026-10-18 (priv-20261018T171648Z-9e3ab153), scored 2026-10-19 in one run with the *Sparassis spathulata* refit (study-20261019T181851Z-35fc3d63); C2 supported | done |
 | 2b | **E12 first step** and same-machine gate | **done** 2026-10-19: deterministic per processor family | done |
 | 3 | **E6b** distance-only baseline on the E2 finds | **done** 2026-10-21 (study-20261020T232528Z-05216058); then Steve's post-hoc tier rule (plan-map-tiers, 2026-10-20) | done |
-| 4 | **Presubmission inquiry** to Ecological Monographs | E2 and E6b numbers are in: redraft `presubmission-inquiry.md`, then Steve sends | November 2026 |
+| 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve, 2026-10-21): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, the nightly and the E19/E20 deposit are stated as they then are, and Steve sends | after E1 |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
 | 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
@@ -1124,6 +1124,9 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.3 (2026-10-21).** Presubmission inquiry on hold until E1 (Steve);
+  "designed to rebuild nightly" while the nightly is off; training-record
+  ids "will be deposited".
 - **0.17.2 (2026-10-21).** E12 arm b: 502/507 identical and 505/507 same
   grade across processor families (2.6, S10, Limitations); attribution to
   the block pending the block-only step.

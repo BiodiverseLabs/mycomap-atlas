@@ -1,5 +1,12 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
+**HOLD UNTIL E1 (Steve, 2026-10-21).** Sent only after E1's results are in
+the registry. Then, in one pass: replace the pilot C1 numbers and the "[E1:
+…]" placeholder with E1's registered numbers; state the nightly as it is
+then (it is off at present, hence "designed to rebuild nightly"); and say
+the training-record identifiers "will be deposited" unless E19/E20 are
+published by then.
+
 *Draft, redrafted 2026-10-21 with the hindcast (E2) and distance-baseline
 (E6b) results; Steve sends it. The C1 numbers are the earlier study's until E1
 reruns, and are labelled so. Limit:
@@ -26,7 +33,7 @@ that we quantify.
 
 We use the calibrated test to grade every map of MycoMap Atlas, habitat
 models for 6,369 fungal taxa defined by DNA barcodes rather than morphological
-names, rebuilt nightly from validated community-science collections. In a
+names, designed to rebuild nightly from validated community-science collections. In a
 hindcast, maps graded strong placed 91% of records validated after the
 training cutoff in their top half, against 78% for failed maps (95%
 interval of the difference 9–17 points), and beat a map of distance to
@@ -36,8 +43,8 @@ chance, which even failed maps clear, cannot judge such maps; distance to
 known records can. The paper gives best-practice guidance for null
 tests in target-group designs, compares the approach with default practice
 and with recent structure-keeping nulls, and documents the atlas as an open,
-versioned resource (code, layers, models and training-record identifiers on
-Zenodo).
+versioned resource (code, layers and models on Zenodo; training-record
+identifiers will be deposited).
 
 **References:** Phillips et al. 2009 (Ecological Applications); Raes & ter
 Steege 2007 (Ecography); Beale et al. 2008 (PNAS); Osborne et al. 2022
