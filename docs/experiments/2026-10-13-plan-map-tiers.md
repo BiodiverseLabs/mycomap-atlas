@@ -120,8 +120,12 @@ rebuild lane and Steve, outside this plan.
     including every tier's false-pass rate and power. The bar stated above
     and every tier's E2 numbers are reported in full as well (Appendix S1,
     S5 and S6).
-- **2026-10-20 (Steve): indicative maps stay as today's faint "weak" map.**
-  No promotion on the species page and no new claim, although they clear
-  the labelled-display bar above (top-half lower bound 0.854). They rank
-  later finds below a distance-only map. Display of moderate maps on the
-  species page is not decided here.
+- **2026-10-20 (Steve): moderate and indicative maps stay as today's faint
+  "weak" map.** No promotion on the species page, no promoting label and no
+  new claim, although both clear the labelled-display bar above (top-half
+  lower bounds 0.868 and 0.854). Moderate maps do no better than a
+  distance-only map at ranking later finds, and indicative maps do worse.
+  Neither tier exists in the release, the API or the web app: tiers are
+  computed only by the E2 scorer. Both are graded "weak", which the site
+  already draws faint, on the taxon page only, with the weak note. So this
+  needs no change to the site.
