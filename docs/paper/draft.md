@@ -682,8 +682,15 @@ area. Maps of taxa with 3 to 19 sites are ensembles of small models and
 say little on their own. Records whose location the source hides,
 obscures or may hide never appear in a published record-level layer.
 Cite a map by its release id and the release's DOI; maps and rasters are
-CC BY-SA 4.0, so derived maps carry the same licence. [CHECK: the public
-API's endpoints and rate limits; how users report a problem.]
+CC BY-SA 4.0, so derived maps carry the same licence. Everything on the
+site is also served by a public, read-only API described in
+`/api/openapi.json` (taxa, a taxon's best map and models, map images,
+region lists, the location prior and the Zenodo downloads); full-resolution
+rasters need a free token, issued per mycomap.org account. Anonymous use is
+limited to 300 requests a minute, 1,200 with a token and 6,000 with a bulk
+token. Problems with a map are reported from the site's "Report a map
+problem" link, which opens an issue on the code repository, or to
+info@mycomap.org. The endpoint list is in Appendix S1: Section S10.
 
 ### 4.4 What it costs (E23)
 
@@ -1144,6 +1151,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.8 (2026-10-21).** 4.3: API, rate limits and problem reporting (ops).
 - **0.17.7 (2026-10-21).** E3 registered (Steve): one read-out of finds
   validated 2026-10-14 to 2026-12-15 on fa1b4198; Path 3c, 3.4.
 - **0.17.6 (2026-10-21).** E3 is not accumulating (nightly and daily unit off); Path row 3c, start pending Steve.

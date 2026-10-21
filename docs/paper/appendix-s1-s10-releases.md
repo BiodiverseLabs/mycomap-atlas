@@ -94,6 +94,33 @@ OpenBLAS selects, which the records do not yet name.]
 taxon's block once and reuse it, and/or pin the processor family or one
 OpenBLAS kernel (Steve's decision).]
 
+## S10.1b The public API
+
+All endpoints are GET and described in `/api/openapi.json` (as served by
+image 5753802, 2026-10-21; `card.jpg` and `/share/taxa/{name}` arrive with
+the next deploy).
+
+- Site and data: `/api/openapi.json`, `/api/sources`, `/api/downloads`
+  (Zenodo), `/api/status`, `/api/me`, `/api/layers`, `/api/algorithms`,
+  `/api/benchmarks/latest`, `/api/tracker`.
+- Taxa: `/api/search`, `/api/taxa`, `/api/names/{name}`,
+  `/api/taxa/{name}`, `/api/taxa/{name}/cells`, `/api/taxa/{name}/regions`,
+  `/api/regions`, `/api/checklist.csv`.
+- Maps: `/api/taxa/{name}/best-map`, `/api/maps/best`,
+  `/api/taxa/{name}/model`, `/api/models`; images
+  `/api/taxa/{name}/map.png`, `image.png`, `ensemble`, `ensemble.png`,
+  `card.jpg`; `/api/taxa/{name}/raster.tif` with sign-in or a token.
+- Location prior: `/api/here`, `/api/prior`, `/api/prior/{file}`.
+
+Rate limits per caller and minute: anonymous 300 (per visitor address),
+standard token or signed-in person 1,200, bulk token 6,000; over the limit
+the API answers 429 with `X-RateLimit-Limit` and `X-RateLimit-Remaining`.
+Tokens are issued per mycomap.org account and approved by an administrator
+there, and are sent as `Authorization: Bearer <token>`; a live token or
+session also unlocks downloads. Map problems are reported through the
+site's "Report a map problem" link (a GitHub issue on the code repository,
+bug template) or to info@mycomap.org.
+
 ## S10.2 Cost and time
 
 The ledger of every run is `docs/paper/costs.md` (E23); its tables move here at submission.
