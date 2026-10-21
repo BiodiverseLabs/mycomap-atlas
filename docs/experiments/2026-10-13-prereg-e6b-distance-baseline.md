@@ -134,3 +134,58 @@ which the run's own settings also record, for the write-up:
     H6b. The kernels are scored as
     `--kernels-from=study-20261020T053446Z-1552e567,study-20261020T221806Z-9620406f`
     (study-20261020T222337Z-05216058).
+
+## Results
+
+Run 2026-10-20 (`study-score`, one-shard EC2 study job
+study-20261020T232528Z-05216058, Atlas image 50be1dc, r7i.xlarge, 23:27 to
+00:55 UTC). Results file:
+study/study-20261020T232528Z-05216058/score-priv-20261018T171648Z-9e3ab153-20261020T232715Z.json.
+Numbers only; read out by the rebuild lane.
+
+**Settings.** As E2 (hindcast priv-20261018T171648Z-9e3ab153, the
+*Sparassis spathulata* refit, the same 4 excludes, 10,000 bootstrap
+resamples of taxa, seed 1). Kernels from the main run
+study-20261020T053446Z-1552e567 (6,059) and the r7a patch
+study-20261020T221806Z-9620406f (35), all 35 patched kernels used. E2's own
+numbers in this run equal E2's (H2a 0.9145, H2b 0.1305, H2c 0.7854; C2
+supported; H2d, H2e, H2f and moderate-z hold).
+
+**Taxa with a kernel and later finds:** 2,567.
+
+**Primary hypothesis** (strong model minus kernel, on the same places;
+95% percentile intervals, bootstrap over taxa):
+
+| | Estimate | 95% interval | Taxa | Places | Holds |
+|---|---|---|---|---|---|
+| H6b: top-half share | +0.0435 | [0.0147, 0.0755] | 202 | 486 | yes |
+| H6b: mean rank difference (reported) | +0.0042 | [−0.0166, 0.0267] | 202 | 486 | |
+| H6b, new places only: top-half share | +0.0478 | [0.0000, 0.0996] | 168 | 334 | no (lower bound 0) |
+| H6b, new places: mean rank difference | +0.0079 | [−0.0207, 0.0378] | 168 | 334 | |
+
+**Tiers against the kernel** (tier model minus kernel, the same places;
+reported):
+
+| Tier | Top-half difference | 95% interval | Mean rank difference | 95% interval | Taxa | Places |
+|---|---|---|---|---|---|---|
+| moderate | −0.0142 | [−0.0334, 0.0050] | −0.0168 | [−0.0299, −0.0037] | 628 | 1,519 |
+| indicative | −0.0263 | [−0.0393, −0.0140] | −0.0297 | [−0.0378, −0.0217] | 1,571 | 4,335 |
+
+**Strong models and their kernels, top-half share, same taxa**
+(736 rows, 214 taxa):
+
+| Places | Strong models | Kernel |
+|---|---|---|
+| all | 0.914 | 0.871 |
+| new (> 5 km) | 0.878 | 0.830 |
+| known | 0.987 | 0.952 |
+| band 5–25 km | 0.974 | not tested |
+| band 25–100 km | 0.928 | not tested |
+| band 100–500 km | 0.760 | 0.611 |
+
+"Not tested" is the scorer's mark for a split with fewer than 30 ranked
+places on that side.
+
+**Secondary: the kernel over its own 500 km reach**, all taxa: 6,206 rows,
+462 beyond reach; top-half share 0.882 (new places 0.853, known 0.971,
+100–500 km 0.707).
