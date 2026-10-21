@@ -2,7 +2,7 @@
 
 *Draft, redrafted 2026-10-21 with the hindcast (E2) and distance-baseline
 (E6b) results; Steve sends it. The C1 numbers are the earlier study's until E1
-reruns, and are labelled so; [N] waits on the grade_tiers registry entry. Limit:
+reruns, and are labelled so. Limit:
 300 words, 5–10 references, optionally 1–2 figures (Figure 3 and Figure 5 of
 the draft).*
 
@@ -25,7 +25,7 @@ species' own clustering, restricted to surveyed sites, held false passes near
 that we quantify.
 
 We use the calibrated test to grade every map of MycoMap Atlas, habitat
-models for [N] fungal taxa defined by DNA barcodes rather than morphological
+models for 6,369 fungal taxa defined by DNA barcodes rather than morphological
 names, rebuilt nightly from validated community-science collections. In a
 hindcast, maps graded strong placed 91% of records validated after the
 training cutoff in their top half, against 78% for failed maps (95%

@@ -103,11 +103,9 @@ revise the paper plan and let's continue".)
    (GBIF, E6c, P2) is not part of this claim; if it runs, it is a Discussion
    point.
 4. **C4. An automated, nightly, open pipeline can do this at continental
-   scale, and says which maps to trust.** [N] taxa, [M] maps, of which [S]
-   ([S/M]%) are strong. (Provisional, from the refresh's dry run: 576 strong
-   models across 470 taxa, about 7% of ~6,811 modelled taxa, out of 9,042
-   fitted models; by learner Maxent 121, random forest 85, boosted trees 5,
-   ensembles of small models 365.) The strong share is stated plainly: most maps are
+   scale, and says which maps to trust.** The frozen release holds 9,041
+   models of 6,369 taxa; 576 models of 470 taxa (7.4% of modelled taxa) are
+   strong, and none of the 52 taxa with 100 or more sites. The strong share is stated plainly: most maps are
    weak or failed, and they are still published, drawn faint with their
    grade, because the grade is the contribution, not the map count. Every map
    is versioned, citable and reproducible from a pinned container and
@@ -149,7 +147,7 @@ species collected at the real survey sites, the usual scattered null test
 passed [73]% of species with no habitat signal, and every such species
 with 100 or more sites, while the clustering-preserving test passed
 [2]%, at a power of [26]% [PENDING E1: final figures with intervals]. Of
-the atlas's [9,042] models, [576] across [470] taxa were graded strong; the
+the atlas's 9,041 models of 6,369 taxa, 576 across 470 taxa were graded strong; the
 standard test would have called [X]% of the rest good [PENDING E1c]. Maps
 graded strong placed records validated after the training cutoff in their
 top half 91% of the time, against 78% for failed maps and 87% for a map of
@@ -468,11 +466,28 @@ refresh 20261013T155140Z-026d3a26 (job full-20261013T140649Z-5cf5b864, image
 release record) → finished (v5) **20261013T191324Z-fa1b4198** = the frozen
 release (continent export, prior, privacy-filtered cells: 130,466 records).
 
-[PENDING: models, maps and taxa by grade × learner × site band, with the
-strong share stated up front (C4); strong maps by guild and region; how many
-taxa have a strong map; combined maps; share of reach inside AOA; and the
-standard test on real models (E1c): the share of maps 19 scattered nulls call
-good that are not shown to beat collecting.] → **Table 1**, **Figure 4** (example maps across grades); detail in S4.
+*Grades (`docs/experiments/2026-10-19-grade-tiers-fa1b4198.md`).* The
+frozen release holds 9,041 models of 6,369 taxa. A further 441 taxa with
+three or more sites were refused (412 of them at 3–4 sites), and 9,442 of
+the pull's 16,252 taxa have fewer than three sites. Of the models, 576 are
+strong (ensembles of small models 365, Maxent 121, random forests 85,
+boosted trees 5), 6,667 weak, 1,801 failed and 1 untested; 470 taxa have a
+strong map, 7.4% of those modelled and 2.9% of all. Most models that are
+not strong miss on the null test alone (7,073 of 8,465). The strong share of
+taxa rises with sites from 2.1% at 3–4 sites to 16.4% at 20–49, then falls
+to 8.0% at 50–99, and none of the 52 taxa with 100 or more sites has a
+strong map: their best models score below their own shifted nulls on
+average (median z −1.36), although their held-out Boyce is high (median
+0.84). At 3–4 sites, 45% of the small-model ensembles fail (median held-out
+AUC of those 0.41). Counting the looser tiers, 1,816 taxa (28.5%) have a
+strong or moderate map and 4,856 (76.2%) at least an indicative one; neither
+tier beats distance to known records (Section 3.4), so both are drawn as
+weak maps. Every count by learner, band and tier is in S4.
+
+[PENDING: strong maps by guild and region; combined maps; share of reach
+inside the area of applicability; and the standard test on real models
+(E1c): the share of maps 19 scattered nulls call good that are not shown to
+beat collecting.] → **Table 1**, **Figure 4** (example maps across grades); detail in S4.
 
 ### 3.4 How the maps did on records they never saw (E2, E6b, E3)
 
@@ -665,7 +680,7 @@ sites, so that other groups can plan an atlas of their own.] → one line in **T
 reading of each paragraph is fixed only once its numbers are in.*
 
 **The cost of an honest grade.** Most of the atlas's maps are not strong:
-[S] of [M] models, and [470] of [~6,811] modelled taxa [provisional]. The
+576 of 9,041 models, and 470 of 6,369 modelled taxa. The
 standard test, rerun on the same models, would have called [X]% of them
 good [PENDING E1c]. That gap is the point of the method rather than a
 shortfall of the data. On simulated species collected the way MycoMap's
@@ -690,7 +705,12 @@ its clustering, and on a continent whose climate varies smoothly it often
 lands on similar ground. That is the objection raised against structured
 nulls in the bird–climate debate (Araújo et al. 2009; Peterson et al. 2009;
 Beale et al. 2009), and our results bear it out for broad habitats
-[PENDING E1: power by breadth]. The debate could not settle the question
+[PENDING E1: power by breadth]. On the real models, none of the 52 taxa
+with 100 or more sites has a strong map: their best models score, on
+average, below their own shifted nulls, although they rank held-out ground
+well. A strong grade is thus hardest to earn for the most widespread and
+best-collected fungi; that is a limit of the test, not evidence that they
+lack habitat structure [PENDING E1: power by sites and breadth]. The debate could not settle the question
 because real species have no known truth. Simulated species collected at
 real survey sites measure both error rates directly, and a reader can
 choose a test by the error that matters to them: a scattered null that
@@ -1102,6 +1122,10 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.17.1 (2026-10-21).** grade_tiers written up (3.3, C4, abstract,
+  Discussion): 9,041 models of 6,369 taxa, 576 strong of 470 taxa; none
+  strong at 100+ sites. The earlier 9,042 was R_main's fitted count
+  (costs.md), before the release's later steps.
 - **0.17.0 (2026-10-21).** E2 and E6b written up: Results 3.4, C2,
   abstract, Methods 2.3 (tiers, the post-hoc distance bar) and 2.5 (kernel).
 - **0.16.5 (2026-10-19).** Models record published
