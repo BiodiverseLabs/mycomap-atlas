@@ -1,4 +1,8 @@
-# Proposed edit: Zenodo models record description (for Steve)
+# Zenodo models record description edit: APPROVED by Steve 2026-10-21
+
+*The operations lane applies it with Steve's direct OK. The lineage table
+(below, "Optional") goes into the next models deposit version, bundled
+with the E19 and E20 tables (Steve, 2026-10-21).*
 
 *Drafted 2026-10-21 by the paper lane; corrected the same day after the
 method lane's review. Nothing goes to Zenodo without Steve's explicit OK

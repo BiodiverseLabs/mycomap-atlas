@@ -659,6 +659,10 @@ Zenodo DOI, format, size and licence:]
   person to a hidden-location record. Contributors may ask to be listed
   anonymously. [PENDING: the data, after the cutover, with the provenance
   table.]
+- **Model lineage** (Steve, 2026-10-21): one row per model, with its
+  algorithm, taxon, fitting job and the sha256 of the pull that fitted it
+  (three pulls cover every model). Deposited with the training-record and
+  contributor tables in one new version of the models record.
 - **Code**: the repository at the release commit, with a Zenodo software
   DOI, and the container image digest.
 
@@ -1007,7 +1011,7 @@ data, command, result, release, commit).
 
 | ID | Also needed for a combined paper | Priority |
 |---|---|---|
-| E19 | Training-record table for the frozen release, per fitting job and its pull (what actually trained each model; three pulls stand behind fa1b4198, S10) (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
+| E19 | Training-record table for the frozen release, per fitting job and its pull; deposited in ONE new models-record version with the E20 contributor table and the model lineage table (algorithm, taxon, fitting job, pull sha256; Steve, 2026-10-21) (what actually trained each model; three pulls stand behind fa1b4198, S10) (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
 | E24 | **E2 half done**: both tiers clear their chance bars on later finds but not the distance kernel, so they carry no claims and are drawn as weak (Steve, 2026-10-20, chosen after E6b and reported as such); E1 half pending. Looser map tiers (moderate, indicative) judged on simulated species (E1) and later finds (E2), pre-specified with the thresholds Steve's choice will be read against (`docs/experiments/2026-10-13-plan-map-tiers.md`; Steve, 2026-10-13: "some form of map for most species") | P1 |
 | E23 | Cost and time ledger (`costs.md`): per run, CPU-hours, billed instance-hours, instance types, wall time, compute USD, storage added; standing monthly costs (Steve, 2026-10-13) | P1 |
@@ -1149,28 +1153,22 @@ revised (Path).
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
    release. The 0.1° cells question is settled too.
-8. **Zenodo models record, provenance (Steve; PENDING):** (a) a
-   metadata-only description edit stating that the published counts are
-   after the 76-record exclusion and that most models were fitted on the
-   pull before it (`docs/paper/zenodo-models-description-edit.md`,
-   method-reviewed); (b) optionally, a new deposit version with a lineage
-   table (algorithm, taxon, fitting job, pull sha256) so the deposit
-   alone says which pull fitted each model.
-7. **Reproducibility across processor families: decided 2026-10-21
-   (Steve).** E12 found the spatial block to be the only cross-family
-   effect (all 5 differences, 0 of 277 same-block models; shown for the
-   507-model sample). Approved: (A) record each taxon's block once and
-   reuse it for every learner, retry and refit (method lane builds it; it
-   changes no released number); (B) pin production fits to r7i until (A)
-   is merged (operations lane applies it). Not adopted: forcing an OpenBLAS
-   kernel. Also approved: a machine record per result (BLAS build, threads,
-   processor; method lane), which fills S10's pending kernel note.
+8. **Zenodo models record, provenance: decided 2026-10-21 (Steve).**
+   (a) Approved: the metadata-only description edit stating that the
+   published counts are after the 76-record exclusion and that most models
+   were fitted on the pull before it
+   (`docs/paper/zenodo-models-description-edit.md`, method-reviewed);
+   the operations lane applies it with Steve's direct OK. (b) The lineage
+   table (algorithm, taxon, fitting job, pull sha256) goes into the next
+   models deposit version, bundled with the E19 and E20 tables, so the
+   record gets one new version, not two.
 
 ---
 
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.18.3 (2026-10-21).** Open decision 8 decided (Steve): Zenodo description edit approved (ops applies); lineage table in the next models version with E19/E20.
 - **0.18.2 (2026-10-21).** Provenance: the published pull is after the 76-record exclusion, most models were fitted on the pull before it (front matter, 4.1, E19); Zenodo models description edit drafted for Steve.
 - **0.18.1 (2026-10-21).** Open decision 7 decided (Steve): block recorded once and reused; r7i pinned until then; no OpenBLAS kernel forcing; per-result machine record.
 - **0.18.0 (2026-10-21).** E12 complete (plan-e12 095a899): every
