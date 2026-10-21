@@ -39,18 +39,38 @@ scored on fa1b4198.
   id is not in the frozen pull. Finds first validated on 2026-10-12 or
   2026-10-13 (after the pull, before the release was live) are reported
   apart.
-  - The read-out pull uses the corrected first-validation lookup (Atlas
-    8edc15d, first-green dates keyed by source), so the cross-source date
-    collision found in E2 cannot move a record into the test set.
+  - **Pull rules at the read-out.** The frozen pull's own eligibility rules
+    and exclusions (the rules that made x73b85b36, including its exclusion
+    list of 76 erroneous records), plus every exclusion added since, applied
+    to test finds: Mushroom Observer records deleted at the source with no
+    cached answer; sequences flagged wrong (wrong specimen) or contaminant;
+    and the current drop list. The corrected first-validation lookup (Atlas
+    8edc15d, first-green dates keyed by source) is used, so the
+    cross-source date collision found in E2 cannot move a record into the
+    test set. The Atlas commit that makes the read-out pull is named here
+    at registration and not changed after: [PENDING: SHA, from the method
+    lane]. Each rule's count of removed finds is reported.
 - **Unit.** A place: one taxon in one 5 km cell, as E2.
 - **Matching.** A find counts for a taxon by the name the frozen release
-  uses for it. Names changed on mycomap.org since the pull (curation
-  renames) are mapped back through the name-change log where one exists.
-  Finds under a name the release does not know are kept apart and counted.
+  uses for it. A renaming of the same taxon since the pull (a new label for
+  the same sequence cluster, from the name-change log) is mapped back to
+  the release's name. A re-identification (the record now belongs to
+  another taxon) uses the record's current identity. A find whose current
+  identity has no model in the release, including one renamed or
+  re-identified into such a taxon, is kept apart and counted as "no
+  model", by kind of change. Finds under a name the release does not know
+  and that no log entry maps are kept apart and counted.
 - **Kept apart, with counts:** as E2 (taxa with no model, unknown names,
   beyond reach, outside the area of applicability); finds that are
   cross-post twins of a training record (the twin lists of S2.4b); and
   finds whose record id or twin is in the frozen pull.
+
+- **Privacy.** Scoring runs in Atlas's private compute, where exact
+  coordinates stay. Anything published from E3 (the registry entry, the
+  paper, supplements, the site) gives aggregate numbers only: no record
+  ids, coordinates or cell ids, and no per-find listing. Records whose
+  location the source hides, obscures or may hide are scored like any
+  other but are never listed or drawn, as in every published layer.
 
 ## Scores and baselines
 
@@ -90,10 +110,26 @@ place.
   against E6b. H3a or H3b fails: C2 is narrowed to the hindcast and the
   difference is discussed.
 
+## Expected sample (from registered data only)
+
+No post-pull find has been counted for this estimate. E2's test window
+(first validated 2026-08-18 to the pull on 2026-10-12, about 1.8 months)
+gave 8,280 records and 7,509 places, of which strong maps ranked 486
+places of 214 taxa: about 4,000 places and 260 strong-map places a month.
+The old-grading backfill gave 1,464 finds in the 10 days to 2026-10-12, a
+similar pace. The frozen release has more strong taxa (470) than the
+hindcast (414). So about two months of finds (to mid-December) should give
+roughly 500 strong-map places, the size at which H6b's interval cleared
+zero in E6b (486 places, lower bound 0.015). One month would likely leave
+H3c's interval spanning zero for an effect of E6b's size. [Estimate only;
+the pace of validation varies.]
+
 ## Cost
 
 A fresh pull and one scoring run on the operations box; one study-distance
-run for the kernels on the frozen pull (EC2, about the size of E6b's).
+run for the kernels on the frozen pull (EC2, about the size of E6b's). The
+kernels depend only on the frozen pull, so they are built before the
+read-out and the read-out itself is one scoring run.
 [PENDING: estimate from E6b's ledger row.]
 
 ## Deviations
