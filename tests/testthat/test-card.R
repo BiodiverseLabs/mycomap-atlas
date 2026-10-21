@@ -308,8 +308,16 @@ test_that("the site's card says the same in R, in web/index.html and in the web 
 
 # ---- who is sent to the share page -------------------------------------------
 
+# The site's nginx config. The release image copies no deploy/, so there
+# these tests skip; the full-tree run and test-box-config.sh cover it.
+nginx_conf <- function() {
+  path <- repo_file("deploy", "lightsail", "nginx", "atlas.conf")
+  testthat::skip_if_not(file.exists(path), "no deploy/ in this tree")
+  readLines(path, warn = FALSE)
+}
+
 link_preview_pattern <- function() {
-  conf <- readLines(repo_file("deploy", "lightsail", "nginx", "atlas.conf"), warn = FALSE)
+  conf <- nginx_conf()
   at <- grep("^map [$]http_user_agent [$]atlas_link_preview", conf)
   line <- grep('^\\s*"~[*]', conf[seq(at, length(conf))], value = TRUE)[[1]]
   sub('^\\s*"~[*](.*)"\\s+1;\\s*$', "\\1", line)
@@ -362,7 +370,7 @@ test_that("people, their in-app browsers and search engines get the app as befor
 })
 
 test_that("nginx sends a robot's species page to the share route, ahead of the app's pages", {
-  conf <- paste(readLines(repo_file("deploy", "lightsail", "nginx", "atlas.conf"), warn = FALSE), collapse = "\n")
+  conf <- paste(nginx_conf(), collapse = "\n")
   taxon <- regexpr("location ~ \\^/taxa/\\[\\^/\\]\\+\\$ \\{", conf)
   pages <- regexpr("location ~ \\^/\\(maps\\|", conf)
   expect_gt(taxon, 0)
