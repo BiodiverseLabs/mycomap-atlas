@@ -152,8 +152,37 @@ the pace of validation varies.]
   block mismatch on r7a as in E6b (fa1b4198 has no per-model machine
   record). The kernels depend only on the frozen pull, so they are built
   before the read-out.
-- **Read-out.** A fresh pull and one scoring run on the operations box.
+- **Read-out.** A fresh pull made on the operations box (in a separate
+  data directory, so the live site keeps its pull) and staged to a private
+  store prefix, then scored on one small EC2 worker (about USD 0.30), since
+  E2's scoring did not fit the box's memory cap.
+
+## Implementation (not a design change)
+
+Recorded 2026-10-21, after registration and before any outcome look, from
+the method lane's read-out mode (Atlas study/e3-readout 674c5e4, built
+against this file at 77a2520, awaiting Steve's review). H3a, H3b and H3c
+are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
+`--counts-only` writes no rank, share or score, and a test checks that.
+
+- **Record id rule.** "Not in the frozen pull" is checked by source key
+  and by mycomap.org row id, and a find matching either is excluded: a
+  stricter reading that also catches a record re-keyed between pulls.
+- **Names.** A find counts under its name on its first-validation day.
+  Renames and respellings logged after that day are undone, a chain back
+  to the first change's old name. Merges and splits are kept apart.
+- **Kept-apart categories**, as the results file names them:
+  in_release_pull, undated, green_before_pull, before_live (the finds of
+  2026-10-12 and 10-13), after_until, name_merge, name_split,
+  name_same_day, off_grid; then the scorer's own classes (no model,
+  unknown name, outside the area of applicability, beyond reach). The
+  counts of names undone, by rename and respelling, are reported.
 
 ## Deviations
 
-None yet.
+- **2026-10-21, after registration and before any outcome look: same-day
+  name changes kept apart.** A rename or respelling logged on the find's
+  first-validation day itself is kept apart (name_same_day), because the
+  log's time cannot say whether the change came before or after the
+  validation. This adds one kept-apart class; the hypotheses, the test
+  set's dates and the scores are unchanged.
