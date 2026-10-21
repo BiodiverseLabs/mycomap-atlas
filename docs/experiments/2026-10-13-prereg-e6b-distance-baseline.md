@@ -179,12 +179,25 @@ reported):
 | all | 0.914 | 0.871 |
 | new (> 5 km) | 0.878 | 0.830 |
 | known | 0.987 | 0.952 |
-| band 5–25 km | 0.974 | not tested |
-| band 25–100 km | 0.928 | not tested |
+| band 5–25 km | 0.974 | 1.000 |
+| band 25–100 km | 0.928 | 0.928 |
 | band 100–500 km | 0.760 | 0.611 |
 
-"Not tested" is the scorer's mark for a split with fewer than 30 ranked
-places on that side.
+The near bands in full (strong models against their kernels on the same
+places; the two sides have the same counts):
+
+| Band | Ranked | Places | Top half | Top tenth | Mean rank | Beats effort | Boyce |
+|---|---|---|---|---|---|---|---|
+| 5–25 km, model | 113 | 80 | 0.9735 | 0.6283 | 0.8777 | 0.7958 | 0.870 |
+| 5–25 km, kernel | 113 | 80 | 1.0000 | 0.6991 | 0.9161 | 0.7708 | 0.933 |
+| 25–100 km, model | 180 | 127 | 0.9278 | 0.4444 | 0.8161 | 0.7722 | 0.962 |
+| 25–100 km, kernel | 180 | 127 | 0.9278 | 0.5611 | 0.8408 | 0.6780 | 0.876 |
+
+No strong-model place lies beyond 500 km.
+
+*Sparassis spathulata*'s kernel kept 586958's site (Deviations,
+2026-10-19). It has 1 later-find place (new, 100–500 km) of the 486 in
+H6b.
 
 **Secondary: the kernel over its own 500 km reach**, all taxa: 6,206 rows,
 462 beyond reach; top-half share 0.882 (new places 0.853, known 0.971,
