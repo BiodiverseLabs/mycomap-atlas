@@ -181,6 +181,14 @@
       "citation": "Hijmans RJ. terra: Spatial Data Analysis. R package."
     },
     {
+      "name": "png",
+      "group": "r",
+      "license": "GPL-2 | GPL-3",
+      "url": "https://www.rforge.net/png/",
+      "role": "Reads map overlays and the logo for link-preview cards, without loading terra into the API.",
+      "citation": "Urbanek S. png: Read and write PNG images. R package."
+    },
+    {
       "name": "geodata",
       "group": "r",
       "license": "GPL (>= 3)",

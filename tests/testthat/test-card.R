@@ -10,8 +10,29 @@ card_png_size <- function(bytes) {
 }
 
 card_green_pixels <- function(path) {
-  v <- terra::values(atlas_card_picture(path, Inf), mat = TRUE)
-  sum(v[, 2] > v[, 1] + 30 & v[, 2] > v[, 3] + 30)
+  v <- png::readPNG(path) * 255
+  sum(v[, , 2] > v[, , 1] + 30 & v[, , 2] > v[, , 3] + 30)
+}
+
+# A native raster's red, green, blue and alpha at a row and column.
+native_rgba <- function(image, row, col) {
+  x <- as.vector(unclass(image))[(row - 1) * ncol(image) + col]
+  c(bitwAnd(x, 255L), bitwAnd(bitwShiftR(x, 8L), 255L), bitwAnd(bitwShiftR(x, 16L), 255L), bitwShiftR(x, 24L))
+}
+
+# A width x height RGBA PNG: red on the left half, green on the right, and
+# the top row blue, so a picture read upside down or transposed shows it.
+write_test_png <- function(width, height) {
+  a <- array(0, c(height, width, 4))
+  a[, , 4] <- 1
+  a[, seq_len(width / 2), 1] <- 1
+  a[, (width / 2 + 1):width, 2] <- 1
+  a[1, , ] <- 0
+  a[1, , 3] <- 1
+  a[1, , 4] <- 1
+  path <- tempfile(fileext = ".png")
+  png::writePNG(a, path)
+  path
 }
 
 # A strong map around Indiana, two collections, and the taxa table, in a
@@ -70,31 +91,63 @@ test_that("a card is 1200 by 630, Facebook's shape, with the map's colour on it"
 })
 
 test_that("a card reads its map and logo at the size it draws them, so it stays small in the API's memory", {
-  skip_if_not_installed("terra")
-  write_png <- function(nrows, ncols) {
-    r <- terra::rast(nrows = nrows, ncols = ncols, nlyrs = 4, xmin = 0, xmax = ncols, ymin = 0, ymax = nrows)
-    terra::values(r) <- rep(c(10, 200, 30, 255), each = terra::ncell(r))
-    path <- tempfile(fileext = ".png")
-    terra::writeRaster(r, path, datatype = "INT1U", overwrite = TRUE)
-    path
-  }
-  big <- write_png(1000, 2000)
+  skip_if_not_installed("png")
+  big <- write_test_png(2000, 1000)
   panel <- ceiling((1 - ATLAS_CARD_SPLIT) * ATLAS_CARD_WIDTH) * ATLAS_CARD_HEIGHT
   # Never more than the panel holds, and no more than the map covers on it.
-  whole <- expect_no_warning(atlas_card_overlay(big))
-  expect_lte(terra::ncell(whole), panel * 1.02)  # regular sampling rounds up a little
-  expect_gt(terra::ncell(whole), panel / 2)
+  whole <- atlas_card_overlay(big)
+  expect_lte(length(whole), panel)
+  expect_gt(length(whole), panel / 2)
   covered <- atlas_card_overlay(big, most = 50000)
-  expect_lte(terra::ncell(covered), 50000 * 1.02)
-  expect_gt(terra::ncell(covered), 25000)
-  # Still the same picture: same shape, so it lands where it should.
-  expect_equal(terra::ncol(covered) / terra::nrow(covered), 2, tolerance = 0.05)
+  expect_lte(length(covered), 50000)
+  expect_gt(length(covered), 25000)
+  expect_equal(ncol(covered) / nrow(covered), 2, tolerance = 0.05)
   # A small overlay is read as it is.
-  expect_equal(terra::ncell(atlas_card_overlay(write_png(100, 200))), 200 * 100)
+  expect_equal(dim(atlas_card_overlay(write_test_png(200, 100))), c(100, 200))
   # The logo is drawn 84 pixels tall: it is read small, not at 600 x 830.
   logo <- repo_file("web", "public", "mycomap-logo.png")
   skip_if_not(file.exists(logo), "no web app in this tree")
-  expect_lte(terra::ncell(expect_no_warning(atlas_card_picture(logo, 25000L))), 25000 * 1.02)
+  expect_lte(length(atlas_card_picture(logo, 25000L)), 25000)
+})
+
+test_that("a thinned picture keeps its pixels where they were: not flipped, not transposed", {
+  skip_if_not_installed("png")
+  for (most in c(Inf, 50000)) {
+    image <- atlas_card_picture(write_test_png(400, 200), most)
+    expect_equal(native_rgba(image, 1, 1), c(0, 0, 255, 255))                     # top row blue
+    expect_equal(native_rgba(image, nrow(image), 1), c(255, 0, 0, 255))           # left red
+    expect_equal(native_rgba(image, nrow(image), ncol(image)), c(0, 255, 0, 255)) # right green
+  }
+})
+
+test_that("a faint map's opacity is scaled, and its colour kept", {
+  skip_if_not_installed("png")
+  image <- atlas_card_picture(write_test_png(20, 10), Inf)
+  faded <- atlas_card_fade(image, 0.8)
+  expect_equal(native_rgba(faded, 5, 2), c(255, 0, 0, 204))
+  expect_equal(native_rgba(atlas_card_fade(image, 0.25), 5, 15), c(0, 255, 0, 63))
+  expect_s3_class(faded, "nativeRaster")
+})
+
+test_that("a card never loads terra, whose first use alone adds about 140 MB to the API", {
+  skip_if_not_installed("png")
+  skip_on_cran()
+  root <- normalizePath(repo_file())
+  overlay <- write_test_png(400, 200)
+  script <- tempfile(fileext = ".R")
+  writeLines(c(
+    sprintf('for (f in list.files(file.path("%s", "R"), pattern = "[.][Rr]$", full.names = TRUE)) source(f)',
+            gsub("\\\\", "/", root)),
+    sprintf('atlas_write_card_image(tempfile(fileext = ".png"), "Trametes versicolor", italic = TRUE,
+       lines = atlas_card_line(10), overlay = "%s", site = "https://atlas.example.org",
+       metrics = list(bounds = list(south = 35, west = -95, north = 45, east = -75), grade = "strong"))',
+            gsub("\\\\", "/", overlay)),
+    'cat("terra:", "terra" %in% loadedNamespaces(), "\n")'
+  ), script)
+  out <- with_env(c(ATLAS_ROOT = root),
+                  suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(script),
+                                           stdout = TRUE, stderr = TRUE)))
+  expect_true(any(trimws(out) == "terra: FALSE"), label = paste(out, collapse = " | "))
 })
 
 test_that("a card never carries the collections: it takes no places to draw", {

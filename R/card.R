@@ -7,6 +7,12 @@
 # travels further than the page, so it carries the least. The map is the same
 # overlay the taxon page lays over its slippy map, on the same Natural Earth
 # land as R/mapimage.R.
+#
+# Cards are drawn inside the API, whose container has 900 MB and already
+# holds 350 to 600 of it (atlas-box, 2026-10-20). So a card never touches
+# terra, whose first use alone adds about 140 MB to a process: it reads PNGs
+# with png, at the size it draws them, and the boundaries as plain GeoJSON.
+# Measured in the release image on the largest map, a card adds about 40 MB.
 
 ATLAS_CARD_WIDTH <- 1200L
 ATLAS_CARD_HEIGHT <- 630L
@@ -43,23 +49,21 @@ atlas_card_wrap <- function(text, width, cex, font = 1, max_lines = 3L) {
   lines
 }
 
-#' A picture (a map overlay, the logo) read at no more than `most` pixels.
-#'
-#' Cards are drawn inside the API, whose container has 900 MB and already
-#' holds 350 to 600 of it (atlas-box, 2026-10-20). Read whole, a 1500 x 700
-#' overlay cost about 160 MB and the 600 x 830 logo 75 MB, kept; read at the
-#' size the card draws them, a fraction of that, and the card shows no less.
-#' A PNG has no map coordinates, which terra warns about; here that is
-#' expected, so the warning is dropped.
+#' A PNG as a native raster for rasterImage, thinned to no more than `most`
+#' pixels by keeping every n-th row and column. A native raster holds 4 bytes
+#' a pixel; read whole as colours, the same 1500 x 700 overlay cost about
+#' 160 MB.
 atlas_card_picture <- function(path, most) {
-  withCallingHandlers({
-    image <- terra::rast(path)
-    if (terra::ncell(image) <= most) image else {
-      terra::spatSample(image, size = most, method = "regular", as.raster = TRUE)
-    }
-  }, warning = function(w) {
-    if (grepl("unknown extent", conditionMessage(w), fixed = TRUE)) invokeRestart("muffleWarning")
-  })
+  image <- png::readPNG(path, native = TRUE)
+  step <- ceiling(sqrt(length(image) / max(1, most)))
+  if (step <= 1) return(image)
+  # A native raster's dim is height, width, but its pixels run row by row:
+  # seen column-major, it is a width x height matrix.
+  rows <- seq(1, nrow(image), step)
+  cols <- seq(1, ncol(image), step)
+  pixels <- matrix(as.vector(unclass(image)), nrow = ncol(image))[cols, rows, drop = FALSE]
+  structure(as.vector(pixels), dim = c(length(rows), length(cols)),
+            class = "nativeRaster", channels = attr(image, "channels"))
 }
 
 #' A map overlay read at no more pixels than it covers on the card (most),
@@ -69,6 +73,40 @@ atlas_card_overlay <- function(path, most = Inf) {
   most <- if (is.finite(most) && most >= 1) min(panel, ceiling(most)) else panel
   atlas_card_picture(path, most)
 }
+
+#' A native raster with its opacity scaled by `by` (alpha is the top byte).
+atlas_card_fade <- function(image, by) {
+  alpha <- bitwShiftR(image, 24L)
+  structure(bitwOr(bitwAnd(image, 0xFFFFFFL), bitwShiftL(as.integer(floor(alpha * by)), 24L)),
+            dim = dim(image), class = "nativeRaster", channels = 4L)
+}
+
+#' A boundary file's outlines as one path: longitudes and latitudes, each
+#' ring ended by NA, for polypath (filled, even-odd, so lakes and holes stay
+#' open) and lines. Read once per process, from the GeoJSON itself.
+atlas_card_shapes <- local({
+  cache <- list()
+  function(name) {
+    if (is.null(cache[[name]])) {
+      features <- jsonlite::fromJSON(atlas_boundaries_path(name), simplifyVector = FALSE)$features
+      rings <- list()
+      for (f in features) {
+        g <- f$geometry
+        polygons <- switch(g$type, Polygon = list(g$coordinates), MultiPolygon = g$coordinates, list())
+        for (polygon in polygons) for (ring in polygon) {
+          rings[[length(rings) + 1L]] <- c(vapply(ring, function(p) as.numeric(p[[1]]), numeric(1)), NA,
+                                           vapply(ring, function(p) as.numeric(p[[2]]), numeric(1)), NA)
+        }
+      }
+      lng <- unlist(lapply(rings, function(r) r[seq_len(length(r) / 2)]))
+      lat <- unlist(lapply(rings, function(r) r[-seq_len(length(r) / 2)]))
+      # NA separates rings; a trailing one would leave polypath an empty ring.
+      keep <- seq_len(max(0L, length(lng) - 1L))
+      cache[[name]] <<- list(lng = lng[keep], lat = lat[keep])
+    }
+    cache[[name]]
+  }
+})
 
 #' The line under a species' name on its card.
 atlas_card_line <- function(records) {
@@ -99,18 +137,14 @@ atlas_card_logo_path <- function() {
   NULL
 }
 
-# The MycoMap logo as a raster for rasterImage, read once.
+# The MycoMap logo as a native raster for rasterImage, read once. It is drawn
+# 84 pixels tall: 25,000 pixels is plenty.
 atlas_card_logo <- local({
   logo <- NULL
   function(path = atlas_card_logo_path()) {
     if (is.null(logo) && !is.null(path) && file.exists(path)) {
-      # Drawn 84 pixels tall: twice that is plenty.
-      img <- atlas_card_picture(path, 25000L)
-      v <- terra::values(img, mat = TRUE)
-      alpha <- if (ncol(v) >= 4) v[, 4] else rep(255, nrow(v))
-      cols <- grDevices::rgb(v[, 1], v[, 2], v[, 3], alpha, maxColorValue = 255)
-      logo <<- list(raster = grDevices::as.raster(matrix(cols, nrow = terra::nrow(img), byrow = TRUE)),
-                    aspect = terra::ncol(img) / terra::nrow(img))
+      image <- atlas_card_picture(path, 25000L)
+      logo <<- list(raster = image, aspect = ncol(image) / nrow(image))
     }
     logo
   }
@@ -160,28 +194,27 @@ atlas_write_card_image <- function(path, title, italic = FALSE, lines = characte
   graphics::plot.window(xr, yr, asp = 1)
   usr <- graphics::par("usr")
   graphics::rect(usr[1], usr[3], usr[2], usr[4], col = k$sea, border = NA)
-  to_picture <- function(v) terra::project(v, atlas_map_mercator(lon_0))
-  countries <- to_picture(atlas_read_boundaries("countries"))
-  regions <- to_picture(atlas_read_boundaries("regions"))
-  lakes <- to_picture(atlas_read_boundaries("lakes"))
-  atlas_draw_polygons(countries, col = k$land, border = NA)
-  atlas_draw_polygons(lakes, col = k$sea, border = NA)
+  shape <- function(name) {
+    v <- atlas_card_shapes(name)
+    atlas_mercator_xy(v$lng, v$lat, lon_0)
+  }
+  countries <- shape("countries")
+  regions <- shape("regions")
+  lakes <- shape("lakes")
+  graphics::polypath(countries[, "x"], countries[, "y"], col = k$land, border = NA, rule = "evenodd")
+  graphics::polypath(lakes[, "x"], lakes[, "y"], col = k$sea, border = NA, rule = "evenodd")
   if (has_map) {
     at <- atlas_mercator_xy(c(bounds$west, bounds$east), c(bounds$south, bounds$north), lon_0)
     # Read at the pixels it covers on the card, never more than the panel.
     drawn <- abs(diff(graphics::grconvertX(at[, "x"], "user", "device"))) *
       abs(diff(graphics::grconvertY(at[, "y"], "user", "device")))
-    image <- atlas_card_overlay(overlay, most = drawn)
-    rgba <- terra::values(image, mat = TRUE)
     faint <- !identical(atlas_metrics_grade(metrics), "strong")
-    alpha <- rgba[, 4] * ATLAS_IMAGE_OPACITY[[if (faint) "faint" else "standard"]]
-    colours <- grDevices::rgb(rgba[, 1], rgba[, 2], rgba[, 3], alpha, maxColorValue = 255)
-    raster <- grDevices::as.raster(matrix(colours, nrow = terra::nrow(image), byrow = TRUE))
-    rm(rgba, colours)
-    graphics::rasterImage(raster, at[1, "x"], at[1, "y"], at[2, "x"], at[2, "y"], interpolate = TRUE)
+    image <- atlas_card_fade(atlas_card_overlay(overlay, most = drawn),
+                             ATLAS_IMAGE_OPACITY[[if (faint) "faint" else "standard"]])
+    graphics::rasterImage(image, at[1, "x"], at[1, "y"], at[2, "x"], at[2, "y"], interpolate = TRUE)
   }
-  atlas_draw_lines(regions, col = "#a59c8f", lwd = 0.5)
-  atlas_draw_lines(countries, col = "#6f6659", lwd = 0.9)
+  graphics::lines(regions[, "x"], regions[, "y"], col = "#a59c8f", lwd = 0.5)
+  graphics::lines(countries[, "x"], countries[, "y"], col = "#6f6659", lwd = 0.9)
 
   # The panel, in the whole card's pixels.
   graphics::par(new = TRUE, plt = c(0, 1, 0, 1))
