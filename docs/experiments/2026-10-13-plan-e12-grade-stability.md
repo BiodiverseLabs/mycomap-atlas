@@ -319,6 +319,27 @@ waits for all three arms and the block-only step.
     fitted it in the release.
   The flip rate is then b's differences over the 507 (weighted by cell, as
   planned), and "stable" holds whatever the release's family mix.
+- **Weighted rates (2026-10-21, before the block step).** From the arms'
+  own results files (a1, the a2 rerun and b, as listed above), weighted back
+  to the frozen release by the plan's draw cells: 24 cells holding 9,040 of
+  the release's models (the one untested model is in no cell). Script:
+  `2026-10-21-e12-reading.R`, beside this plan.
+  - a1 (r7i) and the a2 rerun (r7i, another split and order): identical to
+    the release 100%, the same grade 100%, Cohen's kappa on grades 1. a1 and
+    a2 agree model for model.
+  - b (r7a) against the release: identical 98.45% (502 of 507 unweighted);
+    the differing share 1.55%, 95% interval [0.37%, 3.03%]. The same grade
+    99.57% (505 of 507); grade changes 0.43% [0.00%, 1.24%]. Kappa on grades
+    0.9895 weighted (0.9940 unweighted). a1 against b: the same.
+  - Intervals are from a bootstrap of models within their cells (10,000
+    resamples, seed 1), each cell weighted by its share of the release.
+  - By learner, weighted: the small-model ensembles differ in 0% of their
+    6,041 release models; the full-design models (Maxent, random forest,
+    boosted trees) in 4.67% of 2,999.
+  - The two grade changes: failed → weak (Maxent), weak → strong (random
+    forest), both at 20–49 sites.
+  - Which of b's differences come with a changed spatial block is the
+    block-only step's, and is logged when it runs.
 
 ## Deviations
 
