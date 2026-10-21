@@ -342,9 +342,11 @@ waits for all three arms and the block-only step.
     block-only step's, and is logged when it runs.
 - **The block-only step (2026-10-21): launched.** Atlas main 7915ff8
   (b407054 merged), `study-repro --draw --blocks --workers=4`: r7i
-  study-20261021T052555Z-81a7fb86 (r7i.2xlarge; waiting on spot capacity
-  at launch) and r7a study-20261021T052557Z-bc3f9b50 (r7a.2xlarge, started
-  05:26 UTC). Results logged when they report.
+  study-20261021T054022Z-81a7fb86 (r7i.2xlarge on-demand, started 05:40
+  UTC; the first r7i job, study-20261021T052555Z-81a7fb86 on spot, never got
+  a worker and was abandoned with no results) and r7a
+  study-20261021T052557Z-bc3f9b50 (r7a.2xlarge, started 05:26 UTC). Results
+  logged when they report.
 
 ## Deviations
 
