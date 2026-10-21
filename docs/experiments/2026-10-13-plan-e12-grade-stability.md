@@ -347,6 +347,39 @@ waits for all three arms and the block-only step.
   a worker and was abandoned with no results) and r7a
   study-20261021T052557Z-bc3f9b50 (r7a.2xlarge, started 05:26 UTC). Results
   logged when they report.
+- **The block-only step (2026-10-21): done.**
+  - r7i: study-20261021T054022Z-81a7fb86, r7i.2xlarge on-demand (Intel
+    Xeon Platinum 8488C), 05:42 to 05:50 UTC. 282 full-design models
+    measured, 282 with the block the release recorded.
+  - r7a: study-20261021T052557Z-bc3f9b50, r7a.2xlarge spot (AMD EPYC
+    9R14), 05:28 to 05:36 UTC. 282 measured, 277 with the release's block.
+  - The 5 whose r7a block differs (all at 20–49 sites; block in km, r7i =
+    release, then r7a): *Leucopholiota decorosa* Maxent 190, 230;
+    *Clavulinopsis appalachiensis* RF 255, 265; *Galerina* sp. 'WI01' RF
+    300, 245; *Stropharia hardii* RF 155, 140; *Tricholoma focale* RF 165,
+    75.
+- **Reading (2026-10-21), after the block step.** Arm b against the
+  release, the 282 full-design models split as this plan's Reading set out:
+
+  | Block (r7i against r7a) | Models | Identical to the release | Same grade |
+  |---|---|---|---|
+  | the same | 277 | 277 | 277 |
+  | changed | 5 | 0 | 3 |
+
+  - Every cross-family difference in the sample comes with a changed block,
+    and no model whose block is the same differs at all: the same-block
+    difference rate is 0 of 277 (95% upper bound 1.4%, Wilson), the
+    tuning-and-numerics share this plan's Reading asked to separate. The
+    225 ensembles (fixed 100 km blocks) are identical too.
+  - Weighted back to the release by cell, the block changes on r7a for
+    4.67% of its 2,999 full-design models, and that is the whole of b's
+    differing share (1.55% of all 9,040 models). Both grade changes (0.43%
+    weighted, [0.00%, 1.24%]) are among the block-changed models.
+  - The release's recorded block equals the r7i block for all 282, so a
+    refit on r7i reproduces the release's folds for every drawn model.
+  - In one machine family the fits are deterministic (a1 = a2 = the
+    release, 507 of 507, once the ensembles' glmnet settings were fixed).
+    Across families, the one difference found is the variogram block.
 
 ## Deviations
 
