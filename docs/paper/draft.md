@@ -1149,6 +1149,13 @@ revised (Path).
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
    release. The 0.1° cells question is settled too.
+8. **Zenodo models record, provenance (Steve; PENDING):** (a) a
+   metadata-only description edit stating that the published counts are
+   after the 76-record exclusion and that most models were fitted on the
+   pull before it (`docs/paper/zenodo-models-description-edit.md`,
+   method-reviewed); (b) optionally, a new deposit version with a lineage
+   table (algorithm, taxon, fitting job, pull sha256) so the deposit
+   alone says which pull fitted each model.
 7. **Reproducibility across processor families: decided 2026-10-21
    (Steve).** E12 found the spatial block to be the only cross-family
    effect (all 5 differences, 0 of 277 same-block models; shown for the
