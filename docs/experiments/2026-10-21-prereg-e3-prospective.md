@@ -199,24 +199,15 @@ are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
 
 ## Runs
 
-Logged by the method lane as the jobs run. No test find is read by any of
-them.
-
-- **Kernels, main run (2026-10-21).** study-20261021T052559Z-eff180db,
-  Atlas main 7915ff8 (e3-readout 44d007a merged), `study-distance
-  --release=20261013T191324Z-fa1b4198`, 3 shards × r7i.8xlarge,
-  `--workers=30`, launched 05:26 UTC. The r7a patch for any mismatch is
-  logged here when it runs.
-
-## Runs
-
-Logged as the operations lane reports them; numbers only.
+Logged as the operations lane reports them; numbers only. No test find is
+read by any of these jobs.
 
 - **Kernels, main (launched 2026-10-21 about 05:26 UTC).**
   study-20261021T052559Z-eff180db, image 7915ff8 (Atlas main with
-  e3-readout 44d007a and the E12 block step b407054), 3 × r7i.8xlarge, 30
-  workers each; Steve confirmed it directly with the operations lane. The
-  r7a patch for any mismatch follows.
+  e3-readout 44d007a and the E12 block step b407054), `study-distance
+  --release=20261013T191324Z-fa1b4198`, 3 × r7i.8xlarge, 30 workers each;
+  Steve confirmed it directly with the operations lane. The r7a patch for
+  any mismatch follows.
 
 ## Deviations
 
