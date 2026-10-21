@@ -160,8 +160,11 @@ the pace of validation varies.]
 ## Implementation (not a design change)
 
 Recorded 2026-10-21, after registration and before any outcome look, from
-the method lane's read-out mode (Atlas study/e3-readout 674c5e4, built
-against this file at 77a2520, awaiting Steve's review). H3a, H3b and H3c
+the method lane's read-out mode (Atlas study/e3-readout 44d007a, one
+commit on 674c5e4, built against this file at 77a2520, awaiting Steve's
+review). 44d007a adds the pull's naming audit to the results file (how the
+pull named its records, including the sequences its flags set aside),
+beside the drop list's and the Mushroom Observer counts. H3a, H3b and H3c
 are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
 `--counts-only` writes no rank, share or score, and a test checks that.
 
@@ -186,3 +189,11 @@ are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
   log's time cannot say whether the change came before or after the
   validation. This adds one kept-apart class; the hypotheses, the test
   set's dates and the scores are unchanged.
+- **2026-10-21, before any outcome look: rule counts at the pull level.**
+  The registered text says each rule's count of removed or renamed finds
+  is reported. The pull does not trace these among test finds alone (a
+  removed row is not in it, and a record renamed by a sequence flag
+  carries only its final name), so each rule's count is reported as the
+  pull records it, over all its records: the drop list's removed rows,
+  the Mushroom Observer rules' counts, and the naming audit. The test set,
+  hypotheses and scores are unchanged.
