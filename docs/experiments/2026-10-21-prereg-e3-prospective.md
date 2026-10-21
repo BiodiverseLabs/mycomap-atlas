@@ -197,6 +197,17 @@ are wired as E2's H2a and H2b and E6b's H6b on these finds, unchanged;
   find, so they are built before the read-out with no look at any test
   find. Cost about USD 3–5 on spot, plus cents for the patch.
 
+## Runs
+
+Logged by the method lane as the jobs run. No test find is read by any of
+them.
+
+- **Kernels, main run (2026-10-21).** study-20261021T052559Z-eff180db,
+  Atlas main 7915ff8 (e3-readout 44d007a merged), `study-distance
+  --release=20261013T191324Z-fa1b4198`, 3 shards × r7i.8xlarge,
+  `--workers=30`, launched 05:26 UTC. The r7a patch for any mismatch is
+  logged here when it runs.
+
 ## Deviations
 
 - **2026-10-21, after registration and before any outcome look: same-day

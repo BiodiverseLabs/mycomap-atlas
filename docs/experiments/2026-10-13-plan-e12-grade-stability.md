@@ -340,6 +340,11 @@ waits for all three arms and the block-only step.
     forest), both at 20–49 sites.
   - Which of b's differences come with a changed spatial block is the
     block-only step's, and is logged when it runs.
+- **The block-only step (2026-10-21): launched.** Atlas main 7915ff8
+  (b407054 merged), `study-repro --draw --blocks --workers=4`: r7i
+  study-20261021T052555Z-81a7fb86 (r7i.2xlarge; waiting on spot capacity
+  at launch) and r7a study-20261021T052557Z-bc3f9b50 (r7a.2xlarge, started
+  05:26 UTC). Results logged when they report.
 
 ## Deviations
 
