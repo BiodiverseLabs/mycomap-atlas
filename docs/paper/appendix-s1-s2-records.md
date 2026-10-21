@@ -178,7 +178,8 @@ still include the 76 records (under 0.06% of the pull's records). No
 removed record is a presence of any published model: rebuilding all 6,369
 modelled taxa's record sets from the cleaned pull for E3's kernels, every
 one matched its model's recorded fingerprint, which is the exact record set
-(E3 kernel run, 2026-10-21).
+(E3 prereg, Runs, main kernel run, 2026-10-21: 0 of 6,369 differ in
+fingerprint or presences).
 
 For the first 22, measured on the 2026-10-06 pull, which holds them at the
 same places [PENDING: the same figures for all 76 on the frozen pull]: they
