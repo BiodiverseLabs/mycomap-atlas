@@ -69,6 +69,9 @@ the orchestrator, S3 and boot time before a worker writes its start.
 | 2026-10-21 | E12 block-only step, r7i | study-20261021T054022Z-81a7fb86 | 1 × r7i.2xlarge, on-demand | 282 blocks, no fit | — | 0.13 instance-h | ≈ 0.07 | — | |
 | 2026-10-21 | E12 block-only step, r7a | study-20261021T052557Z-bc3f9b50 | 1 × r7a.2xlarge, spot | 282 blocks, no fit | — | 0.13 instance-h | ≤ 0.08 | — | |
 | 2026-10-21 | E3 kernels, main | study-20261021T052559Z-eff180db | 3 × r7i.8xlarge, spot | 5,679 scored, 690 mismatch, 0 refused or failed | — | 05:28–07:08 UTC; 5.0 instance-h | ≤ 10.6 | — | mismatches under review before any r7a patch |
+| 2026-10-21 | E3 kernels, patch 1 spot attempt (no result) | study-20261021T142054Z-a972d74e | r7i.4xlarge × 4 attempts, spot | 0 kept | — | 14:27–17:10 UTC in 4 attempts; 0.68 instance-h (launch to reclaim, incl. boot) | ≤ 0.72 | — | reclaimed 4 times |
+| 2026-10-21 | E3 kernels, patch 1 rerun | study-20261021T185333Z-a972d74e | 1 × r7i.4xlarge, on-demand | 681 scored, 9 mismatch | — | 18:55–19:10 UTC; 0.25 instance-h | ≈ 0.27 | — | rebuilt from R_main's pull |
+| 2026-10-25 | E3 kernels, patch 2 | study-20261025T145556Z-26f877fe | 1 × r7a.xlarge, spot | 9 scored | — | 14:57–15:00 UTC; 0.04 instance-h | ≤ 0.01 | — | completes 6,369 / 6,369 |
 | — | E1c, E1, E9, E6a, E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
