@@ -1102,7 +1102,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **done**: run 2026-10-18 (priv-20261018T171648Z-9e3ab153), scored 2026-10-19 in one run with the *Sparassis spathulata* refit (study-20261019T181851Z-35fc3d63); C2 supported | done |
 | 2b | **E12 first step** and same-machine gate | **done** 2026-10-19: deterministic per processor family | done |
 | 3 | **E6b** distance-only baseline on the E2 finds | **done** 2026-10-21 (study-20261020T232528Z-05216058); then Steve's post-hoc tier rule (plan-map-tiers, 2026-10-20) | done |
-| 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. Steps: the study-score mode (method lane, reviewed); kernels on fa1b4198 as soon as an image builds (Steve, 2026-10-21; r7i, r7a patch); a scorer dry run before 12-15; only `--counts-only` before the read-out | Steve approved the prereg and the date (2026-10-21) | read-out about 2026-12-16 |
+| 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. **Kernels done 2026-10-25**: 6,369 of 6,369 taxa (main 5,679; patch 1 from R_main's pull 681; patch 2 on r7a 9), none left out of H3c. Next: the `--counts-only` check by grade, then the read-out | Steve approved the prereg, date, read-out mode and kernels | read-out about 2026-12-16 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve, 2026-10-21): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, the nightly and the E19/E20 deposit are stated as they then are, and Steve sends | after E1 |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
@@ -1171,6 +1171,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.18.5 (2026-10-25).** E3 kernels complete (6,369/6,369); Path 3c.
 - **0.18.4 (2026-10-21).** Zenodo models description edit live; block reuse and machine record merged (Atlas main c56d2dc); S2.4 detail on the 71 taxa.
 - **0.18.3 (2026-10-21).** Open decision 8 decided (Steve): Zenodo description edit approved (ops applies); lineage table in the next models version with E19/E20.
 - **0.18.2 (2026-10-21).** Provenance: the published pull is after the 76-record exclusion, most models were fitted on the pull before it (front matter, 4.1, E19); Zenodo models description edit drafted for Steve.
