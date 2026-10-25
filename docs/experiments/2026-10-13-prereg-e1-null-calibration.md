@@ -154,3 +154,38 @@ grade.
     fix/detection-glmnet-pin a8861ab).
   - The cost pilot ran before these changes. Its timings stand, and none of
     its fits is reported.
+- **2026-10-25, before launch (implementation only; no hypothesis,
+  criterion, count or learner changes): what the run is, written before the
+  smoke run.**
+  - **Code and inputs.** Atlas main c56d2dc, which holds the glmnet fixes
+    above. `plan-study --from-release=20261013T191324Z-fa1b4198` fetches
+    the frozen release's job inputs onto every worker: the pull
+    occurrences-20261012T051017Z-x73b85b36 (the 2026-10-12 pull less the 76
+    drop-list rows) and the frozen layers. These are the "real survey sites"
+    and "real effort" of the design. The job record lists them, with their
+    hashes.
+  - **One processor family.** A species' block size is measured by the
+    variogram, and the measurement can differ between processor families,
+    though within a family it is exact (E12, 2026-10-21: all 507 refits were
+    bit-identical within a family, and only the block differed across
+    families). So every E1 shard runs on Intel Sapphire Rapids (r7i). A
+    rerun on that family reproduces E1 exactly; each shard's record names
+    its machine, and each species' row holds its block. This is not a design
+    change: production also measures a block once per taxon.
+  - **The smoke run** (`--per-cell=1`) is one species per cell, 39 in all,
+    on the full run's image, inputs and machine type. It checks the pipeline
+    and the timing. Because the layout is smaller, its species are not the
+    full run's, and no verdict, pass rate or map-to-truth ρ from it is read
+    or reported. Only its statuses, errors, fill table and timings are read,
+    as with the cost pilot. The full run's size is unchanged; only its cost
+    estimate is updated from the smoke run.
+  - **Shards.** The full layout is split into 20 shards, every 20th species
+    from a different start (`atlas_study_shard`), so each shard holds a
+    balanced share of every cell. The results are the union of the 20
+    shards' files. A shard keeps nothing until it reports, so a reclaimed
+    spot worker reruns its shard from the start with the same seeds and
+    gives the same rows.
+  - **Analysis.** The tests of H1a–H1f, and the tier analysis, read the
+    pooled long rows (`atlas_calibration_long`). Their code is written and
+    reviewed before the full run's results are opened, and nothing about
+    the tests is changed after.

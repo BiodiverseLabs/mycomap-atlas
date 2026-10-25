@@ -44,4 +44,21 @@ null design.
 
 ## Deviations
 
-None yet.
+- **2026-10-25, before launch (implementation only; the estimate, its
+  interval and the 2% stop are unchanged): each model is rebuilt from the
+  pull it was fitted on, not from the frozen release's pull.**
+  - **Why.** The frozen release fa1b4198 names the pull
+    occurrences-20261012T051017Z-x73b85b36. Most of its models were fitted
+    on the 2026-10-12 pull before the 76 drop-list rows were removed. A
+    taxon's background is drawn from other taxa's records, so a training
+    table rebuilt from the release's pull differs, and its folds with it,
+    wherever one of those rows lay within reach. The E3 kernels met exactly
+    this (E3 prereg, Deviations, 2026-10-21).
+  - **What the code does.** `study-rescan` (Atlas main c56d2dc) already
+    traces each model's fitting job through the release chain
+    (`atlas_refresh_sources`) and rebuilds from that job's pull. It uses
+    the block size the release recorded, so the variogram, which can differ
+    between processor families, is never run again. Every match check
+    stands as planned.
+  - **Run.** On one processor family, Intel (r7i). E12 found no model with
+    the same block that differs across families (0 of 277).
