@@ -154,7 +154,7 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
                            shards = 4L, min_presences = 20, n_background = 10000,
                            buffer_km = 500, folds = 5, block_km = "auto", regmult = 1,
                            correlation = 0.7, tasks_per_shard = NULL, limit = Inf, quiet = FALSE,
-                           nulls = ATLAS_NULL_REPS, tune = TRUE, sample = Inf) {
+                           nulls = ATLAS_NULL_REPS, tune = TRUE, sample = Inf, qa = NULL) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   algorithms <- if (length(algorithms) == 1L) atlas_parse_algorithms(algorithms) else algorithms
   if (!is.numeric(sample) || length(sample) != 1L || is.na(sample) || sample < 1) {
@@ -320,7 +320,9 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     retire = retire,
     deferred = deferred,
     sample = if (is.finite(sample)) as.integer(sample) else NULL,
-    trained_ids = trained_ids
+    trained_ids = trained_ids,
+    # QA stops this job's pull had and that were accepted by name (R/qa.R).
+    qa = if (length(qa)) qa
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/job.json"), job)
   per_algorithm <- table(vapply(tasks, function(t) t$algorithm, ""))

@@ -117,6 +117,8 @@ atlas_usage <- function() {
   message("      --shards=N                how many workers will share it (default 4)")
   message("      --limit=N                 fit only the N richest taxa that need it (a trial)")
   message("      --sample=N                fit N taxa spread from richest to sparsest (a pilot)")
+  message("      --accept-qa=STAMP:CHECK,... plan from a pull whose QA stopped, accepting those stops")
+  message("                                by name (written into the job; R/qa.R)")
   message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
   message("                                refit a release's strong models on its pull without the records")
   message("                                validated after the date, for Vision's benchmark: never a release")
@@ -717,7 +719,9 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         shards = as.integer(atlas_flag_number(flags, "shards", 4)),
         min_presences = atlas_flag_number(flags, "min_presences", 20),
         limit = atlas_flag_number(flags, "limit", Inf),
-        sample = atlas_flag_number(flags, "sample", Inf)
+        sample = atlas_flag_number(flags, "sample", Inf),
+        # The pull's QA (R/qa.R): a stop plans nothing unless accepted by name.
+        qa = atlas_qa_gate(accept = if (is.null(flags$accept_qa)) NULL else as.character(flags$accept_qa))
       )
       invisible(0L)
     },
