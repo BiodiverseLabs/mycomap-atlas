@@ -284,13 +284,16 @@ atlas_calibration_taxon <- function(name, fingerprint, points, stack, cells, gri
 #' is a false pass.
 atlas_calibration_long <- function(rows) {
   scored <- Filter(function(r) identical(r$status, "scored"), rows)
-  out <- do.call(rbind, lapply(scored, function(r) {
-    do.call(rbind, lapply(Filter(function(a) length(a$nulls), r$arms), function(a) {
-      do.call(rbind, lapply(a$nulls, function(n) {
-        if (is.null(n$verdict)) return(NULL)
-        data.frame(
+  # One list of scalars per row, made into columns once at the end: binding a
+  # data frame per row took 20 s for 1,500 species.
+  cells <- list()
+  for (r in scored) {
+    for (a in Filter(function(a) length(a$nulls), r$arms)) {
+      for (n in a$nulls) {
+        if (is.null(n$verdict)) next
+        cells[[length(cells) + 1L]] <- list(
           taxon = r$taxon, family = r$family, kind = r$kind, band = r$band,
-          breadth = r$breadth %||% NA_character_, signal = r$signal %||% NA_character_,
+          breadth = as.character(r$breadth %||% NA_character_), signal = as.character(r$signal %||% NA_character_),
           centres = as.integer(r$centres %||% NA), presences = as.integer(r$presences),
           realised_breadth = as.numeric(r$realised_breadth %||% NA),
           learner = sub(":.*$", "", a$arm), design = n$design, p = as.numeric(n$p %||% NA),
@@ -299,11 +302,19 @@ atlas_calibration_long <- function(rows) {
           observed_auc = as.numeric(n$observed_auc %||% NA), null_mean = as.numeric(n$auc_mean %||% NA),
           null_sd = as.numeric(n$auc_sd %||% NA), boyce = as.numeric(a$boyce %||% NA),
           passed = identical(n$verdict, "passed"),
-          truth_rho = as.numeric(a$truth_rho %||% NA), stringsAsFactors = FALSE
+          truth_rho = as.numeric(a$truth_rho %||% NA)
         )
-      }))
-    }))
-  }))
+      }
+    }
+  }
+  out <- if (length(cells)) {
+    columns <- names(cells[[1]])
+    as.data.frame(stats::setNames(lapply(columns, function(column) {
+      values <- lapply(cells, function(x) x[[column]])
+      if (any(lengths(values) != 1L)) stop("a species row has no single ", column, call. = FALSE)
+      unlist(values, use.names = FALSE)
+    }), columns), stringsAsFactors = FALSE)
+  }
   if (is.null(out)) {
     out <- data.frame(taxon = character(), family = character(), kind = character(),
                       band = character(), learner = character(), design = character(),
