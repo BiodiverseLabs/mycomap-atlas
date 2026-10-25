@@ -62,6 +62,15 @@ Logged as the operations lane reports them; numbers only.
     (spot), at most USD 0.45. Nothing from it is used. The rerun is planned
     with `--from-release=20261013T191324Z-fa1b4198`, after a check that
     every fitting job behind the release lists the same layers.
+  - **Rerun (launched 2026-10-25 16:05 UTC):**
+    study-20261025T160517Z-0c069800, the same image and arguments, planned
+    with `--from-release=20261013T191324Z-fa1b4198`, on 2 × r7i.8xlarge
+    (spot). The check passed first. The 9 layers/ entries (path and sha256)
+    of fa1b4198's job are identical in R_main 20261013T022520Z-2cb67f32, in
+    the full-view refresh full-20261013T140649Z-5cf5b864 (and each of its
+    shard inputs), and in the targeted job 20261013T062143Z-2ffed182. So
+    every model in the sample was fitted on these layers. Steve confirmed
+    it directly with the operations lane.
 
 ## Deviations
 
