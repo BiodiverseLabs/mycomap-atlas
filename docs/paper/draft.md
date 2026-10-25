@@ -589,8 +589,28 @@ these finds and does not separate them.
 
 ### 3.5 Against standard practice (E6)
 
-[PENDING: self-reported CV score vs independent-test score for each
-approach.] → **Figure 3** (baselines beside the grades); detail in S7.
+*Maxent as commonly run (E6a; descriptive, `2026-10-13-plan-e6a-default-maxent.md`,
+Runs).* Fitted with maxnet's defaults against 10,000 random background
+cells in each taxon's accessible area (not the surveyed sites), with random
+cross-validation and the usual null test (training AUC against 19 null
+species drawn uniformly), to the 1,260 hindcast taxa with 20 or more
+sites, default practice passed its own test for 1,002 of the 1,014 taxa
+with later finds (99%). On those finds it placed 96.4% of ranked places in
+its top half, more than Atlas's strong maps of the same taxa (92.0%; 117
+taxa), but outranked the cells of other taxa's later finds less often
+(beats effort 0.679 against 0.777), and at new places less often than even
+Atlas's failed maps (0.603 against 0.621). A model fitted against a random
+background learns where people collect, and later finds are collected
+there too: a rank against the map's own cells rewards that, a rank against
+other taxa's finds does not. Two cautions: the default maps are ranked over
+the whole accessible area while Atlas's are ranked within their area of
+applicability, so their top-half shares are not on the same footing; and
+these are per-place shares over different taxon sets (1,002 and 117 taxa).
+[PENDING (exploratory, requested of the method lane): the paired
+difference, default minus Atlas, on the same taxa and places, with a
+bootstrap interval over taxa, and the default maps ranked over Atlas's
+cells; default practice's own cross-validated AUC beside its later-find
+scores.] → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
 
@@ -1245,6 +1265,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.19.2 (2026-10-26).** Results 3.5: E6a (default practice passes its own test for 99%; higher top-half share, lower beats-effort than strong maps; cautions; paired comparison requested).
 - **0.19.1 (2026-10-25).** C3 off hold: E9 redesigned as a paired hindcast (Steve); E2 re-score approved; Path 7, 7b, 3.6.
 - **0.19.0 (2026-10-25).** After the independent review (Steve's
   decisions): timeline re-planned (inquiry mid-December, internal draft
