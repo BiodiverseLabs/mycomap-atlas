@@ -249,14 +249,15 @@ atlas_e2_score <- function(places, maps_for, known_names = NULL) {
   if (!nrow(places)) {
     return(structure(data.frame(places, map = character(), learner = character(), kind = character(),
                                 grade = character(), tier = character(), moderate_z = logical(),
-                                rank = numeric(), class = character(),
+                                sites = integer(), z = numeric(), rank = numeric(), class = character(),
                                 beats_effort = numeric(), stringsAsFactors = FALSE),
                      off_grid = attr(places, "off_grid") %||% 0L))
   }
   rows <- list()
   apart <- function(mine, class) {
     data.frame(mine, map = NA_character_, learner = NA_character_, kind = NA_character_,
-               grade = NA_character_, tier = NA_character_, moderate_z = NA, rank = NA_real_,
+               grade = NA_character_, tier = NA_character_, moderate_z = NA, sites = NA_integer_,
+               z = NA_real_, rank = NA_real_,
                class = class, beats_effort = NA_real_, stringsAsFactors = FALSE)
   }
   for (taxon in unique(places$taxon)) {
@@ -289,6 +290,7 @@ atlas_e2_score <- function(places, maps_for, known_names = NULL) {
         mine, map = id, learner = as.character(map$learner %||% id),
         kind = as.character(map$kind %||% "model"), grade = as.character(map$grade %||% NA),
         tier = as.character(map$tier %||% NA), moderate_z = as.logical(map$moderate_z %||% NA),
+        sites = suppressWarnings(as.integer(map$sites %||% NA)), z = suppressWarnings(as.numeric(map$z %||% NA)),
         rank = hit$rank, class = hit$place, beats_effort = effort, stringsAsFactors = FALSE
       )
     }
