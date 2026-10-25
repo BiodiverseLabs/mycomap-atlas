@@ -196,6 +196,25 @@ atlas_calibration_h1cf <- function(long, learner) {
   )
 }
 
+#' Shift power of a learner's habitat species by band and signal strength,
+#' with Wilson intervals (reported; the ensembles' power at 3-19 sites is
+#' what C4's small-site counts rest on).
+atlas_calibration_power_table <- function(long, learner) {
+  family <- if (learner == "esm") "esm" else "full"
+  x <- atlas_calibration_rows(long, learner, "shift", "habitat")
+  out <- do.call(rbind, lapply(atlas_calibration_band_levels(family), function(b) {
+    do.call(rbind, lapply(ATLAS_CALIBRATION_SIGNALS, function(signal) {
+      y <- x[x$band == b & x$signal %in% signal, , drop = FALSE]
+      i <- atlas_calibration_wilson(sum(y$passed), nrow(y))
+      data.frame(learner = learner, band = b, signal = signal, species = nrow(y), passed = sum(y$passed),
+                 rate = if (nrow(y)) sum(y$passed) / nrow(y) else NA_real_, low = i[[1]], high = i[[2]],
+                 stringsAsFactors = FALSE)
+    }))
+  }))
+  rownames(out) <- NULL
+  out
+}
+
 #' H1d: among narrow habitats, shift power rises with band.
 atlas_calibration_h1d <- function(long, learner) {
   x <- atlas_calibration_rows(long, learner, "shift", "habitat")
@@ -232,30 +251,44 @@ atlas_calibration_h1e <- function(long, learner, reps = ATLAS_CALIBRATION_READ_R
 }
 
 #' The map tiers (E24) on the shift rows: for each tier, the share of
-#' geography species (false pass) and of habitat species (power) at that
-#' tier or better, by learner, kind, band, breadth and strength, with Wilson
-#' intervals; and map-to-truth rho of habitat species by their exact tier.
-#' "At or better": strong; strong or moderate; strong or moderate-z; strong,
-#' moderate or indicative.
+#' geography species (false pass) and of habitat species (power), by
+#' learner, kind, band, breadth and strength, with Wilson intervals, counted
+#' two ways (column count): "at_or_better" (strong; strong or moderate;
+#' strong or moderate-z; strong, moderate or indicative) and "exact" (the
+#' tier alone, strong excluded from the others, as E2's H2d-H2f read them);
+#' and map-to-truth rho of habitat species by their exact tier.
 atlas_calibration_tiers <- function(long) {
   x <- long[long$design == "shift", , drop = FALSE]
   if (!nrow(x)) return(list(rates = data.frame(), rho = data.frame()))
+  # At that tier or better, and at exactly that tier (as E2's H2d-H2f read
+  # them): both are reported.
   reach <- list(
-    strong = x$passed,
-    moderate = x$passed | x$tier %in% "moderate",
-    moderate_z = x$passed | x$moderate_z %in% TRUE,
-    indicative = x$passed | x$tier %in% c("moderate", "indicative")
+    at_or_better = list(
+      strong = x$passed,
+      moderate = x$passed | x$tier %in% "moderate",
+      moderate_z = x$passed | x$moderate_z %in% TRUE,
+      indicative = x$passed | x$tier %in% c("moderate", "indicative")
+    ),
+    exact = list(
+      strong = x$passed,
+      moderate = !x$passed & x$tier %in% "moderate",
+      moderate_z = !x$passed & x$moderate_z %in% TRUE,
+      indicative = !x$passed & x$tier %in% "indicative"
+    )
   )
   x$breadth[is.na(x$breadth)] <- "-"
   x$signal[is.na(x$signal)] <- "-"
   groups <- split(seq_len(nrow(x)), list(x$learner, x$kind, x$band, x$breadth, x$signal), drop = TRUE)
-  rates <- do.call(rbind, lapply(names(reach), function(tier) {
-    do.call(rbind, lapply(groups, function(i) {
-      k <- sum(reach[[tier]][i])
-      interval <- atlas_calibration_wilson(k, length(i))
-      data.frame(tier = tier, learner = x$learner[i[[1]]], kind = x$kind[i[[1]]], band = x$band[i[[1]]],
-                 breadth = x$breadth[i[[1]]], signal = x$signal[i[[1]]], species = length(i), passed = k,
-                 rate = k / length(i), low = interval[[1]], high = interval[[2]], stringsAsFactors = FALSE)
+  rates <- do.call(rbind, lapply(names(reach), function(count) {
+    do.call(rbind, lapply(names(reach[[count]]), function(tier) {
+      do.call(rbind, lapply(groups, function(i) {
+        k <- sum(reach[[count]][[tier]][i])
+        interval <- atlas_calibration_wilson(k, length(i))
+        data.frame(count = count, tier = tier, learner = x$learner[i[[1]]], kind = x$kind[i[[1]]],
+                   band = x$band[i[[1]]], breadth = x$breadth[i[[1]]], signal = x$signal[i[[1]]],
+                   species = length(i), passed = k, rate = k / length(i), low = interval[[1]],
+                   high = interval[[2]], stringsAsFactors = FALSE)
+      }))
     }))
   }))
   rownames(rates) <- NULL
@@ -363,6 +396,7 @@ atlas_calibration_read <- function(rows, reps = ATLAS_CALIBRATION_READ_REPS, see
     cf <- atlas_calibration_h1cf(long, learner)
     out <- list(h1a = atlas_calibration_h1a(long, learner), h1b = atlas_calibration_h1b(long, learner),
                 h1c = cf$h1c, h1f = cf$h1f, power_model = cf$model, power_curve = cf$curve,
+                power = atlas_calibration_power_table(long, learner),
                 h1e = atlas_calibration_h1e(long, learner, reps = reps, seed = seed))
     # H1d is about the full models' narrow habitats; ensembles have no breadth.
     if (learner != "esm") out$h1d <- atlas_calibration_h1d(long, learner)
@@ -370,13 +404,15 @@ atlas_calibration_read <- function(rows, reps = ATLAS_CALIBRATION_READ_REPS, see
   }
   primary <- stats::setNames(lapply(ATLAS_CALIBRATION_PRIMARY, learner_tests), ATLAS_CALIBRATION_PRIMARY)
   secondary <- stats::setNames(lapply(ATLAS_CALIBRATION_SECONDARY, function(l) {
+    # The same criteria by band (secondary): H1a, H1b and H1e, and the power
+    # the ensembles have, by strength (H1f, its curve, and power by band).
     t <- learner_tests(l)
-    t[c("h1a", "h1b", "h1e")]
+    t[c("h1a", "h1b", "h1e", "h1f", "power_model", "power_curve", "power")]
   }), ATLAS_CALIBRATION_SECONDARY)
   holds <- vapply(primary, function(t) isTRUE(t$h1a$holds) && isTRUE(t$h1b$holds) && isTRUE(t$h1e$holds), TRUE)
   list(
     health = atlas_calibration_health(rows),
-    c1 = list(supported = all(holds), by_learner = as.list(holds),
+    c1 = list(supported_as_registered = all(holds), by_learner = as.list(holds),
               by_band = stats::setNames(lapply(ATLAS_CALIBRATION_PRIMARY, function(l) {
                 atlas_calibration_c1_bands(long, l, primary[[l]], reps = reps, seed = seed)
               }), ATLAS_CALIBRATION_PRIMARY)),
@@ -470,5 +506,11 @@ atlas_calibration_report <- function(read) {
     lines <- c(lines, paste("Band decisions are uncorrected for testing 5 bands per learner",
                             "(prereg amendment, 2026-10-25): each band's bound is from its own count."))
   }
-  c(lines, sprintf("C1 %s", if (isTRUE(read$c1$supported)) "is supported" else "is not supported"))
+  bands <- function(b) if (length(b$supported)) paste(b$supported, collapse = ", ") else "no band"
+  c(lines,
+    sprintf("C1 as registered: %s", if (isTRUE(read$c1$supported_as_registered)) "supported" else "not supported"),
+    sprintf("C1 by band (amendment 2026-10-25): %s",
+            paste(vapply(names(read$c1$by_band), function(l) {
+              sprintf("%s %s (%s)", l, bands(read$c1$by_band[[l]]), read$c1$by_band[[l]]$mode)
+            }, ""), collapse = "; ")))
 }

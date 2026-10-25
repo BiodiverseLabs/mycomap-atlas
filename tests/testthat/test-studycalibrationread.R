@@ -207,20 +207,22 @@ test_that("H1e is one-sided and needs both groups", {
 
 test_that("C1 is supported when H1a, H1b and H1e hold for Maxent and for RF", {
   read <- atlas_calibration_read(cal_world(), reps = 200)
-  expect_true(read$c1$supported)
+  expect_true(read$c1$supported_as_registered)
   expect_equal(read$c1$by_learner, list(maxnet = TRUE, rf = TRUE))
-  expect_true(any(grepl("^C1 is supported", atlas_calibration_report(read))))
+  report <- atlas_calibration_report(read)
+  expect_true("C1 as registered: supported" %in% report)
+  expect_true(any(startsWith(report, "C1 by band (amendment 2026-10-25): maxnet 20-29, 30-49, 50-99, 100-199, 200+ (registered)")))
 })
 
 test_that("C1 is not supported when one learner fails H1a, and the ensembles do not decide it", {
   read <- atlas_calibration_read(cal_world(rf_shift_false = function(b, i) i <= 12), reps = 200)
-  expect_false(read$c1$supported)
+  expect_false(read$c1$supported_as_registered)
   expect_equal(read$c1$by_learner, list(maxnet = TRUE, rf = FALSE))
   # Ensembles failing H1a are reported, secondary, and leave C1 alone.
   read <- atlas_calibration_read(cal_world(esm_shift_false = function(b, i) i <= 30), reps = 200)
   expect_false(read$secondary$esm$h1a$holds)
   expect_equal(vapply(read$secondary$esm$h1a$by_band, function(b) b$band, ""), c("3-4", "5-9", "10-19"))
-  expect_true(read$c1$supported)
+  expect_true(read$c1$supported_as_registered)
 })
 
 test_that("a learner failing H1a is decided band by band, its failing band reported and never dropped", {
@@ -235,7 +237,7 @@ test_that("a learner failing H1a is decided band by band, its failing band repor
   maxnet <- read$c1$by_band$maxnet
   expect_equal(maxnet$mode, "registered")
   expect_equal(maxnet$supported, FULL_BANDS)
-  expect_false(read$c1$supported)
+  expect_false(read$c1$supported_as_registered)
   report <- atlas_calibration_report(read)
   expect_true(any(grepl("^rf C1 \\(by band\\): supported in 20-29, 30-49, 50-99, 100-199; failing in 200\\+", report)))
   expect_true(any(grepl("uncorrected for testing 5 bands", report, fixed = TRUE)))
@@ -308,11 +310,19 @@ test_that("the tiers count a species at its tier or better, and strong is the sh
   rows[[2]]$arms[[1]]$nulls$shift$p <- 0.15
   rows[[2]]$arms[[1]]$nulls$shift$reps <- 40L
   rates <- atlas_calibration_read(rows, reps = 200)$tiers$rates
-  share <- function(tier, learner) rates$rate[rates$tier == tier & rates$learner == learner]
+  share <- function(tier, learner, count = "at_or_better") {
+    rates$rate[rates$count == count & rates$tier == tier & rates$learner == learner]
+  }
   expect_equal(share("strong", "maxnet"), 0.5)
   expect_equal(share("moderate", "maxnet"), 1)
   expect_equal(share("indicative", "maxnet"), 1)
   expect_equal(share("moderate", "rf"), 0.5)
+  # Exactly at the tier, as E2's tier hypotheses read them: strong is not moderate.
+  expect_equal(share("strong", "maxnet", "exact"), 0.5)
+  expect_equal(share("moderate", "maxnet", "exact"), 0.5)
+  expect_equal(share("indicative", "maxnet", "exact"), 0)
+  expect_equal(share("indicative", "rf", "exact"), 0.5)
+  expect_setequal(unique(rates$count), c("at_or_better", "exact"))
 })
 
 # --- Pooling the shards -------------------------------------------------------
@@ -376,4 +386,32 @@ test_that("a run's shards are pooled from a study prefix in the store, and compl
   expect_true(pooled$complete)
   expect_error(atlas_calibration_pool_from(store, "releases/draft/"), "only under")
   expect_error(atlas_calibration_pool_from(store, "study/none/"), "no calibration results")
+})
+
+test_that("the headline tells the registered decision from the amendment's band decision", {
+  read <- atlas_calibration_read(cal_world(rf_shift_false = function(b, i) b == 5L && i <= 9), reps = 200)
+  report <- atlas_calibration_report(read)
+  expect_true("C1 as registered: not supported" %in% report)
+  expect_true(any(grepl("maxnet 20-29, 30-49, 50-99, 100-199, 200+ (registered); rf 20-29, 30-49, 50-99, 100-199 (by band)",
+                        report, fixed = TRUE)))
+  expect_false(any(grepl("^C1 is", report)))
+})
+
+test_that("the ensembles' secondary results carry H1f, the power curve and power by band and strength", {
+  esm <- do.call(c, lapply(c("3-4", "5-9", "10-19"), function(band) {
+    do.call(c, lapply(c("strong", "weak"), function(signal) lapply(seq_len(80), function(i) {
+      cal_species(sprintf("e-%s-%s-%d", band, signal, i), "habitat", band, family = "esm",
+                  shift = i <= (if (signal == "strong") 40 else 10), signal = signal, rho = 0.4,
+                  realised_breadth = (i %% 10) / 10 + 0.05)
+    })))
+  }))
+  secondary <- atlas_calibration_read(esm, reps = 200)$secondary$esm
+  expect_true(all(c("h1a", "h1b", "h1e", "h1f", "power_curve", "power") %in% names(secondary)))
+  expect_gt(secondary$h1f$estimate, 0)
+  expect_true(secondary$h1f$holds)
+  power <- secondary$power
+  expect_equal(nrow(power), 3L * 2L)
+  expect_equal(power$rate[power$band == "5-9" & power$signal == "strong"], 0.5)
+  expect_equal(power$rate[power$band == "5-9" & power$signal == "weak"], 0.125)
+  expect_true(all(power$low <= power$rate & power$rate <= power$high))
 })
