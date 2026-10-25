@@ -51,8 +51,8 @@ Logged as the operations lane reports them; numbers only.
   --command=study-rescan --shards=2 --args="--release=20261013T191324Z-fa1b4198
   --seed=1 --workers=30"`, 2 × r7i.8xlarge (spot). The sample is 1,083 of
   the release's 9,040 testable models (esm 426, maxnet 278, rf 264, xgboost
-  115), up to 50 per cell, so fewer than the plan's estimate of about
-  1,000–3,000; about 30 CPU-h by the code's estimate. Steve confirmed it
+  115), up to 50 per cell, close to the plan's estimate of about 1,000;
+  about 30 CPU-h by the code's estimate, below the plan's 100–200. Steve confirmed it
   directly with the operations lane. Pooled with `study-rescan
   --pool-from` once both shards report.
 
