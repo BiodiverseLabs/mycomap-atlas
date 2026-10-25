@@ -71,6 +71,30 @@ Logged as the operations lane reports them; numbers only.
     shard inputs), and in the targeted job 20261013T062143Z-2ffed182. So
     every model in the sample was fitted on these layers. Steve confirmed
     it directly with the operations lane.
+  - **Result (2026-10-25).** Both shards on r7i.8xlarge (Intel Xeon
+    Platinum 8488C), spot.
+    - The first workers were reclaimed at about 16:14 UTC, before
+      reporting.
+    - The second attempt ran shard 1 from 16:16:34 to 16:36:02 UTC and
+      shard 2 from 16:16:32 to 16:35:16 UTC.
+    - `study-rescan --pool-from=study/study-20261025T160517Z-0c069800/`:
+      1,083 of 1,083 sampled models over 2 shards, 0 without a verdict, 0
+      rebuild mismatches; readable.
+    - Unweighted counts, as a check (the estimate is weighted by stratum):
+
+      | Learner | Models | Passed the standard test | Of those, not strong | Strong but failed it |
+      |---|---|---|---|---|
+      | esm | 426 | 159 | 51 | 26 |
+      | maxnet | 278 | 155 | 90 | 1 |
+      | rf | 264 | 165 | 105 | 1 |
+      | xgboost | 115 | 83 | 78 | 0 |
+
+    - The weighted share and its interval are read from the two results
+      files and the strata (the Paper Coordinator's reading):
+      `study/study-20261025T160517Z-0c069800/rescan-20261013T191324Z-fa1b4198-shard-{1,2}of2-20261025T16172{9,8}Z.json`.
+    - Cost: about 1 instance-h of r7i.8xlarge spot, including the
+      reclaimed attempt, at most USD 2.1. The run without layers adds at
+      most USD 0.45.
 
 ## Deviations
 

@@ -37,6 +37,23 @@
 Own-CV AUC and pass rate, against its E2 scores; beside the production
 models' blocked AUC, grades and E2 scores for the same taxa.
 
+## Runs
+
+Logged as the operations lane reports them; numbers only.
+
+- **Default-practice fits (launched 2026-10-25 16:42 UTC).**
+  study-20261025T164211Z-4ffa4776, image c56d2dc.
+  - Command: `plan-study --command=study-default --shards=8
+    --from-release=20261013T191324Z-fa1b4198
+    --args="--release=priv-20261018T171648Z-9e3ab153 --workers=30"`, on
+    r7i.8xlarge (spot).
+  - 1,260 taxa with 20+ sites in the hindcast (lqh 1,173, lqph 87), about
+    324 CPU-h by the code's estimate.
+  - The training data is the hindcast's own pull. `--from-release` brings
+    only the layers. The 9 layer files of fa1b4198's job and the hindcast's
+    job are identical (path and sha256), checked before planning.
+  - Steve confirmed it directly with the operations lane.
+
 ## Deviations
 
 None yet.
