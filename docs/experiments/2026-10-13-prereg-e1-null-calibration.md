@@ -233,6 +233,21 @@ Logged as the operations lane reports them; numbers only.
       about 40 with shard tails, so at most about USD 85 at the on-demand
       price.
     - No verdict, pass rate or rho was read.
+- **Full run (launched 2026-10-25, about 21:28 UTC).**
+  study-20261025T212753Z-55239fbd, image d2ff016 (Atlas main with the runner
+  fix fa26a8c), `plan-study --command=study-calibration --shards=20
+  --from-release=20261013T191324Z-fa1b4198 --args="--seed=1 --workers=30"`,
+  r7i.8xlarge, MAX_HOURS 14, MAX_ATTEMPTS 6. Steve confirmed it directly
+  with the operations lane.
+  - **The first attempt left no result.** At 21:55 UTC the orchestrator
+    stopped on an AWS error (InternalError, HTTP 500). It was retrying
+    launches of shards 5–20, which the vCPU quota had refused. On exit it
+    terminated workers 1–4, none of which had reported, so nothing was kept:
+    about 1.8 instance-h, at most USD 3.8. An Atlas fix follows: a 5xx from
+    EC2 is retried at the next poll, never fatal.
+  - **Relaunched** at 23:12 UTC on the same job id, image and settings. The
+    runner fix launches only shards that have not reported, so shards that
+    report are kept even if the orchestrator stops again.
 
 ## Deviations
 
@@ -291,3 +306,15 @@ Logged as the operations lane reports them; numbers only.
     pooled long rows (`atlas_calibration_long`). Their code is written and
     reviewed before the full run's results are opened, and nothing about
     the tests is changed after.
+- **2026-10-25, during the full run: a few in-progress lines seen by
+  accident, before any reading.** While checking that the first attempt's
+  workers were alive, the operations lane printed the last 3 lines of each
+  of the 4 workers' logs, 12 lines in all. Each names a species and its
+  learners' per-design verdicts and map-to-truth ρ. That is about 12 of the
+  run's 2,840 species, from a run whose results were then lost.
+  - Nothing was kept, counted or passed on, and no one has read any other
+    output of the run.
+  - The reader (8125ed1) was fixed and reviewed before this, and nothing
+    about it changes.
+  - From now on, workers' liveness is checked from line counts and
+    timestamps only.
