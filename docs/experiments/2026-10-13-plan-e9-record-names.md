@@ -93,3 +93,22 @@ genus) by source; taxa split, merged, gained and lost.
     map on the finds carrying that record name. It gets the same interval
     (10,000 resamples of taxa, seed 1). Both are reported side by side
     whatever they show. H9 is decided on the primary estimate only.
+- **2026-10-25, still before any fit or code: two jobs launched together, not
+  one (implementation; the comparison is unchanged).**
+  - **Why.** A private job carries one pull, and its workers fit every task
+    from it. The two labellings name the same records differently, so they
+    need two pulls. Putting both in one job would mean changing the
+    production shard runner.
+  - **Instead, two private jobs, planned from one Atlas commit and launched
+    together on one processor family (r7i):**
+    - the DNA side: the E2 hindcast's changed taxa refitted through the
+      existing hindcast refit (`atlas_plan_hindcast_refit`), with no records
+      left out. Its records match the hindcast's, so each model reuses its
+      recorded block;
+    - the record side: a new hindcast record-names purpose, the hindcast
+      cutoff applied and then each record named by its .org name. Each model
+      reuses the block of the DNA model of the same name.
+  - **What stays like-for-like:** both sides use the same records and the
+    same cutoff, the same image, processor family, blocks and fit settings.
+    Each side's background and effort come from the same sites. Everything
+    above (H9, the secondary estimate, the reporting) is unchanged.
