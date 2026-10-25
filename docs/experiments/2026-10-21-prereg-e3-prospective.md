@@ -239,6 +239,19 @@ read by any of these jobs.
     variogram effect E6b and E12 found. R_main ran on a mix of instance
     families (Intel and AMD, two generations each) and recorded no machine
     per model, so the 9 are rebuilt on the AMD family next.
+- **Kernels, patch 2 (launched 2026-10-25 14:56 UTC).**
+  study-20261025T145556Z-26f877fe, image c56d2dc, the same arguments as
+  patch 1 with `--workers=3 --taxa=<the 9 refused>` (sha256 a1aa21c0…, equal
+  on the PC and the box), one r7a.xlarge (spot). Steve confirmed it directly
+  with the operations lane.
+  - **Result (2026-10-25).** r7a.xlarge (AMD EPYC 9R14, Zen 4), 14:57 to
+    15:00 UTC, rebuilt from R_main's pull: 9 of 9 scored (9 kernels), 0
+    mismatch, 0 refused otherwise, 0 failed. These 9 models were fitted on
+    Zen 4. No further patch is needed.
+- **Kernel set for the read-out.** 6,369 of 6,369 modelled taxa in fa1b4198
+  have a kernel: 5,679 from the main job, 681 from patch 1's rerun, 9 from
+  patch 2. None is left without one. study-score reads
+  `--kernels-from=20261021T052559Z-eff180db,20261021T185333Z-a972d74e,20261025T145556Z-26f877fe`.
 
 ## Deviations
 
