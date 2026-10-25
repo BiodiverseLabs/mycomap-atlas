@@ -459,8 +459,6 @@ atlas_shard_blocks <- function(algorithm, taxa, released, fitted) {
   if (length(out)) out
 }
 
-#' The seeds a shard's tasks ask for, by taxon: a hindcast refit's
-#' (seed_from, its hindcast model's fingerprint), or NULL for every other job.
 #' The blocks a job's tasks name (E9's pairs carry their hindcast models'),
 #' by taxon: the planner decided them, so they come before any other.
 atlas_task_blocks <- function(tasks) {
@@ -473,6 +471,8 @@ atlas_task_blocks <- function(tasks) {
   out
 }
 
+#' The seeds a shard's tasks ask for, by taxon: a hindcast refit's
+#' (seed_from, its hindcast model's fingerprint), or NULL for every other job.
 atlas_task_seeds <- function(tasks) {
   seeded <- Filter(function(t) is.character(t$seed_from) && length(t$seed_from) == 1L, tasks)
   if (!length(seeded)) return(NULL)
