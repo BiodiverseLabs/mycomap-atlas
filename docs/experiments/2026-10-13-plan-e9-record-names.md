@@ -39,3 +39,39 @@ genus) by source; taxa split, merged, gained and lost.
   unchanged records refitted on another family: 1.55% of models differ
   [0.37, 3.03], and 0.43% change grade [0, 1.24]. That floor is reported
   beside E9's correlations and grade changes.
+- **2026-10-25, before any fit or code: redesigned as a paired hindcast of
+  both labellings, scored on later finds (the independent review,
+  approved by Steve).** This replaces the design above and the note just
+  before it.
+  - **Why.** As planned, E9 compares a record-name refit with frozen models
+    fitted on other machines from another pull, and measures only map
+    agreement, which mostly says that different records give different
+    maps. C3 needs a test of skill on records the models never saw.
+  - **Taxa.** Those whose record set differs between DNA names and record
+    names on the hindcast's pull (cutoff 2026-08-17, the E2 hindcast's).
+    Taxa whose records do not change are identical under both labellings
+    and are not refitted.
+  - **Fits.** One private job fits each such taxon twice, under its DNA
+    name and under its record name: same pull, image, processor family
+    (r7i) and fit settings. The record-name model reuses its DNA pair's
+    spatial block, so no block differs by machine (E12). Full graded fits,
+    every learner, as production.
+  - **Scoring.** Both sides on E2's later finds, with E2's exclusions and
+    refits as in E2's final command.
+    - **Primary truth: each find's DNA name.** A record-name map is scored
+      on the finds whose DNA name is its taxon.
+    - **Secondary:** each side scored on its own labelling.
+  - **Primary estimate** (descriptive, as E2's metrics): the paired
+    difference, DNA minus record name, in top-half share of later finds.
+    Taken over taxa present under both labellings, with a 95% interval from
+    10,000 bootstrap resamples of taxa (seed 1).
+  - **Also reported:** Boyce, beats-effort, new and known places and
+    distance bands, by site band; grade under each labelling; map Spearman
+    and Schoener's D for each pair; taxa only one labelling has, counted;
+    records whose label differs, by source.
+  - **Reproducibility.** frozen (the hindcast's pull; Atlas main at the
+    commit that runs it, recorded with the run).
+  - **Cost.** About 550–650 CPU-h for both sides, about 20–25 instance-h
+    of r7i.8xlarge: at most about USD 55 at the on-demand price, likely
+    USD 20–30 on spot. Scoring under USD 1. The fit run has its own launch
+    go.
