@@ -210,7 +210,11 @@ atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL,
   reported <- function() store$exists(atlas_shard_key(id, 1L, grid))
 
   terminate_all <- function() {
-    running <- atlas_job_instances(ec2, id)
+    running <- atlas_job_instances_unless_down(ec2, id)$instances
+    if (is.null(running)) {
+      wait(poll_seconds)
+      running <- atlas_job_instances(ec2, id)
+    }
     running <- running$instance[!running$state %in% ATLAS_EC2_GONE]
     if (length(running)) ec2$terminate_instances(InstanceIds = as.list(running))
   }
@@ -220,6 +224,7 @@ atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL,
   attempts <- 0L
   instance <- NA_character_
   seen <- character()
+  unanswered <- 0L
   repeat {
     if (reported()) break
     if (clock() > deadline) {
@@ -227,7 +232,20 @@ atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL,
            call. = FALSE)
     }
     if (!is.na(instance)) {
-      instances <- atlas_job_instances(ec2, id)
+      # EC2 failing on its own side (a 5xx) is asked again next poll.
+      answer <- atlas_job_instances_unless_down(ec2, id)
+      if (is.null(answer$instances)) {
+        unanswered <- unanswered + 1L
+        if (unanswered > ATLAS_EC2_MAX_UNANSWERED) {
+          stop("EC2 did not answer for ", unanswered, " polls in a row (", answer$down, "); finishing ", label,
+               " stopped", call. = FALSE)
+        }
+        say("EC2 did not answer (", answer$down, "); asking again at the next poll")
+        wait(poll_seconds)
+        next
+      }
+      unanswered <- 0L
+      instances <- answer$instances
       seen <- union(seen, instances$instance)
       state <- instances$state[instances$instance == instance]
       gone <- if (length(state)) state[[1]] %in% ATLAS_EC2_GONE else instance %in% seen
