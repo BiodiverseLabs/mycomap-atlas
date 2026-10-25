@@ -214,6 +214,41 @@ test_that("run-job-ec2 runs a study job's shards, one worker each, and builds no
   expect_length(still_running(ec2), 0L)
 })
 
+# The shards a fake EC2 was asked to launch workers for, for one job.
+launched_shards <- function(ec2, job_id) {
+  tags <- lapply(ec2$state$requests, function(r) tag_values(r$TagSpecifications[[1]]$Tags))
+  mine <- Filter(function(t) identical(t[["atlas-job"]], job_id), tags)
+  as.integer(vapply(mine, function(t) t[["atlas-shard"]], ""))
+}
+
+test_that("run again on a study job part done, run-job-ec2 launches only the shards that have not reported", {
+  store <- fresh_store()
+  boss <- machine()
+  job <- atlas_plan_study_job(store, "study-rescan", args = "--sample=200", shards = 3L,
+                              commands = "study-rescan", quiet = TRUE)
+  # Shard 2 reported before the orchestrator stopped.
+  on_machine(machine(), atlas_run_study_shard(store, job$id, 2L, quiet = TRUE, main = fake_study_main(store)))
+  before <- atlas_store_text(store, atlas_shard_key(job$id, 2L))
+  ec2 <- fake_ec2(store)
+  outcome <- run_on(list(store = store, boss = boss, job = job), ec2)
+  expect_equal(outcome$job, job$id)
+  expect_setequal(launched_shards(ec2, job$id), c(1L, 3L))
+  # Its record is the first run's, not a second one's.
+  expect_identical(atlas_store_text(store, atlas_shard_key(job$id, 2L)), before)
+  for (n in 1:3) expect_true(store$exists(paste0(job$out, "result-", n, ".json")))
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("run again on a job whose shards all reported, run-job-ec2 fits nothing again and finishes it", {
+  setup <- planned()
+  for (n in 1:2) on_machine(machine(), atlas_run_shard(setup$store, setup$job$id, n, quiet = TRUE, fit = fake_fit))
+  ec2 <- fake_ec2(setup$store)
+  release <- run_on(setup, ec2)
+  expect_length(launched_shards(ec2, setup$job$id), 0L)
+  expect_identical(atlas_current_release(setup$store)$id, release$id)
+  expect_length(still_running(ec2), 0L)
+})
+
 test_that("a private release past its deadline is never finished in part", {
   skip_if_not_installed("terra")
   setup <- hindcast_setup()

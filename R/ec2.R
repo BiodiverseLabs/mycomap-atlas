@@ -402,7 +402,12 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
             "; their shutdown timers will stop them")
   }), add = TRUE)
 
-  for (shard in seq_len(job$shards)) launch(shard)
+  # Only the shards that have not reported: run again on a job already part
+  # done (after the orchestrator stopped), a reported shard is not fitted a
+  # second time, and a study's results are not written twice.
+  reported <- atlas_job_status(store, job$id, grid)$done
+  if (length(reported)) say(length(reported), " of ", job$shards, " shards already reported; not launched again")
+  for (shard in setdiff(seq_len(job$shards), reported)) launch(shard)
   repeat {
     missing <- atlas_job_status(store, job$id, grid)$missing
     if (!length(missing)) break
