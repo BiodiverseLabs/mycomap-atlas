@@ -171,6 +171,41 @@ grade.
     - This lets the paper say what the shift null is at 200+ sites.
     - It is reported only and changes no verdict.
 
+## Implementation (not a design change)
+
+- **2026-10-25, the reader, written and reviewed before the full run
+  launches** (Atlas study/e1-reader 8125ed1; reviewed by the Paper
+  Coordinator against this text).
+  - `study-calibration --pool-from=study/<id>/` pools the full run's
+    shards. It refuses shards of different runs or splits, a shard twice
+    and a species twice, and reads nothing unless all 2,840 species are
+    there.
+  - Readings where the text leaves a choice:
+    - (a) **H1c's model** is pass ~ realised breadth + band (a factor, the
+      lowest band as reference) + signal strength (weak as reference). Strength
+      is in it because H1f tests strength "in the H1c model". The fitted
+      power curve is the model's prediction by band × strength at the
+      quartiles of realised breadth: a curve over bands.
+    - (b) **H1d** pools both strengths within narrow habitats.
+    - (c) **H1e's interval** is for the difference in medians, from 10,000
+      resamples of species within each group (passed, rest), seed 1. The
+      Wilcoxon test uses the normal approximation.
+    - (d) **H1a** does not hold when a band has no scored geography species:
+      "every band" cannot then be shown. That band fails in the
+      amendment's band mode too.
+    - (e) **Map tiers** are reported two ways: at the tier or better (strong;
+      strong or moderate; strong or moderate-z; strong, moderate or
+      indicative), and at exactly the tier, as E2's H2d–H2f read them.
+      ρ is reported by exact tier.
+    - (f) **Cochran–Armitage scores** are the bands' order (1, 2, …). An
+      empty band keeps the others' scores.
+    - (g) **The ensembles**, as secondary results, get H1a, H1b (with their
+      own trend over their 3 bands), H1e, H1f with its power curve, and shift
+      power by band and strength with Wilson intervals.
+  - **Output.** The headline gives "C1 as registered" and, beside it, "C1 by
+    band (amendment 2026-10-25)" per learner, so a registered "not
+    supported" is never read as the whole answer.
+
 ## Runs
 
 Logged as the operations lane reports them; numbers only.
