@@ -727,6 +727,8 @@ test_that("a model's z is read from its shift null test, and is missing for a sc
   expect_true(is.na(atlas_score_z(list(null = list(design = "shift", observed_auc = 0.8, auc_mean = 0.6, auc_sd = 0)))))
   expect_equal(atlas_score_sites(shift), 33L)
   expect_true(is.na(atlas_score_sites(list())))
+})
+
 # A default-practice study job as it publishes (R/studydefault.R): each
 # shard's results file, and its maps in the directory beside it.
 published_defaults <- function(store, job, release, shards, taxa_of = function(i) sprintf("T%02d", i)) {
