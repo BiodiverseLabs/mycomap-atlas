@@ -648,8 +648,11 @@ Zenodo DOI, format, size and licence:]
   excluded from all published record-level layers, and carry no survey-site
   membership in this table (about 800 records of unknown privacy in the
   rebuild's pull [CHECK: count in the frozen pull]). Obscured iNaturalist
-  coordinates never train a model. [CHECK: licence of this table, CC0
-  proposed.]
+  coordinates never train a model. **Licence: CC0 1.0** (Steve,
+  2026-10-25); the rest of the models record stays CC BY-SA 4.0. Zenodo
+  carries licences per record, not per file (its rights field takes
+  several), so the new version lists both licences and its description
+  and README name the files under CC0 (the training-record table).
 - **Record cells.** The 0.1° record cells (in every release, on the live
   site and as the Zenodo "collection-cells-0.1deg" bundle) leave out those
   records; the frozen release ships the corrected file.
@@ -1155,7 +1158,11 @@ revised (Path).
 6. **Training-record table columns:** settled 2026-10-13 (section 4.1):
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
-   release. The 0.1° cells question is settled too.
+   release. The 0.1° cells question is settled too. **Licence decided
+   2026-10-25 (Steve): CC0 1.0** for the training-record table; the models
+   record otherwise stays CC BY-SA 4.0, and the new version states the
+   table's licence separately (both licences in the record's rights field,
+   with the CC0 file named in the description and README).
 8. **Zenodo models record, provenance: decided 2026-10-21 (Steve).**
    (a) Approved: the metadata-only description edit stating that the
    published counts are after the 76-record exclusion and that most models
@@ -1171,6 +1178,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.18.6 (2026-10-25).** Training-record table licence CC0 (Steve); stated separately in the next models version.
 - **0.18.5 (2026-10-25).** E3 kernels complete (6,369/6,369); Path 3c.
 - **0.18.4 (2026-10-21).** Zenodo models description edit live; block reuse and machine record merged (Atlas main c56d2dc); S2.4 detail on the 71 taxa.
 - **0.18.3 (2026-10-21).** Open decision 8 decided (Steve): Zenodo description edit approved (ops applies); lineage table in the next models version with E19/E20.
