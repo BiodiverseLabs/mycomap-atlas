@@ -132,6 +132,38 @@ grade.
   cannot fill within its redraw limit (most likely narrow habitats at 200+
   sites) are reported with their counts, not padded.
 
+- 2026-10-25 (independent review, accepted by Steve; before any E1 outcome
+  is read: the smoke run's verdicts are not read, and the full run has not
+  launched):
+  - **What "false pass" means.** A false pass is a pass of a species whose
+    detections follow geography and effort alone: a geography species,
+    collected at the real survey sites in proportion to the real records
+    there and around one or two centres, with no habitat in its making. It
+    does not mean a map that is wrong about a real species.
+  - **If a learner or band fails H1a.** C1 is decided per learner and per
+    band; a failing learner or band is reported as failing, never dropped.
+    - **Learner first.** If H1a holds for a learner as registered (pooled
+      bound and every band), C1 for that learner is decided as registered.
+    - **Otherwise, band by band.** H1a holds *in a band* when that band's
+      shift false-pass Wilson upper bound is at most 5%. With 160 geography
+      species, that is at most 2 passes.
+    - C1 is then supported for that learner in exactly the bands where H1a
+      holds, if two more conditions hold:
+      - the band's scatter false-pass Wilson lower bound is above 20% (H1b's
+        level; its trend across bands is not asked of one band);
+      - H1e holds for the learner over the habitat species of those bands.
+    - Every other band is reported as failing H1a, with its rate and
+      interval. This covers random forest, the 100–199 and 200+ bands, and
+      any other learner or band.
+  - **Best-effort shifted nulls, reported by band.** When all 200 draws of a
+    shifted null are rejected, R/nulls.R keeps the least bad draw and marks
+    it best-effort.
+    - Reported per learner and site band: the share of shifted nulls that
+      were best-effort (best-effort nulls over nulls drawn), and the share of
+      species with any.
+    - This lets the paper say what the shift null is at 200+ sites.
+    - It is reported only and changes no verdict.
+
 ## Runs
 
 Logged as the operations lane reports them; numbers only.
