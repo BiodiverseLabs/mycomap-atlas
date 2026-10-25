@@ -1,6 +1,6 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-**HOLD UNTIL E1 (Steve, 2026-10-21).** Sent only after E1's results are in
+**HOLD UNTIL E1 (Steve, 2026-10-21); send mid-December 2026 (Steve, 2026-10-25).** Sent only after E1's results are in
 the registry. Then, in one pass: replace the pilot C1 numbers and the "[E1:
 …]" placeholder with E1's registered numbers; state the nightly as it is
 then (it is off at present, hence "designed to rebuild nightly"); and say
@@ -37,8 +37,8 @@ names, designed to rebuild nightly from validated community-science collections.
 hindcast, maps graded strong placed 91% of records validated after the
 training cutoff in their top half, against 78% for failed maps (95%
 interval of the difference 9–17 points), and beat a map of distance to
-known records by 4 points (1–8), an advantage that came from finds more
-than 100 km away; weak maps did no better than distance. A bar against
+known records by a modest 4 points (1–8), an advantage that appeared at
+finds more than 100 km away; weak maps did no better than distance. A bar against
 chance, which even failed maps clear, cannot judge such maps; distance to
 known records can. The paper gives best-practice guidance for null
 tests in target-group designs, compares the approach with default practice

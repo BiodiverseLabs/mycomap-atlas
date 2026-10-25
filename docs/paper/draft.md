@@ -89,23 +89,38 @@ revise the paper plan and let's continue".)
    atlas's real models, [X]% of the maps a standard test (19 scattered nulls)
    calls good are not shown to beat collecting. [pre-freeze; E1, E1b, E1c]
 2. **C2. The grade predicts how a map does on records it never saw, and
-   only strong maps beat distance to known records.** Of the later finds in a
-   hindcast, strong maps placed 91.4% in their top half, weak maps 87.0% and
-   failed maps 78.4% (strong − failed 13.0 points, 95% interval 9.0–17.2).
-   On the same places strong maps placed 4.4 points (1.5–7.6) more than a
-   map of distance to the taxon's known sites, a gain that comes from finds
-   more than 100 km away; near known records distance alone does as well.
-   Weak maps, and both looser tiers within them, do no better than distance.
-   [E2, E6b done; prospective E3 PENDING]
+   strong maps beat distance to known records, modestly.** Of the later
+   finds in a hindcast, strong maps placed 91.4% in their top half, weak
+   maps 87.0% and failed maps 78.4% (strong − failed 13.0 points, 95%
+   interval 9.0–17.2). On the same places strong maps placed 4.4 points
+   (1.5–7.6) more than a map of distance to the taxon's known sites; the
+   mean rank of finds did not differ, and at new places (more than 5 km
+   from a training site) the gain's interval reaches zero. The gain appears
+   to come from finds more than 100 km away (descriptive, no interval);
+   near known records distance alone does as well. Weak maps, and both
+   looser tiers within them, do no better than distance. [E2, E6b done;
+   PENDING: the E2 re-score (records also observed after the cutoff, the
+   registered secondary set; H2a–H2c within site bands, exploratory) and
+   prospective E3]
 3. **C3. Labelling by the approved sequence rather than the record's own
    name changes the maps, and about half the modellable taxa have no formal
-   name.** [PENDING E9, E16] A comparison with morphology-named records
+   name.** [PENDING E9, E16. E9 is ON HOLD (2026-10-25) while the method
+   lane assesses a stronger design: both labellings fitted in the same job
+   as a hindcast and scored on later finds, so that C3 can say whether
+   sequence labels give better maps, not only different ones. Without E9,
+   C3 reduces to the E16 count of unnamed taxa.] A comparison with morphology-named records
    (GBIF, E6c, P2) is not part of this claim; if it runs, it is a Discussion
    point.
-4. **C4. An automated, nightly, open pipeline can do this at continental
-   scale, and says which maps to trust.** The frozen release holds 9,041
-   models of 6,369 taxa; 576 models of 470 taxa (7.4% of modelled taxa) are
-   strong, and none of the 52 taxa with 100 or more sites. The strong share is stated plainly: most maps are
+4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
+   this at continental scale, and says which maps to trust.** The frozen
+   release holds 9,041 models of 6,369 taxa; 576 models of 470 taxa (7.4%
+   of modelled taxa) are strong, and none of the 52 taxa with 100 or more
+   sites. Taxa with 3 to 19 sites, fitted only with ensembles of small
+   models, are 79% of those modelled; at 3–4 sites 2.1% are strong and 45%
+   of the ensembles fail, so counts are given with them apart. The nightly
+   has been off since 2026-10-07 and is planned to resume in November 2026
+   under the frozen release's (v1) rules; "nightly" is claimed only once it
+   has run [CHECK]. The strong share is stated plainly: most maps are
    weak or failed, and they are still published, drawn faint with their
    grade, because the grade is the contribution, not the map count. Every map
    is versioned, citable and reproducible from a pinned container and
@@ -139,9 +154,10 @@ Automated pipelines now fit distribution models for thousands of species,
 but they report each map's skill with scores that clustered collecting
 inflates, and the usual null test does not correct for it. Fungi add a
 second problem: morphological names often hide several lineages. We built
-MycoMap Atlas, which maps every North American fungus defined by an
-approved DNA sequence with at least three survey sites, from [133,235]
-validated community-science records of [16,252] taxa, designed to rebuild nightly [CHECK: the nightly is off; restate when it resumes].
+MycoMap Atlas, which maps the North American fungi defined by an
+approved DNA sequence that have at least three survey sites in [133,235]
+validated community-science records of [16,252] taxa, designed to rebuild
+nightly [CHECK: the nightly is off; planned to resume November 2026].
 Records are compared with the other places people collected and
 sequenced; Maxent, random forests, boosted trees and ensembles of small
 models are tuned and scored on spatially blocked folds; and each map is
@@ -154,14 +170,15 @@ the atlas's 9,041 models of 6,369 taxa, 576 across 470 taxa were graded strong; 
 standard test would have called [X]% of the rest good [PENDING E1c]. Maps
 graded strong placed records validated after the training cutoff in their
 top half 91% of the time, against 78% for failed maps and 87% for a map of
-distance to known records on the same places; weak maps did no better than
-distance, and the strong maps' advantage came from finds more than 100 km
-from known records. Naming records by
+distance to known records on the same places, a modest gain with no
+difference in mean rank; weak maps did no better than distance, and the
+strong maps' advantage appeared at finds more than 100 km from known
+records (descriptive). Naming records by
 their sequences rather than their own names changed the maps of [N] taxa,
 and about half the modelled taxa have no formal name [PENDING E9, E16]. In a
 pre-registered test, the maps helped a photo-identification model place its
-answers only slightly, and no more than distance to known records. The grade, not the number of maps, is
-the contribution: it tells users which maps to trust. Maps, models,
+answers only slightly, and no more than distance to known records. We end
+with five recommendations for automated atlases. Maps, models,
 layers and code are archived with DOIs, and the identifiers of every
 training record will be.
 
@@ -224,22 +241,26 @@ al. 2024). What is still missing is a measurement of how often each kind of
 null test passes a species with no habitat signal, and how often it passes
 one with a signal, under realistic target-group sampling. Without them an
 atlas cannot say how far to trust a map that passed, and none
-of the large automated atlases grades its maps this way [CHECK: confirm for
-the main existing atlases]. A habitat model should also beat a model that
+of the large automated atlases, as far as we know, reports such error
+rates for its quality checks [CHECK: eBird Status and Trends and Map of Life
+apply quality gates; cite them and say how they differ, or cut this
+clause]. A habitat model should also beat a model that
 knows only how far a place is from known records (Bahn & McGill 2007).
 
-This paper describes MycoMap Atlas, which maps every North American fungus
-defined by DNA with enough sites to fit a model, from validated
+This paper describes MycoMap Atlas, which maps the North American fungi
+that are defined by DNA in its validated records and have enough sites to
+fit a model, from validated
 community-science collections, and is designed to rebuild them every
 night. Its
-central method is a calibrated trust grade. We make four claims. First
+central method is a trust grade from a null test whose error rates are
+measured on simulated species. We make four claims. First
 (C1), on virtual species collected at the atlas's real survey sites, the
 usual scattered null test passes most species that follow no habitat at
 all, while a null that keeps each species' clustering and stays on surveyed
 sites holds false passes near the nominal rate, at a measured cost in power.
 Second (C2), the grade this test gives each map (strong, weak or failed)
 predicts how the map ranks records validated after it was made, and only
-strong maps beat distance to known records. Third (C3),
+strong maps beat distance to known records, by a modest margin. Third (C3),
 labelling records by their approved sequence rather than by the record's
 own name changes the maps, and about half of the modellable taxa have no
 formal name. Fourth (C4), the whole pipeline runs automatically at a
@@ -764,19 +785,23 @@ choose a test by the error that matters to them: a scattered null that
 passes most clustered species with no habitat signal, or a shifted null
 that misses most real ones.
 
-**For other automated atlases.** Any pipeline that fits thousands of models
-to clustered occurrence data faces the same problem, whatever its learners.
-Three practices carry over: grade each map against nulls that keep its own
-clustering and stay on surveyed ground; calibrate that grade on simulated
-species that inherit the real sampling, so its error rates are known; and
-test the grade on records collected or validated after the maps were made,
-against distance to known records and not only against chance. In our
-hindcast a distance-only map placed 87% of later finds in its top half, so
-a bar at 50% cannot tell a habitat map from distance, and our weak maps,
-which clear it easily, did no better than distance. Where habitat adds
-nothing over distance, a map should not claim otherwise. And because the grade is the contribution, an
-atlas should report how many of its maps earn it, not only how many it
-draws.
+**Recommendations for other automated atlases.** Any pipeline that fits
+thousands of models to clustered occurrence data faces the same problem,
+whatever its learners. We recommend five practices:
+
+1. Grade each map against nulls that keep its own clustering and stay on
+   surveyed ground.
+2. Calibrate that grade on simulated species that inherit the real
+   sampling, so that its false-pass rate and power are known.
+3. Test the grade on records collected or validated after the maps were
+   made, against distance to known records and not only against chance. In
+   our hindcast a distance-only map placed 87% of later finds in its top
+   half, so a bar at 50% cannot tell a habitat map from distance, and our
+   weak maps, which clear it easily, did no better than distance.
+4. Claim habitat only where a map beats distance; where it does not,
+   present it as a weak map with that grade.
+5. Report how many maps earn the grade, not only how many are drawn, with
+   the smallest samples counted apart.
 
 **For fungi.** Naming taxa by approved DNA sequences rather than by the
 record's own name changed the maps of [PENDING E9] taxa, and about half the
@@ -1088,6 +1113,14 @@ limit found, AI declaration required, OA $3,940.
 
 ## Path
 
+**Re-planned 2026-10-25 (Steve, after an independent review of Atlas and
+the paper).** Presubmission inquiry mid-December 2026, after E1; a complete
+internal draft with figures in January 2027; submission late February 2027
+with E3's read-out included; the revision adds E11 (stability across
+nightly releases). The nightly is planned to resume in November 2026 under
+v1 rules, with inclusion v2 later as its own lineage. E9 is on hold while
+the method lane assesses a paired, same-job hindcast design.
+
 **Paused and resumed 2026-10-18 (Steve).** Vision's curation fixes go to
 a later v2; the v1 cutoff of 2026-08-17 holds, so the hindcast (E2, also
 Vision's training run) proceeds exactly as pre-registered. Its dry run from
@@ -1100,13 +1133,13 @@ gets Steve's direct go through the operations lane; every run gets a
 
 | # | Item | Gate | Target |
 |---|---|---|---|
-| 0 | Rebuild cutover: **done** 2026-10-13 23:03 UTC (atlas.mycomap.org serves 20261013T191324Z-fa1b4198, image bc2a7a5, shift grading; the full-view toggle is off on the site by Steve's choice, the full-extent rasters are in the release). Nightly tracking (E3) starts once the tracker backfill and daily unit are on | Steve's go | E3 start date [PENDING] |
+| 0 | Rebuild cutover: **done** 2026-10-13 23:03 UTC (atlas.mycomap.org serves 20261013T191324Z-fa1b4198, image bc2a7a5, shift grading; the full-view toggle is off on the site by Steve's choice, the full-extent rasters are in the release). E3 is a registered read-out on the frozen release (row 3c) | Steve's go | done |
 | 1 | Full-view refresh → **frozen release**: **done**, 20261013T191324Z-fa1b4198 (2026-10-13); then the Zenodo re-archive (layers, models, training records, contributors) | Steve's go, after the cutover | October 2026 |
 | 2 | **E2 hindcast** (also Vision's training run; Q1's Atlas input) | **done**: run 2026-10-18 (priv-20261018T171648Z-9e3ab153), scored 2026-10-19 in one run with the *Sparassis spathulata* refit (study-20261019T181851Z-35fc3d63); C2 supported | done |
 | 2b | **E12 first step** and same-machine gate | **done** 2026-10-19: deterministic per processor family | done |
 | 3 | **E6b** distance-only baseline on the E2 finds | **done** 2026-10-21 (study-20261020T232528Z-05216058); then Steve's post-hoc tier rule (plan-map-tiers, 2026-10-20) | done |
 | 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. **Kernels done 2026-10-25**: 6,369 of 6,369 taxa (main 5,679; patch 1 from R_main's pull 681; patch 2 on r7a 9), none left out of H3c. Next: the `--counts-only` check by grade, then the read-out | Steve approved the prereg, date, read-out mode and kernels | read-out about 2026-12-16 |
-| 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve, 2026-10-21): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, the nightly and the E19/E20 deposit are stated as they then are, and Steve sends | after E1 |
+| 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, and the nightly and the E19/E20 deposit are stated as they then are | **mid-December 2026** (Steve, 2026-10-25) |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
 | 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
@@ -1114,7 +1147,8 @@ gets Steve's direct go through the operations lane; every run gets a
 | 9 | **E12** reproducibility rerun (**running**: a1 and a2 = release 507/507, glmnet leak fixed 5b58f30, arm b on r7a done, 505/507 same grade; block-only step next, Steve's go); E16 descriptives; E17 ODMAP | the frozen release; per-model machine records (feat/result-machine c099bc7, awaiting Steve's review; best merged before the hindcast so every paper job records which processor fitted each model) | December 2026 |
 | 10 | Q1 arms (E21, E22) | Vision side, after E2 | November 2026 |
 | 11 | P2 items as time allows: E4 full, E6c, E7, E8, E10, E11, E15 | each its own go | December 2026 – January 2027 |
-| 12 | **Submission**, once E1, E2, E6a/b, E9, E12, E16 and E17 are done, with whatever E3 has accumulated; more E3 added at revision | Steve | **aim January 2027** |
+| 11b | **Complete internal draft** with Figures 1–4, Appendix S1 written and every [CHECK] resolved | E1, E1c, E6a, E16, E19/E20 in; E9 as decided | **January 2027** (Steve, 2026-10-25) |
+| 12 | **Submission**, with E3's read-out included; E11 nightly stability added at revision | Steve | **late February 2027** (Steve, 2026-10-25) |
 
 E4 feasibility (P1) runs whenever a slot is free; it is read-only work.
 
@@ -1178,6 +1212,12 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.19.0 (2026-10-25).** After the independent review (Steve's
+  decisions): timeline re-planned (inquiry mid-December, internal draft
+  January, submission late February with E3); C2 "modestly", mean rank and
+  new places stated, 100–500 km labelled descriptive; C3 on hold with E9;
+  C4 nightly stated as planned, 3–19-site taxa apart; "every fungus" and
+  "calibrated" softened; Discussion recommendations numbered.
 - **0.18.6 (2026-10-25).** Training-record table licence CC0 (Steve); stated separately in the next models version.
 - **0.18.5 (2026-10-25).** E3 kernels complete (6,369/6,369); Path 3c.
 - **0.18.4 (2026-10-21).** Zenodo models description edit live; block reuse and machine record merged (Atlas main c56d2dc); S2.4 detail on the 71 taxa.
