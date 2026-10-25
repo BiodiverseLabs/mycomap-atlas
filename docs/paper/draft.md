@@ -87,7 +87,12 @@ revise the paper plan and let's continue".)
    target-group design, by sample size, habitat breadth and signal strength,
    and their use to grade thousands of automatically built maps. On the
    atlas's real models, [X]% of the maps a standard test (19 scattered nulls)
-   calls good are not shown to beat collecting. [pre-freeze; E1, E1b, E1c]
+   calls good are not shown to beat collecting. [pre-freeze; E1, E1b, E1c.
+   E1 amendment 2026-10-25, before launch: C1 is decided per learner and
+   per site band, a failing learner or band reported as failing; "false
+   pass" means passing a species whose detections follow geography and
+   effort alone; the share of best-effort shifted nulls is reported by
+   band.]
 2. **C2. The grade predicts how a map does on records it never saw, and
    strong maps beat distance to known records, modestly.** Of the later
    finds in a hindcast, strong maps placed 91.4% in their top half, weak
