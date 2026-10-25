@@ -316,5 +316,10 @@ Logged as the operations lane reports them; numbers only.
     output of the run.
   - The reader (8125ed1) was fixed and reviewed before this, and nothing
     about it changes.
+  - The relaunch recomputes those species with the same job, seed and
+    settings on the same processor family (r7i), where fits are
+    deterministic, so their counted verdicts will likely equal the ones
+    seen. Since the reader was fixed and reviewed before, this cannot
+    affect the analysis.
   - From now on, workers' liveness is checked from line counts and
     timestamps only.
