@@ -259,6 +259,7 @@ atlas_usage <- function() {
   message("                     and learner: grades, map Spearman and Schoener's D, label changes")
   message("      --frozen=ID               the frozen (DNA-named) release")
   message("      --record=ID               the private release built with --record-names")
+  message("      --out=study/<id>/         also copy the results to this store prefix (a study job sets it)")
   invisible(NULL)
 }
 
@@ -1042,8 +1043,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       if (is.null(flags$frozen) || is.null(flags$record)) {
         stop("study-compare needs --frozen=ID and --record=ID", call. = FALSE)
       }
+      # One comparison, not split: a study job runs it as shard 1/1.
+      if (!identical(as.character(flags$shard %||% "1/1"), "1/1")) {
+        stop("study-compare runs whole: plan it with --shards=1", call. = FALSE)
+      }
       atlas_e9_study(atlas_flag_store(flags), frozen = as.character(flags$frozen),
-                     record = as.character(flags$record), grid = atlas_flag_grid(flags))
+                     record = as.character(flags$record), grid = atlas_flag_grid(flags),
+                     out = if (is.null(flags$out)) NULL else as.character(flags$out))
       invisible(0L)
     },
     {

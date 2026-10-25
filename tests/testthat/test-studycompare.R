@@ -194,9 +194,17 @@ test_that("E9 compares a finished record-names release with the frozen release e
   atlas_place_deferred(setup$store, record$deferred)
 
   with_data_dir({
-    result <- atlas_e9_study(setup$store, frozen = setup$main$id, record = job$id, quiet = TRUE)
+    result <- atlas_e9_study(setup$store, frozen = setup$main$id, record = job$id, quiet = TRUE,
+                             out = "study/study-e9/")
     expect_true(file.exists(result$path))
     expect_match(result$path, "compare-studies")
+    # As a study job's results: the same file under its prefix, where a worker
+    # that shuts down leaves it.
+    key <- paste0("study/study-e9/", basename(result$path))
+    expect_true(setup$store$exists(key))
+    copy <- tempfile(fileext = ".json")
+    setup$store$get(key, copy)
+    expect_identical(unname(tools::md5sum(copy)), unname(tools::md5sum(result$path)))
     models <- result$models
     # Every frozen model is accounted for.
     expect_equal(models$unaccounted, 0L)
@@ -221,4 +229,12 @@ test_that("E9 compares a finished record-names release with the frozen release e
     # Nothing is written to a release or the current pointer.
     expect_false(any(grepl(job$id, setup$store$list("releases/"))))
   })
+})
+
+test_that("E9 refuses a results prefix outside study/ before reading anything, and runs only whole", {
+  untouched <- list(list = function(...) stop("read"), get = function(...) stop("read"),
+                    exists = function(...) stop("read"), put = function(...) stop("written"))
+  expect_error(atlas_e9_study(untouched, frozen = "a", record = "b", quiet = TRUE, out = "releases/draft/"),
+               "only under")
+  expect_error(atlas_main(c("study-compare", "--frozen=a", "--record=b", "--shard=2/3")), "runs whole")
 })

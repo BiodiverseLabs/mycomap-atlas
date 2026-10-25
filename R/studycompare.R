@@ -205,9 +205,13 @@ atlas_e9_grade_changes <- function(compared) {
 }
 
 #' Compare the frozen release with the record-name release and write the
-#' results file: counts and per-model scores, never a record.
+#' results file: counts and per-model scores, never a record. out is a store
+#' prefix (study/<id>/) the file is also copied to, as a study job's results
+#' are; the prefix is checked before anything is read, so a bad one costs
+#' nothing.
 atlas_e9_study <- function(store = atlas_store(), frozen, record, grid = "draft", quiet = FALSE,
-                           frozen_view = NULL, record_view = NULL) {
+                           frozen_view = NULL, record_view = NULL, out = NULL) {
+  key <- if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   started <- Sys.time()
   frozen_view <- frozen_view %||% atlas_tracker_view(store, frozen, grid)
   record_view <- record_view %||% atlas_tracker_view(store, record, grid)
@@ -237,6 +241,7 @@ atlas_e9_study <- function(store = atlas_store(), frozen, record, grid = "draft"
     seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   )
   atlas_write_json(result, path)
+  if (!is.null(key)) atlas_study_publish(store, path, key, root = dirname(path))
   if (!isTRUE(quiet)) {
     message("E9: ", models$refitted, " refitted, ", models$unchanged, " unchanged, ", models$lost,
             " lost of ", models$frozen_models, " frozen models; ", nrow(compared), " compared; median Spearman ",
