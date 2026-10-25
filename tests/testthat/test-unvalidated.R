@@ -43,22 +43,16 @@ test_that("a taxon with none waiting has no row, and a spelling of no modelled t
   expect_equal(nrow(atlas_unvalidated_table(NULL, "Trametes versicolor")), 0L)
 })
 
-test_that("the count covers the same places as the pull, species-level names, and only records with no verdict", {
-  place <- atlas_one_line(atlas_place_clause())
-  expect_true(grepl(place, atlas_occurrence_sql(), fixed = TRUE))
-  expect_true(grepl(atlas_one_line(atlas_place_and_name_clause()), atlas_unvalidated_sql(), fixed = TRUE))
-  expect_match(atlas_place_and_name_clause(), place, fixed = TRUE)
+test_that("the count reads the backlog from .org's view of the mirror, not .org's validated observations", {
+  # .org's observations holds validated records only, so counting records
+  # with no verdict there read near zero; the backlog is in the mirror, which
+  # .org's atlas.unvalidated_counts counts (deploy/readonly-sql/atlas-install.sh).
   sql <- atlas_unvalidated_sql()
-  for (slot in 1:3) {
-    expect_match(sql, sprintf("coalesce(o.validation_status_%d, '') NOT IN ('yes', 'no')", slot), fixed = TRUE)
-  }
-  # Counted, never modelled: no coordinate, accuracy or source filter, and a
-  # green record is not counted.
-  where <- sub(".* WHERE ", "", sql)
-  expect_false(grepl("latitude IS NOT NULL", where, fixed = TRUE))
-  expect_false(grepl("observation_cache", sql, fixed = TRUE))
-  expect_false(grepl("'yes' IN (", sql, fixed = TRUE))
-  expect_match(sql, "GROUP BY o.scientific_name", fixed = TRUE)
+  expect_match(sql, "FROM atlas.unvalidated_counts", fixed = TRUE)
+  expect_false(grepl("observations", sql, fixed = TRUE))
+  expect_false(grepl("validation_status", sql, fixed = TRUE))
+  # The columns atlas_pull_unvalidated requires, by name.
+  for (column in c("taxon", "not_yet_validated", "with_coordinates")) expect_match(sql, column, fixed = TRUE)
 })
 
 test_that("a pull's counts leave its fingerprint alone, and a failed count never fails the pull", {

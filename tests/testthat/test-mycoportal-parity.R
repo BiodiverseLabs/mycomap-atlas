@@ -92,21 +92,3 @@ test_that("the set-based MyCoPortal check keeps exactly the records the per-reco
   # still marks 8's point as shared), and another source.
   expect_identical(before, c(1L, 3L, 4L, 5L, 9L, 10L, 11L, 12L, 13L, 14L, 15L))
 })
-
-test_that("the not-yet-validated counts' name rule is the pull's: trimmed, species-level", {
-  testthat::skip_if(!nzchar(Sys.getenv("ATLAS_TEST_PSQL")), "set ATLAS_TEST_PSQL to run SQL against Postgres")
-  names <- c("Russula emetica", "Russula ", "Russula sp. ", " Russula sp", "Russula sp.\t", "Fungi ",
-             " Unknown", "", "Mycena sp. 'IN10'", "Amanita  muscaria ", "Trametes\tversicolor")
-  values <- paste(sprintf("(%d, '%s', 'US')", seq_along(names), gsub("'", "''", names)), collapse = ", ")
-  sql <- paste(
-    "BEGIN;",
-    "CREATE TEMP TABLE observations (id integer, scientific_name text, country text, state text);",
-    sprintf("INSERT INTO observations (id, scientific_name, country) VALUES %s;", values),
-    sprintf("SELECT o.id FROM observations o WHERE true %s ORDER BY o.id;", atlas_place_and_name_clause()),
-    "ROLLBACK;"
-  )
-  out <- system(Sys.getenv("ATLAS_TEST_PSQL"), input = sql, intern = TRUE)
-  counted <- as.integer(out[grepl("^[0-9]+$", out)])
-  expect_identical(counted, which(atlas_species_level(names)))
-  expect_false(2L %in% counted)
-})
