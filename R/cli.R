@@ -219,6 +219,7 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
+  message("      --pool-from=study/<id>/   read a full run: its shards pooled, the pre-registered tests")
   message("  study-repro --draw paper E12's refit arms: the drawn models of --release=ID, graded, each on its")
   message("                     own fitting job's inputs ([--label] [--order=seeded|reverse] [--workers=N])")
   message("      --blocks                  only each drawn full-design model's spatial block, no fit")
@@ -924,6 +925,25 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "study-calibration" = {
+      if (!is.null(flags$pool_from)) {
+        # Read the full run: every shard under the prefix, the pre-registered
+        # tests (R/studycalibrationread.R). Refused unless every shard and
+        # species is there.
+        pooled <- atlas_calibration_pool_from(atlas_flag_store(flags), as.character(flags$pool_from))
+        message(pooled$species, " of ", pooled$expected, " species over ", length(pooled$shards), " shards")
+        if (!isTRUE(pooled$complete)) {
+          message("not every shard and species is there; nothing is read")
+          return(invisible(1L))
+        }
+        read <- atlas_calibration_read(pooled$rows)
+        path <- atlas_path("virtual-studies", atlas_flag_grid(flags),
+                           paste0("e1-read-", format(Sys.time(), "%Y%m%dT%H%M%SZ", tz = "UTC"), ".json"))
+        dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+        atlas_write_json(c(list(pool_from = as.character(flags$pool_from), shards = pooled$shards), read), path)
+        for (line in atlas_calibration_report(read)) message(line)
+        message("-> ", path)
+        return(invisible(0L))
+      }
       out <- if (is.null(flags$out)) NULL else as.character(flags$out)
       per_cell <- if (is.null(flags$per_cell)) NULL else as.integer(atlas_flag_number(flags, "per_cell", 1))
       if (!is.null(per_cell) && (is.na(per_cell) || per_cell < 1L)) {
