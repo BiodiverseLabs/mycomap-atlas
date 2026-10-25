@@ -674,3 +674,58 @@ test_that("a refitted taxon is scored on the refit's maps, every other taxon on 
   expect_equal(seen[["T02"]], "hindcast")
   expect_equal(result$settings$refits, list(list(release = "r1", taxa = list("T01"))))
 })
+
+# A default-practice study job as it publishes (R/studydefault.R): each
+# shard's results file, and its maps in the directory beside it.
+published_defaults <- function(store, job, release, shards, taxa_of = function(i) sprintf("T%02d", i)) {
+  for (i in seq_along(shards)) {
+    out <- atlas_study_out(paste0("study/", job, "/"), "default-studies", "draft", release, shard = shards[[i]],
+                           stamp = "20261025T164500Z")
+    results <- file.path(dirname(out$dir), paste0(out$prefix, "-20261025T164500Z.json"))
+    taxa <- taxa_of(i)
+    jsonlite::write_json(list(settings = list(release = release, shard = shards[[i]]),
+                              taxa = lapply(taxa, function(t) list(taxon = t, status = "scored"))),
+                         results, auto_unbox = TRUE)
+    dir.create(file.path(out$dir, "maps"), recursive = TRUE, showWarnings = FALSE)
+    maps <- vapply(taxa, function(t) {
+      path <- atlas_default_raster_path(out$dir, t)
+      writeLines(paste("map of", t), path)
+      path
+    }, "")
+    atlas_study_publish(store, c(results, maps), out$key, root = dirname(out$dir))
+  }
+}
+
+test_that("--defaults-from fetches every shard of a default-practice study job and finds each taxon's map", {
+  store <- fresh_store()
+  published_defaults(store, "e6a", "h1", c("1/2", "2/2"))
+  fetched <- atlas_score_fetch_defaults(store, "e6a")
+  expect_length(fetched$paths, 2L)
+  expect_equal(fetched$maps, 2L)
+  run <- atlas_score_run(fetched$paths, "h1", dirs = fetched$dir)
+  expect_length(run$rows, 2L)
+  for (taxon in c("T01", "T02")) {
+    expect_true(file.exists(atlas_score_find(run$dirs, atlas_default_raster_path, taxon)), info = taxon)
+  }
+  expect_error(atlas_score_fetch_defaults(store, "nothing"), "no results file under study/nothing/")
+})
+
+test_that("--defaults-from refuses a map two shards both hold, both default sources at once, and two jobs", {
+  store <- fresh_store()
+  published_defaults(store, "e6a", "h1", c("1/2", "2/2"), taxa_of = function(i) "T01")
+  expect_error(atlas_score_fetch_defaults(store, "e6a"), "a map appears in two shards")
+  expect_error(atlas_score_study(store = NULL, hindcast = "h1", defaults = "a.json", defaults_from = "e6a",
+                                 view = list(), full_pull = data.frame(), quiet = TRUE),
+               "--defaults or --defaults-from, not both")
+  expect_error(atlas_score_study(store = NULL, hindcast = "h1", defaults_from = c("a", "b"),
+                                 view = list(), full_pull = data.frame(), quiet = TRUE),
+               "one default-practice study job")
+})
+
+test_that("score-on-E2 fetches E6a's run from its study job when given --defaults-from", {
+  view <- list(manifest = list(purpose = "hindcast", validated_through = "2026-08-17", from_release = "r1"))
+  expect_error(atlas_score_study(store = NULL, hindcast = "h1", defaults_from = "e6a", view = view,
+                                 full_pull = data.frame(), quiet = TRUE,
+                                 fetch_defaults = function(store, job) stop("fetched ", job, call. = FALSE)),
+               "fetched e6a")
+})

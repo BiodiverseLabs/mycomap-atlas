@@ -245,6 +245,27 @@ atlas_score_fetch_kernels <- function(store, job_id, dest = tempfile("kernels-")
   list(paths = paths, dir = dest, kernels = length(rasters))
 }
 
+#' A default-practice study's results from the store (study/<job>/), for
+#' scoring on a machine that did not run it, as atlas_score_fetch_kernels does
+#' for kernels: every shard's results file, and every map (maps/<taxon>.tif)
+#' merged into one directory, a taxon being in one shard only.
+atlas_score_fetch_defaults <- function(store, job_id, dest = tempfile("defaults-")) {
+  prefix <- paste0("study/", job_id, "/")
+  keys <- sub("^/", "", store$list(prefix))
+  rest <- substring(keys, nchar(prefix) + 1L)
+  results <- keys[grepl("^[^/]+[.]json$", rest)]
+  maps <- keys[grepl("/maps/[^/]+[.]tif$", rest)]
+  if (!length(results)) stop("no results file under ", prefix, call. = FALSE)
+  if (anyDuplicated(basename(maps))) {
+    stop("a map appears in two shards under ", prefix, ": ", basename(maps)[duplicated(basename(maps))][[1]],
+         call. = FALSE)
+  }
+  paths <- file.path(dest, "results", basename(results))
+  for (i in seq_along(results)) store$get(results[[i]], paths[[i]])
+  for (key in maps) store$get(key, file.path(dest, "maps", basename(key)))
+  list(paths = paths, dir = dest, maps = length(maps))
+}
+
 #' The first of a run's directories that holds the taxon's file, or NULL.
 atlas_score_find <- function(dirs, path_of, taxon) {
   for (dir in dirs) {
@@ -268,11 +289,18 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
                               reps = ATLAS_E2_BOOTSTRAP, seed = 1L, out = NULL, quiet = FALSE,
                               view = NULL, full_pull = NULL, exclude = character(), hold = character(),
                               allow_missing_excludes = FALSE, refits = character(), refit_views = NULL,
-                              kernels_from = NULL) {
+                              kernels_from = NULL, defaults_from = NULL,
+                              fetch_defaults = atlas_score_fetch_defaults) {
   started <- Sys.time()
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   if (!is.null(kernels) && !is.null(kernels_from)) {
     stop("give --kernels or --kernels-from, not both", call. = FALSE)
+  }
+  if (!is.null(defaults) && !is.null(defaults_from)) {
+    stop("give --defaults or --defaults-from, not both", call. = FALSE)
+  }
+  if (!is.null(defaults_from) && length(defaults_from) != 1L) {
+    stop("--defaults-from takes one default-practice study job", call. = FALSE)
   }
   if (length(reps) != 1L || !is.finite(reps) || reps < 1 || reps != round(reps)) {
     stop("reps must be a whole number of resamples, 1 or more", call. = FALSE)
@@ -295,7 +323,14 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   } else if (!is.null(kernels_from)) {
     atlas_score_kernel_runs(store, kernels_from, hindcast)
   }
-  default_run <- if (!is.null(defaults)) atlas_score_run(defaults, hindcast)
+  default_run <- if (!is.null(defaults)) {
+    atlas_score_run(defaults, hindcast)
+  } else if (!is.null(defaults_from)) {
+    # E6a's maps, from the study job that made them (a scoring job's machine
+    # has none of its own).
+    fetched <- fetch_defaults(store, as.character(defaults_from))
+    atlas_score_run(fetched$paths, hindcast, dirs = fetched$dir)
+  }
   if (is.null(full_pull)) {
     full_pull <- atlas_tracker_release_pull(store, atlas_tracker_manifest(store, from_release, grid), grid)
   }
@@ -348,7 +383,8 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
                            if (!is.null(kernels_from)) kernel_run$files else 0L,
                          kernels_from = if (!is.null(kernels_from)) as.list(kernels_from),
                          kernels_patched = if (!is.null(kernels_from)) kernel_run$patched,
-                         default_shards = length(defaults),
+                         default_shards = if (!is.null(defaults_from)) length(fetched$paths) else length(defaults),
+                         defaults_from = if (!is.null(defaults_from)) as.character(defaults_from),
                          excluded = length(unique(exclude)), held = length(unique(hold)),
                          excluded_leaks = length(intersect(missing, split$excluded_keys)),
                          ids_not_found = attr(split$finds, "not_found") %||% 0L,
