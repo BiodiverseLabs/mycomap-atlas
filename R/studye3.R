@@ -97,7 +97,7 @@ atlas_e3_split <- function(release_pull, fresh, pulled_on, from, until, changes 
   if (!ATLAS_FIRST_GREEN_FIELD %in% names(fresh)) {
     stop("the fresh pull has no ", ATLAS_FIRST_GREEN_FIELD, " column", call. = FALSE)
   }
-  key_of <- function(p) paste(p$source, p$observation_id, sep = ":")
+  key_of <- function(p) atlas_record_key(p$source, p$observation_id)
   release_keys <- key_of(release_pull)
   release_ids <- as.character(release_pull$id %||% character())
   key <- key_of(fresh)
