@@ -110,43 +110,19 @@ atlas_place_clause <- function() {
   sprintf("AND (o.country IN (%s) OR o.state = 'Puerto Rico')", countries)
 }
 
-#' The counts' place and name: atlas_place_clause and a species-level record
-#' name. The pull does not filter on the record name: it names a record by its
-#' approved sequences (R/labels.R) and applies the same species-level rule to
-#' that name. A record with no verdict yet has no approved sequence to name it,
-#' so the counts go by the record name.
-atlas_place_and_name_clause <- function() {
-  # The name trimmed as atlas_species_level trims it (spaces, tabs, line
-  # breaks), so "Russula " is no more species-level here than in the pull.
-  trimmed <- "btrim(o.scientific_name, ' ' || chr(9) || chr(10) || chr(13))"
-  sprintf(
-    "%s
-       AND o.scientific_name IS NOT NULL
-       AND %s NOT IN ('', 'Fungi', 'Unknown')
-       AND strpos(%s, ' ') > 0
-       AND right(lower(%s), 4) <> ' sp.'
-       AND right(lower(%s), 3) <> ' sp'",
-    atlas_place_clause(), trimmed, trimmed, trimmed, trimmed
-  )
-}
-
-#' Per spelling, how many sequenced records no project has given a verdict:
-#' no "yes" and no "no" in any of the three slots. Every source, and no
-#' location-quality filter: these are counted, never modelled. One row per raw
-#' spelling; atlas_unvalidated_table folds them into taxa.
+#' Per sequence name, how many records no validation project has given a
+#' verdict, and how many of them have coordinates: .org's view
+#' atlas.unvalidated_counts (.org deploy/readonly-sql/atlas-install.sh). It
+#' reads the .com mirror (validation_project_records), where the backlog is:
+#' .org's observations now holds validated records only, so a count from it
+#' read near zero (335 rows against about 74,000, 2026-10-25). A record counts
+#' with one clean approved sequence name, under that name, in North America
+#' as the pull means it (atlas_place_clause). The view is refreshed nightly
+#' before the pull, since counting takes about 45 s; atlas_unvalidated_table
+#' folds the names into the pull's taxa by atlas_name_key, so a name of no
+#' modelled taxon (a genus, a code) is dropped there.
 atlas_unvalidated_sql <- function() {
-  sql <- sprintf(
-    "SELECT o.scientific_name AS taxon, count(*) AS not_yet_validated,
-       count(*) FILTER (WHERE o.latitude IS NOT NULL AND o.longitude IS NOT NULL) AS with_coordinates
-     FROM observations o
-     WHERE coalesce(o.validation_status_1, '') NOT IN ('yes', 'no')
-       AND coalesce(o.validation_status_2, '') NOT IN ('yes', 'no')
-       AND coalesce(o.validation_status_3, '') NOT IN ('yes', 'no')
-       %s
-     GROUP BY o.scientific_name",
-    atlas_place_and_name_clause()
-  )
-  atlas_one_line(sql)
+  "SELECT taxon, not_yet_validated, with_coordinates FROM atlas.unvalidated_counts"
 }
 
 # How .org labels MyCoPortal records (both spellings occur).
