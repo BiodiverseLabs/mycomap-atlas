@@ -97,6 +97,54 @@ atlas_score_by_tier <- function(rows) {
   out
 }
 
+#' Paper E9 (plan-e9, 2026-10-25): the paired hindcast's two labellings on
+#' later finds. Pure: the maps come through the functions given.
+#'
+#' places are E2's, each find under its DNA name: the primary truth, so a
+#' record-name map of a taxon is scored on the finds whose DNA name it is.
+#' places_own are the same finds under their record names (the secondary
+#' check: each side on its own labelling). Only models of a taxon and learner
+#' present on both sides are compared, so the difference is paired. Taxa are
+#' resampled together on both sides.
+#'
+#' H9 (two-sided): the 95% interval of the paired difference, DNA minus
+#' record name, in top-half share excludes 0; its direction says which
+#' labelling ranks later finds better.
+atlas_e9_paired_core <- function(places, places_own, dna_maps_for, record_maps_for,
+                                 reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
+  models <- function(rows) rows[rows$kind %in% "model" & !is.na(rows$map), , drop = FALSE]
+  key <- function(rows) paste(rows$taxon, rows$learner, sep = "")
+  dna <- models(atlas_e2_score(places, dna_maps_for))
+  record <- models(atlas_e2_score(places, record_maps_for))
+  own <- models(atlas_e2_score(places_own, record_maps_for))
+  paired <- function(first, second, label) {
+    both <- intersect(unique(key(first)), unique(key(second)))
+    rows <- rbind(cbind(first[key(first) %in% both, , drop = FALSE], side = "dna", stringsAsFactors = FALSE),
+                  cbind(second[key(second) %in% both, , drop = FALSE], side = label, stringsAsFactors = FALSE))
+    difference <- function(r) {
+      atlas_e2_share(r[r$side == "dna", , drop = FALSE]) - atlas_e2_share(r[r$side == label, , drop = FALSE])
+    }
+    estimate <- if (nrow(rows)) atlas_e2_bootstrap(rows, difference, reps = reps, seed = seed) else
+      list(estimate = NA_real_, low = NA_real_, high = NA_real_, reps = 0L, dropped = 0L, n_taxa = 0L)
+    list(models = length(both), taxa = length(unique(rows$taxon)), estimate = estimate,
+         dna = atlas_score_splits(rows[rows$side == "dna", , drop = FALSE]),
+         other = atlas_score_splits(rows[rows$side == label, , drop = FALSE]),
+         dna_by_grade = atlas_score_by_grade(rows[rows$side == "dna", , drop = FALSE]),
+         other_by_grade = atlas_score_by_grade(rows[rows$side == label, , drop = FALSE]))
+  }
+  primary <- paired(dna, record, "record")
+  e <- primary$estimate
+  excludes <- is.finite(e$low) && is.finite(e$high) && (e$low > 0 || e$high < 0)
+  list(
+    truth = "each find's DNA name (primary); each side's own labelling (secondary)",
+    primary = primary,
+    H9 = list(holds = isTRUE(excludes),
+              direction = if (!isTRUE(excludes)) "no detectable difference" else
+                if (e$low > 0) "DNA labels rank later finds better" else "record names rank later finds better"),
+    secondary = paired(dna, own, "record_own")
+  )
+}
+
 #' Score the models and baselines on the test places. Pure: the maps come
 #' through the functions given. Returns the aggregates written to the
 #' results file.
@@ -290,7 +338,7 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
                               view = NULL, full_pull = NULL, exclude = character(), hold = character(),
                               allow_missing_excludes = FALSE, refits = character(), refit_views = NULL,
                               kernels_from = NULL, defaults_from = NULL,
-                              fetch_defaults = atlas_score_fetch_defaults) {
+                              fetch_defaults = atlas_score_fetch_defaults, e9 = NULL, e9_views = NULL) {
   started <- Sys.time()
   if (!is.null(out)) atlas_study_check_key(paste0(sub("/*$", "/", as.character(out))))
   if (!is.null(kernels) && !is.null(kernels_from)) {
@@ -301,6 +349,9 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
   }
   if (!is.null(defaults_from) && length(defaults_from) != 1L) {
     stop("--defaults-from takes one default-practice study job", call. = FALSE)
+  }
+  if (!is.null(e9) && (length(e9) != 2L || anyDuplicated(e9))) {
+    stop("--e9 takes the two E9 jobs' private releases, the DNA side then the record side", call. = FALSE)
   }
   if (length(reps) != 1L || !is.finite(reps) || reps < 1 || reps != round(reps)) {
     stop("reps must be a whole number of resamples, 1 or more", call. = FALSE)
@@ -393,6 +444,19 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
          kept_apart = attr(split$finds, "kept_apart")),
     atlas_score_baselines_core(places, model_maps_for, kernel_maps_for, default_maps_for,
                                known_names = view$names, reps = as.integer(reps), seed = as.integer(seed)),
+    if (!is.null(e9)) {
+      # The same finds and training records under their record names, for
+      # the secondary check (plan-e9, 2026-10-25).
+      own <- atlas_e2_split(atlas_record_named(full_pull)$occurrences, cutoff, observed_after = observed_after,
+                            grid = grid, exclude = exclude, hold = hold)
+      views <- e9_views %||% stats::setNames(lapply(e9, function(id) atlas_tracker_view(store, id, grid)),
+                                             c("dna", "record"))
+      list(e9 = c(list(dna = e9[[1]], record = e9[[2]]),
+                  atlas_e9_paired_core(places, atlas_e2_places(own$finds, own$training),
+                                       function(taxon) atlas_score_model_maps(views$dna, taxon),
+                                       function(taxon) atlas_score_model_maps(views$record, taxon),
+                                       reps = as.integer(reps), seed = as.integer(seed))))
+    },
     list(seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1))
   )
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")

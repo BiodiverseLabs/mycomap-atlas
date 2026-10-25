@@ -729,3 +729,61 @@ test_that("score-on-E2 fetches E6a's run from its study job when given --default
                                  fetch_defaults = function(store, job) stop("fetched ", job, call. = FALSE)),
                "fetched e6a")
 })
+
+# --- Paper E9: the paired hindcast's two labellings on later finds ------------
+
+e9_side_maps <- function(values, have = function(taxon) TRUE) {
+  force(values)
+  function(taxon) {
+    if (!have(taxon)) return(NULL)
+    list(maxnet = list(layers = layers_from(values, outside_west = TRUE), grade = "strong",
+                       learner = "maxnet", kind = "model"))
+  }
+}
+
+test_that("H9 holds, DNA better, when the DNA maps rank later finds above the record-name maps of the same taxa", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  e9 <- atlas_e9_paired_core(places, places, e9_side_maps(east()), e9_side_maps(-east()), reps = 300)
+  expect_equal(e9$primary$models, 40L)
+  expect_gt(e9$primary$estimate$estimate, 0.5)
+  expect_gt(e9$primary$estimate$low, 0)
+  expect_true(e9$H9$holds)
+  expect_equal(e9$H9$direction, "DNA labels rank later finds better")
+})
+
+test_that("H9 is two-sided: no difference is reported as such, and record names doing better as that", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  same <- atlas_e9_paired_core(places, places, e9_side_maps(east()), e9_side_maps(east()), reps = 300)
+  expect_equal(same$primary$estimate$estimate, 0)
+  expect_false(same$H9$holds)
+  expect_equal(same$H9$direction, "no detectable difference")
+  worse <- atlas_e9_paired_core(places, places, e9_side_maps(-east()), e9_side_maps(east()), reps = 300)
+  expect_true(worse$H9$holds)
+  expect_equal(worse$H9$direction, "record names rank later finds better")
+})
+
+test_that("only taxa with a model on both sides are compared, and the own-labelling check reads its own places", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  # T01 has no record-name model; under record names T02's finds are "T02 rec".
+  record <- e9_side_maps(-east(), have = function(taxon) taxon != "T01")
+  own <- places
+  own$taxon[own$taxon == "T02"] <- "T02 rec"
+  e9 <- atlas_e9_paired_core(places, own, e9_side_maps(east()), record, reps = 200)
+  expect_equal(e9$primary$models, 39L)
+  # T01 has no record model and T02's own-labelled finds have no DNA model.
+  expect_equal(e9$secondary$models, 38L)
+  expect_match(e9$truth, "DNA name")
+})
+
+test_that("--e9 takes the two E9 releases, DNA then record, through the command line", {
+  expect_error(atlas_score_study(store = NULL, hindcast = "h1", e9 = "a", view = list(), full_pull = data.frame(),
+                                 quiet = TRUE), "two E9 jobs")
+  got <- NULL
+  local_mocked_bindings(atlas_score_study = function(...) { got <<- list(...); invisible(list()) },
+                        atlas_flag_store = function(flags) NULL)
+  atlas_main(c("study-score", "--hindcast=priv-h1", "--e9=priv-dna,priv-rec", "--shard=1/1", "--out=study/study-x/"))
+  expect_equal(got$e9, c("priv-dna", "priv-rec"))
+})

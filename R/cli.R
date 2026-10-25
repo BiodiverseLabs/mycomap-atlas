@@ -248,6 +248,8 @@ atlas_usage <- function() {
   message("                                replace the first job's mismatches for those taxa")
   message("      --defaults=a.json,...     every shard's results file of one E6a run on this hindcast")
   message("      --defaults-from=JOB       or the E6a study job's results and maps, fetched from the store")
+  message("      --e9=DNA,RECORD           paper E9: the paired hindcast's two private releases, both scored")
+  message("                                on these finds (H9) and the record side on its own labelling")
   message("      --observed-after          only finds also observed after the cutoff")
   message("      --reps=N                  bootstrap resamples of taxa (default 10000)")
   message("      --exclude=ID,ID|@file     .org record ids of test finds never to score (counted)")
@@ -984,6 +986,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         allow_missing_excludes = isTRUE(flags$allow_missing_excludes),
         refits = files(flags$refits) %||% character(),
         kernels_from = files(flags$kernels_from),
+        e9 = files(flags$e9),
         defaults_from = if (is.null(flags$defaults_from)) NULL else as.character(flags$defaults_from)
       )
       invisible(0L)
