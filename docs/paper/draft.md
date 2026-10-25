@@ -1206,6 +1206,13 @@ revised (Path).
    table (algorithm, taxon, fitting job, pull sha256) goes into the next
    models deposit version, bundled with the E19 and E20 tables, so the
    record gets one new version, not two.
+9. **Title (Steve; PENDING).** The review notes that "calibrated trust
+   grade" invites "where is the calibration?": the null test's error rates
+   are calibrated on simulated species, but the grade is three bins.
+   Options: (a) "…with a null-tested trust grade for thousands of
+   DNA-defined North American fungi"; (b) keep "calibrated" and add a
+   continuous score (the null z beside the grade, with a figure of z
+   against later-find rank, from data that exist); (c) both.
 
 ---
 
