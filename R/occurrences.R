@@ -487,10 +487,16 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   # asked for new names' kingdoms only where ATLAS_QA_KINGDOM_LOOKUP=gbif
   # (the box); elsewhere the cache alone answers.
   tryCatch({
-    lookup <- if (identical(Sys.getenv("ATLAS_QA_KINGDOM_LOOKUP"), "gbif")) atlas_gbif_kingdom else
-      function(name) NA_character_
-    kingdoms <- atlas_name_kingdoms(occurrences$scientific_name, lookup = lookup,
-                                    max_new = if (identical(Sys.getenv("ATLAS_QA_KINGDOM_LOOKUP"), "gbif")) 2000L else 0L)
+    gbif <- identical(Sys.getenv("ATLAS_QA_KINGDOM_LOOKUP"), "gbif")
+    number <- function(name, unset) {
+      value <- suppressWarnings(as.numeric(Sys.getenv(name, unset = "")))
+      if (length(value) == 1L && is.finite(value) && value >= 0) value else unset
+    }
+    kingdoms <- atlas_name_kingdoms(
+      occurrences$scientific_name, lookup = if (gbif) atlas_gbif_kingdom else function(name) NA_character_,
+      max_new = if (gbif) as.integer(number("ATLAS_QA_KINGDOM_CAP", ATLAS_QA_KINGDOM_CAP)) else 0L,
+      pace_seconds = number("ATLAS_QA_KINGDOM_PACE_MS", 1000 * ATLAS_QA_KINGDOM_PACE_SECONDS) / 1000
+    )
     atlas_pull_qa(occurrences, manifest, audit, kingdoms = kingdoms, quiet = quiet)
   }, error = function(e) {
     atlas_write_json(list(pull = manifest$stamp, stops = list("qa_failed"),

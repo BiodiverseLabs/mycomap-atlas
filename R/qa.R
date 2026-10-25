@@ -41,14 +41,30 @@ atlas_qa_path <- function(stamp = NULL) {
 atlas_kingdoms_path <- function() atlas_path("occurrences", "kingdoms.tsv.gz")
 atlas_kingdom_allow_path <- function() atlas_path("occurrences", "kingdom-allow.txt")
 
+# New names a pull looks up, and the pause between lookups: GBIF's API is
+# shared, so Atlas asks politely (ATLAS_QA_KINGDOM_CAP, ATLAS_QA_KINGDOM_PACE_MS
+# override them; fill-kingdoms takes a larger cap once).
+ATLAS_QA_KINGDOM_CAP <- 2000L
+ATLAS_QA_KINGDOM_PACE_SECONDS <- 0.2
+
 #' A name's kingdom from GBIF's backbone (species/match): "Fungi", another
-#' kingdom, or NA when GBIF matches nothing or cannot be reached.
-atlas_gbif_kingdom <- function(name) {
+#' kingdom, or NA when GBIF matches nothing or cannot be reached. Asked as
+#' MycoMap Atlas, so GBIF can see who is calling; a "slow down" (429) waits
+#' a minute and asks once more.
+atlas_gbif_kingdom <- function(name, wait = Sys.sleep) {
   url <- paste0("https://api.gbif.org/v1/species/match?verbose=false&name=", utils::URLencode(name, reserved = TRUE))
-  answer <- tryCatch({
-    response <- curl::curl_fetch_memory(url, handle = curl::new_handle(timeout = 20))
-    if (response$status_code == 200) jsonlite::fromJSON(rawToChar(response$content)) else NULL
+  ask <- function() tryCatch({
+    handle <- curl::new_handle(timeout = 20, useragent = "MycoMap Atlas (atlas.mycomap.org; info@mycomap.org)")
+    curl::curl_fetch_memory(url, handle = handle)
   }, error = function(e) NULL)
+  response <- ask()
+  if (!is.null(response) && response$status_code == 429) {
+    wait(60)
+    response <- ask()
+  }
+  answer <- if (!is.null(response) && response$status_code == 200) {
+    tryCatch(jsonlite::fromJSON(rawToChar(response$content)), error = function(e) NULL)
+  }
   kingdom <- answer$kingdom
   if (is.character(kingdom) && length(kingdom) == 1L && nzchar(kingdom)) kingdom else NA_character_
 }
@@ -57,8 +73,9 @@ atlas_gbif_kingdom <- function(name) {
 #' it does not hold (the rest stay unchecked until a later pull), and
 #' keeping what it learns. A name GBIF cannot place is kept as unknown and
 #' asked again after a month.
-atlas_name_kingdoms <- function(names, lookup = atlas_gbif_kingdom, max_new = 2000L,
-                                path = atlas_kingdoms_path(), today = Sys.Date()) {
+atlas_name_kingdoms <- function(names, lookup = atlas_gbif_kingdom, max_new = ATLAS_QA_KINGDOM_CAP,
+                                path = atlas_kingdoms_path(), today = Sys.Date(),
+                                pace_seconds = 0, wait = Sys.sleep, save_every = 500L) {
   names <- sort(unique(as.character(names)))
   cache <- if (file.exists(path)) {
     utils::read.delim(gzfile(path, encoding = "UTF-8"), sep = "	", quote = "", comment.char = "", na.strings = "",
@@ -70,14 +87,47 @@ atlas_name_kingdoms <- function(names, lookup = atlas_gbif_kingdom, max_new = 20
   known <- cache$name[!stale]
   ask <- utils::head(setdiff(names, known), max_new)
   if (length(ask)) {
-    found <- vapply(ask, function(n) lookup(n), "")
-    cache <- rbind(cache[!cache$name %in% ask, , drop = FALSE],
-                   data.frame(name = ask, kingdom = ifelse(is.na(found), "", found), checked = as.character(today),
-                              stringsAsFactors = FALSE))
-    atlas_write_tsv_gz(cache, path)
+    # Kept every save_every names, so a long fill that stops keeps what it
+    # learned.
+    keep <- function(names, found) {
+      cache <<- rbind(cache[!cache$name %in% names, , drop = FALSE],
+                      data.frame(name = names, kingdom = ifelse(is.na(found), "", found),
+                                 checked = as.character(today), stringsAsFactors = FALSE))
+      atlas_write_tsv_gz(cache, path)
+    }
+    found <- character(length(ask))
+    done <- 0L
+    for (i in seq_along(ask)) {
+      if (i > 1L && pace_seconds > 0) wait(pace_seconds)
+      found[[i]] <- lookup(ask[[i]]) %||% NA_character_
+      if (i - done >= save_every) {
+        keep(ask[(done + 1L):i], found[(done + 1L):i])
+        done <- i
+      }
+    }
+    if (done < length(ask)) keep(ask[(done + 1L):length(ask)], found[(done + 1L):length(ask)])
   }
   kingdom <- cache$kingdom[match(names, cache$name)]
   stats::setNames(ifelse(is.na(kingdom) | !nzchar(kingdom), NA_character_, kingdom), names)
+}
+
+#' Fill the kingdom cache for a pull's names once, at a larger cap than a
+#' pull's (Steve, 2026-10-25: every name checked before the first nightly).
+#' pull is a pull file, or NULL for this machine's latest; the cache is this
+#' machine's (atlas_kingdoms_path), where the nightly's QA reads it.
+atlas_fill_kingdoms <- function(pull = NULL, cap = 20000L, pace_seconds = ATLAS_QA_KINGDOM_PACE_SECONDS,
+                                lookup = atlas_gbif_kingdom, wait = Sys.sleep, quiet = FALSE) {
+  occurrences <- atlas_read_occurrences(pull)
+  names <- unique(as.character(occurrences$scientific_name))
+  kingdoms <- atlas_name_kingdoms(names, lookup = lookup, max_new = cap, pace_seconds = pace_seconds, wait = wait)
+  counts <- list(names = length(names), fungi = sum(kingdoms %in% ATLAS_QA_FUNGI),
+                 other = sum(!is.na(kingdoms) & kingdoms != ATLAS_QA_FUNGI), unknown = sum(is.na(kingdoms)),
+                 cache = atlas_kingdoms_path())
+  if (!isTRUE(quiet)) {
+    message(sprintf("kingdoms: %d names, %d fungi, %d other, %d unknown -> %s", counts$names, counts$fungi,
+                    counts$other, counts$unknown, counts$cache))
+  }
+  invisible(counts)
 }
 
 #' One check: its value, the last pull's, whether it stops, and why.

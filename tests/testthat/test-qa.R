@@ -152,3 +152,52 @@ test_that("the nightly plans nothing from a pull that stopped its QA", {
     expect_false(planned)
   })
 })
+
+test_that("a fill paces its lookups, stops at its cap, and keeps what it learned as it goes", {
+  with_data_dir({
+    waits <- numeric()
+    asked <- character()
+    lookup <- function(name) { asked <<- c(asked, name); "Fungi" }
+    names <- sprintf("Genus species%02d", 1:7)
+    atlas_name_kingdoms(names, lookup = lookup, max_new = 5L, pace_seconds = 0.2,
+                        wait = function(s) waits <<- c(waits, s), save_every = 2L)
+    expect_length(asked, 5L)
+    # A pause between lookups, none before the first.
+    expect_equal(waits, rep(0.2, 4))
+    cached <- utils::read.delim(gzfile(atlas_kingdoms_path()), colClasses = "character")
+    expect_setequal(cached$name, names[1:5])
+    # The rest are asked by the next fill, the first five not again.
+    asked <- character()
+    atlas_name_kingdoms(names, lookup = lookup, max_new = 5L, wait = function(s) NULL)
+    expect_setequal(asked, names[6:7])
+  })
+})
+
+test_that("GBIF's \"slow down\" waits a minute and asks once more", {
+  calls <- 0L
+  waited <- numeric()
+  local_mocked_bindings(curl_fetch_memory = function(url, handle) {
+    calls <<- calls + 1L
+    if (calls == 1L) list(status_code = 429L, content = raw()) else
+      list(status_code = 200L, content = charToRaw('{"kingdom": "Fungi"}'))
+  }, .package = "curl")
+  expect_equal(atlas_gbif_kingdom("Amanita muscaria", wait = function(s) waited <<- c(waited, s)), "Fungi")
+  expect_equal(calls, 2L)
+  expect_equal(waited, 60)
+})
+
+test_that("fill-kingdoms fills this machine's cache from a pull, at the cap and pace given", {
+  with_data_dir({
+    pull <- tempfile(fileext = ".tsv.gz")
+    atlas_write_tsv_gz(transform(qa_pull(), latitude = "45", longitude = "-122"), pull)
+    got <- NULL
+    local_mocked_bindings(atlas_name_kingdoms = function(names, lookup, max_new, pace_seconds, wait, ...) {
+      got <<- list(names = sort(unique(names)), max_new = max_new, pace = pace_seconds)
+      stats::setNames(rep("Fungi", length(unique(names))), sort(unique(names)))
+    })
+    atlas_main(c("fill-kingdoms", paste0("--pull=", pull), "--cap=30000", "--pace-ms=500"))
+    expect_equal(got$names, c("Amanita muscaria", "Russula emetica"))
+    expect_equal(got$max_new, 30000L)
+    expect_equal(got$pace, 0.5)
+  })
+})

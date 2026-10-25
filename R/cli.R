@@ -9,6 +9,10 @@ atlas_usage <- function() {
   message("      --chunk-size=N       records per query (default 10000)")
   message("      --max-rows=N         stop after N records (smoke test)")
   message("      --dry-run            print the SQL and exit")
+  message("  fill-kingdoms      look up every pulled name's kingdom in GBIF once, for the pull's QA")
+  message("      --pull=FILE               a pull file (default: this machine's latest)")
+  message("      --cap=N                   at most N new names (default 20000)")
+  message("      --pace-ms=MS              pause between lookups (default 200)")
   message("  stage-pull         copy this machine's pull and name-change log to --out=private/study/<name>/,")
   message("                     for a study job to score (paper E3)")
   message("  build-layers       build environmental layers onto a grid")
@@ -875,6 +879,16 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
           message("  ", v$version, "  ", v$state, "  ", v$doi %||% v$url)
         }
       }
+      invisible(0L)
+    },
+    "fill-kingdoms" = {
+      # Once, before the first nightly: every pulled name's kingdom, for the
+      # pull's QA (R/qa.R), at GBIF's pace.
+      atlas_fill_kingdoms(
+        pull = if (is.null(flags$pull)) NULL else as.character(flags$pull),
+        cap = as.integer(atlas_flag_number(flags, "cap", 20000)),
+        pace_seconds = atlas_flag_number(flags, "pace_ms", 1000 * ATLAS_QA_KINGDOM_PACE_SECONDS) / 1000
+      )
       invisible(0L)
     },
     "status" = {
