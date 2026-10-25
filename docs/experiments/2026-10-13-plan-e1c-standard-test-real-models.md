@@ -55,6 +55,13 @@ Logged as the operations lane reports them; numbers only.
   about 30 CPU-h by the code's estimate, below the plan's 100–200. Steve confirmed it
   directly with the operations lane. Pooled with `study-rescan
   --pool-from` once both shards report.
+  - **It left no result.** Both shards stopped within about 6 minutes:
+    "no layers built for the draft grid". study-rescan fetches each model's
+    pull, but not the layers; the job was planned without
+    `--from-release`, so no layers were fetched. About 0.2 instance-h
+    (spot), at most USD 0.45. Nothing from it is used. The rerun is planned
+    with `--from-release=20261013T191324Z-fa1b4198`, after a check that
+    every fitting job behind the release lists the same layers.
 
 ## Deviations
 
