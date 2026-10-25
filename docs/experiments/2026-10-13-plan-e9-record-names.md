@@ -75,3 +75,21 @@ genus) by source; taxa split, merged, gained and lost.
     of r7i.8xlarge: at most about USD 55 at the on-demand price, likely
     USD 20–30 on spot. Scoring under USD 1. The fit run has its own launch
     go.
+- **2026-10-25, still before any fit or code: a decision rule, and the
+  asymmetry stated (Paper Coordinator, after the redesign).**
+  - **H9 (two-sided).** The 95% interval of the primary estimate (the
+    paired DNA minus record-name difference in top-half share) excludes 0.
+    - Above 0: C3 reads "DNA labels give maps that rank later finds
+      better".
+    - Including 0: "no detectable difference". C3 then narrows to coverage:
+      the taxa only DNA can name, and the records whose label it changes.
+    - Below 0: "record names do better", reported as such.
+  - **The asymmetry, stated.** The primary truth is each find's DNA name. So
+    the primary estimate asks which labelling better predicts the
+    DNA-defined taxon's later finds. Where the names disagree, that favours
+    the DNA side by construction.
+  - **The check on it, a pre-specified secondary estimate.** The same paired
+    difference with each side scored on its own labelling: a record-name
+    map on the finds carrying that record name. It gets the same interval
+    (10,000 resamples of taxa, seed 1). Both are reported side by side
+    whatever they show. H9 is decided on the primary estimate only.
