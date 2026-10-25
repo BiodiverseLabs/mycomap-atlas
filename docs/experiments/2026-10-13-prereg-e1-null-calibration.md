@@ -145,8 +145,15 @@ grade.
     - **Learner first.** If H1a holds for a learner as registered (pooled
       bound and every band), C1 for that learner is decided as registered.
     - **Otherwise, band by band.** H1a holds *in a band* when that band's
-      shift false-pass Wilson upper bound is at most 5%. With 160 geography
-      species, that is at most 2 passes.
+      shift false-pass Wilson upper bound, computed from the band's own
+      number of scored geography species, is at most 5%. The rule is the
+      bound, not a count: at 160 species it allows at most 2 passes, and
+      fewer species allow fewer.
+    - **No correction for testing several bands.** Each learner has 5
+      bands, so if every band's true rate were exactly 5%, some band
+      clearing the bound by chance is more likely than one band doing so.
+      The bands' decisions are reported as they are, uncorrected. The
+      reading says so, and so will the paper.
     - C1 is then supported for that learner in exactly the bands where H1a
       holds, if two more conditions hold:
       - the band's scatter false-pass Wilson lower bound is above 20% (H1b's
