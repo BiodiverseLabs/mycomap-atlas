@@ -402,7 +402,7 @@ atlas_refresh_public_cells <- function(store, base, grid = "draft") {
   entry <- atlas_file_entries("public/cells.tsv.gz")
   atlas_upload_objects(store, entry)
   list(rebuilt = TRUE, entry = entry[[1]],
-       records_left_out = sum(paste(occurrences$source, occurrences$observation_id, sep = ":") %in% hidden))
+       records_left_out = sum(atlas_record_key(occurrences$source, occurrences$observation_id) %in% hidden))
 }
 
 #' A model a refresh kept as its base release had it (allow_mismatch), as

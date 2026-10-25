@@ -346,7 +346,7 @@ atlas_tracker_view <- function(store, id, grid = "draft", cache = atlas_tracker_
   view$scheme <- if (any(vapply(entries, function(e) !is.null(e$grade), logical(1)))) "shift" else "skill"
   # A pull named by the DNA keeps each record's own name beside it.
   view$naming <- if ("record_name" %in% columns) "sequence" else "record"
-  view$pull <- data.frame(key = paste(pull$source, pull$observation_id, sep = ":"),
+  view$pull <- data.frame(key = atlas_record_key(pull$source, pull$observation_id),
                           taxon = pull$scientific_name, lat = placed$lat, lng = placed$lng,
                           cell = placed$cell, stringsAsFactors = FALSE)
   view$cells <- unique(placed$cell[!is.na(placed$cell)])
@@ -591,7 +591,7 @@ atlas_tracker_finds <- function(occurrences, since = ATLAS_TRACKER_SINCE, done =
     stop("the pull has no ", ATLAS_FIRST_GREEN_FIELD, " column: pull again with this version", call. = FALSE)
   }
   day <- occurrences[[ATLAS_FIRST_GREEN_FIELD]]
-  key <- paste(occurrences$source, occurrences$observation_id, sep = ":")
+  key <- atlas_record_key(occurrences$source, occurrences$observation_id)
   keep <- !is.na(day) & day >= since & !key %in% done
   out <- occurrences[keep, , drop = FALSE]
   out$key <- key[keep]
@@ -741,7 +741,7 @@ atlas_tracker_rank_window <- function(view, rows, window, grid = view$grid) {
 #' finds are left out of every count but one.
 atlas_tracker_retract <- function(ledger, occurrences, today, grid = "draft") {
   if (!nrow(ledger)) return(ledger)
-  key <- paste(occurrences$source, occurrences$observation_id, sep = ":")
+  key <- atlas_record_key(occurrences$source, occurrences$observation_id)
   naming_now <- if ("record_name" %in% names(occurrences)) "sequence" else "record"
   now <- match(ledger$key, key)
   gone <- is.na(now)

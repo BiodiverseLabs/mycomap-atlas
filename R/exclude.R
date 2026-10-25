@@ -38,7 +38,7 @@ ATLAS_EXCLUDE_BY <- c("id", "source_observation")
 
 #' The key a row has under a way of naming it.
 atlas_exclude_keys <- function(occurrences, by) {
-  if (identical(by, "id")) as.character(occurrences$id) else paste(occurrences$source, occurrences$observation_id, sep = ":")
+  if (identical(by, "id")) as.character(occurrences$id) else atlas_record_key(occurrences$source, occurrences$observation_id)
 }
 
 atlas_exclude_path <- function() atlas_path("occurrences", "exclude.tsv")

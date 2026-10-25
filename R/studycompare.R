@@ -18,7 +18,7 @@
 
 #' A record's key in a pull: source and observation.
 atlas_e9_keys <- function(occurrences) {
-  paste(occurrences$source, occurrences$observation_id, sep = ":")
+  atlas_record_key(occurrences$source, occurrences$observation_id)
 }
 
 #' The record-name pull's labels in the DNA pull's row order, matched by
