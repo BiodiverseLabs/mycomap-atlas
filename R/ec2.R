@@ -530,6 +530,9 @@ atlas_nightly <- function(grid = "draft", algorithms = "all", pull = TRUE,
                           ec2 = NULL, tasks_per_shard = 40, limit = Inf, quiet = FALSE,
                           pull_occurrences = atlas_pull_occurrences, ...) {
   if (isTRUE(pull)) pull_occurrences(quiet = quiet)
+  # A pull that stopped its QA (R/qa.R) plans nothing: the nightly accepts no
+  # stop, so one ends the night here and the last release stays.
+  atlas_qa_gate(quiet = quiet)
   job <- atlas_plan_job(store, grid, algorithms = algorithms, shards = config$max_workers,
                         tasks_per_shard = tasks_per_shard, limit = limit, quiet = quiet)
   release <- if (!is.null(job)) {

@@ -9,6 +9,10 @@ atlas_usage <- function() {
   message("      --chunk-size=N       records per query (default 10000)")
   message("      --max-rows=N         stop after N records (smoke test)")
   message("      --dry-run            print the SQL and exit")
+  message("  fill-kingdoms      look up every pulled name's kingdom in GBIF once, for the pull's QA")
+  message("      --pull=FILE               a pull file (default: this machine's latest)")
+  message("      --cap=N                   at most N new names (default 20000)")
+  message("      --pace-ms=MS              pause between lookups (default 200)")
   message("  stage-pull         copy this machine's pull and name-change log to --out=private/study/<name>/,")
   message("                     for a study job to score (paper E3)")
   message("  build-layers       build environmental layers onto a grid")
@@ -117,6 +121,8 @@ atlas_usage <- function() {
   message("      --shards=N                how many workers will share it (default 4)")
   message("      --limit=N                 fit only the N richest taxa that need it (a trial)")
   message("      --sample=N                fit N taxa spread from richest to sparsest (a pilot)")
+  message("      --accept-qa=STAMP:CHECK,... plan from a pull whose QA stopped, accepting those stops")
+  message("                                by name (written into the job; R/qa.R)")
   message("      --prior-only --from-release=ID --validated-through=YYYY-MM-DD")
   message("                                refit a release's strong models on its pull without the records")
   message("                                validated after the date, for Vision's benchmark: never a release")
@@ -727,7 +733,9 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         shards = as.integer(atlas_flag_number(flags, "shards", 4)),
         min_presences = atlas_flag_number(flags, "min_presences", 20),
         limit = atlas_flag_number(flags, "limit", Inf),
-        sample = atlas_flag_number(flags, "sample", Inf)
+        sample = atlas_flag_number(flags, "sample", Inf),
+        # The pull's QA (R/qa.R): a stop plans nothing unless accepted by name.
+        qa = atlas_qa_gate(accept = if (is.null(flags$accept_qa)) NULL else as.character(flags$accept_qa))
       )
       invisible(0L)
     },
@@ -881,6 +889,16 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
           message("  ", v$version, "  ", v$state, "  ", v$doi %||% v$url)
         }
       }
+      invisible(0L)
+    },
+    "fill-kingdoms" = {
+      # Once, before the first nightly: every pulled name's kingdom, for the
+      # pull's QA (R/qa.R), at GBIF's pace.
+      atlas_fill_kingdoms(
+        pull = if (is.null(flags$pull)) NULL else as.character(flags$pull),
+        cap = as.integer(atlas_flag_number(flags, "cap", 20000)),
+        pace_seconds = atlas_flag_number(flags, "pace_ms", 1000 * ATLAS_QA_KINGDOM_PACE_SECONDS) / 1000
+      )
       invisible(0L)
     },
     "status" = {

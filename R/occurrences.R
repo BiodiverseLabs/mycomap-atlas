@@ -482,6 +482,29 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   if (is.null(since) && !is.finite(max_rows)) {
     atlas_record_org_renames(occurrences, quiet = quiet)
   }
+  # The pull's QA report (R/qa.R), after its privacy list: one that cannot be
+  # made is written as a stop of its own, so it never passes unseen. GBIF is
+  # asked for new names' kingdoms only where ATLAS_QA_KINGDOM_LOOKUP=gbif
+  # (the box); elsewhere the cache alone answers.
+  tryCatch({
+    gbif <- identical(Sys.getenv("ATLAS_QA_KINGDOM_LOOKUP"), "gbif")
+    number <- function(name, unset) {
+      value <- suppressWarnings(as.numeric(Sys.getenv(name, unset = "")))
+      if (length(value) == 1L && is.finite(value) && value >= 0) value else unset
+    }
+    kingdoms <- atlas_name_kingdoms(
+      occurrences$scientific_name, lookup = if (gbif) atlas_gbif_kingdom else function(name) NA_character_,
+      max_new = if (gbif) as.integer(number("ATLAS_QA_KINGDOM_CAP", ATLAS_QA_KINGDOM_CAP)) else 0L,
+      pace_seconds = number("ATLAS_QA_KINGDOM_PACE_MS", 1000 * ATLAS_QA_KINGDOM_PACE_SECONDS) / 1000
+    )
+    atlas_pull_qa(occurrences, manifest, audit, kingdoms = kingdoms, quiet = quiet)
+  }, error = function(e) {
+    atlas_write_json(list(pull = manifest$stamp, stops = list("qa_failed"),
+                          checks = list(qa_failed = list(stop = TRUE, why = paste("the QA report could not be made:",
+                                                                                  conditionMessage(e))))),
+                     atlas_qa_path())
+    warning("pull QA not made: ", conditionMessage(e), call. = FALSE)
+  })
 
   if (!quiet) {
     message(sprintf("pulled %d records across %d taxa -> %s",
