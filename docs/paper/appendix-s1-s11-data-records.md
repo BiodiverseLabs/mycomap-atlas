@@ -37,7 +37,7 @@ Band-level sources and credits are in Section S3.
 | maps-maxnet.tar | 2.98 GB | Maxent models |
 | maps-rf.tar | 2.64 GB | random forests |
 | maps-xgboost.tar | 641.6 MB | boosted trees |
-| maps-ensemble.tar | 109.8 MB | combined maps |
+| maps-ensemble.tar | 109.8 MB | for each of the 77 taxa with two or more strong maps, the combined map (3-band GeoTIFF: weighted mean rank; the members' weighted rank SD as disagreement; the share of members known) with its drawn map and disagreement map (PNG); each ensemble's settings and statistics are in scores.tar.gz |
 | scores.tar.gz | 39.0 MB | every model's metrics JSON: held-out scores, null test, grade, importance, settings, and the pooled Boyce index |
 | release.json | 10.4 MB | the release manifest and model index (taxon, algorithm, fingerprint, presences, settings key, refused) |
 | taxa.json | 3.2 MB | per-taxon counts and status |

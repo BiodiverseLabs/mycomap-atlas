@@ -652,8 +652,8 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   the pull before it. Per model the
   suitability raster, AOA dissimilarity raster, map image and metrics JSON
   (scores, null test, grade, importance, settings); combined maps and
-  disagreement layers [CHECK: the operations lane lists only combined maps
-  in maps-ensemble.tar]; full-extent rasters for strong models; per-taxon
+  disagreement layers (77 taxa with two or more strong maps); full-extent
+  rasters for strong models; per-taxon
   counts; record cells at 0.1°; state verdicts; the location prior.
   CC BY-SA 4.0.
 - **Training records** (new; Steve, 2026-10-13): published for the paper's
