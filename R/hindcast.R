@@ -366,7 +366,7 @@ atlas_plan_hindcast_refit <- function(store = atlas_store(), hindcast, taxa, lea
     stop("the hindcast's pull has no id, source or observation_id column", call. = FALSE)
   }
   ids <- as.character(pulled$id)
-  keys <- paste(pulled$source, pulled$observation_id, sep = ":")
+  keys <- atlas_record_key(pulled$source, pulled$observation_id)
   dropped <- rep(FALSE, nrow(pulled))
   for (k in leave_out) {
     hit <- if (grepl(":", k, fixed = TRUE)) keys == k else ids == k

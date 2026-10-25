@@ -146,7 +146,7 @@ atlas_public_cells_table <- function(occurrences, degrees = ATLAS_PUBLIC_DEGREES
   # The records whose place their source hides or may hide (R/privacy.R)
   # stay out of what is published.
   if (length(hidden)) {
-    occurrences <- occurrences[!paste(occurrences$source, occurrences$observation_id, sep = ":") %in% hidden, ,
+    occurrences <- occurrences[!atlas_record_key(occurrences$source, occurrences$observation_id) %in% hidden, ,
                                drop = FALSE]
   }
   keys <- atlas_locality_key(occurrences$latitude, occurrences$longitude, degrees = degrees)

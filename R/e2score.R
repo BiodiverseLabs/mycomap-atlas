@@ -153,7 +153,7 @@ atlas_e2_split <- function(pull, cutoff, observed_after = FALSE, grid = "draft",
   reason <- ifelse(!dated, "undated", ifelse(!located, "off_grid", NA_character_))
   if (isTRUE(observed_after)) reason[is.na(reason) & after & !seen_after] <- "observed_before"
   keep <- after | !dated
-  key <- paste(pull$source, pull$observation_id, sep = ":")
+  key <- atlas_record_key(pull$source, pull$observation_id)
   exclude <- unique(as.character(exclude))
   hold <- unique(as.character(hold))
   if ((length(exclude) || length(hold)) && !"id" %in% names(pull)) {

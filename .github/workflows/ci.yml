@@ -41,6 +41,18 @@ jobs:
     # The same base as the release image (Dockerfile), so CI and releases
     # agree about R and GDAL.
     container: rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
+    # A throwaway Postgres, so the SQL suites (the (source, number) key rule
+    # in test-source-numbers.R and test-record-keys.R, MyCoPortal parity) run
+    # against a real database instead of skipping. They use temporary tables
+    # only.
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_PASSWORD: atlas-ci
+    env:
+      PGPASSWORD: atlas-ci
+      ATLAS_TEST_PSQL: psql -X -h postgres -U postgres -d postgres -At -F ,
     steps:
       # actions/checkout v4
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -55,6 +67,12 @@ jobs:
           Rscript -e 'stopifnot(requireNamespace("xgboost", quietly = TRUE))'
           Rscript -e 'stopifnot(requireNamespace("ranger", quietly = TRUE))'
           Rscript -e 'stopifnot(requireNamespace("blockCV", quietly = TRUE))'
+      - name: A Postgres client for the SQL suites
+        run: apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
+      - name: The SQL suites must reach Postgres, not skip
+        run: |
+          for i in $(seq 1 30); do pg_isready -h postgres -U postgres -q && break; sleep 2; done
+          echo "select 1;" | $ATLAS_TEST_PSQL | grep -qx 1
       - name: Tests, with no network and no credentials
         run: Rscript -e 'testthat::test_local()'
 

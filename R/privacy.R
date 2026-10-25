@@ -92,5 +92,5 @@ atlas_read_privacy <- function(path = atlas_privacy_path()) {
   flagged <- utils::read.delim(gzfile(path, encoding = "UTF-8"), sep = "\t", quote = "", comment.char = "",
                                na.strings = "", colClasses = "character", check.names = FALSE,
                                stringsAsFactors = FALSE, encoding = "UTF-8")
-  paste(flagged$source, flagged$observation_id, sep = ":")
+  atlas_record_key(flagged$source, flagged$observation_id)
 }
