@@ -53,6 +53,17 @@ Logged as the operations lane reports them; numbers only.
     only the layers. The 9 layer files of fa1b4198's job and the hindcast's
     job are identical (path and sha256), checked before planning.
   - Steve confirmed it directly with the operations lane.
+  - **Result (2026-10-25).** All 8 shards succeeded on r7i.8xlarge (Intel
+    Xeon Platinum 8488C), spot. The last reported at 20:35 UTC. There were
+    spot reclaims on the way (shards 1, 2 and 3 ran three attempts each, and
+    shard 4 two); a reclaimed study shard starts over, so none of it is
+    lost work in the results. The run gave 8 results files.
+- **Scoring (launched 2026-10-25 21:17 UTC).**
+  study-20261025T211731Z-017e88fa, image d2ff016, on 1 × r7i.xlarge
+  (on-demand).
+  - Command: E2's final study-score arguments with
+    `--defaults-from=study-20261025T164211Z-4ffa4776` (Atlas
+    feat/score-defaults-from 828ac6f).
 
 ## Deviations
 
