@@ -461,6 +461,18 @@ atlas_shard_blocks <- function(algorithm, taxa, released, fitted) {
 
 #' The seeds a shard's tasks ask for, by taxon: a hindcast refit's
 #' (seed_from, its hindcast model's fingerprint), or NULL for every other job.
+#' The blocks a job's tasks name (E9's pairs carry their hindcast models'),
+#' by taxon: the planner decided them, so they come before any other.
+atlas_task_blocks <- function(tasks) {
+  out <- list()
+  for (t in tasks) {
+    km <- suppressWarnings(as.numeric(t$block$block_km %||% NA))[[1]]
+    if (!is.finite(km) || !is.null(out[[t$taxon]])) next
+    out[[t$taxon]] <- list(block_km = km, range_km = suppressWarnings(as.numeric(t$block$range_km %||% NA))[[1]])
+  }
+  out
+}
+
 atlas_task_seeds <- function(tasks) {
   seeded <- Filter(function(t) is.character(t$seed_from) && length(t$seed_from) == 1L, tasks)
   if (!length(seeded)) return(NULL)
@@ -600,7 +612,12 @@ atlas_run_shard <- function(store = atlas_store(), id, shard, grid = "draft", wo
       quiet = TRUE, fit = fit, full = job$fit$full,
       # A hindcast refit's tasks carry their hindcast models' seeds.
       seeds = atlas_task_seeds(tasks),
-      blocks = atlas_shard_blocks(algorithm, taxa, released_blocks, fitted_blocks),
+      blocks = {
+        chosen <- atlas_shard_blocks(algorithm, taxa, released_blocks, fitted_blocks) %||% list()
+        named <- atlas_task_blocks(tasks)
+        for (taxon in intersect(names(named), taxa)) chosen[[taxon]] <- named[[taxon]]
+        if (length(chosen)) chosen
+      },
       on_row = function(row, settings_key) {
         if (!row$taxon %in% taxa || row$taxon %in% reported) return(invisible(NULL))
         reported <<- c(reported, row$taxon)
