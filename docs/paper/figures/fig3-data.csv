@@ -1,0 +1,8 @@
+panel,row,taxa,map_top_half,map_ci_low,map_ci_high,kernel_top_half,source
+a,Strong,214,0.9145,0.8856,0.9419,0.871,E2 Results by grade; E6b Results (strong and weak vs kernel)
+a,Weak,2082,0.8696,,,0.8936,E2 Results by grade; E6b Results (strong and weak vs kernel)
+a,Failed,528,0.784,,,,E2 Results by grade; E6b Results (strong and weak vs kernel)
+b,Known places (≤ 5 km),,0.987,,,0.952,"E6b Results, strong models and their kernels by band"
+b,5–25 km,,0.974,,,1.0,"E6b Results, strong models and their kernels by band"
+b,25–100 km,,0.928,,,0.928,"E6b Results, strong models and their kernels by band"
+b,100–500 km,,0.76,,,0.611,"E6b Results, strong models and their kernels by band"

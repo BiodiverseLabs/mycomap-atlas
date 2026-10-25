@@ -562,8 +562,10 @@ the old scattered-null test barely beat those that did not (beats-effort
 0.67 against 0.63), as C1 predicts (exploratory;
 `2026-10-18-tracker-backfill-old-grading.md`).
 
-→ **Figure 3**: (a) top-half and beats-effort shares by grade, each beside
-the distance map on the same places, with intervals; (b) strong maps against
+→ **Figure 3** (draft 2026-10-25: `figures/fig3.svg`, made by `figures/fig3.py`
+from the registry numbers, table view `figures/fig3-data.csv`; panels a and b
+drawn, c waits for E3): (a) top-half shares by grade, each beside
+the distance map on the same places, with the registered interval; (b) strong maps against
 the distance map by distance band (5–25, 25–100, 100–500 km); (c) prospective
 finds by grade (E3). Every split (new and known places, top tenth, Boyce,
 tiers, inside and outside the area of applicability, combined maps, beyond
