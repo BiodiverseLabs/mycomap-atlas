@@ -1213,7 +1213,11 @@ revised (Path).
    table (algorithm, taxon, fitting job, pull sha256) goes into the next
    models deposit version, bundled with the E19 and E20 tables, so the
    record gets one new version, not two.
-9. **Title (Steve; PENDING).** The review notes that "calibrated trust
+9. **Title (Steve: DEFERRED until E1's results, 2026-10-25).** If E1 shows
+   the false-pass rate under control for both Maxent and random forest,
+   option (c) is well supported; if random forest or the 100+ band fails,
+   option (a) is the honest title. The method lane prepares the z-vs-later-
+   find-rank data from E2 meanwhile, so (b) and (c) stay open. The review notes that "calibrated trust
    grade" invites "where is the calibration?": the null test's error rates
    are calibrated on simulated species, but the grade is three bins.
    Options: (a) "…with a null-tested trust grade for thousands of
