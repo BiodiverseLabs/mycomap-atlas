@@ -132,6 +132,20 @@ grade.
   cannot fill within its redraw limit (most likely narrow habitats at 200+
   sites) are reported with their counts, not padded.
 
+## Runs
+
+Logged as the operations lane reports them; numbers only.
+
+- **Smoke run (launched 2026-10-25 15:40 UTC).**
+  study-20261025T153943Z-9806a01c, image c56d2dc, `plan-study
+  --command=study-calibration --shards=1
+  --from-release=20261013T191324Z-fa1b4198 --args="--per-cell=1 --seed=1
+  --workers=30"`, one r7i.8xlarge. Its job record lists the pull
+  occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), the frozen
+  release's. Steve confirmed it directly with the operations lane. Only
+  statuses, errors, fill and timings are read from it (Deviations,
+  2026-10-25).
+
 ## Deviations
 
 - **2026-10-20, before launch (implementation only; no hypothesis,

@@ -42,6 +42,20 @@ About 1,000 models × 19 nulls; est. 100–200 CPU-h. Needs a small study
 command in the rebuild lane that rescans a release's models with a chosen
 null design.
 
+## Runs
+
+Logged as the operations lane reports them; numbers only.
+
+- **Rescan (launched 2026-10-25 15:52 UTC).**
+  study-20261025T155216Z-725a1d1e, image c56d2dc, `plan-study
+  --command=study-rescan --shards=2 --args="--release=20261013T191324Z-fa1b4198
+  --seed=1 --workers=30"`, 2 × r7i.8xlarge (spot). The sample is 1,083 of
+  the release's 9,040 testable models (esm 426, maxnet 278, rf 264, xgboost
+  115), up to 50 per cell, so fewer than the plan's estimate of about
+  1,000–3,000; about 30 CPU-h by the code's estimate. Steve confirmed it
+  directly with the operations lane. Pooled with `study-rescan
+  --pool-from` once both shards report.
+
 ## Deviations
 
 - **2026-10-25, before launch (implementation only; the estimate, its
