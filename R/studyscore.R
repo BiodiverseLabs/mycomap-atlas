@@ -22,6 +22,22 @@
 # this hindcast and cover every shard of one split. Everything written is
 # counts and shares; no place, record or coordinate.
 
+#' A model's detection sites, from its metrics: NA when not recorded.
+atlas_score_sites <- function(metrics) {
+  suppressWarnings(as.integer(metrics$presences %||% NA))
+}
+
+#' A model's null-test effect size, z = (observed AUC - mean null AUC) / SD
+#' of null AUCs, from its metrics (the shift test's untuned AUCs, as the
+#' moderate-z tier reads them): NA without them or for a scattered test.
+atlas_score_z <- function(metrics) {
+  null <- metrics$null %||% list()
+  num <- function(x) suppressWarnings(as.numeric(x %||% NA))
+  if (!identical(as.character(null$design %||% ""), "shift")) return(NA_real_)
+  z <- (num(null$observed_auc) - num(null$auc_mean)) / num(null$auc_sd)
+  if (length(z) == 1L && is.finite(z)) z else NA_real_
+}
+
 #' A taxon's maps in the hindcast release, as atlas_e2_score takes them:
 #' each model under its own grade, and the map a visitor sees (kind
 #' "combined"): the combined map where there is one, else the best strong
@@ -34,7 +50,7 @@ atlas_score_model_maps <- function(view, taxon) {
     m <- maps$models[[algorithm]]
     tier <- atlas_metrics_tier(m$metrics %||% list(grade = m$grade))
     list(layers = layers_of(m), grade = m$grade, tier = tier$tier, moderate_z = tier$moderate_z,
-         learner = algorithm, kind = "model")
+         learner = algorithm, kind = "model", sites = atlas_score_sites(m$metrics), z = atlas_score_z(m$metrics))
   })
   if (!is.null(maps$ensemble)) {
     out$combined <- list(layers = layers_of(maps$ensemble), known = maps$ensemble$known,
@@ -145,6 +161,48 @@ atlas_e9_paired_core <- function(places, places_own, dna_maps_for, record_maps_f
   )
 }
 
+# Site bands for the exploratory split: those of the grade breakdown and
+# E1c (3-4, 5-19, 20-49, 50-99, 100+).
+ATLAS_SCORE_SITE_BANDS <- c(3, 5, 20, 50, 100)
+
+#' Exploratory, not registered: H2a-c on the models of each site band (the
+#' model's detection sites), so the grade's ordering is seen within taxa of
+#' like size rather than across them. Rows without a site count are left
+#' out and counted.
+atlas_score_by_site_band <- function(models, reps = ATLAS_E2_BOOTSTRAP, seed = 1L,
+                                     breaks = ATLAS_SCORE_SITE_BANDS) {
+  rows <- models[models$kind %in% "model", , drop = FALSE]
+  band <- ifelse(is.finite(rows$sites), atlas_presence_band(rows$sites, breaks), NA_character_)
+  labels <- unique(atlas_presence_band(breaks, breaks))
+  out <- lapply(stats::setNames(labels, labels), function(b) {
+    mine <- rows[band %in% b, , drop = FALSE]
+    c(list(taxa = length(unique(mine$taxon)), places = atlas_e2_place_count(mine[atlas_e2_ranked(mine), , drop = FALSE])),
+      atlas_e2_hypotheses(mine, reps = reps, seed = seed)[c("H2a", "H2b", "H2c")])
+  })
+  c(out, list(without_sites = sum(!is.finite(rows$sites)), label = "exploratory"))
+}
+
+#' Exploratory, not registered: one row per model (taxon and learner) with
+#' its grade, tier, detection sites, null-test z, and its later finds:
+#' places ranked, their mean rank and top-half share. Taxon names and
+#' numbers only, never a place, record or coordinate.
+atlas_score_per_model <- function(per_model) {
+  rows <- per_model[!is.na(per_model$map), , drop = FALSE]
+  if (!nrow(rows)) return(data.frame())
+  groups <- split(seq_len(nrow(rows)), paste(rows$taxon, rows$learner, sep = ""))
+  out <- do.call(rbind, lapply(groups, function(i) {
+    r <- rows[i, , drop = FALSE]
+    ranked <- r$rank[atlas_e2_ranked(r)]
+    data.frame(taxon = r$taxon[[1]], learner = r$learner[[1]], grade = r$grade[[1]], tier = r$tier[[1]],
+               sites = r$sites[[1]], z = r$z[[1]],
+               places = atlas_e2_place_count(r[atlas_e2_ranked(r), , drop = FALSE]),
+               mean_rank = if (length(ranked)) mean(ranked) else NA_real_,
+               top_half = if (length(ranked)) mean(ranked >= 0.5) else NA_real_, stringsAsFactors = FALSE)
+  }))
+  rownames(out) <- NULL
+  out[order(out$taxon, out$learner), , drop = FALSE]
+}
+
 #' Score the models and baselines on the test places. Pure: the maps come
 #' through the functions given. Returns the aggregates written to the
 #' results file.
@@ -162,7 +220,12 @@ atlas_score_baselines_core <- function(places, model_maps_for, kernel_maps_for =
     # Secondary: the looser map tiers (E24), H2d-H2f.
     tier_hypotheses = atlas_e2_tier_hypotheses(models, reps = reps, seed = seed),
     models = list(by_grade = atlas_score_by_grade(per_model), by_tier = atlas_score_by_tier(per_model),
-                  combined = atlas_score_splits(models[models$kind %in% "combined", , drop = FALSE]))
+                  combined = atlas_score_splits(models[models$kind %in% "combined", , drop = FALSE])),
+    # Not registered (the independent review, 2026-10-25; Steve): H2a-c
+    # within each model's site band, and one row per model of its grade,
+    # null-test z and later-find ranks.
+    exploratory = list(by_site_band = atlas_score_by_site_band(models, reps = reps, seed = seed),
+                       per_model = atlas_score_per_model(per_model))
   )
   if (is.function(kernel_maps_for)) {
     kernel <- atlas_e2_score(places, kernel_maps_for, known_names)

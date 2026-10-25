@@ -675,6 +675,60 @@ test_that("a refitted taxon is scored on the refit's maps, every other taxon on 
   expect_equal(result$settings$refits, list(list(release = "r1", taxa = list("T01"))))
 })
 
+# --- Exploratory splits (the independent review, 2026-10-25; not registered) ---
+
+# Strong and failed models in two site bands: strong ranks the east (where the
+# places are) high and failed ranks it low, so the ordering holds in each band.
+banded_maps <- function(taxon) {
+  i <- as.integer(sub("^T", "", taxon))
+  strong <- i %% 2 == 1
+  sites <- if (i <= 20) 8L else 60L
+  list(maxnet = list(layers = layers_from(if (strong) east() else -east(), outside_west = TRUE),
+                     grade = if (strong) "strong" else "failed", learner = "maxnet", kind = "model",
+                     sites = sites, z = if (strong) 2.5 else -0.5))
+}
+
+test_that("H2a-c are read again within each model's site band, labelled exploratory", {
+  skip_if_not_installed("terra")
+  result <- atlas_score_baselines_core(score_places(), banded_maps, reps = 200)
+  bands <- result$exploratory$by_site_band
+  expect_equal(bands$label, "exploratory")
+  expect_equal(bands$without_sites, 0L)
+  expect_setequal(setdiff(names(bands), c("label", "without_sites")), c("3-4", "5-19", "20-49", "50-99", "100+"))
+  for (b in c("5-19", "50-99")) {
+    expect_equal(bands[[b]]$taxa, 20L, info = b)
+    expect_true(bands[[b]]$H2b$tested, info = b)
+    expect_gt(bands[[b]]$H2b$estimate, 0.5)
+  }
+  expect_equal(bands[["3-4"]]$taxa, 0L)
+  expect_false(isTRUE(bands[["3-4"]]$H2a$tested))
+  # The registered hypotheses are unchanged by the split.
+  expect_true(result$hypotheses$H2b$holds)
+})
+
+test_that("each model's later-find ranks sit beside its null-test z, with taxon names and numbers only", {
+  skip_if_not_installed("terra")
+  result <- atlas_score_baselines_core(score_places(), banded_maps, reps = 100)
+  per <- result$exploratory$per_model
+  expect_equal(nrow(per), 40L)
+  expect_setequal(names(per), c("taxon", "learner", "grade", "tier", "sites", "z", "places", "mean_rank", "top_half"))
+  t01 <- per[per$taxon == "T01", ]
+  expect_equal(t01$z, 2.5)
+  expect_equal(t01$sites, 8L)
+  expect_gt(t01$mean_rank, per$mean_rank[per$taxon == "T02"])
+  # No place, record or coordinate.
+  expect_length(intersect(names(per), c("x", "y", "place", "lat", "lng", "latitude", "longitude", "cell", "id")), 0L)
+})
+
+test_that("a model's z is read from its shift null test, and is missing for a scattered one", {
+  shift <- list(null = list(design = "shift", observed_auc = 0.8, auc_mean = 0.6, auc_sd = 0.05), presences = 33)
+  expect_equal(atlas_score_z(shift), 4)
+  expect_true(is.na(atlas_score_z(list(null = list(design = "scatter", observed_auc = 0.8, auc_mean = 0.6, auc_sd = 0.05)))))
+  expect_true(is.na(atlas_score_z(list(null = list(design = "shift", observed_auc = 0.8, auc_mean = 0.6, auc_sd = 0)))))
+  expect_equal(atlas_score_sites(shift), 33L)
+  expect_true(is.na(atlas_score_sites(list())))
+})
+
 # A default-practice study job as it publishes (R/studydefault.R): each
 # shard's results file, and its maps in the directory beside it.
 published_defaults <- function(store, job, release, shards, taxa_of = function(i) sprintf("T%02d", i)) {
