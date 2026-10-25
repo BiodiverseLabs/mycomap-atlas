@@ -107,15 +107,19 @@ revise the paper plan and let's continue".)
    PENDING: the E2 re-score (records also observed after the cutoff, the
    registered secondary set; H2a–H2c within site bands, exploratory) and
    prospective E3]
-3. **C3. Labelling by the approved sequence rather than the record's own
-   name changes the maps, and about half the modellable taxa have no formal
-   name.** [PENDING E9, E16. E9 is ON HOLD (2026-10-25) while the method
-   lane assesses a stronger design: both labellings fitted in the same job
-   as a hindcast and scored on later finds, so that C3 can say whether
-   sequence labels give better maps, not only different ones. Without E9,
-   C3 reduces to the E16 count of unnamed taxa.] A comparison with morphology-named records
-   (GBIF, E6c, P2) is not part of this claim; if it runs, it is a Discussion
-   point.
+3. **C3. On finds the models never saw, maps of DNA-labelled taxa rank
+   later finds [X, 95% interval] better or worse than maps of the same
+   taxa labelled by the record's own name; and about half the modellable
+   taxa have no formal name.** [PENDING E9 (redesigned, Steve 2026-10-25):
+   a paired hindcast fitting both labellings of every taxon whose record set
+   changes, in one private job on one image and processor family, the
+   record-name side reusing its DNA pair's block; both scored on E2's later
+   finds, the primary truth being each find's DNA name; primary estimate the
+   paired DNA − record-name difference in top-half share, with a bootstrap
+   interval over taxa. If the record-name maps do as well, C3 narrows to
+   coverage: the taxa only DNA can name. PENDING E16 for the unnamed share.]
+   A comparison with morphology-named records (GBIF, E6c, P2) is not part of
+   this claim; if it runs, it is a Discussion point.
 4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
    this at continental scale, and says which maps to trust.** The frozen
    release holds 9,041 models of 6,369 taxa; 576 models of 470 taxa (7.4%
@@ -584,10 +588,13 @@ approach.] → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
 
-[PENDING: records whose sequence name differs from the record name (species,
-genus) by source; for affected taxa, map rank correlation, grade changes and
-independent-test skill under each labelling; the share of modellable taxa
-with no formal name.] → one paragraph; detail in S8. (E6c, morphology-named GBIF models, if
+[PENDING E9 (paired hindcast, redesigned 2026-10-25): the paired
+difference, DNA − record name, in top-half share of later finds over taxa
+present under both labellings, with its interval; Boyce, beats-effort, new
+and known places and site bands; grade changes; map Spearman and Schoener's
+D; taxa only one labelling has, counted. E16: records whose sequence name
+differs from the record name, by source; the share of modellable taxa with
+no formal name.] → one paragraph; detail in S8. (E6c, morphology-named GBIF models, if
 run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
@@ -1028,7 +1035,7 @@ data, command, result, release, commit).
 | E1c | **Planned** (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
 | E2 | **Done 2026-10-19, C2 supported** (study-20261019T181851Z-35fc3d63; H2a 0.914 [0.886, 0.942], H2b 0.131 [0.090, 0.172], H2c 0.785 [0.763, 0.806]; tiers H2d–f hold; Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e2-hindcast.md`). Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade. **Registered 2026-10-21** (Steve): one read-out on the frozen release of finds first validated 2026-10-14 to 2026-12-15 (all unseen by it); read-out about 2026-12-16 | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
-| E9 | **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
+| E9 | **Redesigned 2026-10-25 (Steve): paired hindcast of both labellings, scored on E2's later finds** (see Path 7); earlier plan below, superseded. **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
 | E6a | **Planned** (`docs/experiments/2026-10-13-plan-e6a-default-maxent.md`). Default-practice Maxent on the hindcast pull (maxnet default.features, regmult 1, 10,000 uniform background points over the accessible area, random 5-fold CV, 19 uniform nulls as commonly run) | C1, C2 | No | New study arm over every taxon with ≥20 sites; its own CV score and pass rate vs its score on E2/E3 finds | est. 230–300 CPU-h ($12–15), from the cost pilot (`2026-10-13-e6a-cost-pilot.md`) | P1 |
 | E6b | **Done 2026-10-21** (study-20261020T232528Z-05216058): H6b holds, +0.0435 [0.0147, 0.0755], top-half share only; new places [0, 0.0996] not; moderate and indicative do not beat the kernel; advantage from 100–500 km finds (Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md`). Spatial-only baseline (distance to known sites), paired with each model on its own AOA cells. **Runs first after E2**, because its result shapes C2's wording | C2 | No (shift nulls are related but not a baseline) | Kernel/distance model on the hindcast's training sites; scored on the E2 finds with the E2 metrics | small compute, ~2 days code | P1 |
 | E12 | **Done 2026-10-21** (block step: all 5 cross-family differences have a changed block, 0/277 same-block differ; plan-e12 095a899): gate 2 passed (bit-identical within a processor family; the refresh's three Maxent flips are the family); a1 and the rerun of a2 match the release on 507/507; a2's first run found the glmnet-settings leak into ensembles, fixed (Atlas 5b58f30), released maps unaffected by construction (separate worker pools per learner; surviving shard logs; a1 = release on 507/507); the variogram block depends on the family (35 of the 1,144 hindcast taxa fitted on r7a; up to 240 km); arm b (r7a) done 2026-10-21: 502/507 identical, 505/507 same grade (one failed → weak, one weak → strong), the 5 that differ all full models at 20–49 sites among E6b's 35 block-flip taxa; weighted to the release: identical 98.45%, grade changes 0.43% [0.00%, 1.24%], κ 0.9895; ESM 0%, full models 4.67% (3f86472); the block-only step (r7i 282/282 blocks as the release; r7a 277/282) puts all 5 differences, and both grade changes, on a changed block. Plan: `docs/experiments/2026-10-13-plan-e12-grade-stability.md`. Reproducibility and GRADE STABILITY: step 0, read-only scores of the 576 refreshed models vs release; gated on a same-machine test of the two taxa; then full graded refits of ~600–900 stratified models on r7i twice (second with a different shard split and order), on r7a once, plus the release itself, measuring grade agreement (κ), setting flips, |Δ| AUC/Boyce/p/strength and map tolerance. First evidence: 3 of 576 strong Maxent models changed setting on refit, 2 with every candidate's CV score moving; mechanism unknown. Gate: per-model machine records (feat/result-machine); Zenodo DOIs for layers, models, code | C4 | Machinery yes (fingerprints, pinned image, content-addressed store, refit tolerance checks, shard records name instance/CPU/BLAS); demo no; layers deposit held | Fresh workers; stratified sample; both families | cost from R_main's recorded seconds × 3 (step 0; first guess 30–60 CPU-h likely low) | **P1, raised**: a grade that changes with the machine weakens C4 |
@@ -1150,7 +1157,8 @@ gets Steve's direct go through the operations lane; every run gets a
 | 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, and the nightly and the E19/E20 deposit are stated as they then are | **mid-December 2026** (Steve, 2026-10-25) |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
-| 7 | **E9** sequence vs record names | the same private-job code (`--record-names`); comparison code (experiments lane); Steve's go | November 2026 |
+| 7 | **E9** sequence vs record names, **redesigned as a paired hindcast** (Steve, 2026-10-25; `atlas-handoff/e9-redesign-assessment.md`): both labellings in one job, scored on E2's later finds | plan-e9 amendment committed before any fit; planner and paired-scorer code (method lane, ~1.5–2 days, Steve's review); Steve's go; ~$20–30 spot (≤ $45–55 on-demand) | November 2026 |
+| 7b | **E2 re-score** (Steve, 2026-10-25): the registered secondary set (records also observed after the cutoff); within site bands and a per-taxon z table, exploratory (the z table feeds Open decision 9) | method lane; < $1 | November 2026 |
 | 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
 | 9 | **E12** reproducibility rerun (**running**: a1 and a2 = release 507/507, glmnet leak fixed 5b58f30, arm b on r7a done, 505/507 same grade; block-only step next, Steve's go); E16 descriptives; E17 ODMAP | the frozen release; per-model machine records (feat/result-machine c099bc7, awaiting Steve's review; best merged before the hindcast so every paper job records which processor fitted each model) | December 2026 |
 | 10 | Q1 arms (E21, E22) | Vision side, after E2 | November 2026 |
@@ -1231,6 +1239,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.19.1 (2026-10-25).** C3 off hold: E9 redesigned as a paired hindcast (Steve); E2 re-score approved; Path 7, 7b, 3.6.
 - **0.19.0 (2026-10-25).** After the independent review (Steve's
   decisions): timeline re-planned (inquiry mid-December, internal draft
   January, submission late February with E3); C2 "modestly", mean rank and
