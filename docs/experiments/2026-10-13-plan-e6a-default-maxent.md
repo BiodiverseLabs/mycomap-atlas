@@ -64,6 +64,37 @@ Logged as the operations lane reports them; numbers only.
   - Command: E2's final study-score arguments with
     `--defaults-from=study-20261025T164211Z-4ffa4776` (Atlas
     feat/score-defaults-from 828ac6f).
+  - **Result (2026-10-25).** Ran 21:19:25 to 22:11:46 UTC on r7i.xlarge
+    (Intel Xeon Platinum 8488C), on-demand, about 0.87 instance-h, about
+    USD 0.23.
+    - E2's registered H2a–c came out exactly as in E2's own run (0.9145,
+      0.1305, 0.7854), so the scorer did not change.
+    - **Default practice's own test:** 1,002 of the 1,014 taxa with later
+      finds passed it (12 failed).
+    - **On later finds** (top half / top tenth / mean rank / beats effort
+      / Boyce), counted per ranked place:
+
+      | Maps | Taxa | Places | Top half | Top tenth | Mean rank | Beats effort | Boyce |
+      |---|---|---|---|---|---|---|---|
+      | Default practice, passed | 1,002 | 3,587 | 0.964 | 0.746 | 0.909 | 0.679 | 0.989 |
+      | Atlas strong, same taxa | 117 | 347 | 0.920 | 0.497 | 0.821 | 0.777 | 0.903 |
+      | Atlas weak, same taxa | 990 | 3,544 | 0.875 | 0.469 | 0.795 | 0.714 | 0.999 |
+      | Atlas failed, same taxa | 164 | 471 | 0.838 | 0.424 | 0.764 | 0.683 | 0.986 |
+
+    - **New places only:**
+
+      | Maps | Top half | Beats effort |
+      |---|---|---|
+      | Default practice, passed | 0.951 | 0.603 |
+      | Atlas strong | 0.886 | 0.724 |
+      | Atlas weak | 0.843 | 0.667 |
+      | Atlas failed | 0.795 | 0.621 |
+
+    - The 12 failed default maps have 28 ranked places, too few for
+      shares.
+    - The full numbers, by split, are in the results file
+      (study/study-20261025T211731Z-017e88fa/). Their reading is the
+      paper's.
 
 ## Deviations
 
