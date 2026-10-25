@@ -184,6 +184,20 @@ Logged as the operations lane reports them; numbers only.
   release's. Steve confirmed it directly with the operations lane. Only
   statuses, errors, fill and timings are read from it (Deviations,
   2026-10-25).
+  - **Result (2026-10-25), statuses and timings only.**
+    - Machine: r7i.8xlarge spot (Intel Xeon Platinum 8488C), 15:42:06 to
+      17:07:21 UTC, 1.42 instance-h, at most USD 3.0.
+    - Rows: 39 species in 39 distinct cells, all scored, 0 failed, 0
+      unfilled. The 30 full-model species each have 5 arms (maxnet:none,
+      rf and the 3 effort arms); the 9 ensemble species each have 1 (esm).
+    - Species seconds by kind: full habitat mean 1,337 (20 species, the
+      slowest 4,949 at 200+ sites); full geography mean 489 (10);
+      ensemble habitat mean 71 (6); ensemble geography mean 88 (3).
+    - Scaled to the registered counts, the full run is about 573 CPU-h.
+      That is about 22 instance-h of r7i.8xlarge at 30 workers, or up to
+      about 40 with shard tails, so at most about USD 85 at the on-demand
+      price.
+    - No verdict, pass rate or rho was read.
 
 ## Deviations
 
