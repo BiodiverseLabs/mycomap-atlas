@@ -666,6 +666,14 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       invisible(0L)
     },
     "plan-job" = {
+      # Paper E9: both labellings of the hindcast's changed taxa (R/e9pair.R).
+      if (isTRUE(flags$e9_pair)) {
+        if (is.null(flags$from_release)) stop("plan-job --e9-pair needs --from-release=<hindcast priv-ID>", call. = FALSE)
+        atlas_plan_e9_pair(atlas_flag_store(flags), hindcast = as.character(flags$from_release),
+                           grid = atlas_flag_grid(flags), shards = as.integer(atlas_flag_number(flags, "shards", 4)),
+                           dry_run = isTRUE(flags$dry_run))
+        return(invisible(0L))
+      }
       refit <- !is.null(flags$taxa) || !is.null(flags$leave_out)
       if (refit && !isTRUE(flags$hindcast)) {
         stop("--taxa and --leave-out refit a hindcast's models: they need --hindcast", call. = FALSE)
