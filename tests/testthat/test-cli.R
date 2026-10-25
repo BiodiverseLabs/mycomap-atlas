@@ -19,7 +19,7 @@ test_that("no flags gives an empty list", {
 test_that("a flag is read by its exact name, never by a prefix of a longer one", {
   # Every pair of flag names where one begins the other.
   pairs <- list(c("kernels", "kernels-from"), c("algorithm", "algorithms"), c("only", "only-missing"),
-                c("pool", "pool-from"), c("record", "record-names"))
+                c("pool", "pool-from"), c("record", "record-names"), c("defaults", "defaults-from"))
   for (pair in pairs) {
     short <- gsub("-", "_", pair[[1]])
     long <- gsub("-", "_", pair[[2]])
@@ -49,4 +49,13 @@ test_that("study-score takes --kernels-from alone through the command line, as a
   atlas_main(score_argv("--kernels=a.json,b.json"))
   expect_equal(got$kernels, c("a.json", "b.json"))
   expect_null(got$kernels_from)
+})
+
+test_that("study-score takes --defaults-from through the command line, as a study job runs it", {
+  got <- NULL
+  local_mocked_bindings(atlas_score_study = function(...) { got <<- list(...); invisible(list()) },
+                        atlas_flag_store = function(flags) NULL)
+  atlas_main(score_argv("--defaults-from=study-e6a"))
+  expect_null(got$defaults)
+  expect_equal(got$defaults_from, "study-e6a")
 })
