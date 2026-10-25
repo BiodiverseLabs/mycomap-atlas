@@ -627,8 +627,8 @@ plus E12.*
 
 ### 4.1 Data records (E12, E19)
 
-[PENDING: one table of every deposited file of the frozen release, with
-Zenodo DOI, format, size and licence:]
+Every deposited file, with its size, contents and licence, is listed in
+Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
 
 - **Layers series** (Zenodo): the predictor rasters on the grid, with their
   sources. CC BY-SA 4.0 (WorldClim is share-alike). **Published:**
