@@ -599,17 +599,21 @@ with later finds (99%). On those finds it placed 96.4% of ranked places in
 its top half, more than Atlas's strong maps of the same taxa (92.0%; 117
 taxa), but outranked the cells of other taxa's later finds less often
 (beats effort 0.679 against 0.777), and at new places less often than even
-Atlas's failed maps (0.603 against 0.621). A model fitted against a random
-background learns where people collect, and later finds are collected
-there too: a rank against the map's own cells rewards that, a rank against
-other taxa's finds does not. Two cautions: the default maps are ranked over
-the whole accessible area while Atlas's are ranked within their area of
-applicability, so their top-half shares are not on the same footing; and
-these are per-place shares over different taxon sets (1,002 and 117 taxa).
+Atlas's failed maps (0.603 against 0.621). This fits what a random
+background does: the model learns where people collect, and later finds
+are collected there too, which a rank against the map's own cells rewards
+and a rank against other taxa's finds does not. But neither contrast is
+like-for-like yet. The default maps are ranked over the whole accessible
+area, and Atlas's only inside their area of applicability, so both the
+top-half share and beats-effort (which compares a find with the same map's
+ranks of other taxa's finds) are computed over different cells and place
+sets; and these are per-place shares over different taxon sets (1,002 and
+117 taxa).
 [PENDING (exploratory, requested of the method lane): the paired
 difference, default minus Atlas, on the same taxa and places, with a
-bootstrap interval over taxa, and the default maps ranked over Atlas's
-cells; default practice's own cross-validated AUC beside its later-find
+bootstrap interval over taxa, computed with the default maps re-ranked
+over each Atlas model's area-of-applicability cells, as for the distance
+kernel; default practice's own cross-validated AUC beside its later-find
 scores.] → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
