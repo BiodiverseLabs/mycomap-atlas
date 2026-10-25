@@ -116,8 +116,14 @@ revise the paper plan and let's continue".)
    record-name side reusing its DNA pair's block; both scored on E2's later
    finds, the primary truth being each find's DNA name; primary estimate the
    paired DNA − record-name difference in top-half share, with a bootstrap
-   interval over taxa. If the record-name maps do as well, C3 narrows to
-   coverage: the taxa only DNA can name. PENDING E16 for the unnamed share.]
+   interval over taxa. H9 (two-sided, registered in plan-e9 before any
+   fit, 9cb179b and 43de9a5): the interval excludes 0; above 0, DNA labels
+   give maps that rank later finds better; including 0, no detectable
+   difference and C3 narrows to coverage (the taxa only DNA can name);
+   below 0, record names do better. Because the truth is the find's DNA
+   name, the comparison favours the DNA side where names disagree; each
+   side scored on its own labelling is a pre-specified secondary estimate,
+   reported beside it. PENDING E16 for the unnamed share.]
    A comparison with morphology-named records (GBIF, E6c, P2) is not part of
    this claim; if it runs, it is a Discussion point.
 4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
