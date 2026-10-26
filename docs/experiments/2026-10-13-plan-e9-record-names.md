@@ -42,6 +42,16 @@ Logged as the operations lane reports them; numbers only.
   - About 144 CPU-h, from the hindcast's own timings: at most about USD 10
     at the on-demand price.
   - The fits have Steve's go, confirmed with the operations lane at launch.
+- **Fits (launched 2026-10-26 02:12 UTC).** `plan-job --e9-pair
+  --from-release=priv-20261018T171648Z-9e3ab153 --shards=4` on image bf236cf
+  (Atlas main, with the EC2 5xx retry fix).
+  - DNA side: priv-20261026T021038Z-3ba43cf6. Record side:
+    priv-20261026T021038Z-9c0ba509.
+  - Both orchestrators started together on the same image, with the r7i
+    pin (r7i.8xlarge, r7i.4xlarge) and MAX_HOURS 8.
+  - Each finishes privately on one worker. They queue behind E1's full run
+    on the vCPU quota.
+  - Steve confirmed the launch directly with the operations lane.
 ## Deviations
 
 - **2026-10-25, before launch (reading only; the design is unchanged): the
