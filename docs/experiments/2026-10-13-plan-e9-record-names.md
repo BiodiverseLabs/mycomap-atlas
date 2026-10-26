@@ -25,6 +25,23 @@ and Schoener's D against the frozen release; grade under each labelling;
 records gained and lost. Overall: records whose label differs (species,
 genus) by source; taxa split, merged, gained and lost.
 
+## Runs
+
+Logged as the operations lane reports them; numbers only.
+
+- **Dry run (2026-10-26, read-only, nothing written).**
+  `plan-job --e9-pair --from-release=priv-20261018T171648Z-9e3ab153 --dry-run`
+  on image bb6c799 (Atlas main with feat/e9-paired-hindcast and
+  feat/e9-paired-score).
+  - Records: 124,955 in the hindcast's pull, and 124,783 under their record
+    names (172 not at species level).
+  - Taxa: 978 paired, 129 only under DNA names, 110 only under record names.
+  - Models: 1,904 on each side; 7,211 unchanged and not fitted.
+  - 1,165 record-name models carry their DNA pair's measured block. The rest
+    are mostly ensembles, which fit on a fixed 100 km block.
+  - About 144 CPU-h, from the hindcast's own timings: at most about USD 10
+    at the on-demand price.
+  - The fits have Steve's go, confirmed with the operations lane at launch.
 ## Deviations
 
 - **2026-10-25, before launch (reading only; the design is unchanged): the
