@@ -88,9 +88,35 @@ indicative 0.8362 / 0.6662; moderate-z 0.8636 / 0.7228.
 0.9218, top tenth 0.5185, beats effort 0.7868, Boyce 0.981; new places
 0.8892 / 0.7392; known places 0.9934 / 0.8915 (top half / beats effort).
 
-[PENDING: the E2 re-score, as a registry entry: the registered secondary
-set (records also observed after the cutoff), and H2a–H2c within site
-bands (exploratory).]
+**Re-scores, 2026-10-26** (`2026-10-13-prereg-e2-hindcast.md`, Results,
+"Re-scores of 2026-10-26"). Rerunning all finds gave H2a–H2c exactly as
+above.
+
+*The registered secondary set: finds also observed after the cutoff.* Of
+the later finds, 7,913 were observed before the cutoff, leaving 337 places
+of 285 taxa. Strong maps have 18 ranked places, below the 30-place
+minimum, so H2a–H2c are untested on this set (not failed). Weak maps: 218
+taxa, 242 places, top half 0.894, beats effort 0.657 (new places 0.897 /
+0.653). Failed maps: 52 taxa, 49 places, 0.796 / 0.647. H2d 0.8952
+(0.8261–0.9519), H2e 0.6861 (0.6197–0.7496), H2f 0.8938 (0.8540–0.9283):
+all hold.
+
+*Exploratory: H2a–H2c within the models' site bands* (all finds):
+
+| Site band | Taxa | Places | H2a strong top half | H2b strong − failed | H2c strong beats effort |
+|---|---|---|---|---|---|
+| 3–4 | 322 | 323 | too few places | too few places | too few places |
+| 5–19 | 1,231 | 1,799 | 0.890 (0.833–0.941) | 0.179 (0.096–0.259) | 0.816 (0.784–0.845) |
+| 20–49 | 723 | 1,947 | 0.922 (0.885–0.955) | 0.090 (0.038–0.142) | 0.778 (0.749–0.805) |
+| 50–99 | 246 | 1,305 | 0.914 (0.833–1.000) | 0.034 (−0.070–0.156) | 0.774 (0.677–0.825) |
+| 100+ | 45 | 363 | too few places | too few places | too few places |
+
+*Exploratory: each model's null-test z against its later finds* (4,367
+models with both; computed from the per-model table, no interval).
+Spearman correlation of z with later-find mean rank 0.142, with top-half
+share 0.124. Median mean rank by quarter of z: below −0.65, 0.805; −0.65 to
+0.23, 0.810; 0.23 to 0.86, 0.819; 0.86 and up, 0.878. The median top-half
+share is 1.0 in every quarter, because most models have few later finds.
 
 ## S6.4 Against distance to known records (E6b)
 

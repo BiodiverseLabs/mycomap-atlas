@@ -103,10 +103,12 @@ revise the paper plan and let's continue".)
    from a training site) the gain's interval reaches zero. The gain appears
    to come from finds more than 100 km away (descriptive, no interval);
    near known records distance alone does as well. Weak maps, and both
-   looser tiers within them, do no better than distance. [E2, E6b done;
-   PENDING: the E2 re-score (records also observed after the cutoff, the
-   registered secondary set; H2a–H2c within site bands, exploratory) and
-   prospective E3]
+   looser tiers within them, do no better than distance. Within taxa of
+   like size the strong-over-failed ordering holds at 5–49 sites
+   (exploratory). [E2, E6b and the E2 re-scores done. Most later finds
+   were collected before the cutoff and validated later; the registered
+   set of finds both collected and validated after it is too small to test
+   strong maps (18 ranked places), so the prospective test is E3, PENDING.]
 3. **C3. On finds the models never saw, maps of DNA-labelled taxa rank
    later finds [X, 95% interval] better or worse than maps of the same
    taxa labelled by the record's own name; and about half the modellable
@@ -568,6 +570,19 @@ found to have been validated after the cutoff were kept out of the test
 finds (none was among them), and the one affected small-site model was
 refitted without its record before scoring (Appendix S1: Section S6).
 
+*Re-scores (2026-10-26).* Most later finds were collections made long
+before they were validated: 7,913 of them were observed before the cutoff.
+The registered secondary set, finds both collected and validated after it,
+holds 337 places of 285 taxa, and strong maps rank only 18 of them, below
+the 30-place minimum, so H2a–H2c are untested on it (not failed); weak maps
+placed 0.894 of their places in the top half and failed maps 0.796, and the
+three tier hypotheses hold there too. Within taxa of like size
+(exploratory), strong maps ranked later finds above failed maps at 5–19
+sites (+0.179, 0.096–0.259) and 20–49 sites (+0.090, 0.038–0.142); at
+50–99 the interval includes 0, and the smallest and largest bands have too
+few places. So the ordering is not an artefact of strong and failed maps
+belonging to taxa of different sizes, at least where most taxa are.
+
 *Prospective test (E3, registered).* [PENDING read-out about 2026-12-16:
 finds first validated 2026-10-14 to 2026-12-15 on the published maps, by
 grade and against the distance map.] Under the
@@ -865,7 +880,11 @@ inventories, so Alaska, Hawaii, Puerto Rico and Mexico have climate and
 soil but no trees; the climate is a 1970–2000 average; provisional names can
 be re-clustered. The hindcast reads today's validation state, names and
 coordinates for pre-cutoff records, and the design was chosen on data that
-include later records [PENDING: the rebuild lane's list]. Seventy-six
+include later records [PENDING: the rebuild lane's list]. Most of the hindcast's
+later finds were collected before the cutoff and validated afterwards, so
+the hindcast mostly tests the maps on a validation backlog; too few finds
+were both collected and validated after the cutoff to test strong maps on
+them, which is what the prospective test (E3) is for. Seventy-six
 erroneous records were removed by an exclusion list rather than a new pull,
 which would have moved the validation cutoff, so other models' backgrounds
 still include their sites (under 0.06% of records); and the frozen pull's
@@ -1255,8 +1274,13 @@ revised (Path).
 9. **Title (Steve: DEFERRED until E1's results, 2026-10-25).** If E1 shows
    the false-pass rate under control for both Maxent and random forest,
    option (c) is well supported; if random forest or the 100+ band fails,
-   option (a) is the honest title. The method lane prepares the z-vs-later-
-   find-rank data from E2 meanwhile, so (b) and (c) stay open. The review notes that "calibrated trust
+   option (a) is the honest title. The z data are in (E2 re-scores,
+   exploratory, 2026-10-26): over 4,367 models, z correlates only weakly
+   with later-find mean rank (Spearman 0.142), and the median mean rank
+   rises mostly in the top quarter of z (0.805, 0.810, 0.819, 0.878). So a
+   continuous score adds little beyond the grade, which weighs against
+   option (b) as the title's justification; a figure of it would need
+   bootstrap intervals over taxa (a small addition). The review notes that "calibrated trust
    grade" invites "where is the calibration?": the null test's error rates
    are calibrated on simulated species, but the grade is three bins.
    Options: (a) "…with a null-tested trust grade for thousands of
@@ -1269,6 +1293,10 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.19.3 (2026-10-26).** E2 re-scores: observed-after set too small for
+  strong maps (untested); within-band ordering holds at 5–49 sites
+  (exploratory); z weakly related to later finds (Open decision 9); backlog
+  limitation.
 - **0.19.2 (2026-10-26).** Results 3.5: E6a (default practice passes its own test for 99%; higher top-half share, lower beats-effort than strong maps; cautions; paired comparison requested).
 - **0.19.1 (2026-10-25).** C3 off hold: E9 redesigned as a paired hindcast (Steve); E2 re-score approved; Path 7, 7b, 3.6.
 - **0.19.0 (2026-10-25).** After the independent review (Steve's
