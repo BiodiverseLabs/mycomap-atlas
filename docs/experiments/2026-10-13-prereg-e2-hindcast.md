@@ -342,3 +342,67 @@ indicative 0.8362 / 0.6662; moderate-z 0.8636 / 0.7228.
 **Combined maps**, all places: 523 rows, 214 taxa, 486 places, top half
 0.9218, top tenth 0.5185, beats effort 0.7868, Boyce 0.981; new places
 0.8892 / 0.7392; known places 0.9934 / 0.8915.
+
+### Re-scores of 2026-10-26 (the independent review; Steve approved)
+
+Two 1-shard study-score jobs, on image bb6c799 (Atlas main with
+feat/e2-exploratory-splits af2d978), each on 1 × r7i.xlarge on-demand
+(Intel Xeon Platinum 8488C). Both used E2's final arguments: the hindcast,
+`--refits=priv-20261019T042158Z-09936f85` and the four exclusions with
+`--allow-missing-excludes`. Nothing in the registered analysis changed.
+
+**All finds, again** (study-20261026T004856Z-35fc3d63; 00:50 to 01:43 UTC,
+about USD 0.23). H2a 0.9145, H2b 0.1305 and H2c 0.7854 came out exactly as
+in the registered run, so the scorer did not change.
+
+**The registered secondary set: finds also observed after the cutoff**
+(study-20261026T004853Z-bb7457e9, `--observed-after`; 00:50 to 01:00 UTC,
+about USD 0.04). Read as registered.
+- Of the later finds, 7,913 were kept apart as observed before the
+  cutoff. That left 337 places of 285 taxa.
+- **Strong maps have 18 ranked places, below the 30-place minimum, so H2a–c
+  are untested on this set.** They are not failed, and C2 is not decided
+  on it. Collections both made and validated after 2026-08-17 are too few
+  for strong maps.
+- What the set does give (top half / beats effort):
+  - weak maps: 218 taxa, 242 places, 0.894 / 0.657 (new places 0.897 /
+    0.653);
+  - failed maps: 52 taxa, 49 places, 0.796 / 0.647.
+- The tier hypotheses: H2d 0.8952 [0.8261, 0.9519], H2e 0.6861 [0.6197,
+  0.7496], H2f 0.8938 [0.8540, 0.9283]. All hold.
+
+**Exploratory, not registered: H2a–c within the models' site bands** (all
+finds; the same bootstrap):
+
+| Site band | Taxa | Places | H2a strong top half | H2b strong − failed | H2c strong beats effort |
+|---|---|---|---|---|---|
+| 3–4 | 322 | 323 | too few places | too few places | too few places |
+| 5–19 | 1,231 | 1,799 | 0.890 [0.833, 0.941] | 0.179 [0.096, 0.259] | 0.816 [0.784, 0.845] |
+| 20–49 | 723 | 1,947 | 0.922 [0.885, 0.955] | 0.090 [0.038, 0.142] | 0.778 [0.749, 0.805] |
+| 50–99 | 246 | 1,305 | 0.914 [0.833, 1.000] | 0.034 [−0.070, 0.156] | 0.774 [0.677, 0.825] |
+| 100+ | 45 | 363 | too few places | too few places | too few places |
+
+- Strong ranks later finds above failed within taxa of like size at 5–19
+  and 20–49 sites. At 50–99 the interval includes 0.
+- Every model had a site count, so none was left out.
+
+**Exploratory, not registered: each model's null-test z against its later
+finds** (all finds). The results file holds one row per model (taxon,
+learner, grade, tier, sites, z, places, mean rank, top-half share): 4,591
+models, 4,367 with both z and ranked finds.
+- The figures below are computed from that table, not by the scorer, and
+  have no interval.
+- Spearman correlation of z with the model's later-find mean rank: 0.142;
+  with its top-half share: 0.124.
+- By quarter of z, the median later-find mean rank is:
+
+  | Quarter of z | z range | Median mean rank |
+  |---|---|---|
+  | lowest | below −0.65 | 0.805 |
+  | second | −0.65 to 0.23 | 0.810 |
+  | third | 0.23 to 0.86 | 0.819 |
+  | highest | 0.86 and up | 0.878 |
+
+  The median top-half share is 1.0 in every quarter: most models rank all
+  their few later finds in their top half.
+- This is the data for Open decision 9's continuous-trust figure.
