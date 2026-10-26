@@ -111,7 +111,7 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
     describe_instances = function(Filters, NextToken = NULL) {
       if (state$describe_fails > 0L) {
         state$describe_fails <- state$describe_fails - 1L
-        stop("RequestExpired: the fake is having a bad day", call. = FALSE)
+        stop(state$describe_message %||% "RequestExpired: the fake is having a bad day", call. = FALSE)
       }
       advance()
       job <- Filters[[1]]$Values[[1]]
@@ -352,6 +352,48 @@ test_that("an orchestrator failure mid-job terminates every worker it launched",
   expect_error(run_on(setup, ec2), "bad day")
   expect_length(ec2$state$requests, 2L)
   expect_length(still_running(ec2), 0L)
+})
+
+test_that("EC2 failing on its own side (HTTP 500) while listing workers is asked again, and the job goes on", {
+  skip_if_not_installed("terra")
+  setup <- planned()
+  ec2 <- fake_ec2(setup$store)
+  ec2$state$describe_fails <- 2L
+  ec2$state$describe_message <- "InternalError (HTTP 500). An internal error has occurred"
+  release <- run_on(setup, ec2)
+  expect_false(is.null(release))
+  expect_identical(atlas_current_release(setup$store)$id, release$id)
+  # Each shard was launched once: the failure lost no worker.
+  shards <- vapply(ec2$state$requests, function(r) {
+    tags <- tag_values(r$TagSpecifications[[1]]$Tags)
+    if (identical(tags[["atlas-job"]], setup$job$id)) tags[["atlas-shard"]] else NA_character_
+  }, "")
+  expect_equal(sort(stats::na.omit(shards)), c("1", "2"), ignore_attr = TRUE)
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("a launch EC2 fails with a 500 is tried again at the next poll", {
+  skip_if_not_installed("terra")
+  setup <- planned(shards = 1L)
+  ec2 <- fake_ec2(setup$store, refuse = function(request, call) {
+    if (call == 1L) "InternalError (HTTP 500). An internal error has occurred" else NULL
+  })
+  time <- fake_clock()
+  release <- run_on(setup, ec2, time = time)
+  expect_false(is.null(release))
+  expect_gt(ec2$state$calls, 1L)
+})
+
+test_that("EC2 not answering for many polls in a row stops the job, and every worker is terminated", {
+  skip_if_not_installed("terra")
+  setup <- planned()
+  ec2 <- fake_ec2(setup$store, script = function(shard, attempt) "hang")
+  ec2$state$describe_fails <- ATLAS_EC2_MAX_UNANSWERED + 1L
+  ec2$state$describe_message <- "ServiceUnavailable (HTTP 503)"
+  expect_error(run_on(setup, ec2), "did not answer for")
+  # Terminating at exit still lists the workers, once EC2 answers again.
+  ec2$state$describe_fails <- 0L
+  expect_length(ec2$state$requests, 2L)
 })
 
 test_that("a worker EC2 no longer lists counts as gone, and is replaced", {

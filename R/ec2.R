@@ -57,9 +57,18 @@ ATLAS_EC2_CAPACITY_ERRORS <- c(
   "SpotMaxPriceTooLow", "Unsupported", "InsufficientFreeAddressesInSubnet"
 )
 
+# EC2's own failures (HTTP 5xx): its side, not ours, and gone a moment later.
+# One of them stopped E1's first full run on 2026-10-25 and took its four
+# running workers with it.
+ATLAS_EC2_TRANSIENT_ERRORS <- c("InternalError", "InternalFailure", "ServiceUnavailable", "Unavailable")
+
 # Errors that mean "not now": retry at the next poll rather than fail the job.
 ATLAS_EC2_RETRY_ERRORS <- c(ATLAS_EC2_CAPACITY_ERRORS, "MaxSpotInstanceCountExceeded",
-                            "VcpuLimitExceeded", "RequestLimitExceeded")
+                            "VcpuLimitExceeded", "RequestLimitExceeded", ATLAS_EC2_TRANSIENT_ERRORS)
+
+# Polls in a row EC2 may fail to answer before the job is stopped: an outage
+# that long is not a hiccup.
+ATLAS_EC2_MAX_UNANSWERED <- 30L
 
 #' A comma-separated setting as a character vector.
 atlas_split_setting <- function(value) {
@@ -260,6 +269,17 @@ atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
   NULL
 }
 
+#' The job's workers, or, when EC2 fails on its own side (an HTTP 5xx), the
+#' error code with no workers: the caller asks again at its next poll. Any
+#' other error stops.
+atlas_job_instances_unless_down <- function(ec2, job_id) {
+  answer <- tryCatch(atlas_job_instances(ec2, job_id), error = function(e) e)
+  if (!inherits(answer, "error")) return(list(instances = answer))
+  code <- atlas_ec2_error_code(answer, ATLAS_EC2_TRANSIENT_ERRORS)
+  if (is.na(code)) stop(answer)
+  list(instances = NULL, down = code)
+}
+
 #' The workers EC2 knows about for a job: instance, shard, state.
 atlas_job_instances <- function(ec2, job_id) {
   rows <- list()
@@ -362,6 +382,7 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
 
   latest <- list()
   seen <- character()
+  unanswered <- 0L
   attempts <- integer(job$shards)
   # Workers lost in a row without saving anything. A spot worker taken back
   # after saving part of its shard has moved the job on, and its replacement
@@ -385,8 +406,18 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     say("shard ", shard, ": launched ", id,
         if (attempts[[shard]] > 1L) paste0(" (attempt ", attempts[[shard]], ")") else "")
   }
+  # EC2 listing the job's workers, asked again (up to tries times) while it
+  # fails on its own side; any other error stops.
+  listed <- function(tries = 3L) {
+    for (i in seq_len(tries)) {
+      answer <- atlas_job_instances_unless_down(ec2, job$id)
+      if (!is.null(answer$instances)) return(answer$instances)
+      if (i == tries) stop("EC2 did not answer (", answer$down, ") to list job ", job$id, "'s workers", call. = FALSE)
+      wait(poll_seconds)
+    }
+  }
   terminate_all <- function() {
-    running <- atlas_job_instances(ec2, job$id)
+    running <- listed()
     running <- running$instance[!running$state %in% ATLAS_EC2_GONE]
     if (length(running)) ec2$terminate_instances(InstanceIds = as.list(running))
     invisible(running)
@@ -443,7 +474,20 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
            },
            call. = FALSE)
     }
-    instances <- atlas_job_instances(ec2, job$id)
+    answer <- atlas_job_instances_unless_down(ec2, job$id)
+    instances <- answer$instances
+    if (is.null(instances)) {
+      code <- answer$down
+      unanswered <- unanswered + 1L
+      if (unanswered > ATLAS_EC2_MAX_UNANSWERED) {
+        stop("EC2 did not answer for ", unanswered, " polls in a row (", code, "); job ", job$id, " stopped",
+             call. = FALSE)
+      }
+      say("EC2 did not answer (", code, "); asking again at the next poll")
+      wait(poll_seconds)
+      next
+    }
+    unanswered <- 0L
     seen <- union(seen, instances$instance)
     for (shard in missing) {
       id <- latest[[as.character(shard)]]
