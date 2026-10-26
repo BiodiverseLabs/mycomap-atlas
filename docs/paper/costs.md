@@ -72,7 +72,12 @@ the orchestrator, S3 and boot time before a worker writes its start.
 | 2026-10-21 | E3 kernels, patch 1 spot attempt (no result) | study-20261021T142054Z-a972d74e | r7i.4xlarge × 4 attempts, spot | 0 kept | — | 14:27–17:10 UTC in 4 attempts; 0.68 instance-h (launch to reclaim, incl. boot) | ≤ 0.72 | — | reclaimed 4 times |
 | 2026-10-21 | E3 kernels, patch 1 rerun | study-20261021T185333Z-a972d74e | 1 × r7i.4xlarge, on-demand | 681 scored, 9 mismatch | — | 18:55–19:10 UTC; 0.25 instance-h | ≈ 0.27 | — | rebuilt from R_main's pull |
 | 2026-10-25 | E3 kernels, patch 2 | study-20261025T145556Z-26f877fe | 1 × r7a.xlarge, spot | 9 scored | — | 14:57–15:00 UTC; 0.04 instance-h | ≤ 0.01 | — | completes 6,369 / 6,369 |
-| — | E1c, E1, E9, E6a, E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
+| 2026-10-25 | E6a default-practice fits | study-20261025T164211Z-4ffa4776 | 8 × r7i.8xlarge, spot (reclaims) | 1,260 taxa | ≈ 324 (code's estimate) | 16:42–20:35 UTC | [PENDING ops] | — | shards 1–3 three attempts, shard 4 two |
+| 2026-10-25 | E6a scoring | study-20261025T211731Z-017e88fa | 1 × r7i.xlarge, on-demand | — | — | 21:19–22:11 UTC; 0.87 instance-h | ≈ 0.23 | — | |
+| 2026-10-26 | E2 re-score, all finds | study-20261026T004856Z-35fc3d63 | 1 × r7i.xlarge, on-demand | — | — | 00:50–01:43 UTC | ≈ 0.23 | — | |
+| 2026-10-26 | E2 re-score, observed after the cutoff | study-20261026T004853Z-bb7457e9 | 1 × r7i.xlarge, on-demand | — | — | 00:50–01:00 UTC | ≈ 0.04 | — | |
+| 2026-10-26 | E6a paired re-score | study-20261026T020304Z-017e88fa | 1 × r7i.xlarge, on-demand | — | — | 02:05–03:20 UTC | ≈ 0.33 | — | |
+| — | E1c, E1, E9, E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
 
