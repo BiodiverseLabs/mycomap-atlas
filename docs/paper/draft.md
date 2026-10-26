@@ -624,8 +624,8 @@ than strong maps (beats effort −0.060, −0.087 to −0.034) and weak maps
 −0.034 to 0.010). A model fitted against a random background learns where
 people collect, and later finds are collected there too: a rank on the
 map's own cells rewards that, and a comparison with other taxa's finds in
-the same period removes it. By that measure, default practice's maps are
-no better than Atlas's failed ones, while its own test passes almost all
+the same period removes it. By that measure, default practice's maps do
+no differently from Atlas's failed ones, while its own test passes almost all
 of them. → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
