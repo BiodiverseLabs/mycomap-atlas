@@ -63,6 +63,82 @@ atlas_score_model_maps <- function(view, taxon) {
   out
 }
 
+#' A taxon's default-practice map ranked again on each Atlas model's cells
+#' (its area of applicability), as E6b's kernel is, under the model's grade
+#' and name, so each default row pairs with its model row on the same places
+#' and the same comparison places for beats-effort. NULL when the taxon has no
+#' default map. Exploratory (the independent review; Steve, 2026-10-25).
+atlas_score_default_paired_maps <- function(model_maps, default_path) {
+  if (is.null(default_path) || !file.exists(default_path)) return(NULL)
+  default <- terra::rast(default_path)
+  models <- Filter(function(m) identical(m$kind, "model"), model_maps %||% list())
+  if (!length(models)) return(NULL)
+  lapply(models, function(m) {
+    list(layers = atlas_distance_paired_layers(default, m$layers), grade = m$grade, tier = m$tier,
+         moderate_z = m$moderate_z, learner = m$learner, kind = "model")
+  })
+}
+
+#' Exploratory: default practice minus the Atlas model of the same taxon, on
+#' the same places and ranked over the same cells, for the models of a grade:
+#' the top-half share, beats-effort and mean rank, each with a 95% interval
+#' from resampling taxa (both arms of a taxon drawn together).
+atlas_e6a_paired <- function(model_rows, default_rows, grade, reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
+  key <- function(r) paste(r$taxon, r$map, r$place, sep = "\x1f")
+  models <- model_rows[model_rows$kind %in% "model" & model_rows$grade %in% grade, , drop = FALSE]
+  default <- default_rows[match(key(models), key(default_rows)), , drop = FALSE]
+  have <- !is.na(default$taxon)
+  models <- models[have, , drop = FALSE]
+  default <- default[have, , drop = FALSE]
+  both <- atlas_e2_ranked(models) & atlas_e2_ranked(default)
+  models <- models[both, , drop = FALSE]
+  default <- default[both, , drop = FALSE]
+  if (atlas_e2_place_count(models) < ATLAS_E2_MIN_PLACES) {
+    return(list(tested = FALSE, taxa = length(unique(models$taxon))))
+  }
+  columns <- c("taxon", "map", "place", "rank", "class", "beats_effort")
+  paired <- rbind(data.frame(models[, columns], arm = "atlas", stringsAsFactors = FALSE),
+                  data.frame(default[, columns], arm = "default", stringsAsFactors = FALSE))
+  arm <- function(rows, a) rows[rows$arm == a, , drop = FALSE]
+  effort <- function(rows) {
+    e <- rows$beats_effort[is.finite(rows$beats_effort)]
+    if (length(e)) mean(e) else NA_real_
+  }
+  stat <- list(
+    top_half = function(r) atlas_e2_share(arm(r, "default")) - atlas_e2_share(arm(r, "atlas")),
+    beats_effort = function(r) effort(arm(r, "default")) - effort(arm(r, "atlas")),
+    mean_rank = function(r) {
+      d <- arm(r, "default")$rank
+      a <- arm(r, "atlas")$rank
+      if (!length(d)) NA_real_ else mean(d) - mean(a)
+    }
+  )
+  c(list(tested = TRUE, taxa = length(unique(models$taxon)), places = atlas_e2_place_count(models),
+         difference = "default minus Atlas"),
+    lapply(stat, function(f) atlas_e2_bootstrap(paired, f, reps = reps, seed = seed)[c("estimate", "low", "high")]))
+}
+
+#' Exploratory: default practice's own random-CV AUC, its distribution and
+#' its median by how the taxon's default map did on later finds (top-half
+#' share of its ranked places: under 0.5, 0.5 to 0.9, 0.9 and up): what the
+#' workflow says of itself beside how it does (plan-e6a, Outputs).
+atlas_e6a_own_cv <- function(default_rows, cv_auc) {
+  ranked <- default_rows[atlas_e2_ranked(default_rows), , drop = FALSE]
+  taxa <- intersect(unique(ranked$taxon), names(cv_auc))
+  if (!length(taxa)) return(list(taxa = 0L))
+  share <- vapply(taxa, function(t) mean(ranked$rank[ranked$taxon == t] >= 0.5), 0)
+  auc <- unlist(cv_auc[taxa])
+  bin <- cut(share, c(-Inf, 0.5, 0.9, Inf), right = FALSE, labels = c("below 0.5", "0.5 to 0.9", "0.9 and up"))
+  quantiles <- stats::quantile(auc, c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), na.rm = TRUE, names = FALSE)
+  list(taxa = length(taxa),
+       cv_auc = as.list(stats::setNames(round(quantiles, 4), c("min", "p10", "p25", "median", "p75", "p90", "max"))),
+       by_later_finds = lapply(split(seq_along(taxa), bin, drop = TRUE), function(i) {
+         list(taxa = length(i), median_cv_auc = round(stats::median(auc[i], na.rm = TRUE), 4),
+              median_top_half = round(stats::median(share[i]), 4))
+       }),
+       label = "exploratory")
+}
+
 #' A taxon's kernel maps: for each model, the kernel ranked again on that
 #' model's cells, under the model's grade and name (so a kernel row pairs
 #' with its model row); and the kernel over its own reach. NULL when the
@@ -208,7 +284,8 @@ atlas_score_per_model <- function(per_model) {
 #' results file.
 atlas_score_baselines_core <- function(places, model_maps_for, kernel_maps_for = NULL,
                                        default_maps_for = NULL, known_names = NULL,
-                                       reps = ATLAS_E2_BOOTSTRAP, seed = 1L) {
+                                       reps = ATLAS_E2_BOOTSTRAP, seed = 1L,
+                                       default_paired_maps_for = NULL, default_cv = NULL) {
   models <- atlas_e2_score(places, model_maps_for, known_names)
   per_model <- models[models$kind %in% "model", , drop = FALSE]
   out <- list(
@@ -267,6 +344,18 @@ atlas_score_baselines_core <- function(places, model_maps_for, kernel_maps_for =
       # Atlas's own models on the same taxa, for the comparison E6a reports.
       atlas_same_taxa = atlas_score_by_grade(per_model[per_model$taxon %in% taxa, , drop = FALSE])
     )
+    # Exploratory (2026-10-25): the same taxa on the same footing, and what
+    # default practice says of itself.
+    if (is.function(default_paired_maps_for)) {
+      paired <- atlas_e2_score(places, default_paired_maps_for, known_names)
+      paired <- paired[paired$kind %in% "model" & !is.na(paired$map), , drop = FALSE]
+      grades <- intersect(c("strong", "weak", "failed"), unique(per_model$grade))
+      out$default$paired <- c(list(label = "exploratory", ranked_over = "each Atlas model's area of applicability"),
+                              lapply(stats::setNames(grades, grades), function(g) {
+                                atlas_e6a_paired(per_model, paired, g, reps = reps, seed = seed)
+                              }))
+    }
+    if (!is.null(default_cv)) out$default$own_cv <- atlas_e6a_own_cv(default, default_cv)
   }
   out
 }
@@ -489,6 +578,17 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
                                verdicts[[taxon]])
     }
   }
+  default_paired_maps_for <- if (!is.null(default_run)) {
+    function(taxon) {
+      if (is.null(verdicts[[taxon]])) return(NULL)
+      atlas_score_default_paired_maps(model_maps_for(taxon),
+                                      atlas_score_find(default_run$dirs, atlas_default_raster_path, taxon))
+    }
+  }
+  default_cv <- if (!is.null(default_run)) {
+    stats::setNames(lapply(scored, function(r) suppressWarnings(as.numeric(r$cv$auc %||% NA))),
+                    vapply(scored, function(r) r$taxon, ""))
+  }
   result <- c(
     list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
          settings = list(hindcast = hindcast, from_release = from_release, cutoff = cutoff,
@@ -506,7 +606,8 @@ atlas_score_study <- function(store = atlas_store(), hindcast, from_release = NU
                          refits = lapply(refit_views, function(r) list(release = r$id, taxa = as.list(r$taxa)))),
          kept_apart = attr(split$finds, "kept_apart")),
     atlas_score_baselines_core(places, model_maps_for, kernel_maps_for, default_maps_for,
-                               known_names = view$names, reps = as.integer(reps), seed = as.integer(seed)),
+                               known_names = view$names, reps = as.integer(reps), seed = as.integer(seed),
+                               default_paired_maps_for = default_paired_maps_for, default_cv = default_cv),
     if (!is.null(e9)) {
       # The same finds and training records under their record names, for
       # the secondary check (plan-e9, 2026-10-25).
