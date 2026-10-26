@@ -610,26 +610,23 @@ cells in each taxon's accessible area (not the surveyed sites), with random
 cross-validation and the usual null test (training AUC against 19 null
 species drawn uniformly), to the 1,260 hindcast taxa with 20 or more
 sites, default practice passed its own test for 1,002 of the 1,014 taxa
-with later finds (99%). On those finds it placed 96.4% of ranked places in
-its top half, more than Atlas's strong maps of the same taxa (92.0%; 117
-taxa), but outranked the cells of other taxa's later finds less often
-(beats effort 0.679 against 0.777), and at new places less often than even
-Atlas's failed maps (0.603 against 0.621). This fits what a random
-background does: the model learns where people collect, and later finds
-are collected there too, which a rank against the map's own cells rewards
-and a rank against other taxa's finds does not. But neither contrast is
-like-for-like yet. The default maps are ranked over the whole accessible
-area, and Atlas's only inside their area of applicability, so both the
-top-half share and beats-effort (which compares a find with the same map's
-ranks of other taxa's finds) are computed over different cells and place
-sets; and these are per-place shares over different taxon sets (1,002 and
-117 taxa).
-[PENDING (exploratory, requested of the method lane): the paired
-difference, default minus Atlas, on the same taxa and places, with a
-bootstrap interval over taxa, computed with the default maps re-ranked
-over each Atlas model's area-of-applicability cells, as for the distance
-kernel; default practice's own cross-validated AUC beside its later-find
-scores.] → **Figure 3** (baselines beside the grades); detail in S7.
+with later finds (99%), and reported a median cross-validated AUC of 0.89
+(10th–90th percentile 0.82–0.95) that barely tracked how its maps did on
+later finds (median 0.867 for the 12 taxa whose maps put fewer than half
+their later finds in the top half, 0.894 for the 896 that put 90% or
+more). Paired with Atlas's model of the same taxon on the same places, the
+default map re-ranked over the Atlas model's area of applicability
+(exploratory), default practice ranked later finds higher on the map's own
+cells (mean rank +0.071, 0.044–0.097, against strong maps; top-half share
++0.029, −0.009 to 0.069) but outranked other taxa's later finds less often
+than strong maps (beats effort −0.060, −0.087 to −0.034) and weak maps
+(−0.037, −0.045 to −0.030), and no differently from failed maps (−0.012,
+−0.034 to 0.010). A model fitted against a random background learns where
+people collect, and later finds are collected there too: a rank on the
+map's own cells rewards that, and a comparison with other taxa's finds in
+the same period removes it. By that measure, default practice's maps are
+no better than Atlas's failed ones, while its own test passes almost all
+of them. → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
 
@@ -1293,6 +1290,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.19.4 (2026-10-26).** 3.5 rewritten on E6a's paired, same-footing numbers (plan-e6a 8de9210).
 - **0.19.3 (2026-10-26).** E2 re-scores: observed-after set too small for
   strong maps (untested); within-band ordering holds at 5–49 sites
   (exploratory); z weakly related to later finds (Open decision 9); backlog
