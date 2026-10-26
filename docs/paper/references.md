@@ -18,11 +18,14 @@ and are marked.
 - CEC (Commission for Environmental Cooperation). 2023. "North American Land Cover, 2020 (Landsat, 30 m)." North American Land Change Monitoring System. North American Environmental Atlas, Montreal. https://www.cec.org/north-american-environmental-atlas/land-cover-30m-2020/ [CHECK: official credit line in the dataset's metadata; no DOI]
 - Elith, J., C. H. Graham, R. P. Anderson, et al. 2006. "Novel methods improve prediction of species' distributions from occurrence data." Ecography 29: 129–151. https://doi.org/10.1111/j.2006.0906-7590.04596.x
 - Fick, S. E., and R. J. Hijmans. 2017. "WorldClim 2: new 1-km spatial resolution climate surfaces for global land areas." International Journal of Climatology 37: 4302–4315. https://doi.org/10.1002/joc.5086
+- Fink, D., T. Auer, A. Johnston, et al. 2020. "Modeling avian full annual cycle distribution and population trends with citizen science data." Ecological Applications 30: e02056. https://doi.org/10.1002/eap.2056
 - Fithian, W., J. Elith, T. Hastie, and D. A. Keith. 2015. "Bias correction in species distribution models: pooling survey and collection data for multiple species." Methods in Ecology and Evolution 6: 424–438. https://doi.org/10.1111/2041-210X.12242
 - Fourcade, Y., A. G. Besnard, and J. Secondi. 2018. "Paintings predict the distribution of species, or the challenge of selecting environmental predictors and evaluation statistics." Global Ecology and Biogeography 27: 245–256. https://doi.org/10.1111/geb.12684
+- Geml, J., G. A. Laursen, K. O'Neill, H. C. Nusbaum, and D. L. Taylor. 2006. "Beringian origins and cryptic speciation events in the fly agaric (Amanita muscaria)." Molecular Ecology 15: 225–239. https://doi.org/10.1111/j.1365-294X.2005.02799.x
 - Hao, T., G. Guillera-Arroita, T. W. May, J. J. Lahoz-Monfort, and J. Elith. 2020. "Using species distribution models for fungi." Fungal Biology Reviews 34: 74–88. https://doi.org/10.1016/j.fbr.2020.01.002
 - Hijmans, R. J. 2012. "Cross-validation of species distribution models: removing spatial sorting bias and calibration with a null model." Ecology 93: 679–688. https://doi.org/10.1890/11-0826.1
 - Hirzel, A. H., G. Le Lay, V. Helfer, C. Randin, and A. Guisan. 2006. "Evaluating the ability of habitat suitability models to predict species presences." Ecological Modelling 199: 142–152. https://doi.org/10.1016/j.ecolmodel.2006.05.017
+- Jetz, W., J. M. McPherson, and R. P. Guralnick. 2012. "Integrating biodiversity distribution knowledge: toward a global map of life." Trends in Ecology & Evolution 27: 151–159. https://doi.org/10.1016/j.tree.2011.09.007
 - Leroy, B., C. N. Meynard, C. Bellard, and F. Courchamp. 2016. "virtualspecies, an R package to generate virtual species distributions." Ecography 39: 599–607. https://doi.org/10.1111/ecog.01388
 - Linnenbrink, J., C. Milà, M. Ludwig, and H. Meyer. 2024. "kNNDM CV: k-fold nearest-neighbour distance matching cross-validation for map accuracy estimation." Geoscientific Model Development 17: 5897–5912. https://doi.org/10.5194/gmd-17-5897-2024
 - Meyer, H., and E. Pebesma. 2021. "Predicting into unknown space? Estimating the area of applicability of spatial prediction models." Methods in Ecology and Evolution 12: 1620–1633. https://doi.org/10.1111/2041-210X.13650
@@ -40,6 +43,7 @@ and are marked.
 - Russell, S. D., and MycoMap.org. 2026a. "MycoMap Atlas environmental layers," version draft-2026-09-30-df57c9d4. Dataset, Zenodo. https://doi.org/10.5281/zenodo.23463069
 - Russell, S. D., and MycoMap.org. 2026b. "MycoMap Atlas models," release 20261013T191324Z-fa1b4198. Dataset, Zenodo. https://doi.org/10.5281/zenodo.23463939 [CHECK: exact record titles as published]
 - Roberts, D. R., V. Bahn, S. Ciuti, et al. 2017. "Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure." Ecography 40: 913–929. https://doi.org/10.1111/ecog.02881
+- Schoch, C. L., K. A. Seifert, S. Huhndorf, et al. 2012. "Nuclear ribosomal internal transcribed spacer (ITS) region as a universal DNA barcode marker for Fungi." Proceedings of the National Academy of Sciences of the USA 109: 6241–6246. https://doi.org/10.1073/pnas.1117018109
 - Tedersoo, L., M. Bahram, S. Põlme, et al. 2014. "Global diversity and geography of soil fungi." Science 346: 1256688. https://doi.org/10.1126/science.1256688
 - USDA Forest Service, Forest Inventory and Analysis. n.d. "Forest Service FIA BIGMAP Tree Species Aboveground Biomass Layers" (2018). FSGeodata Clearinghouse. https://data.fs.usda.gov/geodata/rastergateway/bigmap/index.php [CHECK: no DOI or recommended citation; give an access date, and cite with Wilson et al. 2018]
 - Valavi, R., J. Elith, J. J. Lahoz-Monfort, and G. Guillera-Arroita. 2019. "blockCV: an R package for generating spatially or environmentally separated folds for k-fold cross-validation of species distribution models." Methods in Ecology and Evolution 10: 225–232. https://doi.org/10.1111/2041-210X.13107
@@ -49,14 +53,13 @@ and are marked.
 - Warton, D. I., I. W. Renner, and D. Ramp. 2013. "Model-based control of observer bias for the analysis of presence-only data in ecology." PLoS ONE 8: e79168. https://doi.org/10.1371/journal.pone.0079168
 - Wilson, B. T., J. F. Knight, and R. E. McRoberts. 2018. "Harmonic regression of Landsat time series for modeling attributes from national forest inventory data." ISPRS Journal of Photogrammetry and Remote Sensing 137: 29–46. https://doi.org/10.1016/j.isprsjprs.2018.01.006
 - Wilson, B. T., A. J. Lister, and R. I. Riemann. 2012. "A nearest-neighbor imputation approach to mapping tree species over large areas using forest inventory plots and moderate resolution raster data." Forest Ecology and Management 271: 182–198. https://doi.org/10.1016/j.foreco.2012.02.002
+- Yahr, R., C. L. Schoch, and B. T. M. Dentinger. 2016. "Scaling up discovery of hidden diversity in fungi: impacts of barcoding approaches." Philosophical Transactions of the Royal Society B 371: 20150336. https://doi.org/10.1098/rstb.2015.0336
 - Zanaga, D., R. Van De Kerchove, W. De Keersmaecker, et al. 2021. "ESA WorldCover 10 m 2020 v100." Dataset, Zenodo. https://doi.org/10.5281/zenodo.5571936
 - Zurell, D., U. Berger, J. S. Cabral, et al. 2010. "The virtual ecologist approach: simulating data and observers." Oikos 119: 622–635. https://doi.org/10.1111/j.1600-0706.2009.18284.x
 - Zurell, D., J. Franklin, C. König, et al. 2020. "A standard protocol for reporting species distribution models." Ecography 43: 1261–1277. https://doi.org/10.1111/ecog.04960
 
 ## Still to find
 
-- Cryptic diversity in macrofungi (Introduction, paragraph 2).
-- The ITS barcode for fungi (Schoch et al. 2012, PNAS) [verify].
 - Existing large automated SDM atlases and how they report trust (Introduction, paragraph 4).
 - Software: R, terra, maxnet, glmnet, ranger, xgboost, blockCV (package citations from the frozen release's versions).
 - Data sources: iNaturalist, Mushroom Observer, MyCoPortal, GenBank; the GBIF derived-dataset DOI.

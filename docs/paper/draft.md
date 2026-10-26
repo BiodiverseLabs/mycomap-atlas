@@ -217,10 +217,10 @@ are unreliable, and the records are clustered where people collect.
 
 The first is names. Many fungal morphospecies hide several lineages with
 different ranges, and one lineage can carry several names in different
-regions [CHECK: cite cryptic diversity in macrofungi]. A map fitted to a
+regions (Geml et al. 2006; Yahr et al. 2016). A map fitted to a
 morphological name averages over whatever the name covers, and it is
 confidently wrong where the lineages part. DNA barcodes resolve many of
-these cases [CHECK: ITS barcode reference], and community science now
+these cases (Schoch et al. 2012), and community science now
 produces sequenced, georeferenced collections at a continental scale, each
 name accepted only after validators compare its sequence with reference
 data. Many lineages found this way have no formal name yet, only a
@@ -257,11 +257,11 @@ environmental layers shifted and rotated under the sampling area (Ridder et
 al. 2024). What is still missing is a measurement of how often each kind of
 null test passes a species with no habitat signal, and how often it passes
 one with a signal, under realistic target-group sampling. Without them an
-atlas cannot say how far to trust a map that passed, and none
-of the large automated atlases, as far as we know, reports such error
-rates for its quality checks [CHECK: eBird Status and Trends and Map of Life
-apply quality gates; cite them and say how they differ, or cut this
-clause]. A habitat model should also beat a model that
+atlas cannot say how far to trust a map that passed. Large atlases vet
+their maps, eBird Status and Trends by its models' predictive performance
+(Fink et al. 2020) and Map of Life by combining expert and point data
+(Jetz et al. 2012), but, as far as we know, none reports how often the
+checks that grade its maps pass a species with no habitat signal. A habitat model should also beat a model that
 knows only how far a place is from known records (Bahn & McGill 2007).
 
 This paper describes MycoMap Atlas, which maps the North American fungi
