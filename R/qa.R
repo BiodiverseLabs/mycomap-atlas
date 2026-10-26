@@ -31,7 +31,13 @@ ATLAS_QA_THRESHOLDS <- list(
   # Records by source against the last pull.
   source_fall = 0.02, source_rise = 0.15,
   # The privacy list shrinking against the last pull.
-  privacy_fall = 0.05
+  privacy_fall = 0.05,
+  # The newest first validation in the pull, in days before the pull: .org's
+  # validated records come through the .com mirror, so a mirror that stops
+  # refreshing (as on 2026-10-25) shows as no new first-green dates. From
+  # 2026-05-01 to 2026-10-26 there was a validation on every one of 179 days
+  # (no gap over 1 day), so 3 days leaves a quiet weekend's room.
+  newest_green_days = 3
 )
 ATLAS_QA_FUNGI <- "Fungi"
 
@@ -219,6 +225,22 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
     present <- sum(as.character(occurrences$id) %in% exclusions | keys %in% exclusions)
     checks$drop_list <- atlas_qa_check(present, last("drop_list"), stop = present > t$drop_list,
                                        why = paste0(present, " drop-list rows are in the pull"))
+  }
+
+  # A stale mirror: the newest first validation the pull holds, against the
+  # day it was pulled.
+  pulled <- as.Date(substr(as.character(manifest$pulled_at %||% NA_character_), 1, 10))
+  green <- occurrences[[ATLAS_FIRST_GREEN_FIELD]]
+  green <- if (is.null(green)) character() else as.character(green[!is.na(green) & nzchar(green)])
+  if (!is.na(pulled) && length(green)) {
+    newest <- max(as.Date(substr(green, 1, 10)), na.rm = TRUE)
+    age <- as.integer(pulled - newest)
+    checks$newest_green <- atlas_qa_check(
+      age, last("newest_green"), stop = age > t$newest_green_days,
+      why = sprintf("the newest first validation in the pull is %d days old (%s); is the .com mirror refreshing?",
+                    age, format(newest)),
+      detail = list(newest = format(newest), pulled = format(pulled))
+    )
   }
 
   # Records by source against the last pull.
