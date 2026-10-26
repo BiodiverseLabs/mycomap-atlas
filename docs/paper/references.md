@@ -60,6 +60,5 @@ and are marked.
 
 ## Still to find
 
-- Existing large automated SDM atlases and how they report trust (Introduction, paragraph 4).
 - Software: R, terra, maxnet, glmnet, ranger, xgboost, blockCV (package citations from the frozen release's versions).
 - Data sources: iNaturalist, Mushroom Observer, MyCoPortal, GenBank; the GBIF derived-dataset DOI.
