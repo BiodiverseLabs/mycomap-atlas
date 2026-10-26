@@ -52,6 +52,13 @@ Logged as the operations lane reports them; numbers only.
   - Each finishes privately on one worker. They queue behind E1's full run
     on the vCPU quota.
   - Steve confirmed the launch directly with the operations lane.
+  - **DNA side:** every shard reported by 07:58 UTC. Its private finish
+    started at 09:36, and the job ended without error.
+  - **Record side:** the job reached its 8 h limit at 10:12 UTC with shard 4
+    unreported, 128 of that shard's models already saved. With Steve's
+    direct OK, the same job was run again at 18:27 UTC on the current image.
+    Only shard 4 was relaunched, on-demand on r7i.4xlarge, resuming from
+    the saved models, then its private finish, on-demand.
 ## Deviations
 
 - **2026-10-25, before launch (reading only; the design is unchanged): the

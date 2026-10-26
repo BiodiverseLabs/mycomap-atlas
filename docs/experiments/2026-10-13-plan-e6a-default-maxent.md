@@ -95,6 +95,31 @@ Logged as the operations lane reports them; numbers only.
     - The full numbers, by split, are in the results file
       (study/study-20261025T211731Z-017e88fa/). Their reading is the
       paper's.
+- **On the same footing (exploratory; the independent review, Steve
+  approved 2026-10-25).** study-20261026T020304Z-017e88fa, image bf236cf
+  (Atlas feat/e6a-paired 0cd5b81), the same arguments, on 1 × r7i.xlarge
+  on-demand. Ran 02:05 to 03:20 UTC, about USD 0.33. E2's H2a–c again came
+  out exactly the same.
+  - **Paired by taxon.** Each default map was ranked again over its Atlas
+    model's area of applicability, as E6b's kernel was. The table gives
+    default minus Atlas, with 95% intervals from 10,000 resamples of taxa:
+
+    | Atlas grade | Taxa | Places | Top half | Beats effort | Mean rank |
+    |---|---|---|---|---|---|
+    | strong | 114 | 347 | +0.029 [−0.009, 0.069] | −0.060 [−0.087, −0.034] | +0.071 [0.044, 0.097] |
+    | weak | 975 | 3,544 | +0.087 [0.076, 0.098] | −0.037 [−0.045, −0.030] | +0.111 [0.103, 0.118] |
+    | failed | 159 | 471 | +0.104 [0.070, 0.141] | −0.012 [−0.034, 0.010] | +0.124 [0.100, 0.149] |
+
+  - **Default practice's own random-CV AUC** (999 taxa with ranked later
+    finds): median 0.892 (10th to 90th percentile 0.818 to 0.950).
+
+    | How its map did on later finds (top-half share) | Taxa | Median CV AUC |
+    |---|---|---|
+    | below 0.5 | 12 | 0.867 |
+    | 0.5 to 0.9 | 91 | 0.878 |
+    | 0.9 and up | 896 | 0.894 |
+
+  - Exploratory and unregistered. Their reading is the paper's.
 
 ## Deviations
 

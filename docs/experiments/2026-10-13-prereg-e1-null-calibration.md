@@ -248,6 +248,18 @@ Logged as the operations lane reports them; numbers only.
   - **Relaunched** at 23:12 UTC on the same job id, image and settings. The
     runner fix launches only shards that have not reported, so shards that
     report are kept even if the orchestrator stops again.
+    - The spot run ended at its 14 h limit at 13:18 UTC on 2026-10-26.
+      Five of the 20 shards had reported. There were 34 launches, and no
+      r7i.8xlarge spot capacity from 11:08 UTC on.
+    - The 15 missing shards then went on-demand, one at a time (Steve's
+      choice): about 20 h and about USD 42. The orchestrator paused, with no
+      launches, while E9's last private finish used the 32-vCPU on-demand
+      quota.
+    - So the job has had three orchestrator runs: the one stopped by the
+      AWS 500, the spot run (5 shards), and the on-demand run (the rest).
+      Shards report whole, and each species' seeds come from its name, so
+      the union of the 20 shards' files is the study as one run would have
+      made it, on one processor family.
 
 ## Deviations
 
