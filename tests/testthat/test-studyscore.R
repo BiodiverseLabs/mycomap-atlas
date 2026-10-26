@@ -841,3 +841,75 @@ test_that("--e9 takes the two E9 releases, DNA then record, through the command 
   atlas_main(c("study-score", "--hindcast=priv-h1", "--e9=priv-dna,priv-rec", "--shard=1/1", "--out=study/study-x/"))
   expect_equal(got$e9, c("priv-dna", "priv-rec"))
 })
+
+# --- E6a on the same footing (exploratory; the independent review, 2026-10-25) ---
+
+e6a_default_file <- function(values) {
+  r <- score_grid()
+  terra::values(r) <- values
+  path <- tempfile(fileext = ".tif")
+  terra::writeRaster(r, path)
+  path
+}
+
+test_that("a default map is ranked again over each Atlas model's own cells, under the model's grade and name", {
+  skip_if_not_installed("terra")
+  maps <- atlas_score_default_paired_maps(model_maps("T01"), e6a_default_file(-east()))
+  expect_named(maps, "maxnet")
+  expect_equal(maps$maxnet$grade, "strong")
+  expect_equal(maps$maxnet$kind, "model")
+  # Ranked only where the model applies: the far west is not ranked.
+  expect_equal(is.finite(maps$maxnet$layers$rank), is.finite(model_maps("T01")$maxnet$layers$rank))
+  expect_null(atlas_score_default_paired_maps(model_maps("T01"), tempfile()))
+})
+
+test_that("the paired E6a difference is default minus the Atlas model, on the same places, with an interval over taxa", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  worse <- e6a_default_file(-east())
+  result <- atlas_score_baselines_core(
+    places, model_maps,
+    default_maps_for = function(taxon) atlas_score_default_maps(worse, "passed"),
+    default_paired_maps_for = function(taxon) atlas_score_default_paired_maps(model_maps(taxon), worse),
+    reps = 300)
+  paired <- result$default$paired
+  expect_equal(paired$label, "exploratory")
+  strong <- paired$strong
+  expect_true(strong$tested)
+  expect_equal(strong$taxa, 40L)
+  expect_equal(strong$difference, "default minus Atlas")
+  # The default ranks the east low, where the places are: below the model.
+  expect_lt(strong$top_half$estimate, 0)
+  expect_lt(strong$top_half$high, 0)
+  expect_lt(strong$mean_rank$estimate, 0)
+  expect_true(is.finite(strong$beats_effort$estimate))
+  # The same map on both arms: no difference.
+  same <- e6a_default_file(east())
+  tie <- atlas_score_baselines_core(
+    places, model_maps,
+    default_maps_for = function(taxon) atlas_score_default_maps(same, "passed"),
+    default_paired_maps_for = function(taxon) atlas_score_default_paired_maps(model_maps(taxon), same),
+    reps = 200)$default$paired$strong
+  expect_equal(tie$top_half$estimate, 0)
+  expect_equal(tie$beats_effort$estimate, 0)
+})
+
+test_that("default practice's own CV AUC sits beside how its maps did on later finds", {
+  skip_if_not_installed("terra")
+  places <- score_places()
+  good <- e6a_default_file(east())
+  bad <- e6a_default_file(-east())
+  # Odd taxa get a map that ranks their finds high, even ones low.
+  default_for <- function(taxon) {
+    atlas_score_default_maps(if (as.integer(sub("^T", "", taxon)) %% 2) good else bad, "passed")
+  }
+  cv <- stats::setNames(as.list(ifelse(seq_len(40) %% 2 == 1, 0.9, 0.8)), sprintf("T%02d", 1:40))
+  own <- atlas_score_baselines_core(places, model_maps, default_maps_for = default_for, default_cv = cv,
+                                    reps = 100)$default$own_cv
+  expect_equal(own$taxa, 40L)
+  expect_equal(own$label, "exploratory")
+  expect_equal(own$cv_auc$median, 0.85)
+  expect_equal(own$by_later_finds[["0.9 and up"]]$median_cv_auc, 0.9)
+  expect_equal(own$by_later_finds[["below 0.5"]]$median_cv_auc, 0.8)
+  expect_equal(own$by_later_finds[["0.9 and up"]]$taxa + own$by_later_finds[["below 0.5"]]$taxa, 40L)
+})
