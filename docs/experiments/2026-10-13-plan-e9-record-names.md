@@ -59,6 +59,74 @@ Logged as the operations lane reports them; numbers only.
     direct OK, the same job was run again at 18:27 UTC on the current image.
     Only shard 4 was relaunched, on-demand on r7i.4xlarge, resuming from
     the saved models, then its private finish, on-demand.
+  - **Fitted (finished 2026-10-26).** Each side planned 1,904 models.
+
+    | Side | Release | Fitted | Refused | Failed | Finished (UTC) | CPU-h | Est. USD |
+    |---|---|---|---|---|---|---|---|
+    | DNA | priv-20261026T021038Z-3ba43cf6 | 1,852 | 52 | 0 | 09:59 | 102.2 | 4.36 |
+    | record | priv-20261026T021038Z-9c0ba509 | 1,860 | 44 | 0 | 19:19 | 89.3 | 2.40 |
+
+    Strong models by learner (esm / maxnet / rf / xgboost): DNA 43 / 24 /
+    16 / 1; record 63 / 22 / 17 / 2.
+- **Scoring (2026-10-27).** study-20261027T175751Z-26b2c068, image bf236cf
+  (Atlas feat/e9-paired-score), on 1 × r7i.xlarge on-demand (Intel Xeon
+  Platinum 8488C), 17:59:42 to 19:58:31 UTC.
+  - Command: `study-score --hindcast=priv-20261018T171648Z-9e3ab153
+    --refits=priv-20261019T042158Z-09936f85
+    --exclude=590501,586958,586894,598980 --allow-missing-excludes
+    --e9=priv-20261026T021038Z-3ba43cf6,priv-20261026T021038Z-9c0ba509`,
+    the DNA side first.
+  - E2's registered H2a–c came out unchanged (0.9145, 0.1305, 0.7854).
+
+## Result
+
+**H9 does not hold: no detectable difference.** The primary estimate, the
+paired DNA-name minus record-name difference in top-half share of later
+finds (truth: each find's DNA name), is **−0.0027 [−0.0106, 0.0050]**.
+That is over 550 taxa and 1,176 models present under both labellings, with
+10,000 resamples of taxa (0 dropped). Under the decision rule (43de9a5),
+C3 narrows to coverage: the taxa only DNA can name, and the records whose
+label it changes.
+
+**The pre-specified secondary** (the record side scored on its own
+labelling): **−0.0038 [−0.0120, 0.0041]**, over 547 taxa and 1,173 models.
+It also shows no difference. The primary truth was expected to favour the
+DNA side where names disagree (43de9a5), and it does not.
+
+Reported (primary pairing; top half / top tenth / mean rank / beats effort
+/ Boyce):
+
+| Side | Places | All | New places | Known places |
+|---|---|---|---|---|
+| DNA | 1,676 | 0.871 / 0.479 / 0.797 / 0.705 / 0.999 | 0.838 / 0.386 / 0.755 / 0.654 | 0.952 / 0.704 / 0.898 / 0.828 |
+| record | 1,670 | 0.874 / 0.479 / 0.796 / 0.703 / 0.995 | 0.841 / 0.383 / 0.755 / 0.652 | 0.952 / 0.710 / 0.896 / 0.824 |
+
+By grade, on the paired models (taxa, places, top half, beats effort):
+
+| Grade | DNA | Record |
+|---|---|---|
+| strong | 36 taxa, 70 places, 0.891, 0.727 | 41 taxa, 92 places, 0.887, 0.774 |
+| weak | 489 taxa, 1,584 places, 0.878, 0.709 | 477 taxa, 1,556 places, 0.881, 0.705 |
+| failed | 87 taxa, 188 places, 0.755, 0.637 | 97 taxa, 225 places, 0.774, 0.645 |
+
+Of the 978 taxa paired at planning, 550 have later finds ranked by models
+on both sides. The rest have no ranked later finds under one labelling or
+the other.
+
+**Not yet produced** (planned as "also reported"): map Spearman and
+Schoener's D per pair, grade changes per pair, and records whose label
+differs, by source. They come from `study-compare` on the two E9
+releases, which now publishes its results (Atlas fix/study-compare-out
+29ddeb8, on main). That is one 1-shard job, which needs its own go.
+
+**Deviations, dated.**
+- 2026-10-25, before any fit: two jobs launched together instead of one,
+  since a job carries one pull (0ac3547). The comparison is unchanged.
+- 2026-10-26, during the fits: the record side reached its 8 h limit with
+  shard 4 unreported. The same job was run again (Steve's direct OK); only
+  shard 4 was relaunched, on-demand, on the same image and processor
+  family, resuming from its 128 saved models. A fit saved before a reclaim
+  is the same fit; nothing in the design changes.
 ## Deviations
 
 - **2026-10-25, before launch (reading only; the design is unchanged): the
