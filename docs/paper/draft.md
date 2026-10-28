@@ -117,9 +117,11 @@ revise the paper plan and let's continue".)
    registered H9 not held), even with each find's DNA name as the truth,
    which favours the DNA side, and also when each side was scored on its
    own labelling (−0.004, −0.012 to 0.004). By the registered rule, C3
-   narrows to coverage: about half the modellable taxa have no formal name
-   and can be mapped only under a DNA label [PENDING E16 for the share, and
-   study-compare for the records whose label DNA changes]. A comparison with
+   narrows to coverage: half the modelled taxa (3,193 of 6,369, 50.1%) and
+   45% of those with a strong map (213 of 470) carry only a provisional
+   name, a DNA-defined lineage with no formal epithet, and exist as
+   distinct taxa only under DNA labels (E16) [PENDING study-compare: the
+   records whose label DNA changes, by source]. A comparison with
    morphology-named records (GBIF, E6c, P2) is not part of this claim; if it
    runs, it is a Discussion point.
 4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
@@ -186,8 +188,8 @@ difference in mean rank; weak maps did no better than distance, and the
 strong maps' advantage appeared at finds more than 100 km from known
 records (descriptive). Naming records by
 their DNA sequences rather than their own names did not change how well
-maps of the same taxa predicted later finds, but about half the modelled
-taxa have no formal name and can be mapped only by DNA [PENDING E16]. In a
+maps of the same taxa predicted later finds, but half the modelled taxa
+have no formal name and can be mapped only by DNA. In a
 pre-registered test, the maps helped a photo-identification model place its
 answers only slightly, and no more than distance to known records. We end
 with five recommendations for automated atlases. Maps, models,
@@ -639,10 +641,12 @@ each side on its own labelling gave the same answer (−0.0038, −0.0120 to
 0.0041). Both sides placed about 87% of later finds in their top half and
 beat collecting effort about 70% of the time, at new and known places
 alike; record names gave slightly more strong small-model ensembles (63
-against 43), a descriptive count. [PENDING E16: the share of modellable
-taxa with no formal name; study-compare (one small job, needs its go):
-records whose label DNA changes, by source, and per-pair map agreement and
-grade changes.] → detail in S8. (E6c, morphology-named GBIF models, if
+against 43), a descriptive count. Half the modelled taxa (3,193 of 6,369, 50.1%) and 45.3% of
+those with a strong map carry only a provisional name, and the share falls
+with sites, from 60.6% at 3–4 sites to 21–24% at 50 and more
+(`2026-10-28-e16-descriptives.md`, Part 1). [PENDING study-compare
+(approved, queued behind E1): records whose label DNA changes, by source,
+and per-pair map agreement and grade changes.] → detail in S8. (E6c, morphology-named GBIF models, if
 run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
@@ -871,8 +875,8 @@ mapping by one or the other made no detectable difference to how well the
 maps predicted later finds, even scored against the DNA identity. Names
 that are wrong for some records seem to blur a map less than one might
 fear, at least at the scale of 5 km sites and 500 km reaches. What DNA
-labelling adds is reach: about half the modelled taxa have no formal name
-[PENDING E16]; they are sequence clusters that can be mapped as soon as
+labelling adds is reach: half the modelled taxa, and 45% of those with a
+strong map, have no formal name; they are sequence clusters that can be mapped as soon as
 they have enough sites, and only under a DNA label. Community sequencing is
 therefore what extends the atlas: each new site moves a taxon toward its
 first map or toward a strong one. Host trees ranked [PENDING E8] for
@@ -1306,6 +1310,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.20.2 (2026-10-28).** E16 Part 1: provisional names 50.1% of modelled taxa, 45.3% of strong (C3, abstract, 3.6, Discussion).
 - **0.20.1 (2026-10-28).** Open decision 10 closed: C3 kept as a short claim (null result + coverage).
 - **0.20.0 (2026-10-28).** E9 read out (plan-e9 784700c): H9 not held, no
   detectable difference between DNA and record-name maps on later finds;
