@@ -1294,22 +1294,19 @@ revised (Path).
    DNA-defined North American fungi"; (b) keep "calibrated" and add a
    continuous score (the null z beside the grade, with a figure of z
    against later-find rank, from data that exist); (c) both.
-10. **C3 after E9 (Steve; PENDING).** E9 found no difference in predictive
-   skill between DNA and record-name maps of the same taxa (H9 not held), so
-   by the registered rule C3 rests on coverage. Options: (a) keep C3 as a
-   short claim that pairs the null result (wrong names for some records do
-   not measurably hurt the maps) with coverage (the taxa only DNA can map),
-   which needs the E16 count and the study-compare job (one small job,
-   ≤ USD 0.40); (b) fold it into C4 as a property of the atlas, leaving three
-   claims; (c) drop it to the Discussion. The paper lane suggests (a): a
-   registered null result on a named question is worth a claim, and the
-   coverage numbers cost almost nothing.
+10. **C3 after E9: decided 2026-10-28 (Steve), option (a).** C3 stays as a
+   short claim with two halves: the null result (wrong names on some
+   records do not measurably hurt the maps; E9) and coverage (the taxa only
+   DNA can map; E16). The study-compare job on the two E9 releases
+   (≤ USD 0.40) is approved and queued behind E1; its descriptives come
+   through plan-e9's Result.
 
 ---
 
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.20.1 (2026-10-28).** Open decision 10 closed: C3 kept as a short claim (null result + coverage).
 - **0.20.0 (2026-10-28).** E9 read out (plan-e9 784700c): H9 not held, no
   detectable difference between DNA and record-name maps on later finds;
   C3 narrowed to coverage per the registered rule (claim, abstract,
