@@ -63,6 +63,21 @@ writing aggregates to a JSON file that ops copies to atlas-handoff.
    list by kind (unknown, place, hidden), and those records' share of the
    pull.
 
+## Deviations
+
+- **2026-10-28, before Part 2 runs: half of item 5 cannot be recounted.**
+  - The "2,287 left out" came from the label audit of the first pull made
+    under the trash rule. No such audit exists. The only one on the box,
+    occurrences/labels-latest.json, is from the 10/12 pull, before the rule
+    (the operations lane searched the box and the store). No nightly pull
+    has run since, and the cutover rebuilt from the 10/12 pull plus the
+    drop list.
+  - So item 5 reports only the first half: the pull's still-green records
+    with no clean, named sequence today. The 2,287 stays a figure from the
+    session record, marked as not recounted.
+- The privacy list read for item 7 is the pull's own: modified 2026-10-13
+  03:29:36 UTC, 19,700 bytes.
+
 ## Results
 
 ### Part 1 (2026-10-28)
