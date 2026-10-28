@@ -308,7 +308,7 @@ The name is the one on the record's approved sequences, not the record's
 own, which is often not updated after sequencing; a record whose sequences
 disagree, or name only a genus, is left out. Provisional names (sequence
 clusters without a formal name, such as *Mycena* sp. 'IN10') count as taxa,
-and about half the modelled taxa carry one [PENDING E16]. A model belongs to
+and half the modelled taxa (50.1%) carry one. A model belongs to
 its record set, not its name: each taxon's records are hashed into a
 fingerprint, and a model is refitted when the fingerprint changes.
 
