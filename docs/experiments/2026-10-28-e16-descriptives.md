@@ -65,4 +65,24 @@ writing aggregates to a JSON file that ops copies to atlas-handoff.
 
 ## Results
 
-None yet.
+### Part 1 (2026-10-28)
+
+Read from the public API (`/api/taxa` and `/api/models`), which serves
+fa1b4198. The counts agree with the release: 16,252 taxa, 9,041 models,
+6,369 modelled taxa and 470 strong taxa.
+
+**Provisional names** (count / share of the taxa in the row):
+
+| Taxa | All | 1–2 sites | 3–4 | 5–19 | 20–49 | 50–99 | 100+ |
+|---|---|---|---|---|---|---|---|
+| All 16,252 (by localities) | 9,785 / 60.2% | 6,229 / 66.8% (9,327) | 1,286 / 61.8% (2,081) | 1,776 / 52.1% (3,412) | 402 / 38.2% (1,053) | 79 / 25.9% (305) | 13 / 17.6% (74) |
+| Modelled 6,369 (by detection sites) | 3,193 / 50.1% | – | 1,003 / 60.6% (1,655) | 1,739 / 51.5% (3,374) | 375 / 37.1% (1,012) | 65 / 23.6% (276) | 11 / 21.2% (52) |
+| Strong 470 (by detection sites) | 213 / 45.3% | – | 19 / 55.9% (34) | 124 / 50.0% (248) | 61 / 36.7% (166) | 9 / 40.9% (22) | none strong |
+
+The numbers in brackets are each band's taxa. Half of the modelled taxa,
+and 45% of the strong ones, carry a provisional name. The share falls with
+sites: from about 61% at 3–4 sites to about 21–24% at 50 and up.
+
+### Part 2
+
+Pending: run on the box through the operations lane.
