@@ -869,7 +869,7 @@ whatever its learners. We recommend five practices:
 **For fungi.** Where a record's own name and its DNA name both exist,
 mapping by one or the other made no detectable difference to how well the
 maps predicted later finds, even scored against the DNA identity. Names
-that are wrong for some records evidently blur a map less than one might
+that are wrong for some records seem to blur a map less than one might
 fear, at least at the scale of 5 km sites and 500 km reaches. What DNA
 labelling adds is reach: about half the modelled taxa have no formal name
 [PENDING E16]; they are sequence clusters that can be mapped as soon as
@@ -1294,6 +1294,16 @@ revised (Path).
    DNA-defined North American fungi"; (b) keep "calibrated" and add a
    continuous score (the null z beside the grade, with a figure of z
    against later-find rank, from data that exist); (c) both.
+10. **C3 after E9 (Steve; PENDING).** E9 found no difference in predictive
+   skill between DNA and record-name maps of the same taxa (H9 not held), so
+   by the registered rule C3 rests on coverage. Options: (a) keep C3 as a
+   short claim that pairs the null result (wrong names for some records do
+   not measurably hurt the maps) with coverage (the taxa only DNA can map),
+   which needs the E16 count and the study-compare job (one small job,
+   ≤ USD 0.40); (b) fold it into C4 as a property of the atlas, leaving three
+   claims; (c) drop it to the Discussion. The paper lane suggests (a): a
+   registered null result on a named question is worth a claim, and the
+   coverage numbers cost almost nothing.
 
 ---
 
