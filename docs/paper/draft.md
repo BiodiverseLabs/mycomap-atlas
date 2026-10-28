@@ -109,25 +109,19 @@ revise the paper plan and let's continue".)
    were collected before the cutoff and validated later; the registered
    set of finds both collected and validated after it is too small to test
    strong maps (18 ranked places), so the prospective test is E3, PENDING.]
-3. **C3. On finds the models never saw, maps of DNA-labelled taxa rank
-   later finds [X, 95% interval] better or worse than maps of the same
-   taxa labelled by the record's own name; and about half the modellable
-   taxa have no formal name.** [PENDING E9 (redesigned, Steve 2026-10-25):
-   a paired hindcast fitting both labellings of every taxon whose record set
-   changes, in one private job on one image and processor family, the
-   record-name side reusing its DNA pair's block; both scored on E2's later
-   finds, the primary truth being each find's DNA name; primary estimate the
-   paired DNA − record-name difference in top-half share, with a bootstrap
-   interval over taxa. H9 (two-sided, registered in plan-e9 before any
-   fit, 9cb179b and 43de9a5): the interval excludes 0; above 0, DNA labels
-   give maps that rank later finds better; including 0, no detectable
-   difference and C3 narrows to coverage (the taxa only DNA can name);
-   below 0, record names do better. Because the truth is the find's DNA
-   name, the comparison favours the DNA side where names disagree; each
-   side scored on its own labelling is a pre-specified secondary estimate,
-   reported beside it. PENDING E16 for the unnamed share.]
-   A comparison with morphology-named records (GBIF, E6c, P2) is not part of
-   this claim; if it runs, it is a Discussion point.
+3. **C3. Labelling records by their approved DNA sequence widens what can
+   be mapped; it does not make maps of the same taxa predict better.** In a
+   paired hindcast of both labellings, maps under DNA names and under the
+   records' own names ranked later finds equally well (DNA minus record
+   name, top-half share −0.003, 95% interval −0.011 to 0.005; 550 taxa;
+   registered H9 not held), even with each find's DNA name as the truth,
+   which favours the DNA side, and also when each side was scored on its
+   own labelling (−0.004, −0.012 to 0.004). By the registered rule, C3
+   narrows to coverage: about half the modellable taxa have no formal name
+   and can be mapped only under a DNA label [PENDING E16 for the share, and
+   study-compare for the records whose label DNA changes]. A comparison with
+   morphology-named records (GBIF, E6c, P2) is not part of this claim; if it
+   runs, it is a Discussion point.
 4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
    this at continental scale, and says which maps to trust.** The frozen
    release holds 9,041 models of 6,369 taxa; 576 models of 470 taxa (7.4%
@@ -191,8 +185,9 @@ distance to known records on the same places, a modest gain with no
 difference in mean rank; weak maps did no better than distance, and the
 strong maps' advantage appeared at finds more than 100 km from known
 records (descriptive). Naming records by
-their sequences rather than their own names changed the maps of [N] taxa,
-and about half the modelled taxa have no formal name [PENDING E9, E16]. In a
+their DNA sequences rather than their own names did not change how well
+maps of the same taxa predicted later finds, but about half the modelled
+taxa have no formal name and can be mapped only by DNA [PENDING E16]. In a
 pre-registered test, the maps helped a photo-identification model place its
 answers only slightly, and no more than distance to known records. We end
 with five recommendations for automated atlases. Maps, models,
@@ -279,8 +274,8 @@ Second (C2), the grade this test gives each map (strong, weak or failed)
 predicts how the map ranks records validated after it was made, and only
 strong maps beat distance to known records, by a modest margin. Third (C3),
 labelling records by their approved sequence rather than by the record's
-own name changes the maps, and about half of the modellable taxa have no
-formal name. Fourth (C4), the whole pipeline runs automatically at a
+own name does not make maps of the same taxa predict better, but it is the
+only way to map the many taxa that have no formal name. Fourth (C4), the whole pipeline runs automatically at a
 continental scale and says which of its maps to trust: most are weak or
 failed, and they are published with that grade rather than hidden. We also
 report a test registered in advance: whether the maps carry habitat
@@ -630,13 +625,24 @@ of them. → **Figure 3** (baselines beside the grades); detail in S7.
 
 ### 3.6 What sequence names change (E9, E16)
 
-[PENDING E9 (paired hindcast, redesigned 2026-10-25): the paired
-difference, DNA − record name, in top-half share of later finds over taxa
-present under both labellings, with its interval; Boyce, beats-effort, new
-and known places and site bands; grade changes; map Spearman and Schoener's
-D; taxa only one labelling has, counted. E16: records whose sequence name
-differs from the record name, by source; the share of modellable taxa with
-no formal name.] → one paragraph; detail in S8. (E6c, morphology-named GBIF models, if
+*Paired hindcast (E9; registered, `2026-10-13-plan-e9-record-names.md`,
+Result).* Every taxon whose record set differs between DNA names and the
+records' own names was fitted under both labellings in one private
+hindcast on one image and processor family, the record-name model reusing
+its DNA pair's spatial block (DNA side 1,852 models fitted and 52 refused;
+record side 1,860 and 44). Of the 978 taxa paired at planning, 550 had
+later finds ranked by models on both sides. The registered estimate, the
+paired difference in top-half share of later finds with each find's DNA
+name as the truth, was −0.0027 (95% interval −0.0106 to 0.0050; 1,176
+models), so H9 does not hold: there is no detectable difference. Scoring
+each side on its own labelling gave the same answer (−0.0038, −0.0120 to
+0.0041). Both sides placed about 87% of later finds in their top half and
+beat collecting effort about 70% of the time, at new and known places
+alike; record names gave slightly more strong small-model ensembles (63
+against 43), a descriptive count. [PENDING E16: the share of modellable
+taxa with no formal name; study-compare (one small job, needs its go):
+records whose label DNA changes, by source, and per-pair map agreement and
+grade changes.] → detail in S8. (E6c, morphology-named GBIF models, if
 run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
@@ -860,10 +866,14 @@ whatever its learners. We recommend five practices:
 5. Report how many maps earn the grade, not only how many are drawn, with
    the smallest samples counted apart.
 
-**For fungi.** Naming taxa by approved DNA sequences rather than by the
-record's own name changed the maps of [PENDING E9] taxa, and about half the
-modelled taxa have no formal name: they are sequence clusters that can now
-be mapped as soon as they have enough sites. Community sequencing is
+**For fungi.** Where a record's own name and its DNA name both exist,
+mapping by one or the other made no detectable difference to how well the
+maps predicted later finds, even scored against the DNA identity. Names
+that are wrong for some records evidently blur a map less than one might
+fear, at least at the scale of 5 km sites and 500 km reaches. What DNA
+labelling adds is reach: about half the modelled taxa have no formal name
+[PENDING E16]; they are sequence clusters that can be mapped as soon as
+they have enough sites, and only under a DNA label. Community sequencing is
 therefore what extends the atlas: each new site moves a taxon toward its
 first map or toward a strong one. Host trees ranked [PENDING E8] for
 ectomycorrhizal fungi and climate for the rest, consistent with the
@@ -1290,6 +1300,10 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.20.0 (2026-10-28).** E9 read out (plan-e9 784700c): H9 not held, no
+  detectable difference between DNA and record-name maps on later finds;
+  C3 narrowed to coverage per the registered rule (claim, abstract,
+  Introduction, 3.6, Discussion).
 - **0.19.4 (2026-10-26).** 3.5 rewritten on E6a's paired, same-footing numbers (plan-e6a 8de9210).
 - **0.19.3 (2026-10-26).** E2 re-scores: observed-after set too small for
   strong maps (untested); within-band ordering holds at 5–49 sites
