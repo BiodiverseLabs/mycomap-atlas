@@ -64,18 +64,17 @@ ATLAS_LABEL_STATUSES <- c(
   ATLAS_LABEL_DISAGREE, ATLAS_LABEL_NONE
 )
 
-#' A sequence's observation key for the record o, as SQL.
-atlas_sequence_key_sql <- function() {
-  arms <- paste(sprintf("WHEN '%s' THEN '%s'", names(ATLAS_SEQUENCE_KEY_PREFIXES),
-                        ATLAS_SEQUENCE_KEY_PREFIXES), collapse = " ")
-  sprintf("(CASE o.source %s END || ':' || o.observation_id)", arms)
-}
-
 #' The approved, named sequences of the green records with ids first_id to
 #' last_id: one row per record and name. A sequence is the record's when its
 #' observation key names the record, or, for an iNaturalist record, when it
 #' hangs off a .com record linked to the observation (the join Vision's answer
 #' key uses; the key alone misses about one iNat record in five hundred).
+#'
+#' One join per source, each on a plain key ('inat:' || o.observation_id for
+#' iNaturalist), so every arm can use sequences_observation_idx. A single join
+#' on a CASE of o.source cannot use it, and on 2026-10-29 it reached atlas_ro's
+#' 60 s limit on a 10,000-record window (E16); per source, a 6,000-record
+#' window took 1.8 to 3.5 s on prod. A source with no key prefix names nothing.
 atlas_sequence_names_sql <- function(first_id, last_id) {
   stopifnot(length(first_id) == 1, is.numeric(first_id), length(last_id) == 1,
             is.numeric(last_id), first_id <= last_id)
@@ -93,18 +92,21 @@ atlas_sequence_names_sql <- function(first_id, last_id) {
           "AND btrim(coalesce(s.species_name, '')) <> ''"),
     as.integer(first_id), as.integer(last_id), statuses, ATLAS_TRASH_SEQUENCE_CATEGORY
   )
-  sql <- sprintf(
+  by_key <- sprintf(
     "SELECT o.id, s.species_name FROM observations o
-     JOIN sequences s ON s.observation = %s
-     WHERE %s
-     UNION
-     SELECT o.id, s.species_name FROM observations o
+     JOIN sequences s ON s.observation = '%s:' || o.observation_id
+     WHERE o.source = '%s' AND %s",
+    ATLAS_SEQUENCE_KEY_PREFIXES, names(ATLAS_SEQUENCE_KEY_PREFIXES), where
+  )
+  linked <- sprintf(
+    "SELECT o.id, s.species_name FROM observations o
      JOIN linked_observations l ON l.database_id = %d AND l.external_id = o.observation_id
      JOIN sequences s ON s.com_inat_record_id = l.record_id
      WHERE o.source = 'iNaturalist' AND %s",
-    atlas_sequence_key_sql(), where, ATLAS_LINKED_INAT_DATABASE, where
+    ATLAS_LINKED_INAT_DATABASE, where
   )
-  atlas_one_line(sql)
+  # UNION, as before: one row per record and name, however many arms find it.
+  atlas_one_line(paste(c(by_key, linked), collapse = " UNION "))
 }
 
 #' Is a name one Atlas can model: a species-level name, provisional temp codes
