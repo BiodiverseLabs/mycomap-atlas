@@ -67,7 +67,9 @@ sequence_names_fixture <- paste(
   # MycoPortal and MyCoPortal share the mp prefix, so this one shares record 4's key.
   "(25, '201', 'MycoPortal', 'yes', NULL, NULL),",
   # A number that starts like another record's: its key is inat:1000, not inat:100.
-  "(26, '1000', 'iNaturalist', 'yes', NULL, NULL);",
+  "(26, '1000', 'iNaturalist', 'yes', NULL, NULL),",
+  # Named only through a linked .com record, with no sequence on its key.
+  "(27, '802', 'iNaturalist', 'yes', NULL, NULL);",
   "INSERT INTO sequences VALUES",
   "('inat:100', NULL, 1, NULL, NULL, 'Amanita one'), ('mo:100', NULL, 1, NULL, NULL, 'Russula one'),",
   "('mp:200', NULL, 1, NULL, NULL, 'Portal one'), ('mp:201', NULL, 1, NULL, NULL, 'Portal two'),",
@@ -84,10 +86,11 @@ sequence_names_fixture <- paste(
   "('inat:706', NULL, 1, NULL, NULL, NULL),",
   "('inat:800', NULL, 1, NULL, NULL, 'Linked one'), (NULL, 9001, 1, NULL, NULL, 'Linked one'),",
   "(NULL, 9001, 1, 169, NULL, 'Linked trash'), (NULL, 9002, 1, NULL, NULL, 'Other database'),",
+  "(NULL, 9003, 1, NULL, NULL, 'Linked only'),",
   "('inat:900', NULL, 1, NULL, NULL, 'Not green'), ('inat:901', NULL, 1, NULL, NULL, 'Third status'),",
   "('inat:902', NULL, 1, NULL, '{\"contaminant\": false, \"wrong\": \"0\"}', 'Flags unset'),",
   "('mo:903', NULL, 1, NULL, NULL, 'Russula two');",
-  "INSERT INTO linked_observations VALUES (43, '800', 9001), (44, '801', 9002);"
+  "INSERT INTO linked_observations VALUES (43, '800', 9001), (44, '801', 9002), (43, '802', 9003);"
 )
 
 # Each window's rows, as "window,id,name", from one psql session.
@@ -104,16 +107,16 @@ sequence_names_rows <- function(sqls) {
 }
 
 sequence_names_expected <- data.frame(
-  id = c(1L, 2L, 3L, 4L, 5L, 6L, 10L, 10L, 18L, 22L, 23L, 24L, 25L),
+  id = c(1L, 2L, 3L, 4L, 5L, 6L, 10L, 10L, 18L, 22L, 23L, 24L, 25L, 27L),
   species_name = c("Amanita one", "Russula one", "Portal one", "Portal two", "Sequence one", "GenBank one",
                    "Boletus one", "Boletus two", "Linked one", "Third status", "Flags unset", "Russula two",
-                   "Portal two"),
+                   "Portal two", "Linked only"),
   stringsAsFactors = FALSE
 )
 
 test_that("the per-source query names exactly the records the CASE join named", {
   testthat::skip_if(!nzchar(Sys.getenv("ATLAS_TEST_PSQL")), "set ATLAS_TEST_PSQL to run SQL against Postgres")
-  rows <- sequence_names_rows(list(atlas_sequence_names_sql(1, 26), sequence_names_sql_bf236cf(1, 26)))
+  rows <- sequence_names_rows(list(atlas_sequence_names_sql(1, 27), sequence_names_sql_bf236cf(1, 27)))
   new <- rows[rows$window == "1", c("id", "species_name")]
   old <- rows[rows$window == "2", c("id", "species_name")]
   rownames(new) <- NULL
@@ -121,7 +124,7 @@ test_that("the per-source query names exactly the records the CASE join named", 
   expect_identical(new, old)
   # And that answer is the one the rules give, so the comparison is not of two
   # empty answers: every source by its own key, two names for record 10 and
-  # one for 18 (key and link agree), none for a blank or unknown source, none
+  # one for 18 (key and link agree), 27 by its link alone, none for a blank or unknown source, none
   # from trash, contaminant, wrong, unapproved or unnamed sequences, none
   # linked through another database, and none for the MO record sharing 18's
   # number.
@@ -130,7 +133,7 @@ test_that("the per-source query names exactly the records the CASE join named", 
 
 test_that("paging the pull by id windows neither drops nor doubles a record at a window's edge", {
   testthat::skip_if(!nzchar(Sys.getenv("ATLAS_TEST_PSQL")), "set ATLAS_TEST_PSQL to run SQL against Postgres")
-  ids <- 1:26
+  ids <- 1:27
   # Every page size, as the pull pages: each window runs from its first id to
   # its last, inclusive, and the next starts after it.
   windows <- unlist(lapply(1:6, function(size) {
