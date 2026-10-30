@@ -260,6 +260,166 @@ Logged as the operations lane reports them; numbers only.
       Shards report whole, and each species' seeds come from its name, so
       the union of the 20 shards' files is the study as one run would have
       made it, on one processor family.
+  - **Complete (2026-10-29 04:45 UTC).** The orchestrator printed "All 20
+    shards reported", rc 0. Every shard ran on r7i.8xlarge (Intel Xeon
+    Platinum 8488C) and succeeded.
+    - Spot, 2026-10-26: shards 13, 14, 15, 1 and 6, finishing 03:59 to
+      08:21 UTC; 11.3 h of shard run time.
+    - On-demand, one at a time: shard 11 from 2026-10-27 20:01 UTC to shard
+      20 at 2026-10-29 04:44 UTC; 32.0 h of shard run time.
+    - **Cost, corrected (2026-10-29).** The "about 20 h and about USD 42"
+      above was an estimate made before the on-demand shards ran. From the
+      shard records and the cost ledger (docs/paper/costs.md, 1f91e5a), the
+      job used about 63.6 instance-h. That is about 30.8 on spot, including
+      the attempt lost to the AWS 500 and reclaimed workers, and 32.8
+      on-demand. The total is at most USD 134 at list price (spot at most
+      65, on-demand about 69), against the smoke run's "at most about USD
+      85".
+  - **Read (2026-10-29)** with the reader as fixed (8125ed1, on Atlas main
+    bf236cf), on the 20 results files that the operations lane copied from
+    the store. In that copy, only the virtual species' centre coordinates
+    (taxa[].spec.centres[].x and y) were removed, which the reader does not
+    read. The pool is complete: 20 of 20 shards, 2,840 of 2,840 species.
+    One input fix was needed, written down before reading (Deviations,
+    2026-10-29, e8e9fc5).
+
+## Result (2026-10-29)
+
+**C1 is not supported, as registered or by band.** H1b, H1c, H1d and H1e
+hold for both Maxent and RF. H1a fails for both. H1f fails as a registered
+test, though not in substance (below). The by-band fallback supports no band
+for either learner.
+
+The tests read Maxent's and RF's shift and scatter nulls, over 800 full
+geography species and 1,200 full habitat species per learner.
+- **Maxent** has 799 and 1,197: four species' Maxent fits failed (below).
+- **Primary** reading: the one untested species counts as not passed.
+- **Sensitivity** (those 4 rows left out) changes only the third decimal:
+  Maxent H1a 46/798 = 5.8% [4.3%, 7.6%]; RF 39/799 = 4.9% [3.6%, 6.6%]. No
+  verdict changes.
+
+### H1a: shift-null false pass, geography species (held: no, for both)
+
+| Band | Maxent passed / n | Rate [95% Wilson] | RF passed / n | Rate [95% Wilson] |
+|---|---|---|---|---|
+| 20–29 | 6 / 160 | 3.8% [1.7, 7.9] | 4 / 160 | 2.5% [1.0, 6.3] |
+| 30–49 | 7 / 160 | 4.4% [2.1, 8.8] | 9 / 160 | 5.6% [3.0, 10.3] |
+| 50–99 | 9 / 160 | 5.6% [3.0, 10.3] | 9 / 160 | 5.6% [3.0, 10.3] |
+| 100–199 | 7 / 160 | 4.4% [2.1, 8.8] | 7 / 160 | 4.4% [2.1, 8.8] |
+| 200+ | 17 / 159 | 10.7% [6.8, 16.5] | 10 / 160 | 6.3% [3.4, 11.1] |
+| **Pooled** | **46 / 799** | **5.8% [4.3, 7.6]** | **39 / 800** | **4.9% [3.6, 6.6]** |
+
+- **Maxent** fails on both parts: the pooled rate and its upper bound are
+  above 5%, and so are the rates at 50–99 and 200+.
+- **RF**'s pooled rate is under 5%, but its upper bound (6.6%) is not, and
+  three bands are above 5%.
+- **The by-band fallback** (amendment 2026-10-25) needs a band's own upper
+  bound at or below 5%. With 160 species, that allows at most 2 false
+  passes (Wilson upper 4.4%; 3 passes give 5.4%). Every band had 4 or
+  more, so no band qualifies for either learner, and C1 by band is "no
+  band".
+
+### H1b: scatter-null false pass, geography species (held: yes, for both)
+
+Maxent 600/799 = 75.1% [72.0, 78.0]; RF 654/800 = 81.8% [78.9, 84.3]. Both
+lower bounds are far above 20%. The rate rises with band:
+
+| Learner | 20–29 | 30–49 | 50–99 | 100–199 | 200+ | Trend p (one-sided) |
+|---|---|---|---|---|---|---|
+| Maxent | 28.8% | 63.1% | 87.5% | 96.9% | 99.4% | 3.6e-59 |
+| RF | 49.4% | 70.6% | 91.9% | 96.9% | 100% | 4.2e-40 |
+
+### H1c and H1f: shift power on habitat species
+
+- **H1c (held: yes, for both).** Power is lower for wider habitats. The
+  breadth coefficient (logit, per unit realised breadth, with band and
+  strength in the model) is −10.7 for Maxent (z −7.3, p 2.5e-13) and −10.4
+  for RF (z −5.8, p 7.1e-9).
+- **H1f (as registered: does not hold, for both; z 0.03, one-sided p 0.49).**
+  No weak-signal species passed the shift null: 0/599 for Maxent and 0/600
+  for RF, in every band. Strong-signal species passed 125/598 (20.9%) and
+  79/600 (13.2%).
+  - That is complete separation. The registered Wald test then has an
+    unbounded estimate (+19.4 and +18.8 on the logit scale) and no power,
+    so the test cannot hold, although the difference is as large as it can
+    be.
+  - The test is reported as registered. That strong beats weak is shown by
+    the counts, not by the test.
+- **Shift power by band**, strong signal only (weak is 0 everywhere):
+
+  | Learner | 20–29 | 30–49 | 50–99 | 100–199 | 200+ |
+  |---|---|---|---|---|---|
+  | Maxent | 11.7% (14/120) | 15.0% | 25.8% | 24.2% | 28.0% (33/118) |
+  | RF | 10.0% (12/120) | 8.3% | 15.0% | 14.2% | 18.3% (22/120) |
+
+### H1d: narrow habitats, shift power rises with band (held: yes, for both)
+
+Maxent 103/599 = 17.2%, rising from 8.3% at 20–29 to 22.7% at 200+ (trend
+p 0.00034). RF 68/600 = 11.3%, from 9.2% to 15.8% (p 0.014).
+
+### H1e: map-to-truth ρ, shift-passed vs the rest, habitat species (held: yes, for both)
+
+| Learner | Passed | Rest | Median ρ passed | Median ρ rest | Difference [95% bootstrap] | One-sided p |
+|---|---|---|---|---|---|---|
+| Maxent | 125 | 1,072 | 0.901 | 0.606 | 0.295 [0.264, 0.318] | 2.0e-44 |
+| RF | 79 | 1,121 | 0.761 | 0.639 | 0.123 [0.088, 0.153] | 3.5e-10 |
+
+### Ensembles (ESM, 3–19 sites; secondary, by band)
+
+- **Shift false pass:** 6/360 = 1.7% [0.8, 3.6] (0/120, 1/120 and 5/120
+  by band), within 5%.
+- **Scatter false pass:** 61/360 = 16.9% [13.4, 21.2] (0%, 8.3% and
+  42.5%), not above 20%.
+- **Shift power:** strong signal passed 8/240 (3.3%); weak passed 0/240.
+- **H1e** holds on few species: 8 passed, median ρ 0.708 vs 0.480,
+  difference 0.228 [0.128, 0.296], p 0.0026.
+- Below 20 sites, both nulls almost never pass anything.
+
+### Map tiers (E24; secondary; at or above each tier, geography species, all bands)
+
+| Tier | Maxent false pass | RF false pass | ESM false pass |
+|---|---|---|---|
+| strong (= the shift test) | 5.8% | 4.9% | 1.7% |
+| moderate | 20.4% | 17.1% | 11.9% |
+| moderate (z) | 16.8% | 14.0% | 10.6% |
+| indicative | 94.6% | 97.4% | 73.9% |
+
+On habitat species, the moderate tier passes 32.4% of strong-signal and 1.5%
+of weak-signal Maxent species; for RF, 26.7% and 0.5%. Median ρ by tier
+(Maxent / RF): strong 0.901 / 0.761, moderate 0.870 / 0.770, indicative
+0.607 / 0.644, failed 0.359 / 0.478.
+
+### Health, failures and best-effort nulls
+
+- **Scored.** All 2,840 species were scored, and every cell was filled: 0
+  unfilled, 0 null-test errors.
+- **32 arm errors**, all "glmnet failed to complete regularization path",
+  all Maxent.
+  - 28 are in the three effort arms, which E1's tests do not read.
+  - 4 are in maxnet:none at 200+ sites: 1 geography and 3 habitat species.
+    These are missing from Maxent's tests, hence 799 and 1,197.
+- **One species untested.** virtual-geography-0540 (100–199 band, 124
+  presences) drew no null replicate in either design, for either learner
+  (Deviations, 2026-10-29).
+- **Nulls drawn.** The shift design's sequential stop rule drew a median of
+  10 nulls per test; scatter drew a median of 100 for Maxent and RF and 20
+  for ESM.
+- **Best-effort shifted nulls** (a shift that could not meet the far-share
+  target), as a share of shift nulls drawn:
+
+  | Band | Maxent | RF | ESM |
+  |---|---|---|---|
+  | 3–4 | – | – | 42% |
+  | 5–9 | – | – | 41% |
+  | 10–19 | – | – | 52% |
+  | 20–29 | 69% | 68% | – |
+  | 30–49 | 70% | 70% | – |
+  | 50–99 | 81% | 82% | – |
+  | 100–199 | 91% | 92% | – |
+  | 200+ | 97% | 97% | – |
+
+  At 100 sites and up, nearly every shifted null is best-effort. The 200+
+  band is also where Maxent's shift false pass is highest (10.7%).
 
 ## Deviations
 
