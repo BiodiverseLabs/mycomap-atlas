@@ -104,7 +104,11 @@ export default function Guide() {
           </p>
           <Item sample={<Swatch style={{ background: RANK }} label="A strong map, drawn at full strength" />} title="Strong: drawn at full strength">
             <p>
-              The map beat clustered collecting. Only strong maps make claims anywhere on the
+              The map beat clustered collecting. A strong map has passed a test that about 1 in
+              20 maps with no real habitat signal also pass, and that misses many real habitat
+              links, so a strong grade is good evidence, not proof. Maps that are not strong are
+              not shown to be wrong, only not shown to beat the pattern of where people collect.
+              Only strong maps make claims anywhere on the
               site: in &ldquo;What could grow here?&rdquo;, in the states and provinces a species
               is likely in, and in the combined map.
             </p>
