@@ -136,6 +136,12 @@ directly with the operations lane.
   The DNA names another species or genus than the record name for 2,201
   records (1.8%). By source: iNaturalist 1.1%, MO 7.0%, MycoPortal 31.2%,
   MyCoPortal 39.3%.
+  MycoPortal and MyCoPortal are one portal under two .org source spellings,
+  by import date: "MycoPortal" for records created 2025-08-31 to
+  2026-01-15, and "MyCoPortal" from 2026-01-31. No record number appears
+  under both (prod, read-only, 2026-10-29). Atlas treats both as MyCoPortal
+  (sequence key mp, ATLAS_MYCOPORTAL_SOURCES). Together they make 1,596
+  records, of which 519 (32.5%) are named another species or genus.
 - **Taxa.** 15,770 under DNA names and 15,633 under record names.
   - 656 DNA taxa split: their records go to two or more record-name taxa.
   - 737 record-name taxa merged: two or more DNA taxa feed each.
