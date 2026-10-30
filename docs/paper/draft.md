@@ -1323,6 +1323,15 @@ revised (Path).
    record otherwise stays CC BY-SA 4.0, and the new version states the
    table's licence separately (both licences in the record's rights field,
    with the CC0 file named in the description and README).
+7. **Reproducibility across processor families: decided 2026-10-21
+   (Steve).** E12 found the spatial block to be the only cross-family
+   effect (all 5 differences, 0 of 277 same-block models; shown for the
+   507-model sample). Approved: (A) record each taxon's block once and
+   reuse it for every learner, retry and refit (method lane builds it; it
+   changes no released number; merged on Atlas main c56d2dc); (B) pin
+   production fits to r7i until (A) is in a release (operations lane). Not
+   adopted: forcing an OpenBLAS kernel. Also approved and merged: a machine
+   record per result (BLAS build, threads, processor).
 8. **Zenodo models record, provenance: decided 2026-10-21 (Steve).**
    (a) Approved: the metadata-only description edit stating that the
    published counts are after the 76-record exclusion and that most models
@@ -1362,7 +1371,7 @@ revised (Path).
 
 ## Changelog
 
-- **0.21.2 (2026-10-30).** Steve: C1 narrower (OD11), title 'null-tested' confirmed (OD9), inquiry to go now (Path 4), site grade wording to be drafted (OD12). Open decision 10, dropped by mistake in a5abb9d, restored.
+- **0.21.2 (2026-10-30).** Steve: C1 narrower (OD11), title 'null-tested' confirmed (OD9), inquiry to go now (Path 4), site grade wording to be drafted (OD12). Open decisions 7 and 10, dropped by mistake in 1676fb5 and a5abb9d, restored.
 - **0.21.1 (2026-10-29).** E9 compare (d72cb88): 1.8% of records relabelled; maps agree (Spearman 0.958) but strong grades move (44 of 77/99 strong under both); C3 and 3.6.
 - **0.21.0 (2026-10-29).** E1 read out (prereg Result, bcf981c): C1 not
   supported as registered (shift false pass 5.8% and 4.9%, upper bounds
