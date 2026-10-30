@@ -126,8 +126,9 @@ revise the paper plan and let's continue".)
    narrows to coverage: half the modelled taxa (3,193 of 6,369, 50.1%) and
    45% of those with a strong map (213 of 470) carry only a provisional
    name, a DNA-defined lineage with no formal epithet, and exist as
-   distinct taxa only under DNA labels (E16) [PENDING study-compare: the
-   records whose label DNA changes, by source]. A comparison with
+   distinct taxa only under DNA labels (E16). DNA names another species or
+   genus for 1.8% of records overall (1.1% of iNaturalist records, 7.0% of
+   Mushroom Observer's, about a third of MyCoPortal's; E9, descriptive). A comparison with
    morphology-named records (GBIF, E6c, P2) is not part of this claim; if it
    runs, it is a Discussion point.
 4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
@@ -680,9 +681,16 @@ alike; record names gave slightly more strong small-model ensembles (63
 against 43), a descriptive count. Half the modelled taxa (3,193 of 6,369, 50.1%) and 45.3% of
 those with a strong map carry only a provisional name, and the share falls
 with sites, from 60.6% at 3–4 sites to 21–24% at 50 and more
-(`2026-10-28-e16-descriptives.md`, Part 1). [PENDING study-compare
-(approved, queued behind E1): records whose label DNA changes, by source,
-and per-pair map agreement and grade changes.] → detail in S8. (E6c, morphology-named GBIF models, if
+(`2026-10-28-e16-descriptives.md`, Part 1). Comparing the two releases
+(descriptive): DNA names another species or genus than the record's own
+for 2,201 of 124,955 records (1.8%), from 1.1% of iNaturalist records to
+7.0% of Mushroom Observer's and 31–39% of MyCoPortal's; 1,331 taxa changed
+their record set. The 1,702 paired maps agreed closely (median Spearman
+0.958, Schoener's D 0.957), but grades moved more than maps: 84.7% of pairs
+kept their grade, and of 77 maps strong under DNA names and 99 under record
+names only 44 were strong under both. [CHECK with the method lane: the
+compare lists "MycoPortal" (1,344) and "MyCoPortal" (252) as separate
+sources.] → detail in S8. (E6c, morphology-named GBIF models, if
 run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
@@ -1337,6 +1345,7 @@ revised (Path).
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.21.1 (2026-10-29).** E9 compare (d72cb88): 1.8% of records relabelled; maps agree (Spearman 0.958) but strong grades move (44 of 77/99 strong under both); C3 and 3.6.
 - **0.21.0 (2026-10-29).** E1 read out (prereg Result, bcf981c): C1 not
   supported as registered (shift false pass 5.8% and 4.9%, upper bounds
   above 5%; 10.7% for Maxent at 200+); scatter 75–82%; power 13–21% for
