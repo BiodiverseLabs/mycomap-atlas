@@ -77,7 +77,13 @@ the orchestrator, S3 and boot time before a worker writes its start.
 | 2026-10-26 | E2 re-score, all finds | study-20261026T004856Z-35fc3d63 | 1 × r7i.xlarge, on-demand | — | — | 00:50–01:43 UTC | ≈ 0.23 | — | |
 | 2026-10-26 | E2 re-score, observed after the cutoff | study-20261026T004853Z-bb7457e9 | 1 × r7i.xlarge, on-demand | — | — | 00:50–01:00 UTC | ≈ 0.04 | — | |
 | 2026-10-26 | E6a paired re-score | study-20261026T020304Z-017e88fa | 1 × r7i.xlarge, on-demand | — | — | 02:05–03:20 UTC | ≈ 0.33 | — | |
-| — | E1c, E1, E9, E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
+| 2026-10-25/29 | E1 full run (virtual-species calibration) | study-20261025T212753Z-55239fbd | r7i.8xlarge: spot (incl. the attempt lost to an AWS 5xx and reclaims), then on-demand | 2,840 species | — | ≈ 63.6 instance-h (spot ≈ 30.8, on-demand 32.8) | ≤ 134 (spot ≤ 65; on-demand ≈ 69) | — | on-demand inside Steve's 40 h limit |
+| 2026-10-26 | E9 DNA-name fits | priv-20261026T021038Z-3ba43cf6 | r7i.8xlarge × 3 + r7i.4xlarge, spot | 1,852 fitted, 52 refused | — | ≈ 5.8 instance-h + finish worker | ≤ 13 | — | |
+| 2026-10-26 | E9 record-name fits | priv-20261026T021038Z-9c0ba509 | r7i spot; shard 4 resumed on-demand r7i.4xlarge | 1,860 fitted, 44 refused | — | [PENDING final] | ≤ 12 so far | — | hit the 8 h limit; shard 4 relaunched (Steve's OK) |
+| 2026-10-28 | E9 scoring | — | 1 × r7i.xlarge, on-demand | — | — | about 2 h | ≈ 0.53 | — | |
+| 2026-10-29 | E9 study-compare | — | 1 shard | — | — | — | ≈ 0.05 | — | |
+| 2026-10-28 | E16 descriptives | — | the public API and the Atlas box (read-only) | — | — | — | 0 (no EC2) | — | |
+| — | E1c, E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
 
