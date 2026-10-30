@@ -1264,7 +1264,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 2b | **E12 first step** and same-machine gate | **done** 2026-10-19: deterministic per processor family | done |
 | 3 | **E6b** distance-only baseline on the E2 finds | **done** 2026-10-21 (study-20261020T232528Z-05216058); then Steve's post-hoc tier rule (plan-map-tiers, 2026-10-20) | done |
 | 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. **Kernels done 2026-10-25**: 6,369 of 6,369 taxa (main 5,679; patch 1 from R_main's pull 681; patch 2 on r7a 9), none left out of H3c. Next: the `--counts-only` check by grade, then the read-out | Steve approved the prereg, date, read-out mode and kernels | read-out about 2026-12-16 |
-| 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, and the nightly and the E19/E20 deposit are stated as they then are | **mid-December 2026** (Steve, 2026-10-25) |
+| 4 | **Presubmission inquiry** to Ecological Monographs | E1 in; **send now** (Steve, 2026-10-30), redrafted with E1's numbers (`presubmission-inquiry.md`); Steve sends it to the editorial office | **now** |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration | **done** 2026-10-29: C1 not supported as registered; shift nulls 5–6% false pass, scatter 75–82% | done |
 | 7 | **E9** sequence vs record names, **redesigned as a paired hindcast** (Steve, 2026-10-25; `atlas-handoff/e9-redesign-assessment.md`): both labellings in one job, scored on E2's later finds | plan-e9 amendment committed before any fit; planner and paired-scorer code (method lane, ~1.5–2 days, Steve's review); Steve's go; ~$20–30 spot (≤ $45–55 on-demand) | November 2026 |
@@ -1338,13 +1338,31 @@ revised (Path).
    forests or the 100+ band fail, "null-tested" (a). H1a failed for both
    learners and at 200+ sites, so the title now reads "null-tested trust
    grade" (option a). The z data (weak: Spearman 0.14 with later-find rank)
-   would not have carried option (b) either. [Steve to confirm the wording.]
+   would not have carried option (b) either. **Confirmed by Steve,
+   2026-10-30.**
+10. **C3 after E9: decided 2026-10-28 (Steve), option (a).** C3 stays as a
+   short claim with two halves: the null result (wrong names on some
+   records do not measurably hurt the maps; E9) and coverage (the taxa only
+   DNA can map; E16). The study-compare job on the two E9 releases
+   (≤ USD 0.40) was approved and has run (plan-e9, Result, d72cb88).
+11. **C1 after E1: decided 2026-10-30 (Steve), the narrower claim.** C1 states
+   the registered failure plainly (shifted nulls 5–6% false pass, upper
+   bounds above 5%, 10.7% for Maxent at 200+ sites) and then what E1 does
+   show: the usual scattered test fails badly, the shifted null cuts false
+   passes more than tenfold and selects maps much closer to the truth, at
+   low power. No threshold, band or cut-point is changed after the result;
+   any further slice is exploratory and labelled.
+12. **Public site wording for grades (Steve, 2026-10-30; a site matter, not
+   the paper's tests).** The site lane drafts short wording for strong maps
+   (a pass that habitat-free patterns also get about 1 time in 20) and for
+   maps that are not strong ("not shown", not "wrong"), for Steve's review.
+   No grade threshold changes.
 
 ---
 
 ## Changelog
 
-- **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.21.2 (2026-10-30).** Steve: C1 narrower (OD11), title 'null-tested' confirmed (OD9), inquiry to go now (Path 4), site grade wording to be drafted (OD12). Open decision 10, dropped by mistake in a5abb9d, restored.
 - **0.21.1 (2026-10-29).** E9 compare (d72cb88): 1.8% of records relabelled; maps agree (Spearman 0.958) but strong grades move (44 of 77/99 strong under both); C3 and 3.6.
 - **0.21.0 (2026-10-29).** E1 read out (prereg Result, bcf981c): C1 not
   supported as registered (shift false pass 5.8% and 4.9%, upper bounds
@@ -1405,6 +1423,7 @@ revised (Path).
   (costs.md), before the release's later steps.
 - **0.17.0 (2026-10-21).** E2 and E6b written up: Results 3.4, C2,
   abstract, Methods 2.3 (tiers, the post-hoc distance bar) and 2.5 (kernel).
+- **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
 - **0.16.5 (2026-10-19).** Models record published
   (doi:10.5281/zenodo.23463939); both data records cited.
 - **0.16.4 (2026-10-18).** First DOI: Zenodo layers published; hindcast

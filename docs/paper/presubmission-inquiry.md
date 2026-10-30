@@ -1,6 +1,6 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-**E1 is in (2026-10-29); send mid-December 2026 (Steve).** Redrafted
+**E1 is in (2026-10-29); SEND NOW (Steve, 2026-10-30).** Copy from "Intended type" to the end of the references into the journal's presubmission form or an email to the editorial office; attach Figure 3 (`figures/fig3.svg`) if a figure is wanted. Redrafted
 2026-10-29 with E1's registered numbers; the nightly and the training-record
 deposit are stated as they are now. Steve sends it. Limit: 300 words, 5–10
 references, optionally 1–2 figures (Figures 2 and 3 of the draft).
