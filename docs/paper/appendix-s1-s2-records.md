@@ -186,8 +186,13 @@ one matched its model's recorded fingerprint, which is the exact record set
 (E3 prereg, Runs, main kernel run, 2026-10-21: 0 of 6,369 differ in
 fingerprint or presences).
 
+On the frozen pull (E16, Part 2), 30 of the 76 rows can be placed; 6,041
+of the 6,369 modelled taxa (94.9%) have one of them within 500 km of their
+own records, so a removed row was within background reach of nearly every
+model.
+
 For the first 22, measured on the 2026-10-06 pull, which holds them at the
-same places [PENDING: the same figures for all 76 on the frozen pull]: they
+same places: they
 fall in 19 of 8,803 survey sites (0.22%); 16 of those consist only of these
 records (13 of one record, 3 of two), and 3 are real sites with one such
 record each (of 5, 17 and 110 records). Of the 1,291 taxa with full models
@@ -257,12 +262,12 @@ they are passed to data review. Figures read-only on production,
 2026-10-13 (trash and contaminant counts from the data inputs lane; the
 third kind from the rebuild lane, by Atlas's own naming rule). All three
 kinds are excluded from the next pull on (Atlas commits 31709fa, 9379a64,
-06cf6ea); the frozen release keeps them (Steve). [CHECK: these counts were
-taken on the pull before the second cleaning; recount on x73b85b36.] [PENDING E16: a read-only script, run on
-the Atlas server with the bogus-record counts, labels every record first
-validated by 2026-10-12 with and without set-aside, contaminant-flagged
-and misattributed sequences and reports
-records joining, leaving and renamed; taxa whose record sets change; taxa
-crossing 3 and 20 sites either way; and, for taxa with 20+ sites, the median
-and maximum share of detection sites changed. Worded as "as of the frozen
-pull's records, with the sequence mirror of <run date>".]
+06cf6ea); the frozen release keeps them (Steve). These counts were taken
+on 2026-10-13. Recounted against mycomap.org's sequences on 2026-10-30
+(E16, Part 2), 268 of the frozen pull's records have no approved, clean,
+named sequence (164 iNaturalist, 42 Mushroom Observer, 44 MyCoPortal, 18
+mycomap.org sequence records): every approved named sequence they have is
+now set aside, a contaminant or misattributed. The two counts are of
+different moments, since the sequences have changed in between, and are
+not reconciled; the 2,287 left out could not be recounted, because no label
+audit of that moment exists (E16, Deviations, 2026-10-28).

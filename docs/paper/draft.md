@@ -128,7 +128,7 @@ revise the paper plan and let's continue".)
    name, a DNA-defined lineage with no formal epithet, and exist as
    distinct taxa only under DNA labels (E16). DNA names another species or
    genus for 1.8% of records overall (1.1% of iNaturalist records, 7.0% of
-   Mushroom Observer's, about a third of MyCoPortal's; E9, descriptive). A comparison with
+   Mushroom Observer's and 32.5% of MyCoPortal's; E9, descriptive). A comparison with
    morphology-named records (GBIF, E6c, P2) is not part of this claim; if it
    runs, it is a Discussion point.
 4. **C4. An automated, open pipeline, designed to rebuild nightly, can do
@@ -232,8 +232,9 @@ long as a map belongs to its set of records rather than to a name that may
 later change.
 
 The second is clustered collecting. Records concentrate where collectors
-and sequencing projects are: in the data used here, six states and
-provinces hold 61% of the records and Indiana alone 12%. A target-group
+and sequencing projects are: in the data used here, four states and
+provinces, California, Indiana, Michigan and British Columbia, hold half
+the records. A target-group
 background compares a species' records with other records collected the same way
 (Phillips et al. 2009). Spatially blocked cross-validation scores a model on
 whole regions it did not see (Roberts et al. 2017; Valavi et al. 2019).
@@ -477,9 +478,20 @@ figure or table and the analysis that fills it.*
 
 ### 3.1 The records and the taxa (E16)
 
-[PENDING: records and taxa by source; sites per taxon (distribution, with the
-3 / 20 / 50 thresholds); share provisional; where records are; validation lag
-(median ~8 months [pre-freeze]).] → **Table 1**; detail in S2.
+*Descriptive (E16, `2026-10-28-e16-descriptives.md`).* The frozen pull
+holds 133,235 records of 16,252 taxa: 94.9% from iNaturalist (15,034
+taxa), 3.8% from Mushroom Observer, 1.2% from MyCoPortal and a few from
+mycomap.org's own sequences and GenBank. Most taxa have few sites (distinct
+1 km cells): median 2, quartiles 1 and 6, 90th percentile 16, maximum 325;
+6,810 taxa have three or more, 1,341 twenty or more and 328 fifty or more.
+Half the modelled taxa carry only a provisional name (Section 3.6).
+Records are concentrated: California (14.6%), Indiana (12.8%), Michigan
+(11.8%) and British Columbia (9.7%) hold half of them. A record waits a
+median of 243 days from observation to its first validation on
+iNaturalist (quartiles 146–470) and 920 days on Mushroom Observer
+(375–1,364); for MyCoPortal's herbarium specimens and the sequence records
+the observation date is not a field date, so no lag is given. → **Table
+1**; detail in S2.
 
 ### 3.2 Calibrating the null test (E1)
 
@@ -684,13 +696,12 @@ with sites, from 60.6% at 3–4 sites to 21–24% at 50 and more
 (`2026-10-28-e16-descriptives.md`, Part 1). Comparing the two releases
 (descriptive): DNA names another species or genus than the record's own
 for 2,201 of 124,955 records (1.8%), from 1.1% of iNaturalist records to
-7.0% of Mushroom Observer's and 31–39% of MyCoPortal's; 1,331 taxa changed
+7.0% of Mushroom Observer's and 32.5% of MyCoPortal's (519 of 1,596
+records, its two .org spellings combined); 1,331 taxa changed
 their record set. The 1,702 paired maps agreed closely (median Spearman
 0.958, Schoener's D 0.957), but grades moved more than maps: 84.7% of pairs
 kept their grade, and of 77 maps strong under DNA names and 99 under record
-names only 44 were strong under both. [CHECK with the method lane: the
-compare lists "MycoPortal" (1,344) and "MyCoPortal" (252) as separate
-sources.] → detail in S8. (E6c, morphology-named GBIF models, if
+names only 44 were strong under both. → detail in S8. (E6c, morphology-named GBIF models, if
 run, goes to the Discussion.)
 
 ### 3.7 What drives the maps (E8)
@@ -778,8 +789,8 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   itself shows. **Privacy rule (Steve, 2026-10-13):** records whose
   location the source hides, obscures or may hide (unknown privacy) are
   excluded from all published record-level layers, and carry no survey-site
-  membership in this table (about 800 records of unknown privacy in the
-  rebuild's pull [CHECK: count in the frozen pull]). Obscured iNaturalist
+  membership in this table (833 records of unknown privacy in the frozen
+  pull, 797 of them from Mushroom Observer; E16). Obscured iNaturalist
   coordinates never train a model. **Licence: CC0 1.0** (Steve,
   2026-10-25); the rest of the models record stays CC BY-SA 4.0. Zenodo
   carries licences per record, not per file (its rights field takes
@@ -948,8 +959,9 @@ them, which is what the prospective test (E3) is for. Seventy-six
 erroneous records were removed by an exclusion list rather than a new pull,
 which would have moved the validation cutoff, so other models' backgrounds
 still include their sites (under 0.06% of records); and the frozen pull's
-naming read some sequences it should have skipped, about 527 records named
-only by them and 2,287 left out, corrected from the next release on
+naming read some sequences it should have skipped (about 527 records named
+only by them and 2,287 left out when counted on 2026-10-13; 268 such
+records when recounted on 2026-10-30), corrected from the next release on
 (Appendix S1: Section S2). The pull also lost 21 validated records (20
 from Mushroom Observer, 1 from MyCoPortal) to a check for obscured
 iNaturalist coordinates that matched by observation number alone, and the
@@ -1371,6 +1383,9 @@ revised (Path).
 
 ## Changelog
 
+- **0.21.3 (2026-10-30).** E16 Part 2 into 3.1, the Introduction, 4.1,
+  Limitations and S2 (sources, sites, states, validation lag, naming
+  recount, drop-list reach, privacy); MyCoPortal reported as one portal.
 - **0.21.2 (2026-10-30).** Steve: C1 narrower (OD11), title 'null-tested' confirmed (OD9), inquiry to go now (Path 4), site grade wording to be drafted (OD12). Open decisions 7 and 10, dropped by mistake in 1676fb5 and a5abb9d, restored.
 - **0.21.1 (2026-10-29).** E9 compare (d72cb88): 1.8% of records relabelled; maps agree (Spearman 0.958) but strong grades move (44 of 77/99 strong under both); C3 and 3.6.
 - **0.21.0 (2026-10-29).** E1 read out (prereg Result, bcf981c): C1 not
