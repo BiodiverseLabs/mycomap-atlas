@@ -187,7 +187,7 @@ export interface Model {
   /** Whether the map beat its null models. Fits from before there were
    * null models have none, and read as "untested". */
   skill?: Skill;
-  /** How much the null test vouches for the map (lib/grade.ts). Absent on
+  /** What the null test says about the map (lib/grade.ts). Absent on
    * fits from before grades: work it out with mapGrade. */
   grade?: Grade;
   /** How strongly the map is drawn, 0 (weak or failed) to 1 (far above

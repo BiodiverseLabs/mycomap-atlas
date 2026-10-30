@@ -45,10 +45,12 @@ export function isFaint(grade: Grade): boolean {
 /** The line laid over a faint map, or null for one that is not. */
 export function gradeNote(grade: Grade): string | null {
   if (grade === "weak") {
-    // The middle sentence is what E6b measured on later finds (2026-10-20):
-    // weak maps ranked them no better than a map of distance to the taxon's
-    // known records did.
-    return "Skill on held-out ground, but not shown to beat clustered collecting. On records found after the maps were made, maps graded like this ranked those finds no better than distance to the taxon's known records did: read this map as a hint, not a finding.";
+    // The first sentence is what E1 measured on simulated species (2026-10-29):
+    // the shift test caught at most 28% of strong habitat signals in any band,
+    // and none of weak ones. The second is what E6b measured on later finds
+    // (2026-10-20): weak maps ranked them no better than a map of distance to
+    // the taxon's known records did.
+    return "Not shown to beat clustered collecting, which is not the same as wrong: the test misses most real habitat links (on simulated species it caught fewer than 1 in 3 even of strong ones, and none of weak ones). This map does rank held-out ground better than chance, but on records found after the maps were made, maps graded like this did no better than distance to the taxon's known records: read it as a hint, not a finding.";
   }
   if (grade === "failed") return "No better than chance on held-out ground: this map says little about habitat.";
   return null;
@@ -56,5 +58,5 @@ export function gradeNote(grade: Grade): string | null {
 
 /** The short verdict in the comparison table. */
 export function gradeVerdict(grade: Grade): string {
-  return { strong: "Yes", weak: "Not shown", failed: "No", untested: "Not tested" }[grade];
+  return { strong: "Passed", weak: "Not shown", failed: "No", untested: "Not tested" }[grade];
 }

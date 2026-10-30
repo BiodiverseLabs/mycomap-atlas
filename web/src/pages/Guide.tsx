@@ -108,7 +108,7 @@ export default function Guide() {
               20 maps with no real habitat signal also pass, and that misses many real habitat
               links, so a strong grade is good evidence, not proof. Maps that are not strong are
               not shown to be wrong, only not shown to beat the pattern of where people collect.
-              Only strong maps make claims anywhere on the
+              Only strong maps are used anywhere else on the
               site: in &ldquo;What could grow here?&rdquo;, in the states and provinces a species
               is likely in, and in the combined map.
             </p>

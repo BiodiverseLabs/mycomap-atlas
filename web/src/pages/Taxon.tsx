@@ -163,6 +163,11 @@ function AboutTheseMaps({ name }: { name: string }) {
         </Link>
       </p>
       <p>
+        <strong className="text-[#4a3728]">What &ldquo;strong&rdquo; means.</strong> A strong map
+        passed a test that maps with no real habitat signal also pass about 1 time in 20, so it is
+        good evidence, not proof of the habitat it shows.
+      </p>
+      <p>
         <strong className="text-[#4a3728]">Not for decisions about safety or land.</strong> Never use
         them to decide what is safe to eat or where to forage, or for permits, land management or
         other regulatory decisions.
@@ -608,7 +613,7 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
       ),
     },
     {
-      label: "Beats chance",
+      label: "Beats clustered collecting",
       help: (
         <>
           <p>
@@ -621,7 +626,9 @@ function Comparison({ models }: { models: Partial<Record<Algorithm, Model | null
             Shown as the null models' AUC and the share that scored at least as well (p). A map
             passes at p ≤ 0.05 with a Boyce index above zero. One that does not is drawn faint and
             left out of Explore: "not shown" when it still ranks held-out ground better than chance,
-            "no" when it does not.
+            "no" when it does not. Maps of patterns with no habitat behind them pass about 1 time
+            in 20, and the test misses most real habitat links, so a pass is good evidence, not
+            proof, and "not shown" is not "wrong".
           </p>
           <p className="mt-1.5">
             Below 20 sites the test has too little to go on: the made-up species score so variously

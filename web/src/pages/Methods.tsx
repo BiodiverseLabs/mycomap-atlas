@@ -643,13 +643,22 @@ export default function Methods() {
                 smallest p is about 0.01, too coarse for the correction to pass anything.
               </p>
               <p>
+                A larger test, registered before it ran (E1, October 2026), scored 2,840 simulated
+                species. Of those whose collections followed no habitat, the shift test passed 46 of
+                799 Maxent maps (5.8%) and 39 of 800 random-forest maps (4.9%), rising to 10.7% for
+                Maxent from 200 or more sites, and 6 of 360 small-sample ensembles (1.7%); boosted
+                trees were not tested. It passed 21% (Maxent) and 13% (random forest) of species with
+                a strong habitat signal, about 3% for the ensembles, and none with a weak one. Maps
+                that passed were much closer to the true habitat than the rest.
+              </p>
+              <p>
                 Each map gets a <B>grade</B>. <B>Strong</B>: it passed. A strong map has passed a
                 test that about 1 in 20 maps with no real habitat signal also pass, and that misses
                 many real habitat links, so a strong grade is good evidence, not proof.{" "}
                 <B>Weak</B>: not shown to beat
                 clustered collecting, though it ranks held-out ground better than chance (a map from
                 before the switch that passed only scattered nulls is weak too). <B>Failed</B>: no
-                better than chance on held-out ground. Only strong maps make a claim anywhere:
+                better than chance on held-out ground. Only strong maps are used anywhere:
                 Explore, the states a species is likely or possibly in, the combined map, and the
                 sitemap. Weak and failed maps are drawn faint on their taxon page, hidden from the Maps
                 list unless asked for, and left out of anything mycomap.org reads from a release.
