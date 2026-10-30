@@ -643,7 +643,10 @@ export default function Methods() {
                 smallest p is about 0.01, too coarse for the correction to pass anything.
               </p>
               <p>
-                Each map gets a <B>grade</B>. <B>Strong</B>: it passed. <B>Weak</B>: not shown to beat
+                Each map gets a <B>grade</B>. <B>Strong</B>: it passed. A strong map has passed a
+                test that about 1 in 20 maps with no real habitat signal also pass, and that misses
+                many real habitat links, so a strong grade is good evidence, not proof.{" "}
+                <B>Weak</B>: not shown to beat
                 clustered collecting, though it ranks held-out ground better than chance (a map from
                 before the switch that passed only scattered nulls is weak too). <B>Failed</B>: no
                 better than chance on held-out ground. Only strong maps make a claim anywhere:
