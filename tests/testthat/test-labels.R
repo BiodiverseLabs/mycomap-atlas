@@ -62,25 +62,32 @@ test_that("only species-level names are modelled", {
 
 test_that("sequence names come from the record's key and, for iNat, from its linked .com records", {
   sql <- atlas_sequence_names_sql(100, 200)
-  expect_match(sql, "JOIN sequences s ON s.observation = (CASE o.source WHEN 'iNaturalist' THEN 'inat'",
-               fixed = TRUE)
-  expect_match(sql, "WHEN 'MO Observations' THEN 'mo'", fixed = TRUE)
-  expect_match(sql, "END || ':' || o.observation_id)", fixed = TRUE)
+  # One arm per source, each joined on a plain key the index can use.
+  for (source in names(ATLAS_SEQUENCE_KEY_PREFIXES)) {
+    expect_match(sql, sprintf("JOIN sequences s ON s.observation = '%s:' || o.observation_id WHERE o.source = '%s' AND",
+                              ATLAS_SEQUENCE_KEY_PREFIXES[[source]], source), fixed = TRUE)
+  }
+  expect_false(grepl("CASE", sql, fixed = TRUE))
   expect_match(sql, "JOIN linked_observations l ON l.database_id = 43 AND l.external_id = o.observation_id",
                fixed = TRUE)
-  expect_match(sql, "JOIN sequences s ON s.com_inat_record_id = l.record_id", fixed = TRUE)
-  # Approved, named sequences of green records in the page only, on both arms.
-  expect_equal(lengths(regmatches(sql, gregexpr("s.approved = 1", sql, fixed = TRUE))), 2L)
-  # Never a sequence from the trash, on either arm.
-  expect_equal(lengths(regmatches(sql, gregexpr("coalesce(s.category_id, 0) <> 169", sql, fixed = TRUE))), 2L)
+  expect_match(sql, "JOIN sequences s ON s.com_inat_record_id = l.record_id WHERE o.source = 'iNaturalist' AND",
+               fixed = TRUE)
+  expect_true(startsWith(sql, "SELECT o.id, s.species_name FROM observations o JOIN sequences s ON s.observation = 'inat:'"))
+  arms <- length(ATLAS_SEQUENCE_KEY_PREFIXES) + 1L
+  count <- function(text) lengths(regmatches(sql, gregexpr(text, sql, fixed = TRUE)))
+  # Approved, named sequences of green records in the page only, on every arm.
+  expect_equal(count("s.approved = 1"), arms)
+  # Never a sequence from the trash, on any arm.
+  expect_equal(count("coalesce(s.category_id, 0) <> 169"), arms)
   # Nor one .com flags as a contaminant (non-target), set as true or 1.
-  expect_equal(lengths(regmatches(sql, gregexpr("coalesce(s.flags ->> 'contaminant', '') NOT IN ('true', '1')", sql,
-                                                fixed = TRUE))), 2L)
+  expect_equal(count("coalesce(s.flags ->> 'contaminant', '') NOT IN ('true', '1')"), arms)
   # Nor one flagged as on the wrong observation or specimen.
-  expect_equal(lengths(regmatches(sql, gregexpr("coalesce(s.flags ->> 'wrong', '') NOT IN ('true', '1')", sql,
-                                                fixed = TRUE))), 2L)
-  expect_equal(lengths(regmatches(sql, gregexpr("o.id >= 100 AND o.id <= 200", sql, fixed = TRUE))), 2L)
-  expect_match(sql, "'yes' IN (coalesce(o.validation_status_1, '')", fixed = TRUE)
+  expect_equal(count("coalesce(s.flags ->> 'wrong', '') NOT IN ('true', '1')"), arms)
+  expect_equal(count("btrim(coalesce(s.species_name, '')) <> ''"), arms)
+  expect_equal(count("o.id >= 100 AND o.id <= 200"), arms)
+  expect_equal(count("'yes' IN (coalesce(o.validation_status_1, '')"), arms)
+  expect_equal(count(" UNION "), arms - 1L)
+  expect_false(grepl("UNION ALL", sql, fixed = TRUE))
   expect_false(grepl("\n", sql))
   expect_false(grepl("\"", sql, fixed = TRUE))
   expect_false(grepl("%", sql, fixed = TRUE))
