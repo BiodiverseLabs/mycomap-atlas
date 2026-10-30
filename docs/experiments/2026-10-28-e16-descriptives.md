@@ -194,8 +194,21 @@ release.
      500 km of their own records, so a drop-list row was within background
      reach of nearly every model.
    - 2 dropped rows carry the name of a modelled taxon, one each for 2
-     taxa. Neither was a presence in the release, as expected: the release
-     was fitted on x73b85b36, which excludes them.
+     taxa. Neither was a presence in the release. The evidence is E3's
+     fingerprint check (E3 prereg, Runs): rebuilt from x73b85b36, which
+     lacks the 76 rows, 0 of 6,369 modelled taxa differ in record set or
+     detection sites from their models' recorded fingerprints and presences.
+   - *Corrected 2026-10-30.* This entry first gave as the reason that the
+     release "was fitted on x73b85b36". That is wrong. Most of fa1b4198's
+     models were fitted on the 2026-10-12 pull before the drop list, which
+     holds the 76 rows: R_main and the full-view refresh (E3 prereg,
+     Deviations, f2125e8). Only the fingerprint check shows that no
+     modelled taxon's own presences include one.
+   - For the same reason, the 500 km reach above is not hypothetical for
+     those models. Their background samples were drawn from a pull that
+     held the 30 placed rows. That is where E3 found 690 taxa whose folds
+     or blocks differ when rebuilt from x73b85b36, with records and
+     presences unchanged.
 7. **Privacy list** (dated 2026-10-13, 5,475 entries).
    - 2,769 of its records are in the pull (2.1% of it):
      - **place:** 1,936 MO records with no GPS point their observer shows,
