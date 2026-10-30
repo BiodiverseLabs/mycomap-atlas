@@ -1376,7 +1376,12 @@ revised (Path).
    the paper's tests).** The site lane drafts short wording for strong maps
    (a pass that habitat-free patterns also get about 1 time in 20) and for
    maps that are not strong ("not shown", not "wrong"), for Steve's review.
-   No grade threshold changes.
+   No grade threshold changes. **Done:** Steve chose two sentences for the
+   site Guide's Strong item and one for the Methods grade definitions
+   ("A strong map has passed a test that about 1 in 20 maps with no real
+   habitat signal also pass, and that misses many real habitat links, so a
+   strong grade is good evidence, not proof."); Atlas main 3c77519, live
+   with the 2026-11-02 deploy.
 
 ---
 
