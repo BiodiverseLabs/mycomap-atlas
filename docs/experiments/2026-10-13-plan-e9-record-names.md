@@ -113,11 +113,77 @@ Of the 978 taxa paired at planning, 550 have later finds ranked by models
 on both sides. The rest have no ranked later finds under one labelling or
 the other.
 
-**Not yet produced** (planned as "also reported"): map Spearman and
-Schoener's D per pair, grade changes per pair, and records whose label
-differs, by source. They come from `study-compare` on the two E9
-releases, which now publishes its results (Atlas fix/study-compare-out
-29ddeb8, on main). That is one 1-shard job, which needs its own go.
+**Also reported: the two releases compared (descriptive; no hypothesis).**
+The run: `study-compare --frozen=priv-20261026T021038Z-3ba43cf6
+--record=priv-20261026T021038Z-9c0ba509`, job study-20261029T044506Z-e883f8f5,
+image bf236cf (Atlas main, with fix/study-compare-out 29ddeb8). It ran on 1 ×
+r7i.xlarge on-demand, 04:47 to 04:56 UTC on 2026-10-29. Steve confirmed it
+directly with the operations lane.
+
+- **Records whose label differs, by source** (each record's DNA name against
+  its record name; 124,955 records):
+
+  | Source | Records | Same | Spelling only | Another species, same genus | Another genus | No species-level record name |
+  |---|---|---|---|---|---|---|
+  | iNaturalist | 118,703 | 117,226 | 89 | 1,120 | 238 | 30 |
+  | MO Observations | 4,593 | 4,207 | 21 | 282 | 39 | 44 |
+  | MycoPortal | 1,344 | 845 | 9 | 271 | 149 | 70 |
+  | MyCoPortal | 252 | 125 | 1 | 64 | 35 | 27 |
+  | Sequences | 61 | 57 | 0 | 1 | 2 | 1 |
+  | GenBank Accessions | 2 | 2 | 0 | 0 | 0 | 0 |
+  | **All** | **124,955** | **122,462** | **120** | **1,738** | **463** | **172** |
+
+  The DNA names another species or genus than the record name for 2,201
+  records (1.8%). By source: iNaturalist 1.1%, MO 7.0%, MycoPortal 31.2%,
+  MyCoPortal 39.3%.
+- **Taxa.** 15,770 under DNA names and 15,633 under record names.
+  - 656 DNA taxa split: their records go to two or more record-name taxa.
+  - 737 record-name taxa merged: two or more DNA taxa feed each.
+  - 469 names exist only under record names, and 606 only under DNA names.
+  - 1,331 taxa changed their record set; 13,833 did not.
+- **Models.** The DNA release has 1,852 fitted models and the record-name
+  release 1,860.
+  - 1,702 pairs have the same taxon and learner on both sides; these are
+    the maps compared.
+  - 158 record-name models have no DNA counterpart: 112 ESM, 21 Maxent, 21
+    RF and 4 XGBoost. Their grades are 5 strong, 95 weak and 58 failed.
+  - 44 DNA models belong to taxa with no record under record names.
+  - 106 DNA models belong to taxa that have records under record names but
+    no record-name model of the same learner.
+- **Map agreement** over the cells both maps give a value (Spearman: 1,700
+  pairs, since 2 Maxent pairs have a constant map; Schoener's D: 1,702
+  pairs):
+
+  | | Pairs | Spearman median [IQR] | 10th pct | ≥ 0.9 | Schoener's D median [IQR] | 10th pct | ≥ 0.9 |
+  |---|---|---|---|---|---|---|---|
+  | All | 1,700 / 1,702 | 0.958 [0.892, 0.990] | 0.747 | 72.6% | 0.957 [0.918, 0.976] | 0.835 | 80.0% |
+  | ESM | 823 | 0.970 [0.883, 0.995] | 0.700 | | 0.969 [0.930, 0.987] | 0.882 | |
+  | Maxent | 379 / 381 | 0.974 [0.873, 0.997] | 0.687 | | 0.911 [0.812, 0.971] | 0.671 | |
+  | RF | 381 | 0.948 [0.916, 0.968] | 0.866 | | 0.960 [0.952, 0.967] | 0.943 | |
+  | XGBoost | 117 | 0.910 [0.839, 0.961] | 0.785 | | 0.918 [0.838, 0.949] | 0.757 | |
+
+  - The lowest values are Spearman −0.179 (an ESM pair) and D 0.420 (a
+    Maxent pair). 58 pairs have Spearman below 0.5 (40 ESM, 17 Maxent, 1
+    XGBoost, 0 RF).
+  - **Pairs with the same presence count** (287): median Spearman 0.987 and
+    D 0.979. **Pairs with different counts** (1,413): 0.951 and 0.953.
+  - No pair's maps are identical.
+- **Grades of the 1,702 pairs** (DNA name → record name):
+
+  | DNA \ record | strong | weak | failed |
+  |---|---|---|---|
+  | strong (77) | 44 | 32 | 1 |
+  | weak (1,412) | 54 | 1,267 | 91 |
+  | failed (212) | 1 | 81 | 130 |
+  | untested (1) | 0 | 1 | 0 |
+
+  - 1,441 pairs (84.7%) keep their grade and 261 change: 136 up, 124 down,
+    and 1 untested becomes weak.
+  - 77 pairs are strong under DNA names and 99 under record names. 44 are
+    strong under both.
+
+These are descriptive and decide nothing. H9 (above) is the registered
+comparison.
 
 **Deviations, dated.**
 - 2026-10-25, before any fit: two jobs launched together instead of one,
