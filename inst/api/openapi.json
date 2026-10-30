@@ -2967,7 +2967,7 @@
               "failed",
               "untested"
             ],
-            "description": "How much the null test vouches for the map. strong: passed against shifted nulls, which keep the taxon's clustering; the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
+            "description": "What the null test says about the map. strong: passed against shifted nulls, which keep the taxon's clustering: good evidence, not proof, since in a registered simulation (E1, 2026-10-29) habitat-free patterns passed about 1 time in 20 (Maxent 5.8%, random forest 4.9%, small-sample ensembles 1.7%; boosted trees were not tested); the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
           },
           "null": {
             "type": "object",
@@ -3220,7 +3220,7 @@
               "failed",
               "untested"
             ],
-            "description": "How much the null test vouches for the map. strong: passed against shifted nulls, which keep the taxon's clustering; the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
+            "description": "What the null test says about the map. strong: passed against shifted nulls, which keep the taxon's clustering: good evidence, not proof, since in a registered simulation (E1, 2026-10-29) habitat-free patterns passed about 1 time in 20 (Maxent 5.8%, random forest 4.9%, small-sample ensembles 1.7%; boosted trees were not tested); the only grade the site's here index, state verdicts, ensembles and sitemap use. weak: not shown to beat clustered collecting (held-out AUC above 0.5 and Boyce above 0 without passing, or a pass against scattered nulls from before 2026-10-08); drawn faint. failed: no better than chance on held-out ground. Absent on Model for fits from before grades: work it out from skill and null.design."
           }
         }
       },

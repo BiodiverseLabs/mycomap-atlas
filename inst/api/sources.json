@@ -488,7 +488,7 @@
     {
       "citation": "Raes N, ter Steege H (2007) A null-model for significance testing of presence-only species distribution models. Ecography 30:727-736.",
       "doi": "10.1111/j.2007.0906-7590.05041.x",
-      "used_for": "Testing every map against null models before it is trusted."
+      "used_for": "Testing every map against null models before it is used."
     },
     {
       "citation": "Kass JM, Muscarella R, Galante PJ, et al. (2021) ENMeval 2.0: redesigned for customizable and reproducible modeling of species' niches and distributions. Methods in Ecology and Evolution 12:1602-1608.",
