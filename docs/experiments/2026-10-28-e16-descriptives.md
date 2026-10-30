@@ -77,6 +77,16 @@ writing aggregates to a JSON file that ops copies to atlas-handoff.
     session record, marked as not recounted.
 - The privacy list read for item 7 is the pull's own: modified 2026-10-13
   03:29:36 UTC, 19,700 bytes.
+- **2026-10-29, Part 2's first run (implementation only): the naming query
+  hit atlas_ro's 60 s limit.** Item 5's query joined sequences on a CASE of
+  o.source, which no index serves, and the run stopped at 05:04 UTC with
+  nothing written.
+  - It was rewritten as one equality join per source, with the same rule
+    and the same answer. On prod's read-only route it returned the same
+    records as the old query on three windows covering all six sources.
+  - It now asks in windows of 5,000 records, each taking 2 to 4 s.
+  - The limit and the connection cap were not changed. Nothing else in the
+    script changed, and the rerun succeeded on 2026-10-30.
 
 ## Results
 
@@ -98,6 +108,98 @@ The numbers in brackets are each band's taxa. Half of the modelled taxa,
 and 45% of the strong ones, carry a provisional name. The share falls with
 sites: from about 61% at 3–4 sites to about 21–24% at 50 and up.
 
-### Part 2
+### Part 2 (2026-10-30)
 
-Pending: run on the box through the operations lane.
+The run:
+- The script e16_part2.R (sha256 93223c26…62cdec) was run read-only on the
+  Atlas box by the operations lane, with Steve's confirmation. Image bf236cf,
+  data mounted read-only, 03:59 to 04:06 UTC.
+- The script's first run, on 2026-10-29, stopped at atlas_ro's 60 s
+  statement limit (Deviations, 2026-10-29).
+- Its output, e16-part2.json (sha256 1693ee0e…), holds aggregates only.
+
+The frozen pull holds 133,235 records and 16,252 taxa, which agrees with the
+release.
+
+1. **Records and taxa by source.**
+
+   | Source | Records | Share | Taxa |
+   |---|---|---|---|
+   | iNaturalist | 126,506 | 94.9% | 15,034 |
+   | MO Observations | 5,035 | 3.8% | 2,737 |
+   | MyCoPortal (both spellings) | 1,631 | 1.2% | 927 + 249 |
+   | Sequences | 61 | <0.1% | 56 |
+   | GenBank Accessions | 2 | <0.1% | 2 |
+
+   MycoPortal (1,344 records) and MyCoPortal (287) are one portal under two
+   .org source spellings, by import date. No record number appears under
+   both (plan-e9, Result). Their taxa are counted per spelling, so a taxon
+   under both is counted twice.
+2. **Sites per taxon** (distinct 1 km cells; 16,248 taxa with a placed
+   record):
+   - Median 2; quartiles 1 and 6; 10th to 90th percentile 1 to 16; maximum
+     325.
+   - 6,810 taxa have at least 3 sites, 1,341 at least 20 and 328 at least
+     50.
+   - The release modelled 6,369 taxa. It counts sites as detection sites,
+     after its own filters and refusals, so the two counts differ; the
+     difference is not broken down here.
+3. **Records by state or province** (105 country / state values as pulled):
+   - **Largest:** California 19,484 (14.6%), Indiana 17,016 (12.8%),
+     Michigan 15,786 (11.8%) and British Columbia 12,988 (9.7%). These four
+     hold 49.0%.
+   - **Next:** Washington 6.4%, Pennsylvania 5.2%, New Brunswick 3.4%,
+     Missouri 3.1%, New York 3.0%, Ohio 3.0%, Virginia 2.1%, Florida 2.0%,
+     Oregon 1.8%, Quebec 1.4% and Puerto Rico 1.2%.
+   - **Small values:** 35 values hold fewer than 10 records each. Some are
+     the source's own variants rather than states: Puerto Rico
+     municipalities given as states, a country written "Pu", and a
+     mis-encoded "Río Grande".
+   - For publication, states under 10 records are grouped as "other" and
+     variants are left as pulled. No single small value is reported.
+4. **Validation lag** (days from observed_on to first_green_on; all 133,235
+   records have both dates):
+
+   | Source | Median | Quartiles | 10th–90th pct |
+   |---|---|---|---|
+   | iNaturalist | 243 | 146 – 470 | 83 – 933 |
+   | MO Observations | 920 | 375 – 1,364 | 228 – 2,797 |
+
+   - Two MO records have a negative lag, the earliest −360 days.
+   - The other sources' observed_on is not a field date the lag can use.
+     - MycoPortal and MyCoPortal are herbarium specimens: their medians on
+       .org are 1956 and 1962, the oldest 1875. Their "lag" is the
+       specimen's age when it was first validated (medians 24,877 and 5,999
+       days).
+     - Every Sequences record on .org has observed_on 1970-01-01, a
+       placeholder (prod, read-only, 2026-10-30).
+     - GenBank has 2 records.
+   - So the lag is reported for iNaturalist and MO only. The all-source
+     median (254 days) is not used.
+5. **The naming recount** (half of the item; Deviations, 2026-10-28).
+   - Every record of the pull is still green on .org today: 133,235, none
+     no longer green.
+   - **268** of them have no approved, clean, named sequence today: 164
+     iNaturalist, 42 MO, 37 MycoPortal, 7 MyCoPortal and 18 Sequences.
+     Every approved named sequence of these records is now trash, a
+     contaminant or wrong.
+   - The session record's "about 527" was counted at the trash rule
+     (2026-10-13). This recount is against .org's sequences on 2026-10-30,
+     which have changed since, so the two are not of the same moment. The
+     difference is not reconciled.
+   - The "2,287 left out" remains not recounted.
+6. **The 76 drop-list rows.**
+   - 30 of them can be placed. The others have no place Atlas uses.
+   - 6,041 of the 6,369 modelled taxa (94.9%) have one of those 30 within
+     500 km of their own records, so a drop-list row was within background
+     reach of nearly every model.
+   - 2 dropped rows carry the name of a modelled taxon, one each for 2
+     taxa. Neither was a presence in the release, as expected: the release
+     was fitted on x73b85b36, which excludes them.
+7. **Privacy list** (dated 2026-10-13, 5,475 entries).
+   - 2,769 of its records are in the pull (2.1% of it):
+     - **place:** 1,936 MO records with no GPS point their observer shows,
+       placed at their named place's centre;
+     - **unknown:** 833 records whose source answer .org has not cached
+       (797 MO, 36 iNaturalist).
+   - The "about 800" unknown in 4.1 is 833.
