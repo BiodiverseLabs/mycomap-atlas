@@ -335,3 +335,27 @@ Logged as the operations lane reports them; numbers only.
     affect the analysis.
   - From now on, workers' liveness is checked from line counts and
     timestamps only.
+- **2026-10-29, after pooling and before any result was read: one
+  species' null tests ran no replicate, and its empty values stopped the
+  reader.** The 20 shards pool complete: 2,840 species. The reader
+  (8125ed1) then stopped with "a species row has no single p".
+  - **The cause.** In shard 20, one geography species
+    (virtual-geography-0540) has verdict "untested" for both learners
+    (Maxent and RF) and both designs (shift and scatter): 4 of 9,672 null
+    rows. Its null tests drew no replicate (reps 0), so p, the null AUCs'
+    mean and spread, and drawn had no value. The results writer
+    (atlas_write_json) wrote those missing values as `{}`, not as null.
+  - **The reader as written** reads a missing p (JSON null) as NA, and so
+    counts such a row as not passed. It was never shown `{}`, which is the
+    same missing value written another way.
+  - **Primary reading.** Each `{}` among a null row's values is read as null
+    when the files are loaded, before the reader. The reader's code is
+    unchanged, so those 4 rows count as the reader counts any untested null
+    row: present, not passed. For a geography species that means not a
+    false pass.
+  - **Sensitivity.** The same reading with those 4 rows left out. Both are
+    reported, and they are not chosen between after reading.
+  - **What was seen.** Looking for the cause showed shard 20's log line for
+    that species, including its two learners' map-to-truth ρ. It is a
+    geography species, so H1e, which reads habitat species only, does not
+    use it. No other value was read.
