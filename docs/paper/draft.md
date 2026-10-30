@@ -199,8 +199,7 @@ have no formal name and can be mapped only by DNA. In a
 pre-registered test, the maps helped a photo-identification model place its
 answers only slightly, and no more than distance to known records. We end
 with five recommendations for automated atlases. Maps, models,
-layers and code are archived with DOIs, and the identifiers of every
-training record will be.
+layers and code are archived with DOIs.
 
 ---
 
@@ -1276,7 +1275,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 2b | **E12 first step** and same-machine gate | **done** 2026-10-19: deterministic per processor family | done |
 | 3 | **E6b** distance-only baseline on the E2 finds | **done** 2026-10-21 (study-20261020T232528Z-05216058); then Steve's post-hoc tier rule (plan-map-tiers, 2026-10-20) | done |
 | 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. **Kernels done 2026-10-25**: 6,369 of 6,369 taxa (main 5,679; patch 1 from R_main's pull 681; patch 2 on r7a 9), none left out of H3c. Next: the `--counts-only` check by grade, then the read-out | Steve approved the prereg, date, read-out mode and kernels | read-out about 2026-12-16 |
-| 4 | **Presubmission inquiry** to Ecological Monographs | E1 in; **send now** (Steve, 2026-10-30), redrafted with E1's numbers (`presubmission-inquiry.md`); Steve sends it to the editorial office | **now** |
+| 4 | **Presubmission inquiry** to Ecological Monographs | E1 in; ready (`presubmission-inquiry.md`, c375490); Steve reads the core claims, abstract, 3.2, 3.4 and the Discussion first, then sends it himself to the Editorial Office (esajournals@esa.org) | **now / early November 2026** (Steve, 2026-10-29 and 10-30) |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
 | 6 | **E1** virtual-species calibration | **done** 2026-10-29: C1 not supported as registered; shift nulls 5–6% false pass, scatter 75–82% | done |
 | 7 | **E9** sequence vs record names, **redesigned as a paired hindcast** (Steve, 2026-10-25; `atlas-handoff/e9-redesign-assessment.md`): both labellings in one job, scored on E2's later finds | plan-e9 amendment committed before any fit; planner and paired-scorer code (method lane, ~1.5–2 days, Steve's review); Steve's go; ~$20–30 spot (≤ $45–55 on-demand) | November 2026 |

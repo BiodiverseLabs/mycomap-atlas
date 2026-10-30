@@ -29,8 +29,12 @@ the reader's implementation choices were registered before launch.*
   the spot run's limit. All 2,840 species scored; 32 Maxent arm errors
   (glmnet failed to complete its path), 28 of them in effort arms no test
   reads and 4 in Maxent's own fits at 200+ sites (1 geography, 3 habitat
-  species); one geography species drew no null and counts as not passed
-  (leaving it out changes no verdict).
+  species); one geography species drew no null replicate in either design
+  and its results were written as an empty record, which stopped the
+  reader. It is read as not passed (primary) and left out as a
+  sensitivity, a choice written down before any result was read (prereg,
+  Deviations, e8e9fc5); the sensitivity changes no verdict. This is the
+  only judgement made at read time.
 - **Deviations.** Logged in the prereg before any reading: glmnet's settings
   set per fit; a first attempt lost to an AWS error; about a dozen
   in-progress log lines seen by accident during a liveness check, from an
