@@ -1,4 +1,4 @@
-# MycoMap Atlas: Habitat-suitability maps with a calibrated trust grade for thousands of DNA-defined North American fungi
+# MycoMap Atlas: Habitat-suitability maps with a null-tested trust grade for thousands of DNA-defined North American fungi
 
 *Working title (118 characters; the journal allows 120, sentence case, one
 colon, no uncommon acronyms). Alternative: "Which habitat maps can be
@@ -76,23 +76,29 @@ and table below serves one of them. (Plan revised 2026-10-13, Steve: "fully
 revise the paper plan and let's continue".)
 
 1. **C1. The usual null test cannot tell habitat from clustered collecting;
-   a structure-keeping null restricted to surveyed sites can, and we measure
-   both error rates.** On virtual species collected at MycoMap's real survey
-   sites, nulls scattered site by site passed 73.5% of species whose finds
-   followed no habitat at all (power 80%), and every such species from 100
-   sites up. Nulls that keep the finds' own clustering (rotated and shifted
-   together, snapped to surveyed sites) passed 2.0%, at 26% power. Structure-
+   a null that keeps the finds' own clustering and stays on surveyed sites
+   cuts false passes more than tenfold, to near but not within the nominal
+   5%, at a large cost in power.** On simulated species whose detections
+   follow geography and collecting effort alone, collected at MycoMap's real
+   survey sites (800 per learner), nulls scattered site by site passed
+   75.1% for Maxent and 81.8% for random forests, rising from 29–49% at
+   20–29 sites to 99–100% at 200 or more. Shifted nulls passed 5.8% (95%
+   interval 4.3–7.6) and 4.9% (3.6–6.6). The registered criterion, an upper
+   bound at or below 5% overall and a rate at or below 5% in every site
+   band, was met by neither learner nor, by the fallback, in any single
+   band, so **C1 is not supported as registered**; Maxent's rate was
+   highest, 10.7%, at 200 or more sites, where nearly every shifted null was
+   a best-effort placement. The shifted null's power was low: no species
+   with a weak habitat signal passed it, strong-signal species passed
+   12–28% (Maxent) and 8–18% (random forests), and broad habitats passed
+   less often. Passing still picked out maps much closer to the true
+   habitat (median map-to-truth ρ 0.90 against 0.61 for Maxent). Structure-
    keeping nulls are not new (Beale et al. 2008; Osborne et al. 2022; Ridder
-   et al. 2024); what is new is their calibration against known truth in a
-   target-group design, by sample size, habitat breadth and signal strength,
-   and their use to grade thousands of automatically built maps. On the
-   atlas's real models, [X]% of the maps a standard test (19 scattered nulls)
-   calls good are not shown to beat collecting. [pre-freeze; E1, E1b, E1c.
-   E1 amendment 2026-10-25, before launch: C1 is decided per learner and
-   per site band, a failing learner or band reported as failing; "false
-   pass" means passing a species whose detections follow geography and
-   effort alone; the share of best-effort shifted nulls is reported by
-   band.]
+   et al. 2024); what is new is measuring both their error rates against
+   known truth under target-group sampling, and grading thousands of maps
+   with them. [E1, registered; read out 2026-10-29. E1c PENDING: the share
+   of the atlas's real maps a standard test (19 scattered nulls) calls good
+   that are not shown to beat collecting.]
 2. **C2. The grade predicts how a map does on records it never saw, and
    strong maps beat distance to known records, modestly.** Of the later
    finds in a hindcast, strong maps placed 91.4% in their top half, weak
@@ -159,9 +165,9 @@ most for ectomycorrhizal fungi, climate for the rest (E8).
 
 ## Abstract
 
-*Draft, 2026-10-21 (≤ 350 words, no citations or URLs, as the journal
-requires). E2, E6b, grade counts and Q1 are in; E1, E1c and E9 are
-placeholders.*
+*Draft, 2026-10-29 (≤ 350 words, no citations or URLs, as the journal
+requires). E1, E2, E6b, E9, the grade counts and Q1 are in; E1c is a
+placeholder.*
 
 Automated pipelines now fit distribution models for thousands of species,
 but they report each map's skill with scores that clustered collecting
@@ -171,22 +177,21 @@ MycoMap Atlas, which maps the North American fungi defined by an
 approved DNA sequence that have at least three survey sites in [133,235]
 validated community-science records of [16,252] taxa, designed to rebuild
 nightly [CHECK: the nightly is off; planned to resume November 2026].
-Records are compared with the other places people collected and
-sequenced; Maxent, random forests, boosted trees and ensembles of small
-models are tuned and scored on spatially blocked folds; and each map is
-graded against null species that keep its own clustering. On simulated
+Four kinds of model are fitted against the other places people collected
+and sequenced, scored on spatially blocked folds, and graded against null
+species that keep each map's own clustering. On simulated
 species collected at the real survey sites, the usual scattered null test
-passed [73]% of species with no habitat signal, and every such species
-with 100 or more sites, while the clustering-preserving test passed
-[2]%, at a power of [26]% [PENDING E1: final figures with intervals]. Of
+passed 75–82% of species with no habitat signal, and nearly all with 100 or
+more sites; the clustering-preserving test passed 5–6%, near but above the
+5% we had set, and detected only 8–28% of species with a strong habitat
+signal and none with a weak one. Of
 the atlas's 9,041 models of 6,369 taxa, 576 across 470 taxa were graded strong; the
 standard test would have called [X]% of the rest good [PENDING E1c]. Maps
 graded strong placed records validated after the training cutoff in their
 top half 91% of the time, against 78% for failed maps and 87% for a map of
-distance to known records on the same places, a modest gain with no
-difference in mean rank; weak maps did no better than distance, and the
-strong maps' advantage appeared at finds more than 100 km from known
-records (descriptive). Naming records by
+distance to known records on the same places, a modest gain in top-half
+share alone that appeared at finds more than 100 km away (descriptive);
+weak maps did no better than distance. Naming records by
 their DNA sequences rather than their own names did not change how well
 maps of the same taxa predicted later finds, but half the modelled taxa
 have no formal name and can be mapped only by DNA. In a
@@ -271,7 +276,8 @@ measured on simulated species. We make four claims. First
 (C1), on virtual species collected at the atlas's real survey sites, the
 usual scattered null test passes most species that follow no habitat at
 all, while a null that keeps each species' clustering and stays on surveyed
-sites holds false passes near the nominal rate, at a measured cost in power.
+sites cuts false passes more than tenfold, to near but not within the
+nominal rate, at a large, measured cost in power.
 Second (C2), the grade this test gives each map (strong, weak or failed)
 predicts how the map ranks records validated after it was made, and only
 strong maps beat distance to known records, by a modest margin. Third (C3),
@@ -474,30 +480,60 @@ figure or table and the analysis that fills it.*
 3 / 20 / 50 thresholds); share provisional; where records are; validation lag
 (median ~8 months [pre-freeze]).] → **Table 1**; detail in S2.
 
-### 3.2 Calibrating the null test (E1, E1b)
+### 3.2 Calibrating the null test (E1)
 
-[pre-freeze, E1b re-read of the 2026-10-06 study: 49 geography and 50
-habitat species, Maxent, Wilson 95% intervals. PENDING E1 rerun.]
+*Registered (`2026-10-13-prereg-e1-null-calibration.md`, Result,
+2026-10-29).* 2,840 simulated species were collected at the frozen pull's
+real survey sites with its real effort: per learner, 800 geography species
+(detections around one or two centres, no habitat in their making) and
+1,200 habitat species (two breadths × two signal strengths) in five site
+bands for Maxent and random forests, and 840 species at 3–19 sites for the
+ensembles of small models. All were scored.
 
-| Sites | Scatter false pass | Shift false pass | Scatter power | Shift power |
-|---|---|---|---|---|
-| 20–29 | 1/6 | 0/6 | 3/7 | 0/7 |
-| 30–49 | 9/15 | 1/15 | 13/15 | 5/15 |
-| 50–99 | 8/10 | 0/10 | 10/12 | 5/12 |
-| 100–199 | 11/11 | 0/11 | 9/11 | 2/11 |
-| 200+ | 7/7 | 0/7 | 5/5 | 1/5 |
-| All | 36/49 = 73% (60–84) | 1/49 = 2% (0–11) | 40/50 = 80% (67–89) | 13/50 = 26% (16–40) |
+*False passes.* Scattered nulls passed 75.1% of geography species for
+Maxent (72.0–78.0) and 81.8% for random forests (78.9–84.3), rising with
+sites from 28.8% and 49.4% at 20–29 sites to 99.4% and 100% at 200 or more
+(trend p < 10⁻³⁹). Shifted nulls passed 5.8% (4.3–7.6; 46 of 799) and 4.9%
+(3.6–6.6; 39 of 800). By band, Maxent's rate was 3.8–5.6% up to 199 sites
+and 10.7% (6.8–16.5) at 200 or more; random forests' 2.5–6.3%. Neither
+learner met the registered bound, and no band had the two or fewer false
+passes of 160 that a band-level bound at 5% needs, so C1 is not supported,
+as registered or by band (the band decisions are uncorrected for testing
+five bands). At 100 sites and more, nearly every shifted null was a
+best-effort placement (91–97% of nulls drawn), and the 200+ band is where
+Maxent's false passes were highest.
 
-Scattered nulls pass every habitat-free species from 100 sites up, so with
-them a pass says more about record count than habitat. Shifted nulls hold
-false passes near zero in every band, but their power does not rise with
-sites (2/11 and 1/5 above 100), which the rerun must explain: a widespread
-habitat that is itself spatially smooth may survive a shift [E1: stratify by
-habitat breadth]. Habitat species that passed the shift test had maps closer
-to the true habitat (median Spearman ρ 0.83 vs 0.73 for those that did not),
-a first sign that the grade selects better maps (C2). Early stopping drew a
-mean of 29 shifted nulls per species instead of 99. Shift-effort nulls
-matched shift (2/49 false, 13/50 power). → **Figure 2**; every cell in S5.
+*Power.* Shifted nulls passed no weak-signal habitat species (0 of 599 for
+Maxent, 0 of 600 for random forests), in any band. Strong-signal species
+passed 20.9% and 13.2% overall, rising with sites from 11.7% to 28.0%
+(Maxent) and 10.0% to 18.3% (random forests). Power fell with habitat
+breadth (logit −10.7 and −10.4 per unit realised breadth; p < 10⁻⁸; H1c),
+and among narrow habitats rose with sites (H1d). The registered test that
+strong beats weak (H1f) cannot hold under complete separation, so that
+difference rests on the counts.
+
+*Selection.* Habitat maps that passed the shifted null were much closer to
+the true habitat: median map-to-truth ρ 0.901 against 0.606 for Maxent
+(difference 0.295, 0.264–0.318) and 0.761 against 0.639 for random forests
+(0.123, 0.088–0.153; H1e).
+
+*Small samples.* At 3–19 sites the ensembles' shifted nulls passed 1.7% of
+geography species (0.8–3.6) and 3.3% of strong-signal habitat species; the
+scattered nulls passed 16.9%. Below 20 sites neither test passes much.
+
+*Looser tiers.* At or above the moderate tier, 20.4% (Maxent) and 17.1%
+(random forests) of geography species passed, above the 10% bar stated
+before any run for a tier to carry downstream claims, and the indicative
+tier passed 95–97%. E1 thus reaches the same verdict on the looser tiers
+as the distance comparison (Section 3.4) by an independent, pre-stated
+route.
+
+A pilot before the freeze (49 geography and 50 habitat species, Maxent
+only) had suggested 2% for the shifted null; the full study's 5.8% replaces
+it. → **Figure 2**: false pass of scattered and shifted nulls by site band
+and learner, with Wilson intervals and the 5% line; shift power by band
+and signal strength; map-to-truth ρ of passed and other maps. Every cell,
+the best-effort shares and the tiers in S5.
 
 ### 3.3 What the atlas contains (E16)
 
@@ -819,38 +855,43 @@ their numbers are in.*
 standard test, rerun on the same models, would have called [X]% of them
 good [PENDING E1c]. That gap is the point of the method rather than a
 shortfall of the data. On simulated species collected the way MycoMap's
-records are, the scattered null passed most species that follow no habitat
-at all, and every one with a hundred sites or more; the shifted null passed
-almost none of them, and its strong maps placed records validated later
-on higher-ranked ground than weak or failed maps, and than distance to known
-records. A strong
+records are, the scattered null passed three quarters or more of species
+that follow no habitat at all, and nearly every one with a hundred sites or
+more; the shifted null passed about one in twenty, and its strong maps
+placed records validated later on higher-ranked ground than weak or failed
+maps, and than distance to known records. A strong
 grade therefore says something a high AUC does not: that the map beats the
 species' own pattern of collecting on ground it never saw. The price is
-power. A strong grade caught about a quarter of simulated species that did
-follow a habitat, and more sites did not raise that share [PENDING E1: by
-breadth and signal strength]. "Not strong" therefore means "not shown",
+power. A strong grade caught 13–21% of simulated species that followed a
+habitat strongly, more with more sites and fewer for broad habitats, and
+none that followed it weakly. "Not strong" therefore means "not shown",
 not "wrong", which is why weak and failed maps are published, faint and
 labelled, rather than withheld. The two looser tiers within "weak" cleared
 their registered bars against chance on later finds but did no better than
-distance, so they are drawn as weak maps and carry no claims [PENDING E1:
-their false-pass rates].
+distance, and on simulated species they passed 17–20% (moderate) and
+95–97% (indicative) of those with no habitat at all, so they are drawn as
+weak maps and carry no claims.
 
 **Why shifted nulls are strict.** A shifted copy of a species' records keeps
 its clustering, and on a continent whose climate varies smoothly it often
 lands on similar ground. That is the objection raised against structured
 nulls in the bird–climate debate (Araújo et al. 2009; Peterson et al. 2009;
-Beale et al. 2009), and our results bear it out for broad habitats
-[PENDING E1: power by breadth]. On the real models, none of the 52 taxa
+Beale et al. 2009), and our results bear it out: power fell steeply with
+habitat breadth. On the real models, none of the 52 taxa
 with 100 or more sites has a strong map: their best models score, on
 average, below their own shifted nulls, although they rank held-out ground
 well. A strong grade is thus hardest to earn for the most widespread and
 best-collected fungi; that is a limit of the test, not evidence that they
-lack habitat structure [PENDING E1: power by sites and breadth]. The debate could not settle the question
+lack habitat structure. The test is also least exact there: at 200 or more
+sites nearly every shifted null is a best-effort placement, and Maxent's
+false passes doubled, to 10.7%; since no real taxon with 100 or more sites
+has a strong map, no published strong map rests on that band. The debate could not settle the question
 because real species have no known truth. Simulated species collected at
 real survey sites measure both error rates directly, and a reader can
 choose a test by the error that matters to them: a scattered null that
 passes most clustered species with no habitat signal, or a shifted null
-that misses most real ones.
+that passes about one in twenty of them, slightly above the 5% we set in
+advance, and misses most real ones.
 
 **Recommendations for other automated atlases.** Any pipeline that fits
 thousands of models to clustered occurrence data faces the same problem,
@@ -923,8 +964,9 @@ Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
 but not quite across families: about 0.4% of grades (95% interval
 0.0–1.2%) would change on the other family, all among full-design models,
 because a few taxa's variogram-estimated spatial blocks differ between
-families, by up to 240 km; that is the only cross-family effect found. The maps can only be as good as where people collect and
-sequence.
+families, by up to 240 km; that is the only cross-family effect found. The shifted null's false-pass rate was 5–6% overall, not the 5% or
+less we registered, and about 11% for Maxent at 200 or more sites. The maps
+can only be as good as where people collect and sequence.
 
 **Where habitat adds over distance.** Near known records, distance alone
 ranked later finds as well as a strong map or better; the strong maps'
@@ -1091,7 +1133,7 @@ data, command, result, release, commit).
 |---|---|---|---|---|---|---|
 | E16 | Records, taxa, sites, provisional share, sampling bias, validation lag | C3, C4 | Partly (counts in memory and Methods page) | Frozen pull + release index; read-only | 1–2 days, no compute | P1 |
 | E1b | Re-read the existing null study by site band | C1 | **Done 2026-10-13** (`docs/experiments/2026-10-13-null-calibration-by-band.md`): see 3.2 | 2026-10-06 virtual-species results file | read-only | P1 |
-| E1 | **Pre-registered** (`docs/experiments/2026-10-13-prereg-e1-null-calibration.md`, amended 2026-10-13 before launch). Null calibration rerun: false pass and power by design × site band × habitat breadth × signal strength × learner (Maxent, RF, ESM), so power is a curve; map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: habitat 5 site bands × 2 breadths × 2 signal strengths × 60 = 1,200, geography 5 bands × 2 centre counts × 80 = 800; Maxent and RF; scatter and shift ×99, stop at 5. ESM: 3 bands × (habitat 2 strengths × 80 + geography 120) = 840. Effort arms (E14) on the same species. Sizes doubled 2026-10-13 after the calibration pilot (`2026-10-13-e1-cost-pilot.md`) | est. 540–920 CPU-h ($27–46), pilot-scaled (`2026-10-13-e1-cost-pilot.md`), with an allowance for 200+ sites | P1 |
+| E1 | **Done 2026-10-29: C1 not supported as registered** (shift false pass 5.8% [4.3, 7.6] Maxent, 4.9% [3.6, 6.6] RF; scatter 75–82%; H1b–e hold; H1f fails by separation; Results 3.2). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e1-null-calibration.md`, amended 2026-10-13 before launch). Null calibration rerun: false pass and power by design × site band × habitat breadth × signal strength × learner (Maxent, RF, ESM), so power is a curve; map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: habitat 5 site bands × 2 breadths × 2 signal strengths × 60 = 1,200, geography 5 bands × 2 centre counts × 80 = 800; Maxent and RF; scatter and shift ×99, stop at 5. ESM: 3 bands × (habitat 2 strengths × 80 + geography 120) = 840. Effort arms (E14) on the same species. Sizes doubled 2026-10-13 after the calibration pilot (`2026-10-13-e1-cost-pilot.md`) | est. 540–920 CPU-h ($27–46), pilot-scaled (`2026-10-13-e1-cost-pilot.md`), with an allowance for 200+ sites | P1 |
 | E1c | **Planned** (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
 | E2 | **Done 2026-10-19, C2 supported** (study-20261019T181851Z-35fc3d63; H2a 0.914 [0.886, 0.942], H2b 0.131 [0.090, 0.172], H2c 0.785 [0.763, 0.806]; tiers H2d–f hold; Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e2-hindcast.md`). Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade. **Registered 2026-10-21** (Steve): one read-out on the frozen release of finds first validated 2026-10-14 to 2026-12-15 (all unseen by it); read-out about 2026-12-16 | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
@@ -1216,7 +1258,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. **Kernels done 2026-10-25**: 6,369 of 6,369 taxa (main 5,679; patch 1 from R_main's pull 681; patch 2 on r7a 9), none left out of H3c. Next: the `--counts-only` check by grade, then the read-out | Steve approved the prereg, date, read-out mode and kernels | read-out about 2026-12-16 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | **HOLD UNTIL E1** (Steve): redrafted with E2 and E6b; after E1 lands, its numbers replace the pilot C1 figures, and the nightly and the E19/E20 deposit are stated as they then are | **mid-December 2026** (Steve, 2026-10-25) |
 | 5 | **E1c** standard test on real models | rebuild-lane code; the frozen release | November 2026 |
-| 6 | **E1** virtual-species calibration (pre-registered, amended) | breadth and strength knobs in `study-virtual`; tier fields (study/calibration-tier-fields 520fac9) merged; Steve's go | November 2026 |
+| 6 | **E1** virtual-species calibration | **done** 2026-10-29: C1 not supported as registered; shift nulls 5–6% false pass, scatter 75–82% | done |
 | 7 | **E9** sequence vs record names, **redesigned as a paired hindcast** (Steve, 2026-10-25; `atlas-handoff/e9-redesign-assessment.md`): both labellings in one job, scored on E2's later finds | plan-e9 amendment committed before any fit; planner and paired-scorer code (method lane, ~1.5–2 days, Steve's review); Steve's go; ~$20–30 spot (≤ $45–55 on-demand) | November 2026 |
 | 7b | **E2 re-score** (Steve, 2026-10-25): the registered secondary set (records also observed after the cutoff); within site bands and a per-taxon z table, exploratory (the z table feeds Open decision 9) | method lane; < $1 | November 2026 |
 | 8 | **E6a** default-practice Maxent | new study arm; Steve's go | November–December 2026 |
@@ -1282,34 +1324,25 @@ revised (Path).
    table (algorithm, taxon, fitting job, pull sha256) goes into the next
    models deposit version, bundled with the E19 and E20 tables, so the
    record gets one new version, not two.
-9. **Title (Steve: DEFERRED until E1's results, 2026-10-25).** If E1 shows
-   the false-pass rate under control for both Maxent and random forest,
-   option (c) is well supported; if random forest or the 100+ band fails,
-   option (a) is the honest title. The z data are in (E2 re-scores,
-   exploratory, 2026-10-26): over 4,367 models, z correlates only weakly
-   with later-find mean rank (Spearman 0.142), and the median mean rank
-   rises mostly in the top quarter of z (0.805, 0.810, 0.819, 0.878). So a
-   continuous score adds little beyond the grade, which weighs against
-   option (b) as the title's justification; a figure of it would need
-   bootstrap intervals over taxa (a small addition). The review notes that "calibrated trust
-   grade" invites "where is the calibration?": the null test's error rates
-   are calibrated on simulated species, but the grade is three bins.
-   Options: (a) "…with a null-tested trust grade for thousands of
-   DNA-defined North American fungi"; (b) keep "calibrated" and add a
-   continuous score (the null z beside the grade, with a figure of z
-   against later-find rank, from data that exist); (c) both.
-10. **C3 after E9: decided 2026-10-28 (Steve), option (a).** C3 stays as a
-   short claim with two halves: the null result (wrong names on some
-   records do not measurably hurt the maps; E9) and coverage (the taxa only
-   DNA can map; E16). The study-compare job on the two E9 releases
-   (≤ USD 0.40) is approved and queued behind E1; its descriptives come
-   through plan-e9's Result.
+9. **Title: settled by Steve's pre-stated rule after E1 (2026-10-29).** The
+   rule (2026-10-25): if E1 shows false passes under control for Maxent and
+   random forests, keep "calibrated" with a continuous score (c); if random
+   forests or the 100+ band fail, "null-tested" (a). H1a failed for both
+   learners and at 200+ sites, so the title now reads "null-tested trust
+   grade" (option a). The z data (weak: Spearman 0.14 with later-find rank)
+   would not have carried option (b) either. [Steve to confirm the wording.]
 
 ---
 
 ## Changelog
 
 - **0.16.6 (2026-10-19).** 69 predictor bands confirmed from the deposit.
+- **0.21.0 (2026-10-29).** E1 read out (prereg Result, bcf981c): C1 not
+  supported as registered (shift false pass 5.8% and 4.9%, upper bounds
+  above 5%; 10.7% for Maxent at 200+); scatter 75–82%; power 13–21% for
+  strong-signal species, 0 for weak; passing selects better maps. C1,
+  abstract, Introduction, 3.2, Discussion, Limitations rewritten; title
+  "null-tested" by Steve's pre-stated rule (Open decision 9).
 - **0.20.2 (2026-10-28).** E16 Part 1: provisional names 50.1% of modelled taxa, 45.3% of strong (C3, abstract, 3.6, Discussion).
 - **0.20.1 (2026-10-28).** Open decision 10 closed: C3 kept as a short claim (null result + coverage).
 - **0.20.0 (2026-10-28).** E9 read out (plan-e9 784700c): H9 not held, no

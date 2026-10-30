@@ -1,23 +1,15 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-**HOLD UNTIL E1 (Steve, 2026-10-21); send mid-December 2026 (Steve, 2026-10-25).** Sent only after E1's results are in
-the registry. Then, in one pass: replace the pilot C1 numbers and the "[E1:
-…]" placeholder with E1's registered numbers; state the nightly as it is
-then (it is off at present, hence "designed to rebuild nightly"); and say
-the training-record identifiers "will be deposited" unless E19/E20 are
-published by then.
-
-*Draft, redrafted 2026-10-21 with the hindcast (E2) and distance-baseline
-(E6b) results; Steve sends it. The C1 numbers are the earlier study's until E1
-reruns, and are labelled so. Limit:
-300 words, 5–10 references, optionally 1–2 figures (Figure 3 and Figure 5 of
-the draft).*
+**E1 is in (2026-10-29); send mid-December 2026 (Steve).** Redrafted
+2026-10-29 with E1's registered numbers; the nightly and the training-record
+deposit are stated as they are now. Steve sends it. Limit: 300 words, 5–10
+references, optionally 1–2 figures (Figures 2 and 3 of the draft).
 
 ---
 
 **Intended type:** Method
 
-**Working title:** Which habitat maps can be trusted? Calibrated null tests
+**Working title:** Which habitat maps can be trusted? Null-tested grades
 for thousands of DNA-defined North American fungi
 
 Atlases now fit thousands of species distribution models automatically, but
@@ -25,13 +17,14 @@ report each map's skill with scores that clustered collecting inflates. The
 usual safeguard, a null test against randomly placed occurrences, does not
 work under realistic sampling. We measured this on virtual species collected
 at the real survey sites of a continental community-science programme:
-scattered nulls passed 73% of species whose records followed no habitat at
-all, and every such species with 100 or more sites. Nulls that keep each
-species' own clustering, restricted to surveyed sites, held false passes near
-2% [E1: with intervals by sample size and habitat breadth], at a cost in power
-that we quantify.
+scattered nulls passed 75–82% of species whose records followed no habitat
+at all, and nearly every such species with 100 or more sites. Nulls that
+keep each species' own clustering, restricted to surveyed sites, cut false
+passes more than tenfold, to 5–6%, slightly above the 5% we had
+pre-registered, and still picked out maps much closer to the true habitat,
+at a large cost in power that we quantify.
 
-We use the calibrated test to grade every map of MycoMap Atlas, habitat
+We use the shifted null to grade every map of MycoMap Atlas, habitat
 models for 6,369 fungal taxa defined by DNA barcodes rather than morphological
 names, designed to rebuild nightly from validated community-science collections. In a
 hindcast, maps graded strong placed 91% of records validated after the
