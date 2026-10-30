@@ -189,7 +189,14 @@ fingerprint or presences).
 On the frozen pull (E16, Part 2), 30 of the 76 rows can be placed; 6,041
 of the 6,369 modelled taxa (94.9%) have one of them within 500 km of their
 own records, so a removed row was within background reach of nearly every
-model.
+model. For the models fitted on the 2026-10-12 pull before the exclusion
+(R_main and the full-view refresh, most of the release; Section S10), the
+placed rows were actually in their background samples: background only,
+never presences (0 of 6,369 modelled taxa's record sets or detection sites
+differ when rebuilt from the cleaned pull; E3 prereg, Runs). This is also
+why 690 taxa's folds or blocks differed when E3's distance kernels were
+rebuilt from the cleaned pull (E3 prereg, Deviations, 2026-10-21; E16,
+item 6, corrected 2026-10-30).
 
 For the first 22, measured on the 2026-10-06 pull, which holds them at the
 same places: they
