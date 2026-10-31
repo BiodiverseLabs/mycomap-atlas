@@ -201,3 +201,18 @@ test_that("fill-kingdoms fills this machine's cache from a pull, at the cap and 
     expect_equal(got$pace, 0.5)
   })
 })
+
+test_that("a pull whose newest first validation is more than 3 days old stops: the mirror may have stopped", {
+  pull <- qa_pull()
+  pull$first_green_on <- "2026-10-20"
+  pull$first_green_on[5] <- "2026-10-31"
+  fresh <- atlas_qa_report(pull, list(stamp = "x", pulled_at = "2026-11-03T07:00:00Z"))
+  expect_equal(fresh$checks$newest_green$value, 3L)
+  expect_false("newest_green" %in% unlist(fresh$stops))
+  stale <- atlas_qa_report(pull, list(stamp = "x", pulled_at = "2026-11-04T07:00:00Z"))
+  expect_equal(stale$checks$newest_green$value, 4L)
+  expect_true("newest_green" %in% unlist(stale$stops))
+  expect_match(stale$checks$newest_green$why, "is the .com mirror refreshing")
+  # A pull with no first-green dates, or no date of its own, has no such check.
+  expect_null(atlas_qa_report(qa_pull(), list(stamp = "x", pulled_at = "2026-11-04T07:00:00Z"))$checks$newest_green)
+})
