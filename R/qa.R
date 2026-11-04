@@ -21,7 +21,13 @@ ATLAS_QA_THRESHOLDS <- list(
   # Records sharing one source:number key (the key rule, R/keys.R).
   duplicate_keys = 0,
   # MO records placed at a named place's centre: share of MO, and its rise.
-  place_centre_share = 0.10, place_centre_rise = 0.02,
+  # The rise is what catches a source suddenly at centres; the ceiling is a
+  # backstop for a first report or after a gap, and a ceiling stop does not
+  # clear itself, so it sits above normal. It rests on two pulls only:
+  # 38.5% (1,936 of 5,035, the frozen pull x73b85b36) and 41.0% (2,115 of
+  # 5,157, the dry pull of 2026-11-04). The first limit, 10%, was never
+  # measured against this count (Steve, 2026-11-04).
+  place_centre_share = 0.50, place_centre_rise = 0.02,
   # Records whose source answer is not cached: share, and its rise.
   uncached_share = 0.05, uncached_rise = 0.02,
   # Records left out because their sequences disagree: rise in share.
