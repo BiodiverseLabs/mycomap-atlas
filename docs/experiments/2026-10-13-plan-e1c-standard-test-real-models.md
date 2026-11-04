@@ -134,6 +134,13 @@ seeing the numbers.
   resamples have none.
 - "Not strong" means not shown to beat collecting by the shifted null, which
   E1 found has low power. It does not mean the map is wrong.
+- **Checked independently (the method lane, 2026-11-04).** Recomputed in R from
+  this plan and the two files, without the script, with its own resamples:
+  84.17% [82.13, 85.93]; passes 35.73% [31.90, 39.67]; strong that fail 11.24%
+  [6.75, 16.11]. `boyce` is the release's pooled Boyce (R/fit.R). Fixing the 11
+  census strata instead of resampling them gives [82.14, 85.91], so the plan's
+  wording stands. One model drew 16 nulls rather than 19 (ESM, 3–4 sites,
+  failed); with p 0.824 and Boyce −0.223 it fails either way.
 
 ## Deviations
 

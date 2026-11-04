@@ -544,7 +544,7 @@ A pilot before the freeze (49 geography and 50 habitat species, Maxent
 only) had suggested 2% for the shifted null; the full study's 5.8% replaces
 it. → **Figure 2** (draft 2026-11-04: `figures/fig2.svg`, made by
 `figures/fig2.py` from the registry numbers, table view
-`figures/fig2-data.csv`): false pass of scattered and shifted nulls by site
+`figures/fig2-data.md`): false pass of scattered and shifted nulls by site
 band and learner; the shifted nulls close up, with Wilson intervals and the
 5% bar; shift power by band for strong-signal species, and none for weak;
 map-to-truth ρ of passed and other maps. Every cell,
@@ -649,7 +649,7 @@ the old scattered-null test barely beat those that did not (beats-effort
 `2026-10-18-tracker-backfill-old-grading.md`).
 
 → **Figure 3** (draft 2026-10-25: `figures/fig3.svg`, made by `figures/fig3.py`
-from the registry numbers, table view `figures/fig3-data.csv`; panels a and b
+from the registry numbers, table view `figures/fig3-data.md`; panels a and b
 drawn, c waits for E3): (a) top-half shares by grade, each beside
 the distance map on the same places, with the registered interval; (b) strong maps against
 the distance map by distance band (5–25, 25–100, 100–500 km); (c) prospective
@@ -989,10 +989,13 @@ slightly inflated; about 146 pairs, in 132 taxa (39 with 3–19 sites), lie
 further apart and may give their taxon a second detection site. In 131 of
 them the far copy is a Mushroom Observer record whose own coordinates
 Atlas could not check, so it kept mycomap.org's point, often a named
-place's centre; about 11% of eligible Mushroom Observer records (880 of
-8,003) were placed that way in the frozen pull. Fetching their Mushroom
-Observer answers (2026-10-18) cuts the far pairs to 20 for the next pull
-(Appendix S1: Section S2). Fits are deterministic within a processor family
+place's centre: 797 of the frozen pull's 5,035 Mushroom Observer records
+were placed that way, and when their answers were later fetched, the 560
+that turned out to have a GPS point moved a median of 1.4 km (130 of them
+over 5 km). A further 1,936 are placed at a named place's centre by design;
+they alone provide 1.3% of survey sites, and without them 36 modelled taxa
+would fall below 3 sites. Fetching the answers cuts the far pairs to 20 for
+the next pull (Appendix S1: Section S2). Fits are deterministic within a processor family
 but not quite across families: about 0.4% of grades (95% interval
 0.0–1.2%) would change on the other family, all among full-design models,
 because a few taxa's variogram-estimated spatial blocks differ between
@@ -1405,6 +1408,10 @@ revised (Path).
 
 ## Changelog
 
+- **0.22.1 (2026-11-04).** E1c independently recomputed by the method lane
+  (matches); Mushroom Observer placement numbers from the registry
+  (`2026-11-04-mo-place-classes.md`) in Limits and S2.4b; figure tables moved
+  to Markdown.
 - **0.22.0 (2026-11-04).** E1c read: 84.2% [82.2, 85.9] of models passing
   the standard test are not strong (C1, abstract, 3.3, Discussion, S5).
 - **0.21.4 (2026-11-04).** Evidence-plan and Path rows caught up (E1c run done, read-out outstanding; E6a, E9, E2 re-score done); OD13: possibly obscured records in the public cells.

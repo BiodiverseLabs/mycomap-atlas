@@ -232,9 +232,23 @@ own site counts 1 with 1–2 sites, 39 with 3–19, 53 with 20–49 and 39 with
 with no cached Mushroom Observer answer, which Atlas places at
 mycomap.org's point (usually a named location's centre) rather than
 dropping it; so most are a coarse Mushroom Observer point, not a wrong
-observation. Of 8,003 eligible Mushroom Observer records, 880 (11%) are
-placed that way in the frozen pull. Their Mushroom Observer answers were
-fetched on 2026-10-18, after the freeze. On the live database afterwards,
+observation. Of the frozen pull's 5,035 Mushroom Observer records, 797 had
+no cached answer and were placed that way, 2,302 at a GPS point the observer
+shows, and 1,936 (38%; 1.45% of the pull) at a named place's centre within
+5 km of every point in the place (`2026-11-04-mo-place-classes.md`). (An
+earlier count of 880 of 8,003 covered every eligible record before naming, so
+it is a different count, not a different answer.) The Mushroom Observer
+answers were fetched on 2026-10-18, after the freeze; in the next dry pull
+560 of the 797 had a GPS point, moving a median of 1.41 km (quartiles
+0.45–4.10; 130 over 5 km, 17 over 25 km), 117 were place records (median
+0.29 km), and 120 had left the pull. Records that kept their class did not
+move. The place records alone provide 1,360 of 106,971 survey sites (1.27%)
+and 1.0% of modelled taxa's sites; 755 modelled taxa have such a site, and
+without them 36 would fall below 3 sites, 13 below 20 and 2 below 50 (these
+count dependence, not an effect on any fit). That audit reads mycomap.org's
+caches of each source's answer rather than the sources live, and covers
+iNaturalist and Mushroom Observer only; on the dry pull it found no record
+treated as public whose source hides its place. On the live database afterwards,
 by the same method, about 1,588 pairs have both copies kept and named
 (Atlas's Mushroom Observer rule now drops copies placed only by a location
 box wider than 5 km); 1,568 (98.7%) lie within 5 km and 20 further apart (3

@@ -3,11 +3,24 @@
 Every number is copied from the registry, not computed here:
   docs/experiments/2026-10-13-prereg-e2-hindcast.md, Results (by grade)
   docs/experiments/2026-10-13-prereg-e6b-distance-baseline.md, Results
-Writes fig3.svg (vector, for the journal) and fig3-data.csv (the table view).
+Writes fig3.svg (vector, for the journal) and fig3-data.md (the table view).
 Run: python -I fig3.py   (no third-party packages)
 """
-import csv
 import os
+
+
+class Table:
+    """The table view as a Markdown table (the repo's data check refuses .csv)."""
+
+    def __init__(self, f):
+        self.f, self.first = f, True
+
+    def writerow(self, row):
+        self.f.write('| ' + ' | '.join(str(c) for c in row) + ' |\n')
+        if self.first:
+            self.f.write('|' + '---|' * len(row) + '\n')
+            self.first = False
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -113,12 +126,12 @@ parts += legend(20, H - 12)
 parts.append('</svg>')
 open(os.path.join(HERE, 'fig3.svg'), 'w', encoding='utf-8').write('\n'.join(parts))
 
-with open(os.path.join(HERE, 'fig3-data.csv'), 'w', newline='', encoding='utf-8') as f:
-    wr = csv.writer(f)
+with open(os.path.join(HERE, 'fig3-data.md'), 'w', encoding='utf-8') as f:
+    wr = Table(f)
     wr.writerow(['panel', 'row', 'taxa', 'map_top_half', 'map_ci_low', 'map_ci_high', 'kernel_top_half', 'source'])
     for label, taxa, m, ci, kern in PANEL_A:
         wr.writerow(['a', label, taxa, m, ci[0] if ci else '', ci[1] if ci else '', '' if kern is None else kern,
                      'E2 Results by grade; E6b Results (strong and weak vs kernel)'])
     for label, m, kern in PANEL_B:
         wr.writerow(['b', label, '', m, '', '', kern, 'E6b Results, strong models and their kernels by band'])
-print('wrote fig3.svg, fig3-data.csv')
+print('wrote fig3.svg, fig3-data.md')

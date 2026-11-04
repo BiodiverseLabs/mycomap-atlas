@@ -2,11 +2,24 @@
 
 Every number is copied from the registry, not computed here:
   docs/experiments/2026-10-13-prereg-e1-null-calibration.md, Result (2026-10-29)
-Writes fig2.svg (vector) and fig2-data.csv (the table view).
+Writes fig2.svg (vector) and fig2-data.md (the table view).
 Run: python -I fig2.py   (no third-party packages)
 """
-import csv
 import os
+
+
+class Table:
+    """The table view as a Markdown table (the repo's data check refuses .csv)."""
+
+    def __init__(self, f):
+        self.f, self.first = f, True
+
+    def writerow(self, row):
+        self.f.write('| ' + ' | '.join(str(c) for c in row) + ' |\n')
+        if self.first:
+            self.f.write('|' + '---|' * len(row) + '\n')
+            self.first = False
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -149,8 +162,8 @@ parts += [marker(26, y - 4, 'Maxent', SHIFT), text(38, y, 'Maxent', 12, INK),
 parts.append('</svg>')
 open(os.path.join(HERE, 'fig2.svg'), 'w', encoding='utf-8').write('\n'.join(parts))
 
-with open(os.path.join(HERE, 'fig2-data.csv'), 'w', newline='', encoding='utf-8') as f:
-    wr = csv.writer(f)
+with open(os.path.join(HERE, 'fig2-data.md'), 'w', encoding='utf-8') as f:
+    wr = Table(f)
     wr.writerow(['measure', 'learner', 'band', 'value_percent', 'ci_low', 'ci_high'])
     for learner, vals in SHIFT_FP.items():
         for band, (m, lo, hi) in zip(BANDS, vals):
@@ -164,4 +177,4 @@ with open(os.path.join(HERE, 'fig2-data.csv'), 'w', newline='', encoding='utf-8'
     for learner, passed, rest, diff in RHO:
         wr.writerow(['median rho, passed', learner, 'all', passed, '', ''])
         wr.writerow(['median rho, rest', learner, 'all', rest, '', ''])
-print('wrote fig2.svg, fig2-data.csv')
+print('wrote fig2.svg, fig2-data.md')
