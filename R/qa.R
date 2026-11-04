@@ -24,9 +24,12 @@ ATLAS_QA_THRESHOLDS <- list(
   # The rise is what catches a source suddenly at centres; the ceiling is a
   # backstop for a first report or after a gap, and a ceiling stop does not
   # clear itself, so it sits above normal. It rests on two pulls only:
-  # 38.5% (1,936 of 5,035, the frozen pull x73b85b36) and 41.0% (2,115 of
-  # 5,157, the dry pull of 2026-11-04). The first limit, 10%, was never
-  # measured against this count (Steve, 2026-11-04).
+  # 38.5% (1,936 of 5,035, the frozen pull x73b85b36; 45.7% of its records
+  # with a cached MO answer) and 41.0% (2,115 of 5,157, the dry pull of
+  # 2026-11-04). By first validation and today's classes, the share read 49.9%
+  # at the end of March 2026 and has fallen since, and one day in 181 moved it
+  # more than 2 points. The first limit, 10%, was never measured against this
+  # count (Steve, 2026-11-04).
   place_centre_share = 0.50, place_centre_rise = 0.02,
   # Records whose source answer is not cached: share, and its rise.
   uncached_share = 0.05, uncached_rise = 0.02,
