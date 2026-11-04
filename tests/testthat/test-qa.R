@@ -69,6 +69,49 @@ test_that("MO records at named-place centres stop the pull above 10%, or when th
   expect_true("place_centres" %in% unlist(rose$stops))
 })
 
+test_that("a source's records stop the pull only when at least 20 moved; a smaller move past a limit is still reported", {
+  check <- function(before, n_mo = 50) {
+    pull <- qa_pull(n_mo = n_mo)
+    atlas_qa_report(pull, list(stamp = "x"), previous = list(detail = list(by_source = before)))
+  }
+  moved_by <- function(before, n_mo = 50) {
+    report <- check(before, n_mo)
+    list(stops = "sources" %in% unlist(report$stops), below = unlist(report$checks$sources$detail$below_floor))
+  }
+  # A fall: 19 records is past 2% but under the floor; 20 stops.
+  fell_19 <- moved_by(list(iNaturalist = 100, "MO Observations" = 69))
+  expect_false(fell_19$stops)
+  expect_equal(fell_19$below, "MO Observations 69 -> 50")
+  fell_20 <- moved_by(list(iNaturalist = 100, "MO Observations" = 70))
+  expect_true(fell_20$stops)
+  expect_null(fell_20$below)
+  # A rise: the same floor.
+  rose_19 <- moved_by(list(iNaturalist = 100, "MO Observations" = 31))
+  expect_false(rose_19$stops)
+  expect_equal(rose_19$below, "MO Observations 31 -> 50")
+  rose_20 <- moved_by(list(iNaturalist = 100, "MO Observations" = 30))
+  expect_true(rose_20$stops)
+  # At least 20 records but inside the percentages: no stop and nothing to report.
+  large <- moved_by(list(iNaturalist = 100, "MO Observations" = 1020), n_mo = 1000)
+  expect_false(large$stops)
+  expect_null(large$below)
+  # The real small moves: Sequences 61 -> 43 (18 records), and a small source gone.
+  pull <- qa_pull()
+  sequences <- pull[rep(1L, 43), , drop = FALSE]
+  sequences$id <- as.character(1000 + seq_len(43))
+  sequences$source <- "Sequences"
+  sequences$observation_id <- as.character(seq_len(43))
+  with_sequences <- rbind(pull, sequences)
+  small <- atlas_qa_report(with_sequences, list(stamp = "x"), previous = list(detail = list(by_source = list(
+    iNaturalist = 100, "MO Observations" = 50, Sequences = 61, "GenBank Accessions" = 2))))
+  expect_false("sources" %in% unlist(small$stops))
+  expect_setequal(unlist(small$checks$sources$detail$below_floor), c("Sequences 61 -> 43", "GenBank Accessions 2 -> 0"))
+  # A source vanishing still stops, when it held enough records to matter.
+  vanished <- check(list(iNaturalist = 100, "MO Observations" = 50, Sequences = 61))
+  expect_true("sources" %in% unlist(vanished$stops))
+  expect_match(vanished$checks$sources$why, "Sequences 61 -> 0")
+})
+
 test_that("uncached records stop the pull above 5%; the privacy list shrinking more than 5% does too", {
   pull <- qa_pull()
   uncached <- atlas_qa_report(pull, list(stamp = "x"), privacy = qa_privacy(pull, unknown = 9))
@@ -87,9 +130,9 @@ test_that("disagreeing sequence names rising a point, a drop-list row, or a sour
   expect_equal(dropped$checks$drop_list$value, 2L)
   expect_true("drop_list" %in% unlist(dropped$stops))
   moved <- atlas_qa_report(pull, list(stamp = "x"),
-                           previous = list(detail = list(by_source = list(iNaturalist = 100, "MO Observations" = 60))))
+                           previous = list(detail = list(by_source = list(iNaturalist = 100, "MO Observations" = 70))))
   expect_true("sources" %in% unlist(moved$stops))
-  expect_match(moved$checks$sources$why, "MO Observations 60 -> 50")
+  expect_match(moved$checks$sources$why, "MO Observations 70 -> 50")
 })
 
 test_that("nothing is planned from a stopped pull unless its stop is accepted by name, for that pull", {
