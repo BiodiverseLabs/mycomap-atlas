@@ -176,8 +176,8 @@ but they report each map's skill with scores that clustered collecting
 inflates, and the usual null test does not correct for it. Fungi add a
 second problem: morphological names often hide several lineages. We built
 MycoMap Atlas, which maps the North American fungi defined by an
-approved DNA sequence that have at least three survey sites in [133,235]
-validated community-science records of [16,252] taxa, designed to rebuild
+approved DNA sequence that have at least three survey sites in 133,235
+validated community-science records of 16,252 taxa, designed to rebuild
 nightly [CHECK: the nightly is off; planned to resume November 2026].
 Four kinds of model are fitted against the other places people collected
 and sequenced, scored on spatially blocked folds, and graded against null
@@ -323,8 +323,7 @@ fingerprint, and a model is refitted when the fingerprint changes.
 Coordinates must be present, not obscured and accurate to 1 km where an
 accuracy is recorded (Mushroom Observer and MyCoPortal records have their
 own 5 km rules), in the United States, Canada, Mexico, Puerto Rico or the
-US Virgin Islands. The frozen pull holds [133,235] records of [16,252] taxa
-[provisional].
+US Virgin Islands. The frozen pull holds 133,235 records of 16,252 taxa.
 
 *Data errors found and removed.* Two checks before the freeze removed 76
 records whose name or place was wrong: 22 Mushroom Observer specimens
