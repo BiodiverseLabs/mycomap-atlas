@@ -107,7 +107,11 @@ pairs, since 2 Maxent pairs have a constant map; Schoener's D over 1,702):
 Spearman is at least 0.9 in 72.6% of pairs and D in 80.0%; 58 pairs have
 Spearman below 0.5. Pairs with the same presence count (287) agree more
 (median Spearman 0.987, D 0.979) than pairs with different counts (1,413;
-0.951, 0.953). No pair's maps are identical.
+0.951, 0.953). No pair's maps are identical. That is expected from how
+backgrounds are built, though E9 did not measure it: a taxon's background
+comes from other taxa's records, so relabelling elsewhere changes its training
+table even when its own records do not (the mechanism behind E3's 690 kernel
+mismatches; Section S10).
 
 **Grades of the 1,702 pairs:**
 
