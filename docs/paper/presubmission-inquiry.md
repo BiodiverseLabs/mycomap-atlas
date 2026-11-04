@@ -22,7 +22,7 @@ drawn yet.
 **Before sending, read in the draft** (about 20 minutes): the core claims
 C1–C4 and Q1; the abstract; Results 3.2 (E1) and 3.4 (E2, E6b); the
 Discussion's "The cost of an honest grade", the recommendations and
-"Limits". If the nightly is live when it is sent (planned 2026-11-04),
+"Limits". If the nightly is live when it is sent (first run slipped past 2026-11-04),
 "designed to rebuild nightly" can become "rebuilt nightly".
 
 ---
