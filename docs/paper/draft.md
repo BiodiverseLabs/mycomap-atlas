@@ -1398,16 +1398,20 @@ revised (Path).
    habitat signal also pass, and that misses many real habitat links, so a
    strong grade is good evidence, not proof."); Atlas main 3c77519, live
    with the 2026-11-02 deploy.
-13. **Public 0.1° cells of the frozen release (Steve; PENDING, 2026-11-04).**
-   Up to 3 records in the cells file on the Zenodo models record may now be
-   obscured at iNaturalist. Not yet split; the real number may be 0. Steve
-   decides after the split. It could touch the data statement in 4.1 and S11,
-   and goes with the next models version if a file changes.
+13. **Public 0.1° cells of the frozen release: decided 2026-11-04 (Steve).**
+   A count-only check found 3 records in the cells file on the Zenodo models
+   record that are obscured at iNaturalist today. Fix in the next models
+   version only: no request to Zenodo, the old version stays as it is, and the
+   frozen release does not change. The next version's cells file and the
+   training-record table use the then-current privacy list, and Figure 1 is
+   drawn from that filtered file, not the current one. Whether the data
+   statement mentions it is proposed to Steve.
 
 ---
 
 ## Changelog
 
+- **0.22.2 (2026-11-04).** Open decision 13 closed (Steve): fix in the next models version only; Figure 1 from the filtered cells.
 - **0.22.1 (2026-11-04).** E1c independently recomputed by the method lane
   (matches); Mushroom Observer placement numbers from the registry
   (`2026-11-04-mo-place-classes.md`) in Limits and S2.4b; figure tables moved
