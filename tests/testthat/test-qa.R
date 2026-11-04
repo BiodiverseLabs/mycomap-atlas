@@ -58,15 +58,21 @@ test_that("two records under one source:number key stop the pull; one number in 
   expect_equal(unlist(report_of(pull)$stops), "keys")
 })
 
-test_that("MO records at named-place centres stop the pull above 10%, or when their share rises 2 points", {
-  pull <- qa_pull()
-  high <- atlas_qa_report(pull, list(stamp = "x"), privacy = qa_privacy(pull, centres = 6))
-  expect_true("place_centres" %in% unlist(high$stops))
-  low <- atlas_qa_report(pull, list(stamp = "x"), privacy = qa_privacy(pull, centres = 3))
-  expect_false("place_centres" %in% unlist(low$stops))
-  rose <- atlas_qa_report(pull, list(stamp = "x"), privacy = qa_privacy(pull, centres = 3),
-                          previous = list(checks = list(place_centres = list(value = 0.02))))
-  expect_true("place_centres" %in% unlist(rose$stops))
+test_that("MO records at named-place centres stop the pull above 50%, or when their share rises 2 points", {
+  stops <- function(n_mo, centres, previous = NULL) {
+    pull <- qa_pull(n_mo = n_mo)
+    "place_centres" %in% unlist(atlas_qa_report(pull, list(stamp = "x"), privacy = qa_privacy(pull, centres = centres),
+                                                previous = previous)$stops)
+  }
+  # The two real pulls, the frozen one and the dry pull of 2026-11-04.
+  expect_false(stops(5035, 1936))
+  expect_false(stops(5157, 2115))
+  # The ceiling itself, and just past it.
+  expect_false(stops(50, 25))
+  expect_true(stops(50, 26))
+  # The rise, below the ceiling: 2 points is allowed, more is not.
+  expect_false(stops(50, 21, previous = list(checks = list(place_centres = list(value = 0.40)))))
+  expect_true(stops(50, 21, previous = list(checks = list(place_centres = list(value = 0.39)))))
 })
 
 test_that("uncached records stop the pull above 5%; the privacy list shrinking more than 5% does too", {
