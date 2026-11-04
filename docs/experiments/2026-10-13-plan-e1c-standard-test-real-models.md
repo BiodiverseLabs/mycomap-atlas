@@ -96,6 +96,45 @@ Logged as the operations lane reports them; numbers only.
       reclaimed attempt, at most USD 2.1. The run without layers adds at
       most USD 0.45.
 
+## Result (2026-11-04, the Paper Coordinator's reading)
+
+From the two results files of study-20261025T160517Z-0c069800 (sha256
+438a8f66… and a4bcfbda…, copied by the operations lane with Steve's
+confirmation), with `2026-11-04-e1c-reading.py` beside this plan (sha256
+45ab2261…; standard library, no local paths). Numbers only. The estimate
+and its interval are the ones fixed in Design above; the reading was made
+late (the run finished 2026-10-25) but nothing in it was chosen after
+seeing the numbers.
+
+- **Checks.** 1,083 models over 29 strata; 0 dropped; the rows match the
+  files' sampled counts; the release holds 9,040 testable models in those
+  strata; every "passed" equals the plan's rule (AUC p ≤ 0.05 and pooled
+  Boyce > 0), 0 disagree. 11 strata are censuses (every model sampled); they
+  are resampled like the rest, as the plan says, which makes the interval
+  slightly wider than a finite-population one.
+- **The estimate.** Among models that pass the standard test, the share not
+  graded strong, weighted by stratum: **84.2% [82.2, 85.9]**.
+- **How many pass.** The standard test passes 35.7% [31.9, 39.8] of the
+  release's models (weighted). Strong models are 576 of 9,040 (6.4%).
+
+| Split | Passed, not strong | 95% interval | Strong that fail the standard test | 95% interval |
+|---|---|---|---|---|
+| All | 84.2% | 82.2–85.9 | 11.2% | 6.7–16.2 |
+| ESM | 81.0% | 76.2–84.5 | 16.9% | 9.8–24.8 |
+| Maxent | 81.5% | 77.7–84.2 | 1.7% | 0.0–5.2 |
+| Random forest | 88.6% | 86.4–90.2 | 1.2% | 0.0–3.5 |
+| Boosted trees | 98.0% | 97.8–98.2 | 0% | 0–0 |
+| 3–4 sites | 75.6% | 0.0–88.5 | 50.0% | 32.4–67.7 |
+| 5–19 sites | 75.2% | 62.1–82.4 | 18.0% | 8.0–30.0 |
+| 20–49 sites | 83.8% | 81.6–85.5 | 0.8% | 0.0–2.4 |
+| 50–99 sites | 95.0% | 94.5–95.5 | 3.1% | 0.0–9.4 |
+| 100+ sites | 100% | 100–100 | no strong models | |
+
+- The 3–4-site interval is very wide because few models there pass; some
+  resamples have none.
+- "Not strong" means not shown to beat collecting by the shifted null, which
+  E1 found has low power. It does not mean the map is wrong.
+
 ## Deviations
 
 - **2026-10-25, before launch (implementation only; the estimate, its

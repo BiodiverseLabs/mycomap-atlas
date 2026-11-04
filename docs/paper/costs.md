@@ -83,7 +83,8 @@ the orchestrator, S3 and boot time before a worker writes its start.
 | 2026-10-28 | E9 scoring | — | 1 × r7i.xlarge, on-demand | — | — | about 2 h | ≈ 0.53 | — | |
 | 2026-10-29 | E9 study-compare | — | 1 shard | — | — | — | ≈ 0.05 | — | |
 | 2026-10-28 | E16 descriptives | — | the public API and the Atlas box (read-only) | — | — | — | 0 (no EC2) | — | |
-| — | E1c, E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
+| 2026-10-25 | E1c standard-test rescan | study-20261025T160517Z-0c069800 (and a first launch without layers, study-20261025T155216Z-725a1d1e) | 2 × r7i.8xlarge, spot | 1,083 models | ≈ 30 (code's estimate) | ≈ 1.2 instance-h | ≤ 2.6 | — | one reclaim before reporting |
+| — | E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
 

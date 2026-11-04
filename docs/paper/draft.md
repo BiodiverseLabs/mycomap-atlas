@@ -96,9 +96,10 @@ revise the paper plan and let's continue".)
    keeping nulls are not new (Beale et al. 2008; Osborne et al. 2022; Ridder
    et al. 2024); what is new is measuring both their error rates against
    known truth under target-group sampling, and grading thousands of maps
-   with them. [E1, registered; read out 2026-10-29. E1c PENDING: the share
-   of the atlas's real maps a standard test (19 scattered nulls) calls good
-   that are not shown to beat collecting.]
+   with them. On the atlas's real models, a standard test (19 scattered
+   nulls) passes about 36%, and 84% of those (95% interval 82–86) are not
+   shown to beat collecting by the shifted null. [E1, registered, read out
+   2026-10-29; E1c, descriptive, read 2026-11-04.]
 2. **C2. The grade predicts how a map does on records it never saw, and
    strong maps beat distance to known records, modestly.** Of the later
    finds in a hindcast, strong maps placed 91.4% in their top half, weak
@@ -187,7 +188,7 @@ more sites; the clustering-preserving test passed 5–6%, near but above the
 5% we had set, and detected only 8–28% of species with a strong habitat
 signal and none with a weak one. Of
 the atlas's 9,041 models of 6,369 taxa, 576 across 470 taxa were graded strong; the
-standard test would have called [X]% of the rest good [PENDING E1c]. Maps
+usual test would pass about 36% of them, and 84% of those are not strong. Maps
 graded strong placed records validated after the training cutoff in their
 top half 91% of the time, against 78% for failed maps and 87% for a map of
 distance to known records on the same places, a modest gain in top-half
@@ -579,9 +580,17 @@ tier beats distance to known records (Section 3.4), so both are drawn as
 weak maps. Every count by learner, band and tier is in S4.
 
 [PENDING: strong maps by guild and region; combined maps; share of reach
-inside the area of applicability; and the standard test on real models
-(E1c): the share of maps 19 scattered nulls call good that are not shown to
-beat collecting.] → **Table 1**, **Figure 4** (example maps across grades); detail in S4.
+inside the area of applicability.]
+
+*The standard test on the real models (E1c; descriptive,
+`2026-10-13-plan-e1c-standard-test-real-models.md`, Result).* On a sample of
+1,083 models stratified by learner, site band and grade, and weighted back
+to the release, the old production test (19 scattered nulls, the model's
+untuned settings) passed 35.7% (31.9–39.8), against 6.4% graded strong.
+Of the models it passed, 84.2% (82.2–85.9) are not strong, from 81% for
+Maxent and the ensembles to 98% for boosted trees, and 95–100% at 50 or more
+sites. In the other direction, 11.2% (6.7–16.2) of strong models fail it,
+nearly all of them small-site ensembles. → **Table 1**, **Figure 4** (example maps across grades); detail in S4.
 
 ### 3.4 How the maps did on records they never saw (E2, E6b, E3)
 
@@ -870,9 +879,11 @@ their numbers are in.*
 
 **The cost of an honest grade.** Most of the atlas's maps are not strong:
 576 of 9,041 models, and 470 of 6,369 modelled taxa. The
-standard test, rerun on the same models, would have called [X]% of them
-good [PENDING E1c]. That gap is the point of the method rather than a
-shortfall of the data. On simulated species collected the way MycoMap's
+standard test, rerun on a sample of the same models, would have passed
+about 36% of them, and 84% of those it passes are not strong. Given the
+shifted null's low power, those maps are not shown to beat collecting
+rather than shown to be wrong. That gap is the point of the method rather
+than a shortfall of the data. On simulated species collected the way MycoMap's
 records are, the scattered null passed three quarters or more of species
 that follow no habitat at all, and nearly every one with a hundred sites or
 more; the shifted null passed about one in twenty, and its strong maps
@@ -1153,7 +1164,7 @@ data, command, result, release, commit).
 | E16 | Records, taxa, sites, provisional share, sampling bias, validation lag | C3, C4 | Partly (counts in memory and Methods page) | Frozen pull + release index; read-only | 1–2 days, no compute | P1 |
 | E1b | Re-read the existing null study by site band | C1 | **Done 2026-10-13** (`docs/experiments/2026-10-13-null-calibration-by-band.md`): see 3.2 | 2026-10-06 virtual-species results file | read-only | P1 |
 | E1 | **Done 2026-10-29: C1 not supported as registered** (shift false pass 5.8% [4.3, 7.6] Maxent, 4.9% [3.6, 6.6] RF; scatter 75–82%; H1b–e hold; H1f fails by separation; Results 3.2). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e1-null-calibration.md`, amended 2026-10-13 before launch). Null calibration rerun: false pass and power by design × site band × habitat breadth × signal strength × learner (Maxent, RF, ESM), so power is a curve; map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: habitat 5 site bands × 2 breadths × 2 signal strengths × 60 = 1,200, geography 5 bands × 2 centre counts × 80 = 800; Maxent and RF; scatter and shift ×99, stop at 5. ESM: 3 bands × (habitat 2 strengths × 80 + geography 120) = 840. Effort arms (E14) on the same species. Sizes doubled 2026-10-13 after the calibration pilot (`2026-10-13-e1-cost-pilot.md`) | est. 540–920 CPU-h ($27–46), pilot-scaled (`2026-10-13-e1-cost-pilot.md`), with an allowance for 200+ sites | P1 |
-| E1c | **Run done 2026-10-25** (study-20261025T160517Z-0c069800: 1,083 of 1,083 models, 0 dropped); **weighted estimate still to be read by the paper lane** from the results files. Plan: (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
+| E1c | **Done: run 2026-10-25, read 2026-11-04**: of models passing the standard test, 84.2% [82.2, 85.9] are not strong; the test passes 35.7% of models (Results 3.3, S5). Plan: (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
 | E2 | **Done 2026-10-19, C2 supported** (study-20261019T181851Z-35fc3d63; H2a 0.914 [0.886, 0.942], H2b 0.131 [0.090, 0.172], H2c 0.785 [0.763, 0.806]; tiers H2d–f hold; Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e2-hindcast.md`). Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade. **Registered 2026-10-21** (Steve): one read-out on the frozen release of finds first validated 2026-10-14 to 2026-12-15 (all unseen by it); read-out about 2026-12-16 | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
 | E9 | **Redesigned 2026-10-25 (Steve): paired hindcast of both labellings, scored on E2's later finds** (see Path 7); earlier plan below, superseded. **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
@@ -1276,7 +1287,7 @@ gets Steve's direct go through the operations lane; every run gets a
 | 3 | **E6b** distance-only baseline on the E2 finds | **done** 2026-10-21 (study-20261020T232528Z-05216058); then Steve's post-hoc tier rule (plan-map-tiers, 2026-10-20) | done |
 | 3c | **E3 prospective test**, **registered 2026-10-21** (`2026-10-21-prereg-e3-prospective.md`): finds first validated 2026-10-14 to 2026-12-15, scored on fa1b4198. **Kernels done 2026-10-25**: 6,369 of 6,369 taxa (main 5,679; patch 1 from R_main's pull 681; patch 2 on r7a 9), none left out of H3c. Next: the `--counts-only` check by grade, then the read-out | Steve approved the prereg, date, read-out mode and kernels | read-out about 2026-12-16 |
 | 4 | **Presubmission inquiry** to Ecological Monographs | E1 in; ready (`presubmission-inquiry.md`, c375490); Steve reads the core claims, abstract, 3.2, 3.4 and the Discussion first, then sends it himself to the Editorial Office (esajournals@esa.org) | **now / early November 2026** (Steve, 2026-10-29 and 10-30) |
-| 5 | **E1c** standard test on real models | run **done** 2026-10-25; paper lane reads the weighted estimate (results files requested of ops 2026-11-04) | November 2026 |
+| 5 | **E1c** standard test on real models | **done** (run 2026-10-25; weighted estimate read 2026-11-04) | done |
 | 6 | **E1** virtual-species calibration | **done** 2026-10-29: C1 not supported as registered; shift nulls 5–6% false pass, scatter 75–82% | done |
 | 7 | **E9** paired hindcast of both labellings | **done** 2026-10-28, compare 2026-10-29: H9 not held; C3 narrowed to coverage (plan-e9, Result) | done |
 | 7b | **E2 re-score** | **done** 2026-10-26 (E2 prereg, Results): observed-after set too small for strong maps; within-band and z exploratory | done |
@@ -1392,6 +1403,8 @@ revised (Path).
 
 ## Changelog
 
+- **0.22.0 (2026-11-04).** E1c read: 84.2% [82.2, 85.9] of models passing
+  the standard test are not strong (C1, abstract, 3.3, Discussion, S5).
 - **0.21.4 (2026-11-04).** Evidence-plan and Path rows caught up (E1c run done, read-out outstanding; E6a, E9, E2 re-score done); OD13: possibly obscured records in the public cells.
 - **0.21.3 (2026-10-30).** E16 Part 2 into 3.1, the Introduction, 4.1,
   Limitations and S2 (sources, sites, states, validation lag, naming

@@ -132,6 +132,36 @@ The 200+ band, where nearly every shifted null is best-effort, is also
 where Maxent's false passes were highest; the study does not test whether
 one causes the other.
 
+## S5.7b The standard test on the atlas's real models (E1c)
+
+`2026-10-13-plan-e1c-standard-test-real-models.md` (planned before any run;
+descriptive). A sample of 1,083 of the release's 9,040 testable models, up to
+50 per stratum of learner × site band × grade, each rebuilt from the pull it
+was fitted on with its recorded block (0 dropped, 0 mismatched), was run
+through the old production test: 19 scattered nulls, no early stop, the
+model's untuned settings and folds, pass at AUC p ≤ 0.05 and pooled Boyce > 0.
+Weighted back to the release, with 95% intervals from 10,000 bootstrap
+resamples within strata, the test passes 35.7% (31.9–39.8) of models,
+against 6.4% graded strong. Among those it passes, the share not strong:
+
+| Split | Passed, not strong | 95% interval | Strong that fail the standard test | 95% interval |
+|---|---|---|---|---|
+| All | 84.2% | 82.2–85.9 | 11.2% | 6.7–16.2 |
+| ESM | 81.0% | 76.2–84.5 | 16.9% | 9.8–24.8 |
+| Maxent | 81.5% | 77.7–84.2 | 1.7% | 0.0–5.2 |
+| Random forest | 88.6% | 86.4–90.2 | 1.2% | 0.0–3.5 |
+| Boosted trees | 98.0% | 97.8–98.2 | 0% | 0–0 |
+| 3–4 sites | 75.6% | 0.0–88.5 | 50.0% | 32.4–67.7 |
+| 5–19 sites | 75.2% | 62.1–82.4 | 18.0% | 8.0–30.0 |
+| 20–49 sites | 83.8% | 81.6–85.5 | 0.8% | 0.0–2.4 |
+| 50–99 sites | 95.0% | 94.5–95.5 | 3.1% | 0.0–9.4 |
+| 100+ sites | 100% | 100–100 | no strong models | |
+
+Few models pass at 3–4 sites, so that interval is very wide. "Not strong"
+means not shown to beat collecting by a shifted null of low power; it does
+not mean the map is wrong. Cost: about 1 instance-hour of r7i.8xlarge spot,
+at most USD 2.1, plus at most USD 0.45 for a first launch without layers.
+
 ## S5.8 The pilot
 
 Before the freeze, an exploratory study of 49 geography and 50 habitat
