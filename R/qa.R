@@ -37,8 +37,11 @@ ATLAS_QA_THRESHOLDS <- list(
   disagree_rise = 0.01,
   # Drop-list rows still in the pull.
   drop_list = 0,
-  # Records by source against the last pull.
-  source_fall = 0.02, source_rise = 0.15,
+  # Records by source against the last pull. Neither stops on fewer records
+  # than source_floor (Steve, 2026-11-04): with 43 Sequences records one is
+  # 2.3%, and with 2 GenBank records one is 50%, while a failed cache or grant
+  # moves far more. Smaller moves past a limit stay in the report.
+  source_fall = 0.02, source_rise = 0.15, source_floor = 20,
   # The privacy list shrinking against the last pull.
   privacy_fall = 0.05,
   # The newest first validation in the pull, in days before the pull: .org's
@@ -256,17 +259,20 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
   now <- as.list(stats::setNames(as.integer(by_source), names(by_source)))
   before <- previous$detail$by_source
   moved <- character()
+  below_floor <- character()
   if (!is.null(before)) {
     for (s in union(names(now), names(before))) {
       a <- as.numeric(before[[s]] %||% 0)
       b <- as.numeric(now[[s]] %||% 0)
       if (a > 0 && ((a - b) / a > t$source_fall || (b - a) / a > t$source_rise)) {
-        moved <- c(moved, sprintf("%s %d -> %d", s, as.integer(a), as.integer(b)))
+        change <- sprintf("%s %d -> %d", s, as.integer(a), as.integer(b))
+        if (abs(b - a) >= t$source_floor) moved <- c(moved, change) else below_floor <- c(below_floor, change)
       }
     }
   }
   checks$sources <- atlas_qa_check(length(moved), NULL, stop = length(moved) > 0L,
-                                   why = paste("records by source moved past their limits:", paste(moved, collapse = "; ")))
+                                   why = paste("records by source moved past their limits:", paste(moved, collapse = "; ")),
+                                   detail = if (length(below_floor)) list(below_floor = as.list(below_floor)))
 
   stops <- names(checks)[vapply(checks, function(c) isTRUE(c$stop), TRUE)]
   list(
