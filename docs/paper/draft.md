@@ -542,9 +542,12 @@ route.
 
 A pilot before the freeze (49 geography and 50 habitat species, Maxent
 only) had suggested 2% for the shifted null; the full study's 5.8% replaces
-it. → **Figure 2**: false pass of scattered and shifted nulls by site band
-and learner, with Wilson intervals and the 5% line; shift power by band
-and signal strength; map-to-truth ρ of passed and other maps. Every cell,
+it. → **Figure 2** (draft 2026-11-04: `figures/fig2.svg`, made by
+`figures/fig2.py` from the registry numbers, table view
+`figures/fig2-data.csv`): false pass of scattered and shifted nulls by site
+band and learner; the shifted nulls close up, with Wilson intervals and the
+5% bar; shift power by band for strong-signal species, and none for weak;
+map-to-truth ρ of passed and other maps. Every cell,
 the best-effort shares and the tiers in S5.
 
 ### 3.3 What the atlas contains (E16)
