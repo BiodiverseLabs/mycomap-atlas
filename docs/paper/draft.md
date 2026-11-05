@@ -306,9 +306,9 @@ describe the data are re-read from the frozen release before submission.*
 *Scope.* Macrofungi here are fungi with fruiting bodies visible to the eye,
 plus the commonly encountered microfungi found with them (rusts, smuts,
 mildews, moulds). The data are not filtered to that scope: they also hold
-slime moulds (3 of the frozen release's models) and any lichens and other
-microfungi, which stay in (Appendix S1: Section S2). [PENDING: the counts,
-from the method lane's registry entry after the API fix.]
+slime moulds (42 names, 62 records, and 3 of the frozen release's 9,041 models,
+none of them strong) and any lichens and other microfungi, which stay in
+(Appendix S1: Section S2). [PENDING: the counts of lichens and microfungi.]
 
 A record trains a model only when its name is confirmed by DNA: it is marked
 "Validated" in at least one MycoMap validation project, by a person who
@@ -1011,7 +1011,8 @@ but not quite across families: about 0.4% of grades (95% interval
 0.0–1.2%) would change on the other family, all among full-design models,
 because a few taxa's variogram-estimated spatial blocks differ between
 families, by up to 240 km; that is the only cross-family effect found. The shifted null's false-pass rate was 5–6% overall, not the 5% or
-less we registered, and about 11% for Maxent at 200 or more sites. The maps
+less we registered, and about 11% for Maxent at 200 or more sites. One plant record also stayed in the frozen pull after the two cleanings (a
+single site, no model of its own; Appendix S1: Section S2). The maps
 can only be as good as where people collect and sequence.
 
 **Where habitat adds over distance.** Near known records, distance alone
@@ -1435,6 +1436,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.1 (2026-11-05).** Frozen release's contents from the registry (`2026-11-04-frozen-kingdoms.md`): slime moulds in 2.1 and S2; one plant record in Limits and S2.
 - **0.23.0 (2026-11-05).** Scope is macrofungi, as in MycoMap Vision (Steve); "fungi and slime moulds" taken out; Methods 2.1 and S2 say what else is in the data (counts pending). Title and inquiry follow once Steve picks the title.
 - **0.22.6 (2026-11-05).** Scope wording cut back to what is measured (none of the flagged names is strong; the check is not proof); abstract, Introduction and 2.1 marked pending Steve's review.
 - **0.22.5 (2026-11-05).** Open decision 13 back open on Zenodo; item 14, Steve's rule for published archives.

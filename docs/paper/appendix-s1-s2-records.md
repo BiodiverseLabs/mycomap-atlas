@@ -10,10 +10,20 @@ to the eye, plus the commonly encountered microfungi found with them (rusts,
 smuts, mildews, moulds). The data are not filtered to that scope. They also
 hold slime moulds and lichens, which stay in; MycoMap Vision's paper uses the
 same definition but excludes slime moulds and lichens from its scored test.
-[PENDING: counts from the method lane's registry entry after the API fix: slime
-moulds (at most a few names modelled, 3 of the frozen release's models), lichens
-and microfungi; the kingdom check's limit, that it is not proof that everything
-else is a fungus.]
+
+In the frozen pull (`2026-11-04-frozen-kingdoms.md`; names read against GBIF,
+not sequences): 42 slime-mould names and 62 records, 41 of the names in 17
+genera GBIF places in Mycetozoa, and 3 of the 9,041 models (*Fuligo septica*,
+failed; *Lycogala* sp. 'IN02' and *Arcyria* sp. 'IN03', weak; all ensembles of
+small models). None of the 470 strong taxa is in a slime-mould genus or a
+non-fungal kingdom: 469 are fungi by GBIF (433 by name, 36 by genus) and one,
+*Neoporphyrellus alboater*, is placed by iNaturalist though not by GBIF. None of
+these slime moulds is in E1c's sample or E2's per-model table. One plant,
+*Antennaria howellii* (1 record, 1 site, no model), stayed in the pull after the
+two cleanings, beyond the 76 removed; like every record it counts toward other
+taxa's target-group background and effort, within reach of that one site. The
+check reads names, so it does not prove that everything else is a fungus.
+[PENDING: counts of lichens and microfungi.]
 
 *Moved from the main text on 2026-10-13 (lean main text); edited only for the move.*
 
