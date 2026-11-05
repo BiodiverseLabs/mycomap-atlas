@@ -6,8 +6,10 @@
 #
 # What is published record by record is the collection cells layer
 # (public/cells.tsv.gz: records per taxon per 0.1 degree cell), in every
-# release, the Zenodo bundle and the web map. Everything else Atlas
-# publishes is built from the maps, or counts by state.
+# release and the Zenodo bundle, and the only cells the API serves, so the web
+# map too (atlas_served_cells). Everything else Atlas publishes is built from
+# the maps, or counts by state, which read every record: a state is no finer
+# than the source shows.
 #
 # Three kinds of record are left out of it, all read from .org:
 #   - an iNaturalist record .org holds no cached iNaturalist answer for, so

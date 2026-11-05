@@ -125,6 +125,27 @@ test_that("anyone can fetch a taxon's picture, at a width rounded to one of four
   })
 })
 
+test_that("a picture draws the published cells, never a listed record from the pull", {
+  skip_if_not_installed("terra")
+  with_image_data({
+    # The pull holds records 1 and 2. Only record 1's cell is published; record 2
+    # is on the privacy list.
+    atlas_write_tsv_gz(data.frame(source = "iNaturalist", observation_id = "2", privacy = "unknown"), atlas_privacy_path())
+    atlas_write_tsv_gz(data.frame(taxon = "Trametes versicolor", lat = 39.75, lng = -86.15, records = 1L), atlas_public_cells_path())
+    drawn <- NULL
+    local_mocked_bindings(atlas_write_map_image = function(path, taxon, metrics, overlay, cells, ...) {
+      drawn <<- cells
+      writeBin(as.raw(c(0x89, 0x50, 0x4e, 0x47)), path)
+      invisible(path)
+    })
+    out <- call_image(image_api(), "/api/taxa/Trametes%20versicolor/image.png", "width=1000")
+    expect_equal(out$status, 200L)
+    expect_equal(drawn$records, 1L)
+    expect_equal(drawn$lat, 39.75)
+    expect_equal(drawn$lng, -86.15)
+  })
+})
+
 test_that("a picture of an unknown taxon is 404 and of an unknown model 400", {
   with_image_data({
     api <- image_api()

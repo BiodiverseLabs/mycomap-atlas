@@ -245,16 +245,36 @@ atlas_read_public_cells <- function() {
   cells
 }
 
-#' One taxon's collection cells: aggregated from the pull when this machine
-#' has it, or read from what a release published.
-atlas_taxon_cells <- function(name, occurrences = NULL, public = NULL) {
-  if (!is.null(occurrences)) {
-    return(atlas_public_cells(occurrences, name))
+#' The collection cells this machine serves: never a pull's records as they
+#' stand, which hold the records whose place their source hides or may hide
+#' (R/privacy.R). From 2026-10-13 to the fix, the API built its cells from the
+#' pull wherever it could read one, and served those records' cells though
+#' every published file left them out.
+#'
+#' The published file whenever there is one. Only where there is none, as on a
+#' machine that has pulled but never released, the pull with the privacy list
+#' applied. With a file that cannot be read, or no list to apply, no cells:
+#' nothing here falls back to the records unfiltered.
+atlas_served_cells <- function() {
+  none <- data.frame(taxon = character(), lat = numeric(), lng = numeric(), records = integer(),
+                     stringsAsFactors = FALSE)
+  if (file.exists(atlas_public_cells_path())) {
+    return(tryCatch(atlas_read_public_cells(), error = function(e) none))
   }
-  if (is.null(public) || !nrow(public)) {
+  hidden <- atlas_read_privacy()
+  if (is.null(hidden)) return(none)
+  occurrences <- tryCatch(atlas_read_occurrences(), error = function(e) NULL)
+  if (is.null(occurrences) || !nrow(occurrences)) return(none)
+  atlas_public_cells_table(occurrences, hidden = hidden)
+}
+
+#' One taxon's collection cells, from the cells this machine serves
+#' (atlas_served_cells).
+atlas_taxon_cells <- function(name, served) {
+  if (is.null(served) || !nrow(served)) {
     return(atlas_public_cells(NULL, name))
   }
-  rows <- public[public$taxon == name, c("lat", "lng", "records"), drop = FALSE]
+  rows <- served[served$taxon == name, c("lat", "lng", "records"), drop = FALSE]
   rownames(rows) <- NULL
   rows
 }
