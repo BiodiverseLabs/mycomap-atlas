@@ -88,7 +88,7 @@ against a fixture with a planted case of each violation and class.
 **Not here.** The count of records public in the frozen release's cells and
 private today is held for Steve's decision, with its split.
 
-*Settled 2026-11-05 (Steve), on the split above and a read of iNaturalist's public
+*Settled 2026-11-05 (Steve), on the split in the store and a read of iNaturalist's public
 API: all 3 records obscured since the freeze were obscured by the observer's choice,
 none is a protected taxon, and 1 is alone for its taxon in its cell. They leave from
 the next models version under its filter, the current privacy list plus current
