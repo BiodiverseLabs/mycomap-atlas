@@ -303,10 +303,10 @@ describe the data are re-read from the frozen release before submission.*
 
 *Scope.* Macrofungi here are fungi with fruiting bodies visible to the eye,
 plus the commonly encountered microfungi found with them (rusts, smuts,
-mildews, moulds). The data are not filtered to that scope: they also hold
-slime moulds (42 names, 62 records, and 3 of the frozen release's 9,041 models,
-none of them strong) and any lichens and other microfungi, which stay in
-(Appendix S1: Section S2). [PENDING: the counts of lichens and microfungi.]
+mildews, moulds). The data are not filtered to that scope: by MycoMap Vision's
+lists, about 0.4% of the frozen pull's records and 2.2% of its names are slime
+moulds, lichens or other microfungi, as are 39 of the 9,041 models and 1 of the
+470 strong taxa; they stay in (Appendix S1: Section S2).
 
 A record trains a model only when its name is confirmed by DNA: it is marked
 "Validated" in at least one MycoMap validation project, by a person who
@@ -1435,6 +1435,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.3 (2026-11-05).** What else is in the data, measured by Vision's lists (`2026-11-05-frozen-macrofungi-scope.md`): 2.1 and S2; slime-mould count corrected to 44 names and 64 records.
 - **0.23.2 (2026-11-05).** Title chosen (Steve): "…for DNA-defined North American macrofungi", 112 characters; the abstract keeps the scale (9,041 models of 6,369 taxa).
 - **0.23.1 (2026-11-05).** Frozen release's contents from the registry (`2026-11-04-frozen-kingdoms.md`): slime moulds in 2.1 and S2; one plant record in Limits and S2.
 - **0.23.0 (2026-11-05).** Scope is macrofungi, as in MycoMap Vision (Steve); "fungi and slime moulds" taken out; Methods 2.1 and S2 say what else is in the data (counts pending). Title and inquiry follow once Steve picks the title.

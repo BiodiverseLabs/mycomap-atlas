@@ -11,19 +11,36 @@ smuts, mildews, moulds). The data are not filtered to that scope. They also
 hold slime moulds and lichens, which stay in; MycoMap Vision's paper uses the
 same definition but excludes slime moulds and lichens from its scored test.
 
-In the frozen pull (`2026-11-04-frozen-kingdoms.md`; names read against GBIF,
-not sequences): 42 slime-mould names and 62 records, 41 of the names in 17
-genera GBIF places in Mycetozoa, and 3 of the 9,041 models (*Fuligo septica*,
-failed; *Lycogala* sp. 'IN02' and *Arcyria* sp. 'IN03', weak; all ensembles of
-small models). None of the 470 strong taxa is in a slime-mould genus or a
-non-fungal kingdom: 469 are fungi by GBIF (433 by name, 36 by genus) and one,
-*Neoporphyrellus alboater*, is placed by iNaturalist though not by GBIF. None of
-these slime moulds is in E1c's sample or E2's per-model table. One plant,
+By Vision's lists (its slime-mould, lichen and microfungal families, plus
+anything GBIF or iNaturalist places in Mycetozoa;
+`2026-11-05-frozen-macrofungi-scope.md`), the frozen pull holds:
+
+| | Names | Records | Models (strong) | Strong taxa |
+|---|---|---|---|---|
+| Slime moulds | 44 (0.27%) | 64 (0.05%) | 3 (0) | 0 |
+| Lichens | 75 (0.46%) | 102 (0.08%) | 2 (0) | 0 |
+| Microfungi | 238 (1.46%) | 416 (0.31%) | 34 (1) | 1 |
+| **Not macrofungi, together** | **357 (2.20%)** | **582 (0.44%)** | **39 (1)** | **1** |
+
+About 0.4% of records is a floor for a broader definition, not a measured total:
+the microfungal list is short, so other microfungal orders remain among the
+rest, while some of the listed names fruit visibly. It reads names, not
+sequences, and a name's family from its first word; 221 names (795 records) have
+no family from either source, one of them strong (*Protohydnum album*). Parasitic
+Hypocreales (1.40% of records) count as macrofungi, as in Vision. The strong
+taxon on the microfungal list is *Apiosporina collinsii*, an ensemble model from
+3 records.
+
+The three slime-mould models are *Fuligo septica* (failed) and *Lycogala* sp.
+'IN02' and *Arcyria* sp. 'IN03' (weak), all ensembles of small models; none is in
+E1c's sample or E2's per-model table (`2026-11-04-frozen-kingdoms.md`). None of
+the 470 strong taxa is in a slime-mould genus or a non-fungal kingdom: 469 are
+fungi by GBIF (433 by name, 36 by genus) and one, *Neoporphyrellus alboater*, is
+placed by iNaturalist though not by GBIF. One plant,
 *Antennaria howellii* (1 record, 1 site, no model), stayed in the pull after the
 two cleanings, beyond the 76 removed; like every record it counts toward other
 taxa's target-group background and effort, within reach of that one site. The
 check reads names, so it does not prove that everything else is a fungus.
-[PENDING: counts of lichens and microfungi.]
 
 *Moved from the main text on 2026-10-13 (lean main text); edited only for the move.*
 
