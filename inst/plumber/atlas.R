@@ -26,17 +26,13 @@ cached_occurrences <- function() {
   cache$occurrences
 }
 
-# On a machine that holds a release but never made the pull, there are no
-# occurrences; the collection cells come from what the release published.
-cached_cells_source <- function() {
-  if (is.null(cache$cells_source)) {
-    occurrences <- tryCatch(cached_occurrences(), error = function(e) NULL)
-    cache$cells_source <- list(
-      occurrences = occurrences,
-      public = if (is.null(occurrences)) atlas_read_public_cells() else NULL
-    )
+# The collection cells every route serves: what the release published, never
+# the pull's records as they stand (atlas_served_cells).
+cached_cells <- function() {
+  if (is.null(cache$cells)) {
+    cache$cells <- atlas_served_cells()
   }
-  cache$cells_source
+  cache$cells
 }
 
 cached_taxa <- function() {
@@ -104,23 +100,9 @@ invisible(tryCatch({
   cache$search_mapped_at <- as.numeric(Sys.time())
 }, error = function(e) NULL))
 
-# Every taxon's 0.1 degree collection cells, for "recorded nearby": built from
-# the pull on a machine that has it, read from the release everywhere else.
-cached_all_cells <- function() {
-  if (is.null(cache$all_cells)) {
-    source <- cached_cells_source()
-    cache$all_cells <- if (!is.null(source$occurrences)) {
-      atlas_public_cells_table(source$occurrences)
-    } else {
-      source$public
-    }
-  }
-  cache$all_cells
-}
-
 invisible(tryCatch({
   cache$here_index <- atlas_read_here_index("draft")
-  cached_all_cells()
+  cached_cells()
 }, error = function(e) NULL))
 
 #* After every answer: an error is never left with a cacheable header.
@@ -319,7 +301,7 @@ function(lat, lng, limit = 50, min_score = 0, nearby_km = 25, res) {
   }
   atlas_here(
     cache$here_index, lat, lng,
-    cells = cached_all_cells(), taxa = cached_taxa(),
+    cells = cached_cells(), taxa = cached_taxa(),
     limit = as.integer(min(1000, max(1, number(limit, 50)))),
     min_score = min(1, max(0, number(min_score, 0))),
     nearby_km = min(100, max(1, number(nearby_km, 25)))
@@ -629,8 +611,7 @@ function(name, algorithm = "", width = "1200", points = "1", res) {
   metrics_path <- atlas_model_path(decoded, "draft", ".json", chosen)
   metrics <- if (file.exists(metrics_path)) jsonlite::fromJSON(metrics_path, simplifyVector = FALSE) else NULL
   if (!is.null(metrics)) metrics$algorithm <- chosen
-  source <- cached_cells_source()
-  cells <- atlas_taxon_cells(decoded, source$occurrences, source$public)
+  cells <- atlas_taxon_cells(decoded, cached_cells())
   # Drawn once per map version, size and choice; a later request reads the file.
   key <- digest::digest(list(decoded, chosen, metrics$map_drawn_at %||% metrics$built_at,
                              width, show_points, nrow(cells), sum(cells$records)))
@@ -688,8 +669,7 @@ function(name, res) {
 #* @serializer unboxedJSON
 function(name) {
   decoded <- atlas_decode_name(name)
-  source <- cached_cells_source()
-  cells <- atlas_taxon_cells(decoded, source$occurrences, source$public)
+  cells <- atlas_taxon_cells(decoded, cached_cells())
   list(name = decoded, degrees = ATLAS_PUBLIC_DEGREES, cells = cells)
 }
 
@@ -699,9 +679,9 @@ function(name) {
 # machine has it, read from the release everywhere else.
 cached_regions <- function() {
   if (is.null(cache$regions)) {
-    source <- cached_cells_source()
-    cache$regions <- if (!is.null(source$occurrences)) {
-      atlas_region_table(source$occurrences)
+    occurrences <- tryCatch(cached_occurrences(), error = function(e) NULL)
+    cache$regions <- if (!is.null(occurrences)) {
+      atlas_region_table(occurrences)
     } else {
       atlas_read_public_regions()
     }

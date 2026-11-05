@@ -218,13 +218,13 @@ test_that("a machine holding only a release still answers for cells and status",
   from_pull <- with_data_dir({
     computed_data()
     atlas_publish_release(store, quiet = TRUE)
-    atlas_taxon_cells("Amanita muscaria", occurrences = atlas_read_occurrences())
+    atlas_public_cells(atlas_read_occurrences(), "Amanita muscaria")
   })
   with_data_dir({
     atlas_pull_release(store, quiet = TRUE)
     expect_error(atlas_read_occurrences(), "nothing pulled")
     expect_equal(atlas_status_manifest()$records, 3)
-    from_release <- atlas_taxon_cells("Amanita muscaria", public = atlas_read_public_cells())
+    from_release <- atlas_taxon_cells("Amanita muscaria", atlas_served_cells())
     expect_equal(from_release[order(from_release$lat), ], from_pull[order(from_pull$lat), ],
                  ignore_attr = TRUE)
   })
