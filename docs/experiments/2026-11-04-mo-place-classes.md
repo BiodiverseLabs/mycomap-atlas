@@ -14,8 +14,9 @@
   3e9c29e7… on the Atlas box, image 91e7b5e, both data directories mounted
   read-only, `Rscript` with the paths in its header. It asks .org through
   atlas_ro.
-- **Output.** Counts, shares, quantiles and distances only. The results file
-  (sha256 acd19905…) is held by the operations lane, not in the store.
+- **Output.** Counts, shares, quantiles and distances only, in the store:
+  `study/qa-place-20261104/qa-place.json` (sha256 acd19905…), and the frozen cells'
+  split `study/qa-place-20261104/frozen-cells-split.json` (sha256 e7bc2ccb…).
 
 ## Result (2026-11-04)
 
@@ -86,6 +87,13 @@ against a fixture with a planted case of each violation and class.
 
 **Not here.** The count of records public in the frozen release's cells and
 private today is held for Steve's decision, with its split.
+
+*Settled 2026-11-05 (Steve), on the split above and a read of iNaturalist's public
+API: all 3 records obscured since the freeze were obscured by the observer's choice,
+none is a protected taxon, and 1 is alone for its taxon in its cell. They leave from
+the next models version under its filter, the current privacy list plus current
+obscured status. No request to Zenodo; doi:10.5281/zenodo.23463939 stays as
+published, and publishing that version needs his explicit OK.*
 
 ## Deviations
 
