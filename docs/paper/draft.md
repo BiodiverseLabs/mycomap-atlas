@@ -1415,14 +1415,20 @@ revised (Path).
    training-record table use the then-current privacy list and each record's
    current obscured status (confirmed 2026-11-05), and Figure 1 is
    drawn from that filtered file, not the current one. Whether the data
-   statement says so with the count (Steve, 4.1 and S11). Subject to one more count-only
-   check, approved by Steve: if any of the 3 is alone in its cell, the Zenodo
-   question goes back to him.
+   statement says so with the count (Steve, 4.1 and S11). **Open on Zenodo
+   (2026-11-05):** the count-only check sends the Zenodo question back to
+   Steve under the rule in item 14, after one further count-only check.
+14. **Rule for published archives (Steve, 2026-11-05).** Published archives
+   are snapshots: when a source obscures a record after an archive is
+   published, the record leaves from the next version on and the published
+   version stays as it is, unless the record stands alone in a published
+   cell, in which case Steve decides whether to ask the repository to act.
 
 ---
 
 ## Changelog
 
+- **0.22.5 (2026-11-05).** Open decision 13 back open on Zenodo; item 14, Steve's rule for published archives.
 - **0.22.4 (2026-11-05).** Scope: fungi and slime moulds (Steve); abstract, Introduction and 2.1 say so, with the frozen release's 3 slime-mould models. Data statement's ending matches the confirmed filter.
 - **0.22.3 (2026-11-05).** Data statement on later obscuring, with the count (Steve; 4.1, S11).
 - **0.22.2 (2026-11-04).** Open decision 13 closed (Steve): fix in the next models version only; Figure 1 from the filtered cells.
