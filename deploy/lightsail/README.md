@@ -100,6 +100,14 @@ recovery. Nothing is sent anywhere: the box has no mailer. Getting an alert
 to someone who is not signing in needs an outside service (a mail relay such
 as SES, or a webhook), and the place to add it is alert.sh.
 
+The banner also carries a note that is no failure:
+`ATLAS: pull-left-out since ...: n names left the pull as not fungi: ...`. A pull
+leaves out a name GBIF matches exactly, at species rank, in another kingdom
+(`R/qa.R`), mostly plant specimens from the pool runs, and names each one new here,
+in its `qa-<stamp>.json` and in the nightly's journal. If one is a fungus, add it
+to `occurrences/kingdom-allow.txt`: it comes back with the next pull. Once read,
+clear the note with `sudo /usr/local/lib/atlas/alert.sh --ok pull-left-out`.
+
 To check the alerting itself:
 
 ```bash

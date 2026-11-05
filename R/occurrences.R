@@ -424,6 +424,12 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   # before anything is fingerprinted, merged or written.
   excluded <- atlas_apply_exclusions(occurrences)
   occurrences <- excluded$kept
+  # Then names GBIF matches exactly in another kingdom (R/qa.R), at the same
+  # point. A failed lookup leaves nothing out and fails the QA report below,
+  # never the pull.
+  kingdoms <- tryCatch(atlas_pull_kingdoms(occurrences$scientific_name), error = function(e) e)
+  left_out <- atlas_kingdom_left_out(occurrences, if (!inherits(kingdoms, "error")) kingdoms, atlas_kingdom_allow())
+  occurrences <- left_out$kept
   atlas_write_json(atlas_name_merges(occurrences), atlas_name_merges_path())
   # Only a full pull can say a name is gone; read before this pull replaces
   # the previous one.
@@ -447,6 +453,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     fingerprint = atlas_fingerprint(occurrences),
     # The drop list applied: its hash and how many rows it removed.
     exclusions = excluded$info,
+    # Names left out as exactly another kingdom, and their counts.
+    kingdom_left_out = left_out$info,
     # MO records left out by place, and why (atlas_mo_left_out).
     mo_left_out = mo_left_out,
     file = basename(combined),
@@ -483,21 +491,10 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     atlas_record_org_renames(occurrences, quiet = quiet)
   }
   # The pull's QA report (R/qa.R), after its privacy list: one that cannot be
-  # made is written as a stop of its own, so it never passes unseen. GBIF is
-  # asked for new names' kingdoms only where ATLAS_QA_KINGDOM_LOOKUP=gbif
-  # (the box); elsewhere the cache alone answers.
+  # made is written as a stop of its own, so it never passes unseen.
   tryCatch({
-    gbif <- identical(Sys.getenv("ATLAS_QA_KINGDOM_LOOKUP"), "gbif")
-    number <- function(name, unset) {
-      value <- suppressWarnings(as.numeric(Sys.getenv(name, unset = "")))
-      if (length(value) == 1L && is.finite(value) && value >= 0) value else unset
-    }
-    kingdoms <- atlas_name_kingdoms(
-      occurrences$scientific_name, lookup = if (gbif) atlas_gbif_kingdom else function(name) NA_character_,
-      max_new = if (gbif) as.integer(number("ATLAS_QA_KINGDOM_CAP", ATLAS_QA_KINGDOM_CAP)) else 0L,
-      pace_seconds = number("ATLAS_QA_KINGDOM_PACE_MS", 1000 * ATLAS_QA_KINGDOM_PACE_SECONDS) / 1000
-    )
-    atlas_pull_qa(occurrences, manifest, audit, kingdoms = kingdoms, quiet = quiet)
+    if (inherits(kingdoms, "error")) stop("the kingdom lookup failed: ", conditionMessage(kingdoms), call. = FALSE)
+    atlas_pull_qa(occurrences, manifest, audit, kingdoms = kingdoms, left_out = left_out$info, quiet = quiet)
   }, error = function(e) {
     atlas_write_json(list(pull = manifest$stamp, stops = list("qa_failed"),
                           checks = list(qa_failed = list(stop = TRUE, why = paste("the QA report could not be made:",
