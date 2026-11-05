@@ -217,7 +217,9 @@ gbif_answers <- function() {
       "Mycena sp. 'IN1'" = none,
       "Boletus sp. 'variipes-IN01'" = answer("HIGHERRANK", "Fungi", "KINGDOM"),
       "Neoporphyrellus alboater" = none,
-      "Nonesuch thing" = none
+      "Nonesuch thing" = none,
+      "Nearby sp. 'X1'" = none,
+      "Vagueness alone" = answer("HIGHERRANK", "Animalia", "KINGDOM")
     ),
     hinted = list(
       Hydnum = answer("EXACT", "Fungi", "GENUS", "Basidiomycota"),
@@ -229,7 +231,7 @@ gbif_answers <- function() {
       Peziza = answer("EXACT", "Fungi", "GENUS", "Ascomycota"),
       Trichia = answer("EXACT", "Protozoa", "GENUS", "Mycetozoa"),
       Boletus = answer("HIGHERRANK", "Fungi", "KINGDOM"),
-      Rolandia = none, Protandrena = none, Neoporphyrellus = none, Nonesuch = none
+      Rolandia = none, Protandrena = none, Neoporphyrellus = none, Nonesuch = none, Nearby = none, Vagueness = none
     ),
     verbose = list(
       Boletus = list(alternatives = data.frame(
@@ -240,7 +242,10 @@ gbif_answers <- function() {
         phylum = c("Basidiomycota", "Arthropoda"), stringsAsFactors = FALSE)),
       Rolandia = list(alternatives = data.frame(
         canonicalName = "Rolandia", rank = "GENUS", kingdom = "Animalia", phylum = "Arthropoda", stringsAsFactors = FALSE)),
-      Protandrena = list(), Neoporphyrellus = list(), Nonesuch = list()
+      Nearby = list(alternatives = data.frame(
+        canonicalName = c("Nearby", "Nearbya"), rank = "GENUS", kingdom = c("Animalia", "Fungi"),
+        phylum = c("Arthropoda", "Ascomycota"), stringsAsFactors = FALSE)),
+      Protandrena = list(), Neoporphyrellus = list(), Nonesuch = list(), Vagueness = list()
     )
   )
 }
@@ -307,6 +312,10 @@ test_that("a genus several kingdoms share is settled by its genus, not left unkn
   # A genus GBIF does not hold stays unknown; it is never guessed.
   expect_true(is.na(kingdom("Neoporphyrellus alboater")))
   expect_true(is.na(kingdom("Nonesuch thing")))
+  # Another genus's name among the alternatives says nothing of this one.
+  expect_equal(kingdom("Nearby sp. 'X1'"), "Animalia")
+  # GBIF falling back to a kingdom, with nothing else known, is not an answer.
+  expect_true(is.na(kingdom("Vagueness alone")))
 })
 
 test_that("slime moulds are named as such, at any step, and an unanswered question is never a guess", {
