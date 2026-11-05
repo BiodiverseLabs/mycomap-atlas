@@ -175,8 +175,8 @@ Automated pipelines now fit distribution models for thousands of species,
 but they report each map's skill with scores that clustered collecting
 inflates, and the usual null test does not correct for it. Fungi add a
 second problem: morphological names often hide several lineages. We built
-MycoMap Atlas, which maps the North American fungi defined by an
-approved DNA sequence that have at least three survey sites in 133,235
+MycoMap Atlas, which maps the North American fungi and slime moulds defined
+by an approved DNA sequence that have at least three survey sites in 133,235
 validated community-science records of 16,252 taxa, designed to rebuild
 nightly [CHECK: the nightly is off; planned to resume November 2026].
 Four kinds of model are fitted against the other places people collected
@@ -268,8 +268,8 @@ their maps, eBird Status and Trends by its models' predictive performance
 checks that grade its maps pass a species with no habitat signal. A habitat model should also beat a model that
 knows only how far a place is from known records (Bahn & McGill 2007).
 
-This paper describes MycoMap Atlas, which maps the North American fungi
-that are defined by DNA in its validated records and have enough sites to
+This paper describes MycoMap Atlas, which maps the North American fungi and
+slime moulds that are defined by DNA in its validated records and have enough sites to
 fit a model, from validated
 community-science collections, and is designed to rebuild them every
 night. Its
@@ -302,6 +302,11 @@ in Appendix S1, and the ODMAP protocol is its Section S1. Numbers that
 describe the data are re-read from the frozen release before submission.*
 
 ### 2.1 Records and DNA-defined taxa
+
+Atlas covers fungi and the slime moulds collected and sequenced with them; in
+the frozen release 3 of the 9,041 models are of slime moulds (1 failed, 2 weak,
+none strong), so every strong map is of a fungus. [PENDING: the method lane's
+registry entry for these counts.]
 
 A record trains a model only when its name is confirmed by DNA: it is marked
 "Validated" in at least one MycoMap validation project, by a person who
@@ -811,8 +816,8 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   records; the frozen release ships the corrected file.
   The record cells follow each source's privacy as of the list the release
   used. A record a source obscures after that date stays in that version's cells
-  until the next version, which applies the then-current list (three records,
-  found 2026-11-04).
+  until the next version, which applies each source's then-current privacy
+  (three records, found 2026-11-04).
 - **Contributors** (Steve, 2026-10-13): one row per contributor with a name
   and record counts only. Names are as public at the source: the
   iNaturalist login, the Mushroom Observer user, the MyCoPortal collector,
@@ -1407,7 +1412,8 @@ revised (Path).
    record that are obscured at iNaturalist today. Fix in the next models
    version only: no request to Zenodo, the old version stays as it is, and the
    frozen release does not change. The next version's cells file and the
-   training-record table use the then-current privacy list, and Figure 1 is
+   training-record table use the then-current privacy list and each record's
+   current obscured status (confirmed 2026-11-05), and Figure 1 is
    drawn from that filtered file, not the current one. Whether the data
    statement says so with the count (Steve, 4.1 and S11). Subject to one more count-only
    check, approved by Steve: if any of the 3 is alone in its cell, the Zenodo
@@ -1417,6 +1423,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.22.4 (2026-11-05).** Scope: fungi and slime moulds (Steve); abstract, Introduction and 2.1 say so, with the frozen release's 3 slime-mould models. Data statement's ending matches the confirmed filter.
 - **0.22.3 (2026-11-05).** Data statement on later obscuring, with the count (Steve; 4.1, S11).
 - **0.22.2 (2026-11-04).** Open decision 13 closed (Steve): fix in the next models version only; Figure 1 from the filtered cells.
 - **0.22.1 (2026-11-04).** E1c independently recomputed by the method lane
