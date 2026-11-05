@@ -12,7 +12,7 @@ final version is checked against the frozen release's settings record.*
 |---|---|
 | Authorship | Russell, Stephen D.; contact info@mycomap.org [CHECK: the corresponding email the paper will give] |
 | Model objective | Mapping and interpolation: relative habitat suitability within each taxon's accessible area (its sites buffered by 500 km), with a calibrated grade per map; strong maps are also projected over North America ("potential, not range"). Not forecasting or transfer in time. |
-| Focal taxa | Every North American fungal taxon defined by an approved DNA sequence name (formal or provisional) with ≥ 3 survey sites [PENDING: N taxa in the frozen release] |
+| Focal taxa | North American macrofungi (Appendix S1: Section S2, which says what else is in the data): every taxon defined by an approved DNA sequence name (formal or provisional) with ≥ 3 survey sites [PENDING: N taxa in the frozen release] |
 | Location | United States, Canada, Mexico, Puerto Rico, US Virgin Islands |
 | Spatial scale | North America Albers Equal Area Conic (GRS80); 5 km cells (3.7 million); extent x −7,445,000 to 4,735,000 m, y −2,955,000 to 4,740,000 m |
 | Temporal scale | Records of all years (each taxon page reports its record years; pre-1980 records kept); climate 1970–2000 normals; frozen release pulled 2026-10-12 |

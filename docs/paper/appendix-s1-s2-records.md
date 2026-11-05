@@ -5,6 +5,16 @@ write (from `R/occurrences.R` at the frozen release's commit).*
 
 ## S2.0 Eligibility, validation and naming
 
+**Scope.** The atlas's scope is macrofungi: fungi with fruiting bodies visible
+to the eye, plus the commonly encountered microfungi found with them (rusts,
+smuts, mildews, moulds). The data are not filtered to that scope. They also
+hold slime moulds and lichens, which stay in; MycoMap Vision's paper uses the
+same definition but excludes slime moulds and lichens from its scored test.
+[PENDING: counts from the method lane's registry entry after the API fix: slime
+moulds (at most a few names modelled, 3 of the frozen release's models), lichens
+and microfungi; the kingdom check's limit, that it is not proof that everything
+else is a fungus.]
+
 *Moved from the main text on 2026-10-13 (lean main text); edited only for the move.*
 
 A record trains a model only when its name is confirmed by DNA: it is marked
