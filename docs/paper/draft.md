@@ -573,7 +573,7 @@ frozen release holds 9,041 models of 6,369 taxa. A further 441 taxa with
 three or more sites were refused (412 of them at 3–4 sites), and 9,442 of
 the pull's 16,252 taxa have fewer than three sites. Of the models, 576 are
 strong (ensembles of small models 365, Maxent 121, random forests 85,
-boosted trees 5), 6,667 weak, 1,801 failed and 1 untested; 470 taxa have a
+boosted trees 5), 6,667 weak, 1,797 failed and 1 untested; 470 taxa have a
 strong map, 7.4% of those modelled and 2.9% of all. Most models that are
 not strong miss on the null test alone (7,073 of 8,465). The strong share of
 taxa rises with sites from 2.1% at 3–4 sites to 16.4% at 20–49, then falls
@@ -1129,8 +1129,8 @@ appendix rather than words being added.
 | Figure 2 | Null calibration: false-pass rate and power by design and number of sites (power curve by breadth and signal strength as small panels); inset: the share of real maps a standard test calls good that are not strong (E1c) | C1 | E1, E1c |
 | Figure 3 | Independent tests: where later finds fall on strong, weak and failed maps, against the distance-only and default-Maxent baselines; new vs known places | C2 | E2, E3, E6a/b |
 | Figure 4 | Example maps across grades (strong ectomycorrhizal, strong saprotroph, weak, small-site), with applicability hatching | C2, C4 | frozen release |
-| Table 1 | The atlas at a glance: records, taxa (share provisional), maps by grade and learner, cost and wall time of one rebuild and per month | C3, C4 | E16, E23 |
-| Table 2 | Each claim, its test, its criterion and the result | all | — |
+| Table 1 (draft: `tables.md`) | The atlas at a glance: records, taxa (share provisional), maps by grade and learner, cost and wall time of one rebuild and per month | C3, C4 | E16, E23 |
+| Table 2 (draft: `tables.md`) | Each claim, its test, its criterion and the result | all | — |
 
 **Appendix S1 sections**
 
@@ -1435,6 +1435,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.4 (2026-11-05).** Tables 1 and 2 drafted (`tables.md`); 3.3's failed models corrected from 1,801 to 1,797, the count by grade (1,801 is the registry's tier count; the old four grades summed to 9,045, not 9,041).
 - **0.23.3 (2026-11-05).** What else is in the data, measured by Vision's lists (`2026-11-05-frozen-macrofungi-scope.md`): 2.1 and S2; slime-mould count corrected to 44 names and 64 records.
 - **0.23.2 (2026-11-05).** Title chosen (Steve): "…for DNA-defined North American macrofungi", 112 characters; the abstract keeps the scale (9,041 models of 6,369 taxa).
 - **0.23.1 (2026-11-05).** Frozen release's contents from the registry (`2026-11-04-frozen-kingdoms.md`): slime moulds in 2.1 and S2; one plant record in Limits and S2.
