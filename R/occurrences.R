@@ -416,7 +416,7 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     atlas_empty_occurrences(), data.frame(id = character(), species_name = character()))
   audit <- atlas_label_audit(labelled)
   atlas_write_json(audit, atlas_label_audit_path())
-  occurrences <- labelled[atlas_species_level(labelled$scientific_name), , drop = FALSE]
+  occurrences <- labelled[atlas_modelled_name(labelled$scientific_name), , drop = FALSE]
   rownames(occurrences) <- NULL
   atlas_check_occurrences(occurrences)
   occurrences <- atlas_canonicalise_occurrences(occurrences)
