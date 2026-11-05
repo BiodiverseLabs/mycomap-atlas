@@ -40,6 +40,9 @@
   'sample mixup', 'NA sample mixup', 'sequence mixup', 'uncultured fungus',
   'Billie Jean'. These are counted, not checked one by one.
 
+*Corrected 2026-11-05: 44 names and 64 records once iNaturalist's taxonomy is added
+(`2026-11-05-frozen-macrofungi-scope.md`). The models and strong taxa below do not change.*
+
 **1. Slime moulds in the frozen pull: 42 names, 62 records.** That is 41 names (61
 records) in 17 genera GBIF places in Mycetozoa, plus *Reticularia* sp. 'IN01', a
 slime-mould genus whose name GBIF also holds in other kingdoms. 30 of the 42 are
