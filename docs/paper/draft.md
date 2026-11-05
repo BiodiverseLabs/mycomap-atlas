@@ -809,6 +809,10 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
 - **Record cells.** The 0.1° record cells (in every release, on the live
   site and as the Zenodo "collection-cells-0.1deg" bundle) leave out those
   records; the frozen release ships the corrected file.
+  The record cells follow each source's privacy as of the list the release
+  used. A record a source obscures after that date stays in that version's cells
+  until the next version, which applies the then-current list (three records,
+  found 2026-11-04).
 - **Contributors** (Steve, 2026-10-13): one row per contributor with a name
   and record counts only. Names are as public at the source: the
   iNaturalist login, the Mushroom Observer user, the MyCoPortal collector,
@@ -1405,7 +1409,7 @@ revised (Path).
    frozen release does not change. The next version's cells file and the
    training-record table use the then-current privacy list, and Figure 1 is
    drawn from that filtered file, not the current one. Whether the data
-   statement mentions it is proposed to Steve. Subject to one more count-only
+   statement says so with the count (Steve, 4.1 and S11). Subject to one more count-only
    check, approved by Steve: if any of the 3 is alone in its cell, the Zenodo
    question goes back to him.
 
@@ -1413,6 +1417,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.22.3 (2026-11-05).** Data statement on later obscuring, with the count (Steve; 4.1, S11).
 - **0.22.2 (2026-11-04).** Open decision 13 closed (Steve): fix in the next models version only; Figure 1 from the filtered cells.
 - **0.22.1 (2026-11-04).** E1c independently recomputed by the method lane
   (matches); Mushroom Observer placement numbers from the registry

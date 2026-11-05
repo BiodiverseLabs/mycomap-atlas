@@ -61,6 +61,11 @@ Albers Equal Area, inside the 500 km accessible area; for strong models the
 same three files come again beyond it (.full.*). Each model's scores, folds,
 predictors and settings are in scores.tar.gz.
 
+The record cells follow each source's privacy as of the list the release
+used. A record a source obscures after that date stays in that version's cells
+until the next version, which applies the then-current list (three records,
+found 2026-11-04).
+
 The record's description states that the published counts (133,235
 records, 16,252 taxa) are after the 76-record exclusion and that most models
 were fitted on the pull before it (metadata edit, 2026-10-21). The deposit
