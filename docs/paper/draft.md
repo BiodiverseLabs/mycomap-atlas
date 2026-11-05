@@ -175,8 +175,8 @@ Automated pipelines now fit distribution models for thousands of species,
 but they report each map's skill with scores that clustered collecting
 inflates, and the usual null test does not correct for it. Fungi add a
 second problem: morphological names often hide several lineages. We built
-MycoMap Atlas, which maps the North American fungi and slime moulds defined
-by an approved DNA sequence that have at least three survey sites in 133,235
+MycoMap Atlas, which maps the North American fungi and slime moulds [PENDING:
+Steve's review of "and slime moulds"] defined by an approved DNA sequence that have at least three survey sites in 133,235
 validated community-science records of 16,252 taxa, designed to rebuild
 nightly [CHECK: the nightly is off; planned to resume November 2026].
 Four kinds of model are fitted against the other places people collected
@@ -269,7 +269,8 @@ checks that grade its maps pass a species with no habitat signal. A habitat mode
 knows only how far a place is from known records (Bahn & McGill 2007).
 
 This paper describes MycoMap Atlas, which maps the North American fungi and
-slime moulds that are defined by DNA in its validated records and have enough sites to
+slime moulds [PENDING: Steve's review of "and slime moulds"] that are defined
+by DNA in its validated records and have enough sites to
 fit a model, from validated
 community-science collections, and is designed to rebuild them every
 night. Its
@@ -304,9 +305,12 @@ describe the data are re-read from the frozen release before submission.*
 ### 2.1 Records and DNA-defined taxa
 
 Atlas covers fungi and the slime moulds collected and sequenced with them; in
-the frozen release 3 of the 9,041 models are of slime moulds (1 failed, 2 weak,
-none strong), so every strong map is of a fungus. [PENDING: the method lane's
-registry entry for these counts.]
+the frozen release, 3 of the 9,041 models are of slime moulds the kingdom check
+flagged (1 failed, 2 weak), and none of the names it flagged has a strong map.
+The check is not proof that everything else is a fungus. [PENDING: Steve's
+review of this scope wording; the method lane's registry entry for these
+counts, and its test of the 470 strong taxa against its slime-mould genus list
+and the names unknown to the check.]
 
 A record trains a model only when its name is confirmed by DNA: it is marked
 "Validated" in at least one MycoMap validation project, by a person who
@@ -1428,6 +1432,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.22.6 (2026-11-05).** Scope wording cut back to what is measured (none of the flagged names is strong; the check is not proof); abstract, Introduction and 2.1 marked pending Steve's review.
 - **0.22.5 (2026-11-05).** Open decision 13 back open on Zenodo; item 14, Steve's rule for published archives.
 - **0.22.4 (2026-11-05).** Scope: fungi and slime moulds (Steve); abstract, Introduction and 2.1 say so, with the frozen release's 3 slime-mould models. Data statement's ending matches the confirmed filter.
 - **0.22.3 (2026-11-05).** Data statement on later obscuring, with the count (Steve; 4.1, S11).
