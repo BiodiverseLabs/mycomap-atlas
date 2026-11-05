@@ -100,6 +100,9 @@ atlas_gbif_group <- function(answer) {
 #'      in Protozoa still answers Protozoa.
 #'   3. GBIF's alternatives for exactly that genus: fungi if any are fungi (Boletus
 #'      has several, so no single match), else the one kingdom they agree on.
+#'   4. With nothing else known of the genus, a fuzzy match to a species stands, as
+#'      the only evidence there is: a misspelt bee (Protandrena labrosa) is better
+#'      flagged than passed, and the allow list answers a false alarm.
 #' A shared genus therefore reads as fungi, so a code in it can pass unseen; a
 #' binomial is settled at step 1 first. Any question unanswered gives NA, never a
 #' guess from the rest.
@@ -108,12 +111,14 @@ atlas_gbif_kingdom <- function(name, wait = Sys.sleep, pace_seconds = ATLAS_QA_K
   name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
   genus <- sub(" .*$", "", name)
   if (genus %in% c("Subgenus", "Section")) return(NA_character_)
+  fuzzy <- NA_character_
   if (!grepl(" (sect|subsect|subgen|ser)[.] ", name)) {
     plain <- atlas_gbif_query(list(verbose = "false", name = name), wait = wait)
     if (is.null(plain)) return(NA_character_)
     exact <- identical(plain$matchType, "EXACT") && !identical(plain$rank, "UNRANKED")
     above <- identical(plain$matchType, "HIGHERRANK") && !identical(plain$rank, "KINGDOM")
     if (exact || above) return(atlas_gbif_group(plain))
+    if (identical(plain$matchType, "FUZZY") && identical(plain$rank, "SPECIES")) fuzzy <- atlas_gbif_group(plain)
     wait(pace_seconds)
   }
   hinted <- atlas_gbif_query(list(name = genus, rank = "GENUS", kingdom = ATLAS_QA_FUNGI, strict = "true"), wait = wait)
@@ -121,13 +126,14 @@ atlas_gbif_kingdom <- function(name, wait = Sys.sleep, pace_seconds = ATLAS_QA_K
   if (identical(hinted$matchType, "EXACT")) return(atlas_gbif_group(hinted))
   wait(pace_seconds)
   full <- atlas_gbif_query(list(verbose = "true", name = genus), wait = wait)
+  if (is.null(full)) return(NA_character_)
   others <- full$alternatives
-  if (!is.data.frame(others) || !nrow(others) || is.null(others$canonicalName) || is.null(others$rank)) return(NA_character_)
+  if (!is.data.frame(others) || !nrow(others) || is.null(others$canonicalName) || is.null(others$rank)) return(fuzzy)
   same <- others[others$rank %in% "GENUS" & others$canonicalName %in% genus, , drop = FALSE]
   groups <- unique(vapply(seq_len(nrow(same)), function(i) atlas_gbif_group(as.list(same[i, , drop = FALSE])), ""))
   groups <- groups[!is.na(groups)]
   if (ATLAS_QA_FUNGI %in% groups) return(ATLAS_QA_FUNGI)
-  if (length(groups) == 1L) groups else NA_character_
+  if (length(groups) == 1L) groups else fuzzy
 }
 
 #' The kingdom of each name: from the cache, looking up at most max_new names

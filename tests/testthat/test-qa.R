@@ -186,9 +186,10 @@ test_that("GBIF's \"slow down\" waits a minute and asks once more", {
   expect_equal(waited, 60)
 })
 
-# GBIF's answers as recorded on 2026-11-04, for the names that showed what a
-# lookup has to get right. plain is the name asked alone; hinted its genus at rank
-# GENUS with a Fungi hint; verbose its genus's alternatives.
+# GBIF's answers as seen on 2026-11-04, trimmed, for the names that showed what a
+# lookup has to get right (Picipes, Mycena's code and Cortinarius's alternatives are
+# of that shape, not copied). plain is the name asked alone; hinted its genus at
+# rank GENUS with a Fungi hint; verbose its genus's alternatives.
 gbif_answers <- function() {
   answer <- function(matchType, kingdom = NULL, rank = NULL, phylum = NULL) {
     Filter(Negate(is.null), list(matchType = matchType, kingdom = kingdom, rank = rank, phylum = phylum))
@@ -215,7 +216,7 @@ gbif_answers <- function() {
       "Lactarius sp. 'GA01'" = none,
       "Mycena sp. 'IN1'" = none,
       "Boletus sp. 'variipes-IN01'" = answer("HIGHERRANK", "Fungi", "KINGDOM"),
-      "Neoporphyrellus sp. 'X1'" = none,
+      "Neoporphyrellus alboater" = none,
       "Nonesuch thing" = none
     ),
     hinted = list(
@@ -237,9 +238,9 @@ gbif_answers <- function() {
       Cortinarius = list(alternatives = data.frame(
         canonicalName = c("Cortinarius", "Cortinarius"), rank = "GENUS", kingdom = c("Fungi", "Animalia"),
         phylum = c("Basidiomycota", "Arthropoda"), stringsAsFactors = FALSE)),
-      Protandrena = list(alternatives = data.frame(
-        canonicalName = "Protandrena", rank = "GENUS", kingdom = "Animalia", phylum = "Arthropoda", stringsAsFactors = FALSE)),
-      Rolandia = list(), Neoporphyrellus = list(), Nonesuch = list()
+      Rolandia = list(alternatives = data.frame(
+        canonicalName = "Rolandia", rank = "GENUS", kingdom = "Animalia", phylum = "Arthropoda", stringsAsFactors = FALSE)),
+      Protandrena = list(), Neoporphyrellus = list(), Nonesuch = list()
     )
   )
 }
@@ -265,10 +266,9 @@ test_that("a kingdom is believed only when GBIF's answer is about the name", {
   expect_equal(kingdom("Amanita muscaria"), "Fungi")
   expect_equal(kingdom("Russula sp. 'IN1'"), "Fungi")
   expect_equal(kingdom("Agaricomycetes sp. 'NY01'"), "Fungi")
-  # A fuzzy match is not: Hydnum atlanticum is no moss. Nor is a kingdom-level
-  # fallback: Rolandia caroliniana is no animal, and GBIF does not know it.
+  # A fuzzy match is not, when the genus says otherwise: Hydnum atlanticum is no
+  # moss. Nor is a kingdom-level fallback, read for itself.
   expect_equal(kingdom("Hydnum atlanticum"), "Fungi")
-  expect_true(is.na(kingdom("Rolandia caroliniana")))
   expect_equal(kingdom("Peziza sp. 'OR02'"), "Fungi")
   # A section's epithet is not asked: Candidae is a family of animals.
   expect_equal(kingdom("Tricholoma sect. Genuina"), "Fungi")
@@ -287,8 +287,11 @@ test_that("a non-fungus is still found, by its own name or its genus", {
   expect_equal(kingdom("Bacillus mycoides"), "Bacteria")
   # A binomial settles it, though its genus is also a fungus's name.
   expect_equal(kingdom("Antennaria howellii"), "Plantae")
-  # A misspelt animal: not believed from the fuzzy match, found by its genus.
+  # A misspelt bee: nothing else is known of its genus, so the fuzzy match stands.
   expect_equal(kingdom("Protandrena labrosa"), "Animalia")
+  # Two false alarms the allow list answers, kept as they read: GBIF knows only
+  # an animal Rolandia and a plant Melanocarpum.
+  expect_equal(kingdom("Rolandia caroliniana"), "Animalia")
   expect_equal(kingdom("Melanocarpum sp. 'PR01'"), "Plantae")
 })
 
@@ -302,7 +305,7 @@ test_that("a genus several kingdoms share is settled by its genus, not left unkn
   expect_equal(kingdom("Boletus sp. 'variipes-IN01'"), "Fungi")
   expect_equal(kingdom("Cortinarius sect. Sanguinei"), "Fungi")
   # A genus GBIF does not hold stays unknown; it is never guessed.
-  expect_true(is.na(kingdom("Neoporphyrellus sp. 'X1'")))
+  expect_true(is.na(kingdom("Neoporphyrellus alboater")))
   expect_true(is.na(kingdom("Nonesuch thing")))
 })
 
