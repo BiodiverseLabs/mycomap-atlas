@@ -9,8 +9,8 @@
 - **Taxonomy used, and from when.** A family for each taxon's first word, asked on
   2026-11-04:
   - GBIF's backbone, with a Fungi hint;
-  - for the 173 first words GBIF gave no family, iNaturalist's taxonomy, which is where
-    Vision's release took its families (139 found; 34 not).
+  - for the 177 first words GBIF gave no family, iNaturalist's taxonomy, which is where
+    Vision's release took its families (143 found, 34 not).
 - **Lists used.** Vision's, unchanged:
   - slime moulds and lichens from its pinned definition
     `paper/scope/truth-taxa-out-of-scope-v1.json` (19 and 46 families, and four mixed
@@ -21,9 +21,10 @@
     does not name.
   - Basidiolichens stay in scope, as in Vision's (*Lichenomphalia*, *Multiclavula* and
     similar genera).
-- **Code.** `2026-11-05-frozen-macrofungi-scope.py` in this directory, with the two
-  family lookups it reads: `python -I 2026-11-05-frozen-macrofungi-scope.py <dir>
-  <vision definition>`.
+- **Code.** In this directory: `2026-11-05-genus-families.py` then
+  `2026-11-05-inat-families.py` make the two family lookups, each taking the directory
+  of saved lists, and `python -I 2026-11-05-frozen-macrofungi-scope.py <dir> <vision
+  definition>` reads them.
 
 ## Result (2026-11-05)
 
