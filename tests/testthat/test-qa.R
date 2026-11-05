@@ -179,11 +179,190 @@ test_that("GBIF's \"slow down\" waits a minute and asks once more", {
   local_mocked_bindings(curl_fetch_memory = function(url, handle) {
     calls <<- calls + 1L
     if (calls == 1L) list(status_code = 429L, content = raw()) else
-      list(status_code = 200L, content = charToRaw('{"kingdom": "Fungi"}'))
+      list(status_code = 200L, content = charToRaw('{"kingdom": "Fungi", "matchType": "EXACT", "rank": "SPECIES"}'))
   }, .package = "curl")
   expect_equal(atlas_gbif_kingdom("Amanita muscaria", wait = function(s) waited <<- c(waited, s)), "Fungi")
   expect_equal(calls, 2L)
   expect_equal(waited, 60)
+})
+
+# GBIF's answers as recorded on 2026-11-04, for the names that showed what a
+# lookup has to get right. plain is the name asked alone; hinted its genus at rank
+# GENUS with a Fungi hint; verbose its genus's alternatives.
+gbif_answers <- function() {
+  answer <- function(matchType, kingdom = NULL, rank = NULL, phylum = NULL) {
+    Filter(Negate(is.null), list(matchType = matchType, kingdom = kingdom, rank = rank, phylum = phylum))
+  }
+  none <- answer("NONE")
+  list(
+    plain = list(
+      "Amanita muscaria" = answer("EXACT", "Fungi", "SPECIES", "Basidiomycota"),
+      "Russula sp. 'IN1'" = answer("HIGHERRANK", "Fungi", "GENUS", "Basidiomycota"),
+      "Agaricomycetes sp. 'NY01'" = answer("HIGHERRANK", "Fungi", "CLASS", "Basidiomycota"),
+      "Peziza sp. 'OR02'" = answer("HIGHERRANK", "Fungi", "KINGDOM"),
+      "Hydnum atlanticum" = answer("FUZZY", "Plantae", "SPECIES", "Bryophyta"),
+      "Rolandia caroliniana" = answer("HIGHERRANK", "Animalia", "KINGDOM"),
+      "Picipes sp. 'BC02'" = answer("HIGHERRANK", "Fungi", "GENUS", "Basidiomycota"),
+      "Melanocarpum sp. 'PR01'" = answer("HIGHERRANK", "Plantae", "GENUS", "Tracheophyta"),
+      "Juglans nigra" = answer("EXACT", "Plantae", "SPECIES", "Tracheophyta"),
+      "Antennaria howellii" = answer("EXACT", "Plantae", "SPECIES", "Tracheophyta"),
+      "Canis latrans" = answer("EXACT", "Animalia", "SPECIES", "Chordata"),
+      "Protandrena labrosa" = answer("FUZZY", "Animalia", "SPECIES", "Arthropoda"),
+      "Bacillus mycoides" = answer("EXACT", "Bacteria", "SPECIES", "Firmicutes"),
+      "Fuligo septica" = answer("EXACT", "Protozoa", "SPECIES", "Mycetozoa"),
+      "Lycogala sp. 'IN02'" = answer("HIGHERRANK", "Protozoa", "GENUS", "Mycetozoa"),
+      "Trichia sp. 'BC01'" = none,
+      "Lactarius sp. 'GA01'" = none,
+      "Mycena sp. 'IN1'" = none,
+      "Boletus sp. 'variipes-IN01'" = answer("HIGHERRANK", "Fungi", "KINGDOM"),
+      "Neoporphyrellus sp. 'X1'" = none,
+      "Nonesuch thing" = none
+    ),
+    hinted = list(
+      Hydnum = answer("EXACT", "Fungi", "GENUS", "Basidiomycota"),
+      Tricholoma = answer("EXACT", "Fungi", "GENUS", "Basidiomycota"),
+      Conocybe = answer("EXACT", "Fungi", "GENUS", "Basidiomycota"),
+      Cortinarius = answer("HIGHERRANK", "Fungi", "FAMILY", "Basidiomycota"),
+      Lactarius = answer("EXACT", "Fungi", "GENUS", "Basidiomycota"),
+      Mycena = answer("EXACT", "Fungi", "GENUS", "Basidiomycota"),
+      Peziza = answer("EXACT", "Fungi", "GENUS", "Ascomycota"),
+      Trichia = answer("EXACT", "Protozoa", "GENUS", "Mycetozoa"),
+      Boletus = answer("HIGHERRANK", "Fungi", "KINGDOM"),
+      Rolandia = none, Protandrena = none, Neoporphyrellus = none, Nonesuch = none
+    ),
+    verbose = list(
+      Boletus = list(alternatives = data.frame(
+        canonicalName = c("Boletus", "Boletus", "Bolerus"), rank = "GENUS", kingdom = c("Fungi", "Fungi", "Animalia"),
+        phylum = c("Basidiomycota", "Basidiomycota", "Arthropoda"), stringsAsFactors = FALSE)),
+      Cortinarius = list(alternatives = data.frame(
+        canonicalName = c("Cortinarius", "Cortinarius"), rank = "GENUS", kingdom = c("Fungi", "Animalia"),
+        phylum = c("Basidiomycota", "Arthropoda"), stringsAsFactors = FALSE)),
+      Protandrena = list(alternatives = data.frame(
+        canonicalName = "Protandrena", rank = "GENUS", kingdom = "Animalia", phylum = "Arthropoda", stringsAsFactors = FALSE)),
+      Rolandia = list(), Neoporphyrellus = list(), Nonesuch = list()
+    )
+  )
+}
+
+local_gbif <- function(env = parent.frame()) {
+  answers <- gbif_answers()
+  asked <- new.env()
+  asked$n <- 0L
+  local_mocked_bindings(atlas_gbif_query = function(query, wait = NULL) {
+    asked$n <- asked$n + 1L
+    which <- if (identical(query$verbose, "true")) "verbose" else if (!is.null(query$kingdom)) "hinted" else "plain"
+    found <- answers[[which]][[query$name]]
+    if (is.null(found)) stop("not recorded: ", which, " ", query$name)
+    found
+  }, .env = env)
+  asked
+}
+
+test_that("a kingdom is believed only when GBIF's answer is about the name", {
+  local_gbif()
+  kingdom <- function(name) atlas_gbif_kingdom(name, wait = function(s) NULL)
+  # An exact match, or a code answered for its genus or a rank above it.
+  expect_equal(kingdom("Amanita muscaria"), "Fungi")
+  expect_equal(kingdom("Russula sp. 'IN1'"), "Fungi")
+  expect_equal(kingdom("Agaricomycetes sp. 'NY01'"), "Fungi")
+  # A fuzzy match is not: Hydnum atlanticum is no moss. Nor is a kingdom-level
+  # fallback: Rolandia caroliniana is no animal, and GBIF does not know it.
+  expect_equal(kingdom("Hydnum atlanticum"), "Fungi")
+  expect_true(is.na(kingdom("Rolandia caroliniana")))
+  expect_equal(kingdom("Peziza sp. 'OR02'"), "Fungi")
+  # A section's epithet is not asked: Candidae is a family of animals.
+  expect_equal(kingdom("Tricholoma sect. Genuina"), "Fungi")
+  expect_equal(kingdom("Conocybe sect. Candidae"), "Fungi")
+  # A name that opens with its rank has no genus to ask.
+  expect_true(is.na(kingdom("Subgenus Lentoramaria")))
+  # Written in lower case, a genus is still a genus.
+  expect_equal(kingdom("picipes sp. 'BC02'"), "Fungi")
+})
+
+test_that("a non-fungus is still found, by its own name or its genus", {
+  local_gbif()
+  kingdom <- function(name) atlas_gbif_kingdom(name, wait = function(s) NULL)
+  expect_equal(kingdom("Juglans nigra"), "Plantae")
+  expect_equal(kingdom("Canis latrans"), "Animalia")
+  expect_equal(kingdom("Bacillus mycoides"), "Bacteria")
+  # A binomial settles it, though its genus is also a fungus's name.
+  expect_equal(kingdom("Antennaria howellii"), "Plantae")
+  # A misspelt animal: not believed from the fuzzy match, found by its genus.
+  expect_equal(kingdom("Protandrena labrosa"), "Animalia")
+  expect_equal(kingdom("Melanocarpum sp. 'PR01'"), "Plantae")
+})
+
+test_that("a genus several kingdoms share is settled by its genus, not left unknown", {
+  local_gbif()
+  kingdom <- function(name) atlas_gbif_kingdom(name, wait = function(s) NULL)
+  expect_equal(kingdom("Lactarius sp. 'GA01'"), "Fungi")
+  expect_equal(kingdom("Mycena sp. 'IN1'"), "Fungi")
+  # Several fungal entries, so no single match: read from the alternatives,
+  # and only those of exactly this genus.
+  expect_equal(kingdom("Boletus sp. 'variipes-IN01'"), "Fungi")
+  expect_equal(kingdom("Cortinarius sect. Sanguinei"), "Fungi")
+  # A genus GBIF does not hold stays unknown; it is never guessed.
+  expect_true(is.na(kingdom("Neoporphyrellus sp. 'X1'")))
+  expect_true(is.na(kingdom("Nonesuch thing")))
+})
+
+test_that("slime moulds are named as such, at any step, and an unanswered question is never a guess", {
+  asked <- local_gbif()
+  kingdom <- function(name) atlas_gbif_kingdom(name, wait = function(s) NULL)
+  expect_equal(kingdom("Fuligo septica"), "Mycetozoa")
+  expect_equal(kingdom("Lycogala sp. 'IN02'"), "Mycetozoa")
+  expect_equal(kingdom("Trichia sp. 'BC01'"), "Mycetozoa")
+  # GBIF down at any step: unknown.
+  local_mocked_bindings(atlas_gbif_query = function(query, wait = NULL) NULL)
+  expect_true(is.na(kingdom("Amanita muscaria")))
+  steps <- 0L
+  local_mocked_bindings(atlas_gbif_query = function(query, wait = NULL) {
+    steps <<- steps + 1L
+    if (steps == 1L) list(matchType = "NONE") else NULL
+  })
+  expect_true(is.na(kingdom("Lactarius sp. 'GA01'")))
+})
+
+test_that("each further question to GBIF waits its turn", {
+  local_gbif()
+  waits <- numeric()
+  atlas_gbif_kingdom("Boletus sp. 'variipes-IN01'", wait = function(s) waits <<- c(waits, s), pace_seconds = 0.2)
+  expect_equal(waits, c(0.2, 0.2))
+  waits <- numeric()
+  atlas_gbif_kingdom("Amanita muscaria", wait = function(s) waits <<- c(waits, s), pace_seconds = 0.2)
+  expect_length(waits, 0L)
+})
+
+test_that("slime moulds pass the kingdom check and are counted; anything else not fungal stops it", {
+  moulds <- report_of(kingdoms = c("Amanita muscaria" = "Fungi", "Russula emetica" = "Mycetozoa"))
+  expect_length(moulds$stops, 0L)
+  expect_equal(moulds$checks$kingdom$detail$slime_moulds, 1L)
+  # Another protozoan is not a slime mould.
+  other <- report_of(kingdoms = c("Amanita muscaria" = "Fungi", "Russula emetica" = "Protozoa"))
+  expect_equal(unlist(other$stops), "kingdom")
+  expect_match(other$checks$kingdom$why, "neither fungi nor slime moulds")
+})
+
+test_that("an answer from an earlier way of asking is asked again, and a new one is kept", {
+  with_data_dir({
+    # A cache as the first fill wrote it, with no lookup column, one answer wrong.
+    atlas_write_tsv_gz(data.frame(name = c("Hydnum atlanticum", "Amanita muscaria"), kingdom = c("Plantae", "Fungi"),
+                                  checked = "2026-11-04", stringsAsFactors = FALSE), atlas_kingdoms_path())
+    asked <- character()
+    lookup <- function(name) { asked <<- c(asked, name); "Fungi" }
+    k <- atlas_name_kingdoms(c("Hydnum atlanticum", "Amanita muscaria"), lookup = lookup, today = as.Date("2026-11-05"))
+    expect_setequal(asked, c("Hydnum atlanticum", "Amanita muscaria"))
+    expect_equal(k[["Hydnum atlanticum"]], "Fungi")
+    # Asked this way, they are kept, even an unknown, for its month.
+    asked <- character()
+    atlas_name_kingdoms(c("Hydnum atlanticum", "Amanita muscaria"), lookup = lookup, today = as.Date("2026-11-06"))
+    expect_length(asked, 0L)
+    # With no lookup allowed, an old answer still stands rather than being lost.
+    atlas_write_tsv_gz(data.frame(name = "Hydnum atlanticum", kingdom = "Plantae", checked = "2026-11-04",
+                                  stringsAsFactors = FALSE), atlas_kingdoms_path())
+    held <- atlas_name_kingdoms("Hydnum atlanticum", lookup = lookup, max_new = 0L, today = as.Date("2026-11-06"))
+    expect_equal(held[["Hydnum atlanticum"]], "Plantae")
+  })
 })
 
 test_that("fill-kingdoms fills this machine's cache from a pull, at the cap and pace given", {

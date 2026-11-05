@@ -40,6 +40,12 @@ ATLAS_QA_THRESHOLDS <- list(
   newest_green_days = 3
 )
 ATLAS_QA_FUNGI <- "Fungi"
+# The Atlas covers fungi and slime moulds (Steve, 2026-11-04). GBIF files slime
+# moulds as the phylum Mycetozoa, so a new one needs no allow-list entry.
+ATLAS_QA_SLIME_MOULDS <- "Mycetozoa"
+# What a cached answer was asked with. An answer from an earlier way of asking
+# is asked again (2: the name's match type is read, atlas_gbif_kingdom).
+ATLAS_QA_KINGDOM_LOOKUP_VERSION <- "2"
 
 atlas_qa_path <- function(stamp = NULL) {
   atlas_path("occurrences", if (is.null(stamp)) "qa-latest.json" else paste0("qa-", stamp, ".json"))
@@ -53,12 +59,12 @@ atlas_kingdom_allow_path <- function() atlas_path("occurrences", "kingdom-allow.
 ATLAS_QA_KINGDOM_CAP <- 2000L
 ATLAS_QA_KINGDOM_PACE_SECONDS <- 0.2
 
-#' A name's kingdom from GBIF's backbone (species/match): "Fungi", another
-#' kingdom, or NA when GBIF matches nothing or cannot be reached. Asked as
-#' MycoMap Atlas, so GBIF can see who is calling; a "slow down" (429) waits
-#' a minute and asks once more.
-atlas_gbif_kingdom <- function(name, wait = Sys.sleep) {
-  url <- paste0("https://api.gbif.org/v1/species/match?verbose=false&name=", utils::URLencode(name, reserved = TRUE))
+#' One question to GBIF's backbone (species/match), or NULL when it cannot be
+#' answered. Asked as MycoMap Atlas, so GBIF can see who is calling; a "slow
+#' down" (429) waits a minute and asks once more.
+atlas_gbif_query <- function(query, wait = Sys.sleep) {
+  url <- paste0("https://api.gbif.org/v1/species/match?",
+                paste(names(query), vapply(query, utils::URLencode, "", reserved = TRUE), sep = "=", collapse = "&"))
   ask <- function() tryCatch({
     handle <- curl::new_handle(timeout = 20, useragent = "MycoMap Atlas (atlas.mycomap.org; info@mycomap.org)")
     curl::curl_fetch_memory(url, handle = handle)
@@ -68,11 +74,60 @@ atlas_gbif_kingdom <- function(name, wait = Sys.sleep) {
     wait(60)
     response <- ask()
   }
-  answer <- if (!is.null(response) && response$status_code == 200) {
-    tryCatch(jsonlite::fromJSON(rawToChar(response$content)), error = function(e) NULL)
-  }
+  if (is.null(response) || response$status_code != 200) return(NULL)
+  tryCatch(jsonlite::fromJSON(rawToChar(response$content)), error = function(e) NULL)
+}
+
+#' What an answer's kingdom and phylum make a name: its kingdom, or the group
+#' Atlas covers beside fungi (ATLAS_QA_SLIME_MOULDS), which GBIF files as a
+#' phylum of Protozoa. NA when the answer holds no kingdom.
+atlas_gbif_group <- function(answer) {
   kingdom <- answer$kingdom
-  if (is.character(kingdom) && length(kingdom) == 1L && nzchar(kingdom)) kingdom else NA_character_
+  if (!is.character(kingdom) || length(kingdom) != 1L || is.na(kingdom) || !nzchar(kingdom)) return(NA_character_)
+  if (identical(answer$phylum, ATLAS_QA_SLIME_MOULDS)) ATLAS_QA_SLIME_MOULDS else kingdom
+}
+
+#' A name's kingdom from GBIF's backbone, NA when GBIF cannot place it. GBIF
+#' always answers with something, so the answer is only believed when it is
+#' about this name (2026-11-04: of 49 names first read as not fungi, 8 were real
+#' fungi, such as Hydnum atlanticum, fuzzily matched to the moss Hypnum):
+#'   1. The name itself, believed for an exact match, or for a match at a higher
+#'      rank below kingdom (a code such as Russula sp. 'IN1' answers for Russula).
+#'      A section's name is not asked: its epithet matches whatever shares it.
+#'   2. Its genus with a hint of Fungi. A genus several kingdoms share has no
+#'      match without a hint (Mycena, Lactarius, most of 1,404 unplaced names).
+#'      The hint decides between them but does not force an answer: a genus only
+#'      in Protozoa still answers Protozoa.
+#'   3. GBIF's alternatives for exactly that genus: fungi if any are fungi (Boletus
+#'      has several, so no single match), else the one kingdom they agree on.
+#' A shared genus therefore reads as fungi, so a code in it can pass unseen; a
+#' binomial is settled at step 1 first. Any question unanswered gives NA, never a
+#' guess from the rest.
+atlas_gbif_kingdom <- function(name, wait = Sys.sleep, pace_seconds = ATLAS_QA_KINGDOM_PACE_SECONDS) {
+  name <- trimws(as.character(name))
+  name <- paste0(toupper(substr(name, 1, 1)), substr(name, 2, nchar(name)))
+  genus <- sub(" .*$", "", name)
+  if (genus %in% c("Subgenus", "Section")) return(NA_character_)
+  if (!grepl(" (sect|subsect|subgen|ser)[.] ", name)) {
+    plain <- atlas_gbif_query(list(verbose = "false", name = name), wait = wait)
+    if (is.null(plain)) return(NA_character_)
+    exact <- identical(plain$matchType, "EXACT") && !identical(plain$rank, "UNRANKED")
+    above <- identical(plain$matchType, "HIGHERRANK") && !identical(plain$rank, "KINGDOM")
+    if (exact || above) return(atlas_gbif_group(plain))
+    wait(pace_seconds)
+  }
+  hinted <- atlas_gbif_query(list(name = genus, rank = "GENUS", kingdom = ATLAS_QA_FUNGI, strict = "true"), wait = wait)
+  if (is.null(hinted)) return(NA_character_)
+  if (identical(hinted$matchType, "EXACT")) return(atlas_gbif_group(hinted))
+  wait(pace_seconds)
+  full <- atlas_gbif_query(list(verbose = "true", name = genus), wait = wait)
+  others <- full$alternatives
+  if (!is.data.frame(others) || !nrow(others) || is.null(others$canonicalName) || is.null(others$rank)) return(NA_character_)
+  same <- others[others$rank %in% "GENUS" & others$canonicalName %in% genus, , drop = FALSE]
+  groups <- unique(vapply(seq_len(nrow(same)), function(i) atlas_gbif_group(as.list(same[i, , drop = FALSE])), ""))
+  groups <- groups[!is.na(groups)]
+  if (ATLAS_QA_FUNGI %in% groups) return(ATLAS_QA_FUNGI)
+  if (length(groups) == 1L) groups else NA_character_
 }
 
 #' The kingdom of each name: from the cache, looking up at most max_new names
@@ -87,9 +142,12 @@ atlas_name_kingdoms <- function(names, lookup = atlas_gbif_kingdom, max_new = AT
     utils::read.delim(gzfile(path, encoding = "UTF-8"), sep = "	", quote = "", comment.char = "", na.strings = "",
                       colClasses = "character", stringsAsFactors = FALSE)
   }
-  if (is.null(cache) || !nrow(cache)) cache <- data.frame(name = character(), kingdom = character(), checked = character())
+  if (is.null(cache) || !nrow(cache)) {
+    cache <- data.frame(name = character(), kingdom = character(), checked = character(), lookup = character())
+  }
+  if (is.null(cache$lookup)) cache$lookup <- rep("", nrow(cache))
   unknown <- is.na(cache$kingdom) | !nzchar(cache$kingdom)
-  stale <- unknown & as.Date(cache$checked) < as.Date(today) - 30
+  stale <- (unknown & as.Date(cache$checked) < as.Date(today) - 30) | !cache$lookup %in% ATLAS_QA_KINGDOM_LOOKUP_VERSION
   known <- cache$name[!stale]
   ask <- utils::head(setdiff(names, known), max_new)
   if (length(ask)) {
@@ -98,7 +156,8 @@ atlas_name_kingdoms <- function(names, lookup = atlas_gbif_kingdom, max_new = AT
     keep <- function(names, found) {
       cache <<- rbind(cache[!cache$name %in% names, , drop = FALSE],
                       data.frame(name = names, kingdom = ifelse(is.na(found), "", found),
-                                 checked = as.character(today), stringsAsFactors = FALSE))
+                                 checked = as.character(today), lookup = ATLAS_QA_KINGDOM_LOOKUP_VERSION,
+                                 stringsAsFactors = FALSE))
       atlas_write_tsv_gz(cache, path)
     }
     found <- character(length(ask))
@@ -126,12 +185,14 @@ atlas_fill_kingdoms <- function(pull = NULL, cap = 20000L, pace_seconds = ATLAS_
   occurrences <- atlas_read_occurrences(pull)
   names <- unique(as.character(occurrences$scientific_name))
   kingdoms <- atlas_name_kingdoms(names, lookup = lookup, max_new = cap, pace_seconds = pace_seconds, wait = wait)
+  covered <- c(ATLAS_QA_FUNGI, ATLAS_QA_SLIME_MOULDS)
   counts <- list(names = length(names), fungi = sum(kingdoms %in% ATLAS_QA_FUNGI),
-                 other = sum(!is.na(kingdoms) & kingdoms != ATLAS_QA_FUNGI), unknown = sum(is.na(kingdoms)),
+                 slime_moulds = sum(kingdoms %in% ATLAS_QA_SLIME_MOULDS),
+                 other = sum(!is.na(kingdoms) & !kingdoms %in% covered), unknown = sum(is.na(kingdoms)),
                  cache = atlas_kingdoms_path())
   if (!isTRUE(quiet)) {
-    message(sprintf("kingdoms: %d names, %d fungi, %d other, %d unknown -> %s", counts$names, counts$fungi,
-                    counts$other, counts$unknown, counts$cache))
+    message(sprintf("kingdoms: %d names, %d fungi, %d slime moulds, %d other, %d unknown -> %s", counts$names, counts$fungi,
+                    counts$slime_moulds, counts$other, counts$unknown, counts$cache))
   }
   invisible(counts)
 }
@@ -159,11 +220,12 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
   names <- sort(unique(as.character(occurrences$scientific_name)))
   if (!is.null(kingdoms)) {
     k <- kingdoms[names]
-    other <- names[!is.na(k) & k != ATLAS_QA_FUNGI & !names %in% allow]
+    other <- names[!is.na(k) & !k %in% c(ATLAS_QA_FUNGI, ATLAS_QA_SLIME_MOULDS) & !names %in% allow]
     checks$kingdom <- atlas_qa_check(
       length(other), last("kingdom"), stop = length(other) > t$kingdom_other,
-      why = paste0(length(other), " modelled names are not fungi: ", paste(utils::head(other, 10), collapse = ", ")),
+      why = paste0(length(other), " modelled names are neither fungi nor slime moulds: ", paste(utils::head(other, 10), collapse = ", ")),
       detail = list(names = length(names), checked = sum(!is.na(k)), unknown = sum(is.na(k)),
+                    slime_moulds = sum(k %in% ATLAS_QA_SLIME_MOULDS),
                     other = as.list(utils::head(other, 50)))
     )
   }
