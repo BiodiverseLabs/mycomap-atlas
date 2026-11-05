@@ -1405,7 +1405,9 @@ revised (Path).
    frozen release does not change. The next version's cells file and the
    training-record table use the then-current privacy list, and Figure 1 is
    drawn from that filtered file, not the current one. Whether the data
-   statement mentions it is proposed to Steve.
+   statement mentions it is proposed to Steve. Subject to one more count-only
+   check, approved by Steve: if any of the 3 is alone in its cell, the Zenodo
+   question goes back to him.
 
 ---
 
