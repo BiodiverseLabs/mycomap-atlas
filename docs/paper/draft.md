@@ -1416,9 +1416,9 @@ revised (Path).
    training-record table use the then-current privacy list and each record's
    current obscured status (confirmed 2026-11-05), and Figure 1 is
    drawn from that filtered file, not the current one. Whether the data
-   statement says so with the count (Steve, 4.1 and S11). **Open on Zenodo
-   (2026-11-05):** the count-only check sends the Zenodo question back to
-   Steve under the rule in item 14, after one further count-only check.
+   statement says so with the count (Steve, 4.1 and S11). **Settled on
+   Zenodo (Steve, 2026-11-05):** next models version only, no request to
+   Zenodo, under the rule in item 14.
 14. **Rule for published archives (Steve, 2026-11-05).** Published archives
    are snapshots: when a source obscures a record after an archive is
    published, the record leaves from the next version on and the published
@@ -1435,6 +1435,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.5 (2026-11-05).** Open decision 13 settled on Zenodo (Steve): next models version only.
 - **0.23.4 (2026-11-05).** Tables 1 and 2 drafted (`tables.md`); 3.3's failed models corrected from 1,801 to 1,797, the count by grade (1,801 is the registry's tier count; the old four grades summed to 9,045, not 9,041).
 - **0.23.3 (2026-11-05).** What else is in the data, measured by Vision's lists (`2026-11-05-frozen-macrofungi-scope.md`): 2.1 and S2; slime-mould count corrected to 44 names and 64 records.
 - **0.23.2 (2026-11-05).** Title chosen (Steve): "…for DNA-defined North American macrofungi", 112 characters; the abstract keeps the scale (9,041 models of 6,369 taxa).
