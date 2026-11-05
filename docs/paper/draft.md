@@ -1,9 +1,7 @@
-# MycoMap Atlas: Habitat-suitability maps with a null-tested trust grade for thousands of DNA-defined North American fungi
+# MycoMap Atlas: Habitat-suitability maps with a null-tested trust grade for DNA-defined North American macrofungi
 
-*Working title (118 characters; the journal allows 120, sentence case, one
-colon, no uncommon acronyms). Alternative: "Which habitat maps can be
-trusted? Calibrated null tests for thousands of DNA-defined North American
-fungi". Living draft, version 0.9 (2026-10-13). Skeleton: headings, the
+*Title chosen by Steve, 2026-11-05 (112 characters; the journal allows 120,
+sentence case, one colon, no uncommon acronyms). Living draft, version 0.9 (2026-10-13). Skeleton: headings, the
 claims, the figures and tables each claim needs, and what is pending.
 Methods prose is drafted from the public Methods page; Results wait for the
 frozen release.*
@@ -1430,12 +1428,14 @@ revised (Path).
    abstract, Introduction and running text say macrofungi where the scope is
    stated; the data do not change and slime moulds stay in, with one line in
    Methods and S2 on what else is there. No slime-mould sentence on the site.
-   [PENDING: which title, to fit the 120-character limit.]
+   Title (Steve, 2026-11-05): "MycoMap Atlas: Habitat-suitability maps with a
+   null-tested trust grade for DNA-defined North American macrofungi".
 
 ---
 
 ## Changelog
 
+- **0.23.2 (2026-11-05).** Title chosen (Steve): "…for DNA-defined North American macrofungi", 112 characters; the abstract keeps the scale (9,041 models of 6,369 taxa).
 - **0.23.1 (2026-11-05).** Frozen release's contents from the registry (`2026-11-04-frozen-kingdoms.md`): slime moulds in 2.1 and S2; one plant record in Limits and S2.
 - **0.23.0 (2026-11-05).** Scope is macrofungi, as in MycoMap Vision (Steve); "fungi and slime moulds" taken out; Methods 2.1 and S2 say what else is in the data (counts pending). Title and inquiry follow once Steve picks the title.
 - **0.22.6 (2026-11-05).** Scope wording cut back to what is measured (none of the flagged names is strong; the check is not proof); abstract, Introduction and 2.1 marked pending Steve's review.

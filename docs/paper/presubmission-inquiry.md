@@ -10,8 +10,8 @@ hold a summary of at most 300 words giving the rationale and main findings
 and the new insights, a list of 5 to 10 references showing the intended
 scope, and the intended submission type. One or two figures are optional.
 Suggested subject line: "Presubmission inquiry (Method): MycoMap Atlas:
-Habitat-suitability maps with a null-tested trust grade for thousands of
-DNA-defined North American fungi".
+Habitat-suitability maps with a null-tested trust grade for DNA-defined North
+American macrofungi".
 
 **What to paste:** everything below the line, from "Intended type" to the
 end of the references. **Figures:** optional; none is needed. If one is
@@ -22,7 +22,7 @@ drawn yet.
 **Before sending, read in the draft** (about 20 minutes): the core claims
 C1–C4 and Q1; the abstract; Results 3.2 (E1) and 3.4 (E2, E6b); the
 Discussion's "The cost of an honest grade", the recommendations and
-"Limits". If the nightly is live when it is sent (first run slipped past 2026-11-04),
+"Limits". If the nightly is live when it is sent (the first run slipped past 2026-11-04),
 "designed to rebuild nightly" can become "rebuilt nightly".
 
 ---
@@ -30,7 +30,7 @@ Discussion's "The cost of an honest grade", the recommendations and
 **Intended type:** Method
 
 **Title:** MycoMap Atlas: Habitat-suitability maps with a null-tested trust
-grade for thousands of DNA-defined North American fungi
+grade for DNA-defined North American macrofungi
 
 Atlases now fit thousands of species distribution models automatically, but
 report each map's skill with scores that clustered collecting inflates. The
@@ -44,8 +44,8 @@ passes more than tenfold, to 5–6%, slightly above the 5% we had
 pre-registered, and still picked out maps much closer to the true habitat,
 at a large cost in power that we quantify.
 
-We use the shifted null to grade every map of MycoMap Atlas, habitat
-models for 6,369 fungal taxa defined by DNA barcodes rather than morphological
+We use this null to grade every map of MycoMap Atlas, habitat
+models for 6,369 macrofungal taxa defined by DNA barcodes rather than morphological
 names, designed to rebuild nightly from validated community-science collections. In a
 hindcast, maps graded strong placed 91% of records validated after the
 training cutoff in their top half, against 78% for failed maps (95%
