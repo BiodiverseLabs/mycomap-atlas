@@ -36,7 +36,7 @@
   second is a *Ramaria* subgenus read as a genus called "Subgenus". The first is
   unverified.
 - **Not placed:** 77 first words GBIF does not hold or cannot settle, mostly recent
-  fungal genera (*Cyanula*, *Adelphella*-like names) and names that are not taxa:
+  fungal genera (*Cyanula*, *Metacampanella*, *Conocybula*) and names that are not taxa:
   'sample mixup', 'NA sample mixup', 'sequence mixup', 'uncultured fungus',
   'Billie Jean'. These are counted, not checked one by one.
 
@@ -89,10 +89,11 @@ lists it under Fungi. So 469 of 470 are fungi by GBIF, the other by iNaturalist,
 none is a slime mould or a non-fungus.
 
 **The 1,404 names the check left unknown.** These are the dry pull's, and the list is
-on the box; this entry does not hold it. The 36 strong taxa above that needed their
-genus are the ones a plain query cannot place, so they are the strong taxa in that
-group, as replayed on 2026-11-04 and not intersected with the list itself. All 36
-resolve to Fungi, 1 stays unplaced as above. For the group as a whole, a sample of 50
+on the box; this entry does not hold it. A plain query, replayed on 2026-11-04, could
+not settle 37 strong taxa: 36 with no match, and *Boletus* sp. 'variipes-IN01', which
+fell back to kingdom level. Those 36 are the strong taxa in that group, by this replay
+and not intersected with the list itself. Of the 37, 36 resolve to Fungi by their
+genus and 1 stays unplaced, as above. For the group as a whole, a sample of 50
 frozen provisional names gave 5 no-matches, the genera tried returning GBIF's
 "multiple equal matches".
 
