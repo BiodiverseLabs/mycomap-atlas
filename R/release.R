@@ -183,7 +183,9 @@ atlas_release_pull_summary <- function(manifest) {
   manifest[intersect(names(manifest), c("stamp", "pulled_at", "records", "taxa", "fingerprint", "file"))]
 }
 
-#' The files a release publishes, relative to the data directory.
+#' The files a release publishes to its store, relative to the data directory.
+#' The store is private: what reaches anyone else goes through the API and the
+#' archive, which leave out each taxon's fingerprint and seed (R/fingerprint.R).
 #'
 #' An allowlist: model scores, rasters and maps of every algorithm, per-taxon
 #' counts and fingerprints, the pull summary, public cells and regions, the

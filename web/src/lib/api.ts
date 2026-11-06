@@ -29,7 +29,6 @@ export interface Taxon {
   scientific_name: string;
   records: number;
   localities: number;
-  fingerprint: string;
   /** Sequenced records still waiting for a verdict; absent until counted. */
   not_yet_validated?: number;
   /** Records validated since its map was made, scored on it; absent when none. */

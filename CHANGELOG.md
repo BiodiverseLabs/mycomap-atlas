@@ -10,6 +10,8 @@ changed and what it means for you.
 
 ### API
 
+- **Removed: each taxon's `fingerprint` and each model's `seed`**, for privacy,
+  without the usual 30 days' notice.
 - **`GET /api/taxa/{name}/card.jpg`** is new: a species' link-preview card,
   a 1200 x 630 JPEG with its name, its record count and its map (the one
   `best-map` chooses) over Natural Earth land. The map alone, never the
