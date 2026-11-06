@@ -45,7 +45,7 @@ atlas_public_fields <- function(x) {
 #' archived file differs from the release's only by what was withheld. Stops
 #' rather than publish anything it could not take out cleanly.
 atlas_public_json_text <- function(text) {
-  field <- paste0('"(?:', paste(ATLAS_PRIVATE_FIELDS, collapse = "|"), ')"\\s*:\\s*(?:"[^"]*"|-?[0-9.eE+-]+|null|\\[\\s*\\])')
+  field <- paste0('"(?:', paste(ATLAS_PRIVATE_FIELDS, collapse = "|"), ')"\\s*:\\s*(?:"[^"]*"|-?[0-9.eE+-]+|null|\\[\\s*\\]|\\{\\s*\\})')
   out <- gsub(paste0("\\s*", field, "\\s*,"), "", text, perl = TRUE)
   out <- gsub(paste0(",\\s*", field, "(?=\\s*[}])"), "", out, perl = TRUE)
   out <- gsub(paste0("\\s*", field, "(?=\\s*[}])"), "", out, perl = TRUE)

@@ -110,6 +110,9 @@ test_that("taking the fields out of a file's text leaves every other byte as it 
   # Last in its object, and alone in it.
   expect_equal(atlas_public_json_text('{"a": 1, "seed": 2}'), '{"a": 1}')
   expect_equal(atlas_public_json_text('{"a": {"seed": 2}}'), '{"a": {}}')
+  # A value stored as empty, as JSON writes a missing one.
+  expect_equal(atlas_public_json_text('{"a": 1, "fingerprint": {}, "b": 2}'), '{"a": 1, "b": 2}')
+  expect_equal(atlas_public_json_text('{"a": 1, "seed": []}'), '{"a": 1}')
   rows <- '[{"name": "x", "fingerprint": "abc", "sites": 2}, {"name": "y", "fingerprint": "def"}]'
   expect_equal(atlas_public_json_text(rows), '[{"name": "x", "sites": 2}, {"name": "y"}]')
 })
