@@ -1355,7 +1355,8 @@ revised (Path).
 6. **Training-record table columns:** settled 2026-10-13 (section 4.1):
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
-   release. The 0.1° cells question is settled too. **Licence decided
+   release. **Columns open again (2026-11-06) until E19 is built.** The 0.1°
+   cells question is settled too. **Licence decided
    2026-10-25 (Steve): CC0 1.0** for the training-record table; the models
    record otherwise stays CC BY-SA 4.0, and the new version states the
    table's licence separately (both licences in the record's rights field,
@@ -1435,6 +1436,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.6 (2026-11-06).** Open decision 6: E19's columns open again until it is built.
 - **0.23.5 (2026-11-05).** Open decision 13 settled on Zenodo (Steve): next models version only.
 - **0.23.4 (2026-11-05).** Tables 1 and 2 drafted (`tables.md`); 3.3's failed models corrected from 1,801 to 1,797, the count by grade (1,801 is the registry's tier count; the old four grades summed to 9,045, not 9,041).
 - **0.23.3 (2026-11-05).** What else is in the data, measured by Vision's lists (`2026-11-05-frozen-macrofungi-scope.md`): 2.1 and S2; slime-mould count corrected to 44 names and 64 records.
