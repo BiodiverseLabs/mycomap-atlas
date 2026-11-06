@@ -171,11 +171,11 @@ test_that("a per-taxon hash under any other name, or a seed, stops the bundle", 
   with_planted_hashes({
     private <- tempfile(fileext = ".json")
     writeLines('{"seed": 12}', private)
-    expect_error(atlas_archive_refuse_private(private, character()), "would have been archived")
+    expect_error(atlas_archive_refuse_withheld(private, character()), "would have been archived")
     writeLines(sprintf('{"note": "%s"}', PLANTED), private)
-    expect_error(atlas_archive_refuse_private(private, PLANTED), "would have been archived")
+    expect_error(atlas_archive_refuse_withheld(private, PLANTED), "would have been archived")
     writeLines('{"note": "fine"}', private)
-    expect_true(atlas_archive_refuse_private(private, PLANTED))
+    expect_true(atlas_archive_refuse_withheld(private, PLANTED))
   })
 })
 

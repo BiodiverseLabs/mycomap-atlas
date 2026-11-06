@@ -131,7 +131,7 @@ test_that("a taxon's answer carries its count, and leaves it out before any are 
       b <- jsonlite::fromJSON(call_api(api, "/api/taxa/Taxon%20B")$body)
       expect_equal(a$not_yet_validated, 9L)
       expect_equal(b$not_yet_validated, 0L)
-      expect_equal(a$fingerprint, "fa")
+      expect_equal(a$records, 12L)
     })
   })
 })

@@ -248,7 +248,7 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
 
   # The archive is public; the release's own files are not, and keep what the
   # refits read (R/fingerprint.R).
-  private_hashes <- atlas_archive_withhold(tree, paths, manifest)
+  taxon_hashes <- atlas_archive_withhold(tree, paths, manifest)
 
   # A tar records each file's time. Stamped with the release's own time, the
   # same release always packs to the same bytes, so a resumed upload can see
@@ -276,9 +276,9 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
   manifest <- atlas_archive_public_manifest(manifest)
   atlas_write_json(manifest, file.path(out, "release.json"))
   names <- c(names, "release.json")
-  atlas_archive_refuse_private(c(file.path(tree, paths[grepl("[.]json$", paths)]),
+  atlas_archive_refuse_withheld(c(file.path(tree, paths[grepl("[.]json$", paths)]),
                                  file.path(out, names[grepl("[.]json$", names)])),
-                               private_hashes)
+                               taxon_hashes)
 
   list(
     kind = "models", grid = grid, dir = out,
@@ -327,7 +327,7 @@ atlas_archive_public_manifest <- function(manifest) {
 
 #' The last word before anything is uploaded: no per-taxon hash, under any field
 #' name, and no seed, in any JSON the bundle holds.
-atlas_archive_refuse_private <- function(files, hashes) {
+atlas_archive_refuse_withheld <- function(files, hashes) {
   for (file in unique(files)) {
     if (!file.exists(file)) next
     text <- readChar(file, file.info(file)$size, useBytes = TRUE)
