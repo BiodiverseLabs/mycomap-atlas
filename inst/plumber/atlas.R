@@ -45,11 +45,13 @@ cached_taxa <- function() {
     } else {
       NULL
     }
-    cache$taxa <- if (is.data.frame(from_file) && nrow(from_file)) {
+    # Without each taxon's fingerprint (R/fingerprint.R): the file keeps it for
+    # the refits, and nothing the API answers from this table needs it.
+    cache$taxa <- atlas_public_fields(if (is.data.frame(from_file) && nrow(from_file)) {
       from_file
     } else {
       atlas_taxon_fingerprints(cached_occurrences())
-    }
+    })
   }
   cache$taxa
 }
@@ -454,7 +456,7 @@ function(grid = "draft", res) {
     res$status <- 404L
     return(list(error = "no benchmark has been run yet"))
   }
-  study
+  atlas_public_fields(study)
 }
 
 #* One taxon's fitted model: its scores, settings and map bounds.
@@ -472,7 +474,8 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
     res$status <- 404L
     return(list(error = "no model for this taxon yet"))
   }
-  model <- jsonlite::fromJSON(path, simplifyVector = FALSE)
+  # Without its fingerprint and seed (R/fingerprint.R): the file keeps them.
+  model <- atlas_public_fields(jsonlite::fromJSON(path, simplifyVector = FALSE))
   # Not published yet: no full_map, so no client offers the full view.
   if (!atlas_full_view_on()) model$full_map <- NULL
   model
@@ -517,7 +520,7 @@ function(name, grid = "draft", res) {
     res$status <- 404L
     return(list(error = "no ensemble for this taxon: fewer than two of its models passed"))
   }
-  jsonlite::fromJSON(path, simplifyVector = FALSE)
+  atlas_public_fields(jsonlite::fromJSON(path, simplifyVector = FALSE))
 }
 
 #* A taxon's ensemble map, or where its members disagree, as an image.

@@ -10,6 +10,13 @@ changed and what it means for you.
 
 ### API
 
+- **Removed: each taxon's `fingerprint` and each model's `seed`**, from
+  `GET /api/taxa`, `GET /api/taxa/{name}`, `GET /api/taxa/{name}/model` and the
+  ensemble and benchmark answers. Each was a hash, or part of one, over a
+  taxon's record coordinates, which could be used to test a guess at a place
+  its source hides or may hide. Removed for privacy, so without the usual notice.
+  Maps, scores and refits do not change, and `GET /api/status` still gives the
+  whole pull's fingerprint to cite. Future archive versions leave both out too.
 - **`GET /api/taxa/{name}/card.jpg`** is new: a species' link-preview card,
   a 1200 x 630 JPEG with its name, its record count and its map (the one
   `best-map` chooses) over Natural Earth land. The map alone, never the

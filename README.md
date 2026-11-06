@@ -1069,7 +1069,9 @@ Everything lives under `data/`, which is never committed (override with
 - `raw/occurrences/<stamp>/` — every page exactly as pulled
 - `occurrences/occurrences-<stamp>.tsv.gz` — the combined pull
 - `occurrences/latest.json` — counts, fingerprint and the SQL used
-- `occurrences/taxa-latest.json` — per-taxon records, localities, fingerprint
+- `occurrences/taxa-latest.json` — per-taxon records, localities, fingerprint.
+  The fingerprints stay private, like each model's seed: the API and the
+  archive leave them out (`R/fingerprint.R`)
 
 ### Eligibility
 

@@ -246,6 +246,10 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
     }
   }
 
+  # The archive is public; the release's own files are not, and keep what the
+  # refits read (R/fingerprint.R).
+  private_hashes <- atlas_archive_withhold(tree, paths, manifest)
+
   # A tar records each file's time. Stamped with the release's own time, the
   # same release always packs to the same bytes, so a resumed upload can see
   # that a file already on Zenodo is the right one.
@@ -269,14 +273,71 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
   if (!is.null(plan$here)) {
     names <- c(names, atlas_archive_write_here(file.path(tree, plan$here), out))
   }
+  manifest <- atlas_archive_public_manifest(manifest)
   atlas_write_json(manifest, file.path(out, "release.json"))
   names <- c(names, "release.json")
+  atlas_archive_refuse_private(c(file.path(tree, paths[grepl("[.]json$", paths)]),
+                                 file.path(out, names[grepl("[.]json$", names)])),
+                               private_hashes)
 
   list(
     kind = "models", grid = grid, dir = out,
     version = manifest$id, key = manifest$files_key,
     release = manifest, sources = stats::setNames(file.path(out, names), names)
   )
+}
+
+# The pull's summary keeps its fingerprint: the hash of every record at once.
+ATLAS_ARCHIVE_KEEPS_FINGERPRINT <- "public/pull.json"
+
+#' Take the private fields out of a release's JSON files in the tree a bundle is
+#' packed from. Returns every per-taxon hash seen, for the check at the end.
+atlas_archive_withhold <- function(tree, paths, manifest) {
+  hashes <- as.character(unlist(lapply(manifest$index, function(e) e$fingerprint)))
+  files <- setdiff(paths[grepl("[.]json$", paths)], ATLAS_ARCHIVE_KEEPS_FINGERPRINT)
+  key <- paste0('"(', paste(ATLAS_PRIVATE_FIELDS, collapse = "|"), ')"\\s*:')
+  for (path in files) {
+    file <- file.path(tree, path)
+    text <- readChar(file, file.info(file)$size, useBytes = TRUE)
+    Encoding(text) <- "UTF-8"
+    if (!grepl(key, text, perl = TRUE)) next
+    found <- jsonlite::fromJSON(text, simplifyVector = FALSE)
+    if (is.list(found)) {
+      seen <- rapply(found, function(v) as.character(v), how = "unlist")
+      seen <- seen[grepl("(^|[.])fingerprint$", names(seen))]
+      hashes <- c(hashes, unname(seen))
+    }
+    writeBin(charToRaw(enc2utf8(atlas_public_json_text(text))), file)
+  }
+  unique(hashes)
+}
+
+#' The release record as archived: its model index without the private fields,
+#' saying so. Its file list still gives each file as the release holds it.
+atlas_archive_public_manifest <- function(manifest) {
+  manifest$index <- atlas_public_fields(manifest$index)
+  manifest$withheld <- list(
+    fields = as.list(ATLAS_PRIVATE_FIELDS),
+    from = "each model's scores, taxa.json and this file's model index",
+    why = "A taxon's fingerprint hashes its records' coordinates, and the seed is cut from it.",
+    hashes = "The files list gives each file as the release holds it, so these files' hashes differ from the archive's."
+  )
+  manifest
+}
+
+#' The last word before anything is uploaded: no per-taxon hash, under any field
+#' name, and no seed, in any JSON the bundle holds.
+atlas_archive_refuse_private <- function(files, hashes) {
+  for (file in unique(files)) {
+    if (!file.exists(file)) next
+    text <- readChar(file, file.info(file)$size, useBytes = TRUE)
+    tokens <- regmatches(text, gregexpr("[0-9a-f]{64}", text, useBytes = TRUE))[[1]]
+    seeded <- grepl('"seed"\\s*:', text, perl = TRUE, useBytes = TRUE)
+    if (any(tokens %in% hashes) || seeded) {
+      stop("a per-taxon fingerprint or seed would have been archived, in ", basename(file), call. = FALSE)
+    }
+  }
+  invisible(TRUE)
 }
 
 #' Build the layers bundle from this machine's built layers.
@@ -370,6 +431,8 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
       "ensembles of small models (`esm`).",
       "`maps-ensemble.tar` holds the combined maps: each taxon's passing models together, and where they disagree.",
       "`scores.tar.gz` holds each model's scores on every spatial fold, predictors and settings.",
+      "Each taxon's record-set fingerprint and each model's seed are withheld, from these files and `taxa.json`:",
+      "the fingerprint hashes the records' coordinates. `release.json` says so under `withheld`.",
       "`explore-index-20km.tsv.gz` is the Explore index: for each 20 km cell, every strong map's rank there",
       "(cell, taxon, algorithm, rank); `explore-index-20km.json` gives its grid and how to place a cell.",
       "`renames.json` lists names changed since earlier pulls; `name-merges.json` the spellings merged into one name.",

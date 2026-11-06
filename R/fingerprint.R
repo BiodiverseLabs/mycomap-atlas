@@ -22,6 +22,40 @@ atlas_fingerprint <- function(df) {
   digest::digest(paste(sort(rows), collapse = "\x1e"), algo = "sha256")
 }
 
+# A taxon's fingerprint hashes its records' ids, names, dates and coordinates,
+# unsalted, and the seed is the first 7 hex digits of that hash, so either one
+# lets a guess at a record's place be tested offline. Both stay private, where
+# the refits read them, and nothing public carries them (Steve, 2026-11-05). The
+# calculation must never change, and must never be salted: every model would read
+# as stale and refit. The pull's own fingerprint, over all its records, is public:
+# no one can guess every record at once, and it is what a result cites.
+ATLAS_PRIVATE_FIELDS <- c("fingerprint", "seed")
+
+#' x, as anything public may carry it: without the private fields, at any depth.
+#' A table loses the columns; the files x was read from do not change.
+atlas_public_fields <- function(x) {
+  if (!is.list(x)) return(x)
+  if (!is.null(names(x))) x <- x[!names(x) %in% ATLAS_PRIVATE_FIELDS]
+  if (is.data.frame(x)) return(x)
+  x[] <- lapply(x, atlas_public_fields)
+  x
+}
+
+#' JSON text without the private fields, every other byte as it was, so an
+#' archived file differs from the release's only by what was withheld. Stops
+#' rather than publish anything it could not take out cleanly.
+atlas_public_json_text <- function(text) {
+  field <- paste0('"(?:', paste(ATLAS_PRIVATE_FIELDS, collapse = "|"), ')"\\s*:\\s*(?:"[^"]*"|-?[0-9.eE+-]+|null|\\[\\s*\\])')
+  out <- gsub(paste0("\\s*", field, "\\s*,"), "", text, perl = TRUE)
+  out <- gsub(paste0(",\\s*", field, "(?=\\s*[}])"), "", out, perl = TRUE)
+  out <- gsub(paste0("\\s*", field, "(?=\\s*[}])"), "", out, perl = TRUE)
+  read <- function(json) jsonlite::fromJSON(json, simplifyVector = FALSE)
+  if (!identical(read(out), atlas_public_fields(read(text)))) {
+    stop("a file's private fields could not be taken out cleanly", call. = FALSE)
+  }
+  out
+}
+
 #' Grid cell a coordinate falls in, as a key. Used for counting independent
 #' localities and, at a coarser grid, for anything shown on a map.
 atlas_locality_key <- function(lat, lng, degrees = ATLAS_LOCALITY_DEGREES) {
