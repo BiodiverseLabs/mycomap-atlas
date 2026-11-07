@@ -145,16 +145,16 @@ the file has none for them, and a further 1,442 showed more than the file. The
 2,769 records lay in 1,765 cells (taxon × 0.1° cell) that the file lacks,
 holding 1,868 records, and in 790 cells that the file has, holding 901 more
 (`2026-11-07-live-cells-counts.md`). No model read the cells; models train on
-the records themselves, including these. The per-taxon fingerprints published
-until 7 November 2026 also covered listed records: 1,765 taxa have at least
-one in their fingerprint, and 323 have only such records
-(`2026-11-07-fingerprint-sizing.md`). Atlas 309cd6c serves the file: after
-deployment all of those taxa, and a sample of 200 unchanged ones, matched it,
-and map images cached at the edge could show the old cells for up to four
-hours. The site's status and taxon endpoints still report the full pull's
-counts (133,235), and its state counts and checklist still count these records
-by state, on purpose. The file itself still holds the three records obscured
-since the freeze (Section S11).
+the records themselves, including these. The per-taxon fingerprints, published
+in the API until 7 November 2026 and still in the 19 October deposit, also
+covered listed records: 1,765 taxa have at least one in their fingerprint, and
+323 have only such records (`2026-11-07-fingerprint-sizing.md`). Atlas 309cd6c
+serves the file: after deployment all of those taxa, and a sample of 200
+unchanged ones, matched it, and map images cached at the edge could show the
+old cells for up to four hours. The site's status and taxon endpoints still
+report the full pull's counts (133,235), and its state counts and checklist
+still count these records by state, on purpose. The file itself still holds
+the three records obscured since the freeze (Section S11).
 
 Each shard's record names its instance type,
 processor and BLAS library file, and since the hindcast each model's
