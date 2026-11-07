@@ -865,8 +865,26 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         z = atlas_flag_zenodo(flags),
         publish = isTRUE(flags$publish),
         dry_run = isTRUE(flags$dry_run),
-        resume_draft = if (is.null(flags$resume_draft)) NULL else as.character(flags$resume_draft)
+        resume_draft = if (is.null(flags$resume_draft)) NULL else as.character(flags$resume_draft),
+        cells_now = if (is.null(flags$cells_now)) NULL else as.character(flags$cells_now)
       )
+      invisible(0L)
+    },
+    "cells-now" = {
+      # The current release's collection cells as the sources stand now, for
+      # its next archive version (R/cellsnow.R). Read-only on .org.
+      if (is.null(flags$out)) stop("cells-now needs --out=DIR", call. = FALSE)
+      summary <- atlas_cells_now_run(
+        dir = as.character(flags$out),
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        grid = atlas_flag_grid(flags)
+      )
+      for (g in summary$groups) {
+        message(sprintf("  %-72s %7d  (%d not in an earlier group)", g$group, g$records, g$not_in_an_earlier_group))
+      }
+      message(sprintf("cells now: %d records, %d taxa, %d cells; %d left out beyond the release's list",
+                      summary$cells_now$records, summary$cells_now$taxa, summary$cells_now$cells,
+                      summary$left_out_beyond_the_list))
       invisible(0L)
     },
     "archive-publish" = ,

@@ -136,7 +136,7 @@ test_that("the models record's summary names every model the release fits, the g
   for (a in names(described)) expect_true(grepl(described[[a]], summary, fixed = TRUE), info = a)
   for (grade in c("strong", "weak", "failed", "untested")) expect_true(grepl(grade, summary, fixed = TRUE), info = grade)
   expect_true(grepl("combined maps", summary, fixed = TRUE))
-  expect_true(grepl("0.1 degree cells", summary, fixed = TRUE))
+  expect_true(grepl("record counts per 0.1 degree cell", summary, fixed = TRUE))
   expect_true(grepl("hides, obscures or may hide", summary, fixed = TRUE))
   # Each model's site range as the code sets it (R/algorithms.R).
   esm <- ATLAS_ALGORITHMS$esm

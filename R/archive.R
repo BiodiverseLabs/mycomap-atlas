@@ -220,7 +220,7 @@ atlas_archive_write_here <- function(path, out) {
 #' check each against its hash, and pack them into a handful of files, since
 #' a Zenodo record holds at most 100.
 atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
-                                        dir = tempfile("atlas-archive-")) {
+                                        dir = tempfile("atlas-archive-"), cells_now = NULL) {
   manifest <- if (is.null(release)) {
     atlas_current_release(store, grid)
   } else {
@@ -245,6 +245,15 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
       stop("the store's copy of ", entry$path, " does not match its hash", call. = FALSE)
     }
   }
+
+  # The cells as the sources stand now (R/cellsnow.R), in place of the
+  # release's own; the release's file stays as it is.
+  now <- if (!is.null(cells_now)) atlas_read_cells_now(cells_now, manifest)
+  if (!is.null(now) && !file.copy(now$path, file.path(tree, "public", "cells.tsv.gz"), overwrite = TRUE)) {
+    stop("could not put the cells made now into the bundle", call. = FALSE)
+  }
+  release_id <- manifest$id
+  files_key <- manifest$files_key
 
   # The archive is public; the release's own files are not, and keep what the
   # refits read (R/fingerprint.R).
@@ -280,10 +289,25 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
                                  file.path(out, names[grepl("[.]json$", names)])),
                                taxon_hashes)
 
+  # A version made with cells made now is a new version of the same release:
+  # its own name, and a key that tells it from the release's first version.
   list(
     kind = "models", grid = grid, dir = out,
-    version = manifest$id, key = manifest$files_key,
+    version = if (is.null(now)) release_id else paste0(release_id, ".", gsub("-", "", now$summary$checked_on)),
+    key = if (is.null(now)) files_key else digest::digest(paste(files_key, now$summary$cells_now$sha256), algo = "sha256"),
+    cells_now = now$summary,
     release = manifest, sources = stats::setNames(file.path(out, names), names)
+  )
+}
+
+#' What the README says of the collection cells, word for word as approved
+#' (Steve, 2026-11-07): only for a version whose cells were made now.
+atlas_archive_cells_lines <- function(bundle) {
+  if (is.null(bundle$cells_now)) return(character())
+  km <- format(unname(ATLAS_GRID_RESOLUTIONS[[bundle$grid]]) / 1000)
+  c(
+    sprintf("This version holds the models of release %s unchanged. Two things differ from that release's own files: each taxon's record-set fingerprint and each model's seed are withheld for privacy, and the collection cells (`collection-cells-0.1deg.tsv.gz`) also leave out records whose source has hidden or obscured their location since the release was made, and Mushroom Observer records the source no longer holds, as the sources said on %s. `release.json` keeps the release's original checksums, so the cells file here differs from its entry there.", sub("^.*-", "", bundle$release$id), bundle$cells_now$checked_on),
+    sprintf("Collection locations are given as record counts per 0.1 degree cell; the maps are on a %s km grid. Records from iNaturalist and Mushroom Observer whose location the source hides, obscures or may hide, and Mushroom Observer records the source no longer holds, are left out of the cells; records from the other sources (MyCoPortal, DNA sequence records, GenBank) are counted where recorded.", km)
   )
 }
 
@@ -438,7 +462,7 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
       "`renames.json` lists names changed since earlier pulls; `name-merges.json` the spellings merged into one name.",
       "`prior-*` is the location prior: every strong map's ranks by 20 km cell (`prior-ranks.parquet`,",
       "`prior-ranks.tsv.gz`), its taxa (`prior-taxa.tsv`), and the grid with a Python cell lookup (`prior-grid.json`).",
-      "Collection locations appear only as 0.1 degree cells; exact coordinates are never published.",
+      atlas_archive_cells_lines(bundle),
       ""
     )
   } else {
@@ -502,6 +526,10 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
                                   template = atlas_archive_template(), quiet = FALSE,
                                   resume_draft = NULL) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
+  if (identical(bundle$kind, "models") && is.null(bundle$cells_now) && !isTRUE(dry_run)) {
+    stop("a models version needs its collection cells made as the sources stand now: ",
+         "run cells-now on the machine that holds the pull, then archive with --cells-now", call. = FALSE)
+  }
   series <- atlas_archive_series(bundle$kind, bundle$grid, z$target)
   ledger <- atlas_archive_ledger(store, series)
 
@@ -631,13 +659,14 @@ atlas_archive_discard <- function(store, series, z, quiet = FALSE) {
 
 #' Archive a release, the layers, or both, as the next versions of their series.
 atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, release = NULL,
-                          z, publish = FALSE, dry_run = FALSE, quiet = FALSE, resume_draft = NULL) {
+                          z, publish = FALSE, dry_run = FALSE, quiet = FALSE, resume_draft = NULL,
+                          cells_now = NULL) {
   # Layers first: a models version records which layers version it was fitted on.
   for (kind in intersect(c("layers", "models"), kinds)) {
     bundle <- if (kind == "layers") {
       atlas_archive_layers_bundle(grid)
     } else {
-      atlas_archive_models_bundle(store, grid, release)
+      atlas_archive_models_bundle(store, grid, release, cells_now = cells_now)
     }
     on.exit(unlink(dirname(bundle$dir), recursive = TRUE), add = TRUE)
     atlas_archive_deposit(bundle, store, z, publish = publish, dry_run = dry_run, quiet = quiet,
