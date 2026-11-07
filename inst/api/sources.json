@@ -530,8 +530,8 @@
     },
     {
       "stage": "1. Records",
-      "name": "Taxon counts and fingerprints",
-      "detail": "Records, independent localities and the record-set hash for each of the 17,000+ taxa.",
+      "name": "Taxon counts",
+      "detail": "Records and independent localities for each of the 17,000+ taxa.",
       "availability": "published",
       "where": "/api/taxa, and taxa-latest.json in every release"
     },

@@ -2449,8 +2449,7 @@
         "required": [
           "scientific_name",
           "records",
-          "localities",
-          "fingerprint"
+          "localities"
         ],
         "properties": {
           "scientific_name": {
@@ -2467,10 +2466,6 @@
           "sites": {
             "type": "integer",
             "description": "The taxon's 5 km survey sites with a record (ATLAS_SITE_KM, as the fits count them): what a map's minimums are about (3 sites for a first map, 20 for the three full models). Every taxon, mapped or not. Absent from a pull made before sites were counted. Not part of the fingerprint."
-          },
-          "fingerprint": {
-            "type": "string",
-            "description": "Hash of this taxon's record set. A model is refitted when it changes."
           },
           "not_yet_validated": {
             "type": "integer",
@@ -2910,21 +2905,13 @@
             "type": "number",
             "description": "Maxent regularisation multiplier."
           },
-          "seed": {
-            "type": "integer",
-            "description": "Random seed, derived from the record-set fingerprint."
-          },
-          "fingerprint": {
-            "type": "string",
-            "description": "Hash of the record set the model was fitted on."
-          },
           "settings": {
             "type": "object",
             "description": "Every setting that decides the fit apart from the records, including the layer builds."
           },
           "settings_key": {
             "type": "string",
-            "description": "Hash of settings. With fingerprint, it decides whether the model is current."
+            "description": "Hash of settings."
           },
           "raster": {
             "type": "string",
