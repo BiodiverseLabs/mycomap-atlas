@@ -4,7 +4,7 @@
 #
 #   alert.sh <check> <message>   # failed
 #   alert.sh --ok <check>        # passed
-#   alert.sh --summary           # one line per failing check
+#   alert.sh --summary           # one line per failing check, or note
 #
 # A failure is written twice:
 #   - to the journal as an error tagged atlas-alert
@@ -13,6 +13,11 @@
 #     has failed, how many times, and why.
 # --summary is the login banner (/etc/update-motd.d/90-atlas-health), so a
 # failing check greets whoever next signs in to the box.
+#
+# A state file can also hold a note, state "notice": something that did not fail
+# and that a person should read, such as the names the pull left out as not fungi
+# (R/qa.R, which writes pull-left-out.json). It stays in the banner until read and
+# cleared with --ok.
 #
 # The health directory is /srv/atlas/data/health: inside the data directory
 # the API container mounts at /data, so the API can show it (/data/health).
@@ -64,9 +69,15 @@ case "${1:-}" in
     [ $# -eq 1 ] || usage
     for file in "$dir"/*.json; do
       [ -f "$file" ] || continue
-      [ "$(field "$file" state)" = failed ] || continue
-      echo "ATLAS: $(field "$file" check) failing since $(field "$file" since)" \
-        "($(field "$file" failures) failures): $(message "$file")"
+      case "$(field "$file" state)" in
+        failed)
+          echo "ATLAS: $(field "$file" check) failing since $(field "$file" since)" \
+            "($(field "$file" failures) failures): $(message "$file")"
+          ;;
+        notice)
+          echo "ATLAS: $(field "$file" check) since $(field "$file" since): $(message "$file")"
+          ;;
+      esac
     done
     exit 0
     ;;
