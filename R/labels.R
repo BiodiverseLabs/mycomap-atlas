@@ -117,6 +117,32 @@ atlas_species_level <- function(names) {
   ok & grepl(" ", x, fixed = TRUE) & !grepl(" sp[.]?$", tolower(x))
 }
 
+# Names with a space that are still no species (Steve, 2026-11-05, from the next
+# pull; the frozen release keeps them). In its 16,252 taxa: 29 ranks above a species
+# (35 records), such as Amanita sect. Vaginatae, and 7 names that are no taxon or
+# only a genus (9 records). None had a model. These leave the pull beside a bare
+# "Genus sp.", counted by name in the labels audit.
+ATLAS_NOT_SPECIES_RANK <- "a rank above species"
+ATLAS_NOT_SPECIES_TAXON <- "not a species name"
+# Names that are no species and that no pattern below can tell from one.
+ATLAS_NOT_SPECIES_NAMES <- c("Billie Jean", "Amanita Pers.", "Suillus Gray")
+
+#' Why a name with a space is still not a species: ATLAS_NOT_SPECIES_RANK,
+#' ATLAS_NOT_SPECIES_TAXON, or NA for a name that may be one.
+atlas_not_species <- function(names) {
+  x <- trimws(as.character(names))
+  rank <- grepl(" (sect|subsect|subg|subgen|ser)[.] ", x) | grepl("^(Subgenus|Section|Series|Family|Order|Class|Complex) ", x)
+  taxon <- x %in% ATLAS_NOT_SPECIES_NAMES | grepl("mix-?up", x, ignore.case = TRUE) | grepl("^uncultured ", x, ignore.case = TRUE)
+  ifelse(rank, ATLAS_NOT_SPECIES_RANK, ifelse(taxon, ATLAS_NOT_SPECIES_TAXON, NA_character_))
+}
+
+#' Is a name the pull models: species level, and not one of the names above?
+#' E9's comparison keeps atlas_species_level alone (atlas_e9_modelled): it read
+#' the frozen pull as registered.
+atlas_modelled_name <- function(names) {
+  atlas_species_level(names) & is.na(atlas_not_species(names))
+}
+
 #' The DNA name of each record and how it relates to the record name.
 #'
 #' record_names: one per record. sequence_names: a list, one character vector
@@ -198,12 +224,22 @@ atlas_label_audit <- function(labelled, top = 50L) {
     data.frame(record_name = character(), dna_name = character(), records = integer())
   }
   rownames(changes) <- NULL
+  # The names below species that left, each counted.
+  speciesish <- atlas_species_level(labelled$scientific_name)
+  not_species <- atlas_not_species(labelled$scientific_name)
+  gone <- as.character(labelled$scientific_name)[speciesish & !is.na(not_species)]
+  gone_names <- sort(unique(gone))
   list(
     rule = paste("a record is named by the single name of its approved .com sequences;",
                  "disagreeing or one-word sequence names leave it out; with none it",
                  sprintf("is %s", if (identical(ATLAS_NO_SEQUENCE_NAME, "keep")) "kept under its record name" else "left out")),
     pulled = nrow(labelled),
-    modelled = sum(atlas_species_level(labelled$scientific_name)),
+    modelled = sum(atlas_modelled_name(labelled$scientific_name)),
+    not_species = list(
+      records = length(gone),
+      names = data.frame(name = gone_names, why = atlas_not_species(gone_names),
+                         records = as.integer(table(factor(gone, levels = gone_names))), stringsAsFactors = FALSE)
+    ),
     by_status = by_status,
     by_source = by_source,
     changes = changes
