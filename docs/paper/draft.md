@@ -1204,7 +1204,7 @@ data, command, result, release, commit).
 
 | ID | Also needed for a combined paper | Priority |
 |---|---|---|
-| E19 | Training-record table for the frozen release, per fitting job and its pull; deposited in ONE new models-record version with the E20 contributor table and the model lineage table (algorithm, taxon, fitting job, pull sha256; Steve, 2026-10-21) (what actually trained each model; three pulls stand behind fa1b4198, S10) (source, source id, taxon, public sequence id, fingerprint, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
+| E19 | Training-record table for the frozen release, per fitting job and its pull; deposited in ONE new models-record version with the E20 contributor table and the model lineage table (algorithm, taxon, fitting job, pull sha256; Steve, 2026-10-21) (what actually trained each model; three pulls stand behind fa1b4198, S10) (source, source id, taxon, public sequence id, survey-site id blank where the source hides the location; no coordinates or cells) and its Zenodo record; built after the frozen release | P1 |
 | E20 | Data-records table and usage notes (section 4) | P1 |
 | E24 | **E2 half done**: both tiers clear their chance bars on later finds but not the distance kernel, so they carry no claims and are drawn as weak (Steve, 2026-10-20, chosen after E6b and reported as such); E1 half pending. Looser map tiers (moderate, indicative) judged on simulated species (E1) and later finds (E2), pre-specified with the thresholds Steve's choice will be read against (`docs/experiments/2026-10-13-plan-map-tiers.md`; Steve, 2026-10-13: "some form of map for most species") | P1 |
 | E23 | Cost and time ledger (`costs.md`): per run, CPU-hours, billed instance-hours, instance types, wall time, compute USD, storage added; standing monthly costs (Steve, 2026-10-13) | P1 |
@@ -1355,7 +1355,9 @@ revised (Path).
 6. **Training-record table columns:** settled 2026-10-13 (section 4.1):
    source, source id, taxon, public sequence id, fingerprint, survey-site id
    (blank where the source hides the location). Built as E19 after the frozen
-   release. **Columns open again (2026-11-06) until E19 is built.** The 0.1°
+   release. **Columns open again (2026-11-06) until E19 is built. Fingerprint
+   column dropped (Steve, 2026-11-07), with no replacement hash: the rows are
+   the record set.** The 0.1°
    cells question is settled too. **Licence decided
    2026-10-25 (Steve): CC0 1.0** for the training-record table; the models
    record otherwise stays CC BY-SA 4.0, and the new version states the
@@ -1436,6 +1438,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.7 (2026-11-07).** Open decision 6 and E19's row: the fingerprint column is dropped (Steve), with no replacement hash.
 - **0.23.6 (2026-11-06).** Open decision 6: E19's columns open again until it is built.
 - **0.23.5 (2026-11-05).** Open decision 13 settled on Zenodo (Steve): next models version only.
 - **0.23.4 (2026-11-05).** Tables 1 and 2 drafted (`tables.md`); 3.3's failed models corrected from 1,801 to 1,797, the count by grade (1,801 is the registry's tier count; the old four grades summed to 9,045, not 9,041).
