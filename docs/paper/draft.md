@@ -805,8 +805,12 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   location the source hides, obscures or may hide (unknown privacy) are
   excluded from all published record-level layers, and carry no survey-site
   membership in this table (833 records of unknown privacy in the frozen
-  pull, 797 of them from Mushroom Observer; E16). Obscured iNaturalist
-  coordinates never train a model. **Licence: CC0 1.0** (Steve,
+  pull, 797 of them from Mushroom Observer; E16). The pull leaves out every
+  iNaturalist record that iNaturalist reported as obscured, or placed no
+  better than 1 km, in the answer cached at the time of the pull. Records
+  with no cached answer (36 in the frozen pull) were kept, and 3 records
+  obscured after the pull remain in the frozen release. **Licence: CC0 1.0**
+  (Steve,
   2026-10-25); the rest of the models record stays CC BY-SA 4.0. Zenodo
   carries licences per record, not per file (its rights field takes
   several), so the new version lists both licences and its description
@@ -1438,6 +1442,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.8 (2026-11-07).** 4.1: which iNaturalist records the pull leaves out, stated as the code does it (cached answer at the pull; 36 kept with no answer; 3 obscured later remain).
 - **0.23.7 (2026-11-07).** Open decision 6 and E19's row: the fingerprint column is dropped (Steve), with no replacement hash.
 - **0.23.6 (2026-11-06).** Open decision 6: E19's columns open again until it is built.
 - **0.23.5 (2026-11-05).** Open decision 13 settled on Zenodo (Steve): next models version only.
