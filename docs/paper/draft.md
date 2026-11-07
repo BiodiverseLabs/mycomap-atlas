@@ -435,32 +435,36 @@ random background, random cross-validation and a scattered null test).
 
 ### 2.6 Releases and reproducibility
 
-A server pulls eligible records nightly and refits only taxa whose
-fingerprint or settings changed, on spot instances running one pinned
-container; each release is content-addressed and records the code commit,
-package versions, layer builds and pull fingerprint, and archived releases
-carry Zenodo DOIs. Exact coordinates never leave Atlas's private compute;
-records whose location the source hides, obscures or may hide are left out
-of every published record-level layer. On one processor family a rerun
+A server pulls eligible records nightly and refits only taxa whose fingerprint
+or settings changed, on spot instances running one pinned container; each
+release is content-addressed and records the code commit, package versions,
+layer builds and pull fingerprint, and archived releases carry Zenodo DOIs.
+Atlas publishes no record's coordinates: the frozen release's maps are on a 5
+km equal-area grid and collection locations appear only as 0.1° cells. Until 7
+November 2026, a per-taxon fingerprint and a per-model seed, computed from the
+records' exact coordinates, were also published; the 19 October 2026 version
+of the models record holds them, and versions built since leave them out
+(section 4.1). Records whose location iNaturalist or Mushroom Observer hides,
+obscures or may hide, as of the release's privacy list (13 October 2026), are
+left out of the frozen release's record cells. On one processor family a rerun
 reproduces the release byte for byte: 507 drawn models, refitted twice in
 different orders and worker splits, matched it on all 507 (E12). The test
-found one fault on the way: glmnet's settings are global to an R process,
-so a small-model ensemble fitted after a Maxent model in the same worker
-inherited Maxent's. Production fits each learner in its own pool of
-workers, so by construction no released map is affected, which the
-surviving shard logs and a first rerun matching the release confirm; each
-fit now sets its own. On the other processor family, 502 of the 507
-refits were identical and 505 kept their grade (one failed → weak, one
-weak → strong). Weighted back to the whole release, about 0.4% of grades
-would change on the other family (95% interval 0.0–1.2%; Cohen's κ 0.99);
-no ensemble of small models differed, and 4.7% of the full-design models
-did. The five that differed, Maxent and random-forest models at 20 to
-49 sites, are all and only the models whose spatial block, estimated from
-a variogram, differed between the families; none of the 277 models with
-the same block differed (95% upper bound 1.4%). Shown for the 507-model
-sample. Later releases record each taxon's block once and reuse it, so a
-refit on either family uses the same folds (Atlas main c56d2dc) (Appendix S1: Section S10, which also gives the cost and time of
-every run).
+found one fault on the way: glmnet's settings are global to an R process, so a
+small-model ensemble fitted after a Maxent model in the same worker inherited
+Maxent's. Production fits each learner in its own pool of workers, so by
+construction no released map is affected, which the surviving shard logs and a
+first rerun matching the release confirm; each fit now sets its own. On the
+other processor family, 502 of the 507 refits were identical and 505 kept
+their grade (one failed → weak, one weak → strong). Weighted back to the whole
+release, about 0.4% of grades would change on the other family (95% interval
+0.0–1.2%; Cohen's κ 0.99); no ensemble of small models differed, and 4.7% of
+the full-design models did. The five that differed, Maxent and random-forest
+models at 20 to 49 sites, are all and only the models whose spatial block,
+estimated from a variogram, differed between the families; none of the 277
+models with the same block differed (95% upper bound 1.4%). Shown for the
+507-model sample. Later releases record each taxon's block once and reuse it,
+so a refit on either family uses the same folds (Atlas main c56d2dc) (Appendix
+S1: Section S10, which also gives the cost and time of every run).
 
 ### 2.7 Pre-declared question: a place signal for photo identification
 
@@ -772,56 +776,61 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   layers (counted from the deposited files and the manifest, layers key
   df57c9d4); the record's summary said 68 by mistake, corrected by a
   metadata-only edit.
-- **Models series** (Zenodo, one version per archived release).
-  **Published:** doi:10.5281/zenodo.23463939 (concept
-  doi:10.5281/zenodo.23463938), the frozen release 20261013T191324Z-fa1b4198,
-  26 files, 13.24 GB, derived from the layers record. Its description
-  says (metadata-only edit, 2026-10-21, Steve) that the published counts
-  are after the 76-record exclusion and that most models were fitted on
-  the pull before it. Per model the
-  suitability raster, AOA dissimilarity raster, map image and metrics JSON
-  (scores, null test, grade, importance, settings); combined maps and
-  disagreement layers (77 taxa with two or more strong maps); full-extent
-  rasters for strong models; per-taxon
-  counts; record cells at 0.1°; state verdicts; the location prior.
-  CC BY-SA 4.0.
+- **Models series** (Zenodo, one version per archived release). **Published:**
+  doi:10.5281/zenodo.23463939 (concept doi:10.5281/zenodo.23463938), the
+  frozen release 20261013T191324Z-fa1b4198, 26 files, 13.24 GB, derived from
+  the layers record. Its description says (metadata-only edit, 2026-10-21,
+  Steve) that the published counts are after the 76-record exclusion and that
+  most models were fitted on the pull before it. Per model the suitability
+  raster, AOA dissimilarity raster, map image and metrics JSON (scores, null
+  test, grade, importance, settings); combined maps and disagreement layers
+  (77 taxa with two or more strong maps); full-extent rasters for strong
+  models; per-taxon counts; record cells at 0.1°; state verdicts; the location
+  prior. CC BY-SA 4.0. From 7 November 2026 (12:36 US Eastern; 17:36 UTC), the
+  Atlas API and web app no longer carry a per-taxon fingerprint or a per-model
+  seed, and archive versions built from that date leave both out. The
+  deposited version (doi:10.5281/zenodo.23463939, 19 October 2026) still holds
+  them in taxa.json, release.json and the model scores; they leave with the
+  next version.
 - **Training records** (new; Steve, 2026-10-13): published for the paper's
   frozen release(s) only; the per-release lists of trained records that the
-  nightly pipeline keeps stay private. The ids of every record that
-  trained the frozen release, one row each, listed by the fitting job and
-  pull that actually trained each model (R_main and the full-view refresh
-  on the 2026-10-12 pull before the exclusion list, the targeted job on
-  that pull less 22 rows), not by the cleaned pull the manifest names: source (iNaturalist, Mushroom
-  Observer, MyCoPortal, GenBank, MycoMap sequence); source id; taxon (the
-  DNA name used); the approved sequence id where that sequence is public at
-  source (its mycomap.org sequence page or GenBank accession); the taxon
-  fingerprint; and the survey-site id, blank for records hidden, obscured or
-  of unknown privacy at source. No coordinates and no cells: the fingerprint
-  and site id let a reader check each taxon's record set and site grouping
-  without any location. (The pipeline's private per-release lists of trained
-  records are a separate, unpublished file.)
-  Each id resolves to its public source page, which shows what the source
-  itself shows. **Privacy rule (Steve, 2026-10-13):** records whose
-  location the source hides, obscures or may hide (unknown privacy) are
-  excluded from all published record-level layers, and carry no survey-site
-  membership in this table (833 records of unknown privacy in the frozen
-  pull, 797 of them from Mushroom Observer; E16). The pull leaves out every
-  iNaturalist record that iNaturalist reported as obscured, or placed no
-  better than 1 km, in the answer cached at the time of the pull. Records
-  with no cached answer (36 in the frozen pull) were kept, and 3 records
-  obscured after the pull remain in the frozen release. **Licence: CC0 1.0**
-  (Steve,
-  2026-10-25); the rest of the models record stays CC BY-SA 4.0. Zenodo
-  carries licences per record, not per file (its rights field takes
-  several), so the new version lists both licences and its description
-  and README name the files under CC0 (the training-record table).
-- **Record cells.** The 0.1° record cells (in every release, on the live
-  site and as the Zenodo "collection-cells-0.1deg" bundle) leave out those
-  records; the frozen release ships the corrected file.
-  The record cells follow each source's privacy as of the list the release
-  used. A record a source obscures after that date stays in that version's cells
-  until the next version, which applies each source's then-current privacy
-  (three records, found 2026-11-04).
+  nightly pipeline keeps stay private. The ids of every record that trained
+  the frozen release, one row each, listed by the fitting job and pull that
+  actually trained each model (R_main and the full-view refresh on the
+  2026-10-12 pull before the exclusion list, the targeted job on that pull
+  less 22 rows), not by the cleaned pull the manifest names: source
+  (iNaturalist, Mushroom Observer, MyCoPortal, GenBank, MycoMap sequence);
+  source id; taxon (the DNA name used); the approved sequence id where that
+  sequence is public at source (its mycomap.org sequence page or GenBank
+  accession); and the survey-site id, blank for records hidden, obscured or of
+  unknown privacy at source. No coordinates and no cells. Each taxon's record
+  set is its rows of (source, source id), which a reader can count against
+  taxa.json, and the site id gives its site grouping; the table's integrity
+  rests on the Zenodo checksum. (The pipeline's private per-release lists of
+  trained records are a separate, unpublished file.) Each id resolves to its
+  public source page, which shows what the source itself shows. **Privacy rule
+  (Steve, 2026-10-13):** records whose location iNaturalist or Mushroom
+  Observer hides, obscures or may hide (unknown privacy), as of the release's
+  privacy list (13 October 2026), are left out of the frozen release's record
+  cells and carry no survey-site membership in this table (833 records of
+  unknown privacy in the frozen pull, 797 of them from Mushroom Observer;
+  E16). The pull leaves out every iNaturalist record that iNaturalist reported
+  as obscured, or placed no better than 1 km, in the answer cached at the time
+  of the pull. Records with no cached answer (36 in the frozen pull) were
+  kept, and 3 records obscured after the pull remain in the frozen release.
+  **Licence: CC0 1.0** (Steve, 2026-10-25); the rest of the models record
+  stays CC BY-SA 4.0. Zenodo carries licences per record, not per file (its
+  rights field takes several), so the new version lists both licences and its
+  description and README name the files under CC0 (the training-record table).
+- **Record cells.** The frozen release's 0.1° record cells and the Zenodo
+  "collection-cells-0.1deg" bundle leave out those records. The live site has
+  served that file since the fix was serving at 19:07 US Eastern on 5 November
+  2026 (00:07 UTC on 6 November); before that it showed cells that still held
+  them (Appendix S1: Section S10). The record cells follow each source's
+  privacy as of the list the release used. A record a source obscures after
+  that date stays in that version's cells until the next version, which
+  applies each source's then-current privacy (three records, found
+  2026-11-04).
 - **Contributors** (Steve, 2026-10-13): one row per contributor with a name
   and record counts only. Names are as public at the source: the
   iNaturalist login, the Mushroom Observer user, the MyCoPortal collector,
@@ -851,30 +860,31 @@ paper's.
 
 ### 4.3 Usage notes
 
-*Draft, 2026-10-21.* Read the grade before the map. Only strong maps
-support a claim about habitat; in the hindcast they were also the only
-grade to rank later finds better than distance to known records, and
-mostly through finds 100 to 500 km away. Weak maps, including the moderate
-and indicative tiers, describe which ground near known records resembles
-occupied ground, but they predict later finds no better than distance
-does, and failed maps did worse. Suitability is a relative rank within one
-taxon, fitted against other collectors' sites rather than true absences:
-it is not a probability of occurrence and is not comparable between taxa.
-Outside the area of applicability, hatched on every map, the model is
-extrapolating, and nothing is drawn beyond a taxon's 500 km accessible
-area. Maps of taxa with 3 to 19 sites are ensembles of small models and
-say little on their own. Records whose location the source hides,
-obscures or may hide never appear in a published record-level layer.
-Cite a map by its release id and the release's DOI; maps and rasters are
-CC BY-SA 4.0, so derived maps carry the same licence. The site's data
-are also served by a public, read-only API described in
-`/api/openapi.json` (taxa, a taxon's best map and models, map images,
-region lists, the location prior and the Zenodo downloads); full-resolution
-rasters need sign-in or a token, issued per mycomap.org account. Anonymous use is
-limited to 300 requests a minute, 1,200 with a token and 6,000 with a bulk
-token. Problems with a map are reported from the site's "Report a map
-problem" link, which opens an issue on the code repository, or to
-info@mycomap.org. The endpoint list is in Appendix S1: Section S10.
+*Draft, 2026-10-21.* Read the grade before the map. Only strong maps support a
+claim about habitat; in the hindcast they were also the only grade to rank
+later finds better than distance to known records, and mostly through finds
+100 to 500 km away. Weak maps, including the moderate and indicative tiers,
+describe which ground near known records resembles occupied ground, but they
+predict later finds no better than distance does, and failed maps did worse.
+Suitability is a relative rank within one taxon, fitted against other
+collectors' sites rather than true absences: it is not a probability of
+occurrence and is not comparable between taxa. Outside the area of
+applicability, hatched on every map, the model is extrapolating, and nothing
+is drawn beyond a taxon's 500 km accessible area. Maps of taxa with 3 to 19
+sites are ensembles of small models and say little on their own. Records whose
+location iNaturalist or Mushroom Observer hides, obscures or may hide, as of
+the release's privacy list (13 October 2026), are left out of the frozen
+release's record cells, and of the live site's since 5 November 2026 (19:07 US
+Eastern) (Appendix S1: Section S10). Cite a map by its release id and the
+release's DOI; maps and rasters are CC BY-SA 4.0, so derived maps carry the
+same licence. The site's data are also served by a public, read-only API
+described in `/api/openapi.json` (taxa, a taxon's best map and models, map
+images, region lists, the location prior and the Zenodo downloads);
+full-resolution rasters need sign-in or a token, issued per mycomap.org
+account. Anonymous use is limited to 300 requests a minute, 1,200 with a token
+and 6,000 with a bulk token. Problems with a map are reported from the site's
+"Report a map problem" link, which opens an issue on the code repository, or
+to info@mycomap.org. The endpoint list is in Appendix S1: Section S10.
 
 ### 4.4 What it costs (E23)
 
@@ -1046,22 +1056,22 @@ map is least certain and a find would most change it.
 
 ## 6. Title-page and back-matter statements
 
-- **Open Research statement** (title page; draft for submission, ESA
-  options 3 and 6): "Novel code (the MycoMap Atlas R package, API and
-  pipeline, GPL-3.0-or-later) is available at
+- **Open Research statement** (title page; draft for submission, ESA options 3
+  and 6): "Novel code (the MycoMap Atlas R package, API and pipeline,
+  GPL-3.0-or-later) is available at
   https://github.com/BiodiverseLabs/mycomap-atlas and will be archived on
-  Zenodo with a DOI for the release commit upon acceptance. Data are
-  provided on Zenodo: the environmental layers (doi:10.5281/zenodo.23463069),
-  and every
-  model of the frozen release (doi:10.5281/zenodo.23463939; suitability and area-of-applicability rasters,
-  metrics, grades), and the table of training records with their
-  iNaturalist, Mushroom Observer, MyCoPortal and GenBank identifiers. Record
-  coordinates are those published by each source; records whose location is
-  hidden, obscured or of unknown privacy at the source are excluded from all
-  published record-level layers." [PENDING: DOIs; data
-  citations for WorldClim, SoilGrids, ESA WorldCover, BIGMAP, the Canadian
-  NFI, NALCMS, Copernicus and FungalTraits; query details for the
-  mycomap.org pull, Appendix S1: Section S2.]
+  Zenodo with a DOI for the release commit upon acceptance. Data are provided
+  on Zenodo: the environmental layers (doi:10.5281/zenodo.23463069), and every
+  model of the frozen release (doi:10.5281/zenodo.23463939; suitability and
+  area-of-applicability rasters, metrics, grades), and the table of training
+  records with their iNaturalist, Mushroom Observer, MyCoPortal and GenBank
+  identifiers. Record coordinates are those published by each source; records
+  whose location iNaturalist or Mushroom Observer hides, obscures or may hide,
+  as of the release's privacy list (13 October 2026), are left out of this
+  release's record cells." [PENDING: DOIs; data citations for WorldClim,
+  SoilGrids, ESA WorldCover, BIGMAP, the Canadian NFI, NALCMS, Copernicus and
+  FungalTraits; query details for the mycomap.org pull, Appendix S1: Section
+  S2.]
 - **Acknowledgments** (one paragraph): collectors, validators, the
   sequencing network, data providers [PENDING: Steve to choose; proposal
   below, after community-science practice], and the AI disclosure: "Much of
@@ -1442,6 +1452,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.9 (2026-11-07).** Privacy statements scoped to what is true (Steve): 2.6, 4.1, 4.3 and Open Research; Appendix S1 Sections S10 and S11, with the live-site correction in S10.1 and two registry entries (`2026-11-07-live-cells-counts.md`, `2026-11-07-fingerprint-sizing.md`).
 - **0.23.8 (2026-11-07).** 4.1: which iNaturalist records the pull leaves out, stated as the code does it (cached answer at the pull; 36 kept with no answer; 3 obscured later remain).
 - **0.23.7 (2026-11-07).** Open decision 6 and E19's row: the fingerprint column is dropped (Steve), with no replacement hash.
 - **0.23.6 (2026-11-06).** Open decision 6: E19's columns open again until it is built.

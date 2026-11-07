@@ -9,10 +9,13 @@ fingerprint or settings changed on EC2 spot workers in one pinned container
 (base image by digest, R packages from a dated snapshot), and publishes a
 content-addressed release recording the code commit, package versions, layer
 builds and pull fingerprint. Seeds come from the fingerprint. Releases are
-archived on Zenodo (layers and models series, CC BY-SA 4.0). Exact
-coordinates never leave Atlas's private compute and storage; everything
-published is 1 km or coarser, and records are drawn as 0.1° cells, the same
-for every taxon.
+archived on Zenodo (layers and models series, CC BY-SA 4.0). Atlas publishes
+no record's coordinates: the frozen release's maps are on the 5 km equal-area
+grid, and records are drawn as 0.1° cells, the same for every taxon. Until 7
+November 2026, a per-taxon fingerprint and a per-model seed, computed from the
+records' exact coordinates, were also published; the 19 October 2026 version
+of the models record holds them, and versions built since leave them out
+(Section S11).
 
 Atlas is reproducible from its pinned container (base image by digest, R
 packages from a dated Posit snapshot, the store's content-addressed inputs).
@@ -103,14 +106,55 @@ pull the manifest names; rebuilding from that pull changed the folds of
 taxa near the dropped rows (E3 prereg, Deviations, 2026-10-21). Our refit checks enforce the tolerances
 and flag anything beyond them.
 
-Published records follow their source's privacy: records whose location
-the source hides, obscures or may hide (unknown privacy) are excluded from
-all published record-level layers. In practice that is the 0.1° record
-cells, from which about 0.5% of records (those of unknown privacy, whose
-0.1° cell would be finer than iNaturalist's own obscuring) are dropped; no
-model is refitted. Everything else published is map-derived or coarse
-(state counts, the 500 km accessible area). The frozen release ships the
-corrected cells file.
+Published record cells follow the release's privacy list: records whose
+location iNaturalist or Mushroom Observer hides, obscures or may hide, as of
+the release's privacy list (13 October 2026), are left out of the frozen
+release's record cells. That drops 2.1% of records (2,769: 1,936 Mushroom
+Observer records placed at a named place's centre, and 833 of unknown privacy:
+797 from Mushroom Observer and 36 from iNaturalist, which may be obscured
+there, where a 0.1° cell would be finer than iNaturalist's obscuring); no
+model is refitted. Three records obscured at source after the list are still
+in those cells (Section S11). MyCoPortal (1,631 records), mycomap.org sequence
+records (61) and GenBank (2) have no source privacy list and were not checked,
+and the list reads mycomap.org's cached answers, not the sources live. The
+frozen release ships the corrected cells file.
+
+*Correction to the live site.* The privacy list and the filter on the
+published cells date from 13 October 2026 (Atlas 5efcdc2). Before then no list
+existed, and releases' cells files were not filtered: the release on the box
+before the cutover (89ef2317, on the pull of 7 October 2026) has a published
+cells file holding 4,493 records that are on the 13 October list. Releases
+built from 29 September to 6 October were not counted, and when the site's
+record routes first became publicly reachable was not measured. The frozen
+release's file and the Zenodo bundle, since its publication on 19 October
+2026, leave these records out. The site and its public API did not follow that
+file: by the code, they read each taxon's record cells from a pull with no
+list applied, on every image since 29 September 2026. So 13 October is when
+the site and the file began to differ, not when the site began showing these
+records; before then both carried such records. From the cutover (23:03 UTC on
+13 October) until the fix was serving at 00:07 UTC on 6 November 2026 (19:07
+US Eastern on 5 November), a period of 23 days, the API served the frozen
+pull's cells without the list: no other pull was on the box in that span, and
+each of the four images it ran read cells from the pull
+(`2026-11-07-live-cells-counts.md`). That is 2,769 records the file leaves out
+(133,235 against 130,466): 1,936 Mushroom Observer records placed at a named
+place's centre and 833 of unknown privacy. They were served through the record
+cells, the map images and the counts within a radius of a point (minimum 1
+km). We cannot say whether anyone copied them. 323 taxa showed cells although
+the file has none for them, and a further 1,442 showed more than the file. The
+2,769 records lay in 1,765 cells (taxon × 0.1° cell) that the file lacks,
+holding 1,868 records, and in 790 cells that the file has, holding 901 more
+(`2026-11-07-live-cells-counts.md`). No model read the cells; models train on
+the records themselves, including these. The per-taxon fingerprints published
+until 7 November 2026 also covered listed records: 1,765 taxa have at least
+one in their fingerprint, and 323 have only such records
+(`2026-11-07-fingerprint-sizing.md`). Atlas 309cd6c serves the file: after
+deployment all of those taxa, and a sample of 200 unchanged ones, matched it,
+and map images cached at the edge could show the old cells for up to four
+hours. The site's status and taxon endpoints still report the full pull's
+counts (133,235), and its state counts and checklist still count these records
+by state, on purpose. The file itself still holds the three records obscured
+since the freeze (Section S11).
 
 Each shard's record names its instance type,
 processor and BLAS library file, and since the hindcast each model's

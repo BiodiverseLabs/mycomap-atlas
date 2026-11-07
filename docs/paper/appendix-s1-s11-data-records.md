@@ -41,7 +41,7 @@ Band-level sources and credits are in Section S3.
 | scores.tar.gz | 39.0 MB | every model's metrics JSON: held-out scores, null test, grade, importance, settings, and the pooled Boyce index |
 | release.json | 10.4 MB | the release manifest and model index (taxon, algorithm, fingerprint, presences, settings key, refused) |
 | taxa.json | 3.2 MB | per-taxon counts and status |
-| collection-cells-0.1deg.tsv.gz | 784.3 kB | record cells at 0.1°, without records whose location the source hides, obscures or may hide |
+| collection-cells-0.1deg.tsv.gz | 784.3 kB | record cells at 0.1°, without records whose location iNaturalist or Mushroom Observer hides, obscures or may hide, as of the release's privacy list (13 October 2026) |
 | taxa-by-state-province.tsv.gz | 408.3 kB | state and province verdicts |
 | prior-ranks.tsv.gz / .parquet | 11.2 / 15.2 MB | the location prior: suitability ranks |
 | prior-aoa.tsv.gz / .parquet | 11.4 / 19.2 MB | the location prior: area of applicability |
@@ -52,6 +52,11 @@ Band-level sources and credits are in Section S3.
 | pull.json | 0.3 kB | the pull's id, time and counts (the published pull, after the 76-record exclusion) |
 | layers-manifest.json | 8.9 kB | the layers the models were fitted on (links the layers record) |
 | README.md, CHECKSUMS.sha256 | 2.8, 2.1 kB | description; sha256 of every file |
+
+In the 19 October 2026 version, taxa.json, release.json and scores.tar.gz also
+hold each taxon's fingerprint and each model's seed, computed from the
+records' exact coordinates; versions built since 7 November 2026 leave both
+out.
 
 Each maps-<model>.tar holds, per taxon, the raw suitability raster (.tif),
 the area-of-applicability dissimilarity raster (.di.tif, a continuous
@@ -90,9 +95,10 @@ and contributor tables (Section S10; Open decisions 8).
   area.
 - **Small samples.** Maps of taxa with 3 to 19 sites are ensembles of small
   models; at 3–4 sites 45% of them fail the null test.
-- **Privacy.** Records whose location the source hides, obscures or may hide
-  never appear in a published record-level layer, and carry no survey-site
-  id in the training-record table.
+- **Privacy.** Records whose location iNaturalist or Mushroom Observer hides,
+  obscures or may hide are left out of the frozen release's record cells, as
+  of the release's privacy list (13 October 2026), and will carry no
+  survey-site id in the training-record table (E19, not yet built).
 - **Citing.** Cite a map by its release id and the release's DOI. Maps and
   rasters are CC BY-SA 4.0, so derived maps carry the same licence; the
   training-record table will be CC0 1.0.
