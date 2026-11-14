@@ -52,8 +52,8 @@ further.
 records not on the list all hash the point the observer shows.
 
 **Which point is hashed, by source.** iNaturalist (126,506): .org's stored point, which is
-iNaturalist's public location; records iNaturalist reported obscured, or placed no better than
-1 km, in the cached answer at the time of the pull were left out of the pull. MO (5,035): the
+iNaturalist's public location; records iNaturalist reported obscured, or placed coarser than 1 km
+(over 1,000 m), in the cached answer at the time of the pull were left out of the pull. MO (5,035): the
 observer's shown point (2,302), the named place's centre (1,936), or, with no cached answer,
 .org's stored point (797). MyCoPortal (1,631, under two source spellings), sequence records (61)
 and GenBank (2): .org's stored point, with no privacy list.
@@ -81,3 +81,7 @@ holds both until the next version.
 - The whole pull's fingerprint (in /api/status and the Zenodo README) hashes all 133,235 records at
   once and is not counted here.
 - The list covers iNaturalist and MO only, and is dated 13 October.
+
+**Correction (2026-11-14).** The iNaturalist rule above first read "placed no better than
+1 km". The pull's rule is an accuracy over 1,000 m: a record at exactly 1,000 m, or with no
+recorded accuracy, is kept. The wording is corrected; no count here changes.

@@ -56,8 +56,9 @@ Band-level sources and credits are in Section S3.
 
 In the 19 October 2026 version, taxa.json, release.json and scores.tar.gz also
 hold each taxon's fingerprint and each model's seed, computed from the
-records' exact coordinates; versions built since 7 November 2026 leave both
-out.
+records' exact coordinates; the version of 14 November 2026
+(doi:10.5281/zenodo.24214060) leaves both out, and its release.json says so
+under `withheld`.
 
 Each maps-<model>.tar holds, per taxon, the raw suitability raster (.tif),
 the area-of-applicability dissimilarity raster (.di.tif, a continuous
@@ -67,18 +68,23 @@ Albers Equal Area, inside the 500 km accessible area; for strong models the
 same three files come again beyond it (.full.*). Each model's scores, folds,
 predictors and settings are in scores.tar.gz.
 
-The record cells follow each source's privacy as of the list the release
-used. A record a source obscures after that date stays in that version's cells
-until the next version, which applies each source's then-current privacy (three
-records, found 2026-11-04). That version's cells file therefore differs from
-the hash in the release manifest, and its README says so.
+The record cells follow each source's privacy as of the list the release used.
+A record a source obscures after that date stays in that version's cells. The
+version of 14 November 2026 (doi:10.5281/zenodo.24214060) applies the sources'
+privacy as they gave it on 8 November 2026, and also leaves out Mushroom
+Observer records the source no longer holds. That removes 3 more records, all
+iNaturalist records whose location iNaturalist obscured after the release (the
+Mushroom Observer records were already on the list), leaving 130,463 in
+101,329 cells (`2026-11-08-cells-now.md`). Its cells file therefore differs
+from the checksum in release.json, which keeps the release's own, and its
+README says so.
 
-The record's description states that the published counts (133,235
-records, 16,252 taxa) are after the 76-record exclusion and that most models
-were fitted on the pull before it (metadata edit, 2026-10-21). The deposit
-does not name each model's fitting job; the next version adds a lineage
-table (algorithm, taxon, fitting job, pull sha256) with the training-record
-and contributor tables (Section S10; Open decisions 8).
+The record's description states that the published counts (133,235 records,
+16,252 taxa) are after the 76-record exclusion and that most models were
+fitted on the pull before it (metadata edit, 2026-10-21). The deposit does not
+name each model's fitting job; a later version adds a lineage table
+(algorithm, taxon, fitting job, pull sha256) with the training-record and
+contributor tables (Section S10; Open decisions 8).
 
 ## S11.2 Usage notes
 

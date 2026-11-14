@@ -14,8 +14,8 @@ no record's coordinates: the frozen release's maps are on the 5 km equal-area
 grid, and records are drawn as 0.1° cells, the same for every taxon. Until 7
 November 2026, a per-taxon fingerprint and a per-model seed, computed from the
 records' exact coordinates, were also published; the 19 October 2026 version
-of the models record holds them, and versions built since leave them out
-(Section S11).
+of the models record holds them, and the version of 14 November 2026
+(doi:10.5281/zenodo.24214060) leaves them out (Section S11).
 
 Atlas is reproducible from its pinned container (base image by digest, R
 packages from a dated Posit snapshot, the store's content-addressed inputs).
@@ -114,10 +114,11 @@ Observer records placed at a named place's centre, and 833 of unknown privacy:
 797 from Mushroom Observer and 36 from iNaturalist, which may be obscured
 there, where a 0.1° cell would be finer than iNaturalist's obscuring); no
 model is refitted. Three records obscured at source after the list are still
-in those cells (Section S11). MyCoPortal (1,631 records), mycomap.org sequence
-records (61) and GenBank (2) have no source privacy list and were not checked,
-and the list reads mycomap.org's cached answers, not the sources live. The
-frozen release ships the corrected cells file.
+in those cells; the 14 November version leaves out 3 iNaturalist records
+obscured since the release (Section S11). MyCoPortal (1,631 records),
+mycomap.org sequence records (61) and GenBank (2) have no source privacy list
+and were not checked, and the list reads mycomap.org's cached answers, not the
+sources live. The frozen release ships the corrected cells file.
 
 *Correction to the live site.* The privacy list and the filter on the
 published cells date from 13 October 2026 (Atlas 5efcdc2). Before then no list
@@ -153,8 +154,10 @@ serves the file: after deployment all of those taxa, and a sample of 200
 unchanged ones, matched it, and map images cached at the edge could show the
 old cells for up to four hours. The site's status and taxon endpoints still
 report the full pull's counts (133,235), and its state counts and checklist
-still count these records by state, on purpose. The file itself still holds
-the three records obscured since the freeze (Section S11).
+still count these records by state, on purpose. The release's file and the 19
+October deposit still hold the three records obscured since the freeze; the 14
+November version leaves out 3 iNaturalist records obscured since the release
+(Section S11).
 
 Each shard's record names its instance type,
 processor and BLAS library file, and since the hindcast each model's

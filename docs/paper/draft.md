@@ -443,28 +443,29 @@ Atlas publishes no record's coordinates: the frozen release's maps are on a 5
 km equal-area grid and collection locations appear only as 0.1° cells. Until 7
 November 2026, a per-taxon fingerprint and a per-model seed, computed from the
 records' exact coordinates, were also published; the 19 October 2026 version
-of the models record holds them, and versions built since leave them out
-(section 4.1). Records whose location iNaturalist or Mushroom Observer hides,
-obscures or may hide, as of the release's privacy list (13 October 2026), are
-left out of the frozen release's record cells. On one processor family a rerun
-reproduces the release byte for byte: 507 drawn models, refitted twice in
-different orders and worker splits, matched it on all 507 (E12). The test
-found one fault on the way: glmnet's settings are global to an R process, so a
-small-model ensemble fitted after a Maxent model in the same worker inherited
-Maxent's. Production fits each learner in its own pool of workers, so by
-construction no released map is affected, which the surviving shard logs and a
-first rerun matching the release confirm; each fit now sets its own. On the
-other processor family, 502 of the 507 refits were identical and 505 kept
-their grade (one failed → weak, one weak → strong). Weighted back to the whole
-release, about 0.4% of grades would change on the other family (95% interval
-0.0–1.2%; Cohen's κ 0.99); no ensemble of small models differed, and 4.7% of
-the full-design models did. The five that differed, Maxent and random-forest
-models at 20 to 49 sites, are all and only the models whose spatial block,
-estimated from a variogram, differed between the families; none of the 277
-models with the same block differed (95% upper bound 1.4%). Shown for the
-507-model sample. Later releases record each taxon's block once and reuse it,
-so a refit on either family uses the same folds (Atlas main c56d2dc) (Appendix
-S1: Section S10, which also gives the cost and time of every run).
+of the models record holds them, and the version of 14 November 2026
+(doi:10.5281/zenodo.24214060) leaves them out (section 4.1). Records whose
+location iNaturalist or Mushroom Observer hides, obscures or may hide, as of
+the release's privacy list (13 October 2026), are left out of the frozen
+release's record cells. On one processor family a rerun reproduces the release
+byte for byte: 507 drawn models, refitted twice in different orders and worker
+splits, matched it on all 507 (E12). The test found one fault on the way:
+glmnet's settings are global to an R process, so a small-model ensemble fitted
+after a Maxent model in the same worker inherited Maxent's. Production fits
+each learner in its own pool of workers, so by construction no released map is
+affected, which the surviving shard logs and a first rerun matching the
+release confirm; each fit now sets its own. On the other processor family, 502
+of the 507 refits were identical and 505 kept their grade (one failed → weak,
+one weak → strong). Weighted back to the whole release, about 0.4% of grades
+would change on the other family (95% interval 0.0–1.2%; Cohen's κ 0.99); no
+ensemble of small models differed, and 4.7% of the full-design models did. The
+five that differed, Maxent and random-forest models at 20 to 49 sites, are all
+and only the models whose spatial block, estimated from a variogram, differed
+between the families; none of the 277 models with the same block differed (95%
+upper bound 1.4%). Shown for the 507-model sample. Later releases record each
+taxon's block once and reuse it, so a refit on either family uses the same
+folds (Atlas main c56d2dc) (Appendix S1: Section S10, which also gives the
+cost and time of every run).
 
 ### 2.7 Pre-declared question: a place signal for photo identification
 
@@ -788,10 +789,10 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   models; per-taxon counts; record cells at 0.1°; state verdicts; the location
   prior. CC BY-SA 4.0. From 7 November 2026 (12:36 US Eastern; 17:36 UTC), the
   Atlas API and web app no longer carry a per-taxon fingerprint or a per-model
-  seed, and archive versions built from that date leave both out. The
-  deposited version (doi:10.5281/zenodo.23463939, 19 October 2026) still holds
-  them in taxa.json, release.json and the model scores; they leave with the
-  next version.
+  seed. The 19 October 2026 version (doi:10.5281/zenodo.23463939) still holds
+  them in taxa.json, release.json and the model scores; the version of 14
+  November 2026 (20261013T191324Z-fa1b4198.20261108,
+  doi:10.5281/zenodo.24214060) holds the same models without them.
 - **Training records** (new; Steve, 2026-10-13): published for the paper's
   frozen release(s) only; the per-release lists of trained records that the
   nightly pipeline keeps stay private. The ids of every record that trained
@@ -815,8 +816,8 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   cells and carry no survey-site membership in this table (833 records of
   unknown privacy in the frozen pull, 797 of them from Mushroom Observer;
   E16). The pull leaves out every iNaturalist record that iNaturalist reported
-  as obscured, or placed no better than 1 km, in the answer cached at the time
-  of the pull. Records with no cached answer (36 in the frozen pull) were
+  as obscured, or placed coarser than 1 km (over 1,000 m), in the answer
+  cached at the time of the pull. Records with no cached answer (36 in the frozen pull) were
   kept, and 3 records obscured after the pull remain in the frozen release.
   **Licence: CC0 1.0** (Steve, 2026-10-25); the rest of the models record
   stays CC BY-SA 4.0. Zenodo carries licences per record, not per file (its
@@ -828,9 +829,13 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
   2026 (00:07 UTC on 6 November); before that it showed cells that still held
   them (Appendix S1: Section S10). The record cells follow each source's
   privacy as of the list the release used. A record a source obscures after
-  that date stays in that version's cells until the next version, which
-  applies each source's then-current privacy (three records, found
-  2026-11-04).
+  that date stays in that version's cells. The version of 14 November 2026
+  (doi:10.5281/zenodo.24214060) applies the sources' privacy as they gave it
+  on 8 November 2026, and also leaves out Mushroom Observer records the source
+  no longer holds. That removes 3 more records, all iNaturalist records whose
+  location iNaturalist obscured after the release (the Mushroom Observer
+  records were already on the list), leaving 130,463 in 101,329 cells
+  (`2026-11-08-cells-now.md`).
 - **Contributors** (Steve, 2026-10-13): one row per contributor with a name
   and record counts only. Names are as public at the source: the
   iNaturalist login, the Mushroom Observer user, the MyCoPortal collector,
@@ -849,14 +854,18 @@ Appendix S1: Section S11 (drafted 2026-10-25 from Zenodo's file lists).
 
 ### 4.2 Versions
 
-The paper cites one frozen release by id and DOI: the finished release of
-the full-view refresh of the cleaned October 2026 release (section 2.1:
-76 erroneous records removed in two cleanings), after its finishing step:
-**20261013T191324Z-fa1b4198**, archived as doi:10.5281/zenodo.23463939,
-with its layers as doi:10.5281/zenodo.23463069. The live atlas keeps
-rebuilding nightly once the nightly resumes [CHECK: off at present]; every release stays in the content-addressed store, and
-archived ones keep their Zenodo DOIs, so later maps never overwrite the
-paper's.
+The paper cites one frozen release by id and DOI: the finished release of the
+full-view refresh of the cleaned October 2026 release (section 2.1: 76
+erroneous records removed in two cleanings), after its finishing step:
+**20261013T191324Z-fa1b4198**, archived as doi:10.5281/zenodo.23463939, with
+its layers as doi:10.5281/zenodo.23463069. A second version of the models
+record, 20261013T191324Z-fa1b4198.20261108 (doi:10.5281/zenodo.24214060, 14
+November 2026), holds the same models with no per-taxon fingerprint or
+per-model seed, and record cells under the sources' privacy as they gave it on
+8 November 2026. The live atlas keeps rebuilding nightly once the nightly
+resumes [CHECK: off at present]; every release stays in the content-addressed
+store, and archived ones keep their Zenodo DOIs, so later maps never overwrite
+the paper's.
 
 ### 4.3 Usage notes
 
@@ -1062,16 +1071,19 @@ map is least certain and a find would most change it.
   https://github.com/BiodiverseLabs/mycomap-atlas and will be archived on
   Zenodo with a DOI for the release commit upon acceptance. Data are provided
   on Zenodo: the environmental layers (doi:10.5281/zenodo.23463069), and every
-  model of the frozen release (doi:10.5281/zenodo.23463939; suitability and
-  area-of-applicability rasters, metrics, grades), and the table of training
-  records with their iNaturalist, Mushroom Observer, MyCoPortal and GenBank
-  identifiers. Record coordinates are those published by each source; records
-  whose location iNaturalist or Mushroom Observer hides, obscures or may hide,
-  as of the release's privacy list (13 October 2026), are left out of this
-  release's record cells." [PENDING: DOIs; data citations for WorldClim,
-  SoilGrids, ESA WorldCover, BIGMAP, the Canadian NFI, NALCMS, Copernicus and
-  FungalTraits; query details for the mycomap.org pull, Appendix S1: Section
-  S2.]
+  model of the frozen release (current version doi:10.5281/zenodo.24214060, 14
+  November 2026; first version doi:10.5281/zenodo.23463939, 19 October 2026;
+  suitability and area-of-applicability rasters, metrics, grades), and the
+  table of training records with their iNaturalist, Mushroom Observer,
+  MyCoPortal and GenBank identifiers. Record coordinates are those published
+  by each source; records whose location iNaturalist or Mushroom Observer
+  hides, obscures or may hide are left out of the record cells, as of the
+  release's privacy list (13 October 2026) in the first version and as the
+  sources gave it on 8 November 2026 in the current one, which also leaves out
+  Mushroom Observer records the source no longer holds." [PENDING: DOIs; data
+  citations for WorldClim, SoilGrids, ESA WorldCover, BIGMAP, the Canadian
+  NFI, NALCMS, Copernicus and FungalTraits; query details for the mycomap.org
+  pull, Appendix S1: Section S2.]
 - **Acknowledgments** (one paragraph): collectors, validators, the
   sequencing network, data providers [PENDING: Steve to choose; proposal
   below, after community-science practice], and the AI disclosure: "Much of
@@ -1453,6 +1465,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.11 (2026-11-14).** The 14 November 2026 models version in the text (Steve): 2.6, 4.1, 4.2, Open Research; Appendix S1 Sections S10 and S11; registry entry `2026-11-08-cells-now.md`; 4.1's iNaturalist accuracy rule stated exactly (over 1,000 m), and the same phrase in `2026-11-07-fingerprint-sizing.md`.
 - **0.23.10 (2026-11-14).** The 14 November 2026 models version (doi:10.5281/zenodo.24214060) cited: front matter, Appendix S1 Section S11 table, open decision 13.
 - **0.23.9 (2026-11-07).** Privacy statements scoped to what is true (Steve): 2.6, 4.1, 4.3 and Open Research; Appendix S1 Sections S10 and S11, with the live-site correction in S10.1 and two registry entries (`2026-11-07-live-cells-counts.md`, `2026-11-07-fingerprint-sizing.md`).
 - **0.23.8 (2026-11-07).** 4.1: which iNaturalist records the pull leaves out, stated as the code does it (cached answer at the pull; 36 kept with no answer; 3 obscured later remain).
