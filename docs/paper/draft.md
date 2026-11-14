@@ -11,7 +11,7 @@ frozen release.*
 | Author | Russell, Stephen D. (sole and corresponding author, as on the Zenodo records) |
 | Target venue | **Ecological Monographs, Method** (Steve, 2026-10-13, "for now"); fallback MEE + a data descriptor (Appendix B) |
 | Paper type | One combined methods and data paper (Steve, 2026-10-13) |
-| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa: the published records and taxa, after the 76-record exclusion list. Most models were fitted on the same 2026-10-12 pull before that list (R_main and the full-view refresh; the targeted job's 7 models on it less 22 rows), so the 76 records sit in other taxa's backgrounds but trained no published model as a presence (S2.4, S10). Lineage in section 3.3. Zenodo: layers doi:10.5281/zenodo.23463069; models doi:10.5281/zenodo.23463939. [PENDING: code commit DOI] |
+| Frozen release | **20261013T191324Z-fa1b4198** (finished 2026-10-13 19:13 UTC, 38,216 files): the finished (v5) release of the full-view refresh of the twice-cleaned October 2026 rebuild. Pull occurrences-20261012T051017Z-x73b85b36 (sha256 7d3c5d70…), 133,235 records / 16,252 taxa: the published records and taxa, after the 76-record exclusion list. Most models were fitted on the same 2026-10-12 pull before that list (R_main and the full-view refresh; the targeted job's 7 models on it less 22 rows), so the 76 records sit in other taxa's backgrounds but trained no published model as a presence (S2.4, S10). Lineage in section 3.3. Zenodo: layers doi:10.5281/zenodo.23463069; models doi:10.5281/zenodo.23463939 (19 October 2026; current version doi:10.5281/zenodo.24214060, 14 November 2026). [PENDING: code commit DOI] |
 | Code | github.com/BiodiverseLabs/mycomap-atlas, GPL-3.0-or-later |
 | Maps | atlas.mycomap.org, CC BY-SA 4.0 |
 
@@ -1435,7 +1435,8 @@ revised (Path).
    drawn from that filtered file, not the current one. Whether the data
    statement says so with the count (Steve, 4.1 and S11). **Settled on
    Zenodo (Steve, 2026-11-05):** next models version only, no request to
-   Zenodo, under the rule in item 14.
+   Zenodo, under the rule in item 14. Published 2026-11-14 as
+   doi:10.5281/zenodo.24214060 (Steve).
 14. **Rule for published archives (Steve, 2026-11-05).** Published archives
    are snapshots: when a source obscures a record after an archive is
    published, the record leaves from the next version on and the published
@@ -1452,6 +1453,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.10 (2026-11-14).** The 14 November 2026 models version (doi:10.5281/zenodo.24214060) cited: front matter, Appendix S1 Section S11 table, open decision 13.
 - **0.23.9 (2026-11-07).** Privacy statements scoped to what is true (Steve): 2.6, 4.1, 4.3 and Open Research; Appendix S1 Sections S10 and S11, with the live-site correction in S10.1 and two registry entries (`2026-11-07-live-cells-counts.md`, `2026-11-07-fingerprint-sizing.md`).
 - **0.23.8 (2026-11-07).** 4.1: which iNaturalist records the pull leaves out, stated as the code does it (cached answer at the pull; 36 kept with no answer; 3 obscured later remain).
 - **0.23.7 (2026-11-07).** Open decision 6 and E19's row: the fingerprint column is dropped (Steve), with no replacement hash.

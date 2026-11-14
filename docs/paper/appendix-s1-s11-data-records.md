@@ -9,8 +9,9 @@ and layer code (operations lane, 2026-10-25).*
 | Record | DOI | Version | Files | Size | Licence |
 |---|---|---|---|---|---|
 | Environmental layers | 10.5281/zenodo.23463069 (concept 23463068) | draft-2026-09-30-df57c9d4 | 11 | 0.15 GB | CC BY-SA 4.0 |
-| Models of the frozen release | 10.5281/zenodo.23463939 (concept 23463938) | 20261013T191324Z-fa1b4198 | 26 | 14.21 GB (13.24 GiB) | CC BY-SA 4.0 |
-| Training records, contributors, model lineage | next version of the models record | [PENDING: E19, E20] | | | training-record table CC0 1.0; the rest CC BY-SA 4.0 |
+| Models of the frozen release (19 October 2026) | 10.5281/zenodo.23463939 (concept 23463938) | 20261013T191324Z-fa1b4198 | 26 | 14.21 GB (13.24 GiB) | CC BY-SA 4.0 |
+| Models, 14 November 2026 version | 10.5281/zenodo.24214060 (concept 23463938) | 20261013T191324Z-fa1b4198.20261108 | 26 | 14.21 GB (13.23 GiB) | CC BY-SA 4.0 |
+| Training records, contributors, model lineage | a later version of the models record | [PENDING: E19, E20] | | | training-record table CC0 1.0; the rest CC BY-SA 4.0 |
 
 ### Layers record (eight files, 77 bands: the 69 predictors plus coverage and fill flags)
 
@@ -29,7 +30,7 @@ and layer code (operations lane, 2026-10-25).*
 
 Band-level sources and credits are in Section S3.
 
-### Models record
+### Models record (19 October 2026 version)
 
 | File | Size | Contents |
 |---|---|---|
