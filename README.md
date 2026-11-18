@@ -965,7 +965,9 @@ A worker boots Amazon Linux, pulls the release image built from the box's own
 commit (CI publishes one for every commit on main), runs its shard and shuts
 down, which deletes it. A shard whose spot instance is reclaimed is launched
 again, up to three times; with no spot capacity, a launch tries each allowed
-instance type in each zone and otherwise waits for the next poll. Every
+instance type in each zone and otherwise waits for the next poll. Refused
+for the account's vCPU limit, it tries only the listed types with fewer vCPUs.
+Every
 worker has a shutdown timer set to the job's deadline (6 h by default), and
 if the job fails or overruns, the box terminates them all; the next night's
 plan picks the same work up. A box without layers of its own plans from the
