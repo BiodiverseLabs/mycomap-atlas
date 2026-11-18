@@ -147,6 +147,11 @@ changed and what it means for you.
 
 ### Maps
 
+- **Collection cells leave out Mushroom Observer records the source no longer
+  holds.** A record .org marks as deleted at Mushroom Observer is kept in the
+  pull when its answer was cached, and models still learn from it, but it is
+  no longer counted in the published collection cells.
+
 - **Records no longer lost to another source's number.** The pull left out
   any record whose number matched an iNaturalist observation that
   iNaturalist obscures or places coarsely, whatever its source: .org's
@@ -289,6 +294,16 @@ changed and what it means for you.
   route for a map that shows a collection site too precisely.
 
 ### The server
+
+- A fit that fails at a step it names (cross-validation, tuning, the final
+  fit, the null test, ...) is recorded privately against its record set and
+  settings and not planned again until either changes; its kept model is
+  marked `kept_after_failed_refit` in the release index, with the step. A
+  failure no step names (a lost worker, memory) is tried again as before.
+- A worker launch refused for the account's vCPU limit tries the listed
+  instance types with fewer vCPUs before waiting for the next poll.
+- A worker's log no longer records the session token it asks the instance
+  metadata service with; it says its instance type instead.
 
 - `atlas track-new-finds` scores records first validated since each map was
   made (lookups only: this machine's newest pull and the store; nothing is
