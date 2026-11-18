@@ -150,7 +150,8 @@ test_that("the privacy query lists MO records deleted at the source, as deleted 
     "ROLLBACK;"
   )
   out <- system(Sys.getenv("ATLAS_TEST_PSQL"), input = sql, intern = TRUE)
-  listed <- grep("[|]", out, value = TRUE)
+  # Rows come back "a|b|c", or "a,b,c" when the command sets -F , (as CI does).
+  listed <- gsub(",", "|", grep("[|,]", out, value = TRUE), fixed = TRUE)
   expect_identical(listed, c(
     "iNaturalist|100|unknown", "MO Observations|200|unknown", "MO Observations|201|place",
     "MO Observations|203|deleted", "MO Observations|204|place", "MO Observations|205|unknown"
