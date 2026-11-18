@@ -746,3 +746,18 @@ test_that("the login banner shows the note as written, and alert.sh clears it", 
     expect_equal(jsonlite::fromJSON(atlas_left_out_notice_path())$state, "ok")
   })
 })
+
+test_that("the QA report counts the deleted-at-source records on the privacy list, and the other kinds' counts do not move", {
+  pull <- qa_pull()
+  listed <- qa_privacy(pull)
+  without <- atlas_qa_report(pull, list(stamp = "20261101T070000Z"), audit = qa_audit(), privacy = listed)
+  # Two MO records deleted at the source: one in the pull, one not.
+  deleted <- data.frame(source = "MO Observations", observation_id = c("5050", "999999"), privacy = "deleted",
+                        stringsAsFactors = FALSE)
+  with <- atlas_qa_report(pull, list(stamp = "20261101T070000Z"), audit = qa_audit(), privacy = rbind(listed, deleted))
+  expect_equal(with$detail$deleted_at_source, 1L)
+  expect_equal(without$detail$deleted_at_source, 0L)
+  expect_identical(with$checks$place_centres$value, without$checks$place_centres$value)
+  expect_identical(with$checks$uncached$value, without$checks$uncached$value)
+  expect_null(with$not_measured$deleted_at_source)
+})

@@ -1,7 +1,7 @@
 # Places a source hides stay hidden in what Atlas publishes: the collection
 # cells leave out records whose place their source hides or may hide.
 
-test_that("the hidden-place query is one line the SQL route accepts, and asks for the three kinds", {
+test_that("the hidden-place query is one line the SQL route accepts, and asks for the four kinds", {
   sql <- atlas_privacy_sql(0, 100000)
   expect_false(grepl("\n", sql, fixed = TRUE))
   expect_false(grepl('"', sql, fixed = TRUE))
@@ -12,7 +12,10 @@ test_that("the hidden-place query is one line the SQL route accepts, and asks fo
   expect_match(sql, "o.source = 'iNaturalist' AND NOT EXISTS (SELECT 1 FROM observation_cache c", fixed = TRUE)
   expect_match(sql, "o.source = 'MO Observations' AND NOT EXISTS (SELECT 1 FROM atlas.mo_points m", fixed = TRUE)
   expect_match(sql, "m.latitude IS NOT NULL AND m.longitude IS NOT NULL", fixed = TRUE)
-  expect_match(sql, "THEN 'place' ELSE 'unknown'", fixed = TRUE)
+  # MO records .org marks as deleted at the source, whatever their answer
+  # says; listed as deleted only when no other kind holds.
+  expect_match(sql, "OR (o.source = 'MO Observations' AND o.source_deleted_at IS NOT NULL))", fixed = TRUE)
+  expect_match(sql, "THEN 'place' ELSE 'deleted' END", fixed = TRUE)
   # The pull's own eligibility: green, with coordinates, in North America.
   expect_match(sql, atlas_status_columns(), fixed = TRUE)
   expect_match(sql, atlas_place_clause(), fixed = TRUE)
@@ -92,4 +95,64 @@ test_that("a refresh keeps the release's collection cells when the box has no li
   later <- run_refresh(again)$release
   expect_false(later$full_refresh$public_cells$rebuilt)
   expect_match(later$full_refresh$public_cells$reason, "not the one the release was fitted on")
+})
+
+test_that("an MO record deleted at the source stays out of the collection cells, though the pull keeps it", {
+  with_data_dir({
+    run <- function(sql, host) {
+      if (grepl("max\\(id\\)", sql)) return("top\n10\n")
+      "source\tobservation_id\tprivacy\nMO Observations\t3\tdeleted\n"
+    }
+    atlas_pull_privacy(quiet = TRUE, window = 100000, run = run)
+    expect_identical(atlas_read_privacy(), "MO Observations:3")
+    # The pull still holds it (models train on it); its cell is not published.
+    occurrences <- data.frame(
+      source = c("iNaturalist", "MO Observations"), observation_id = c("1", "3"),
+      scientific_name = c("Taxon A", "Taxon A"), latitude = c(45.01, 46.05), longitude = c(-120.01, -121.05),
+      stringsAsFactors = FALSE
+    )
+    cells <- atlas_public_cells_table(occurrences, hidden = atlas_read_privacy())
+    expect_equal(sum(cells$records), 1L)
+    expect_equal(nrow(cells), 1L)
+  })
+})
+
+# Against a real Postgres (ATLAS_TEST_PSQL, as test-record-keys.R): which
+# records the query lists, and as which kind.
+test_that("the privacy query lists MO records deleted at the source, as deleted only when no other kind holds", {
+  testthat::skip_if(!nzchar(Sys.getenv("ATLAS_TEST_PSQL")), "set ATLAS_TEST_PSQL to run SQL against Postgres")
+  row <- function(id, number, source, deleted = FALSE) {
+    sprintf("(%d, '%s', '%s', 45, -122, 'yes', NULL, NULL, 'US', NULL, %s)", id, number, source,
+            if (deleted) "now()" else "NULL")
+  }
+  sql <- paste(
+    "BEGIN;",
+    "CREATE TEMP TABLE observations (id integer, observation_id text, source text, latitude numeric,",
+    "  longitude numeric, validation_status_1 text, validation_status_2 text, validation_status_3 text,",
+    "  country text, state text, source_deleted_at timestamp);",
+    "CREATE TEMP TABLE mo_points (source_observation_id text, latitude numeric, longitude numeric);",
+    "CREATE TEMP TABLE observation_cache (source text, source_observation_id text);",
+    "INSERT INTO observations VALUES",
+    paste(c(
+      row(1, "100", "iNaturalist"),                       # no cached answer: unknown
+      row(2, "101", "iNaturalist"),                       # answered: not listed
+      row(3, "200", "MO Observations"),                   # no cached answer: unknown
+      row(4, "201", "MO Observations"),                   # no shown point: place
+      row(5, "202", "MO Observations"),                   # shown point: not listed
+      row(6, "203", "MO Observations", deleted = TRUE),   # shown point, deleted: deleted
+      row(7, "204", "MO Observations", deleted = TRUE),   # no shown point, deleted: place
+      row(8, "205", "MO Observations", deleted = TRUE),   # no cached answer, deleted: unknown
+      row(9, "206", "iNaturalist", deleted = TRUE)        # answered iNaturalist: not listed
+    ), collapse = ", "), ";",
+    "INSERT INTO mo_points VALUES ('201', NULL, NULL), ('202', 45, -122), ('203', 45, -122), ('204', NULL, NULL);",
+    "INSERT INTO observation_cache VALUES ('inat', '101'), ('inat', '206');",
+    paste0(gsub("atlas.mo_points", "pg_temp.mo_points", atlas_privacy_sql(0, 100), fixed = TRUE), ";"),
+    "ROLLBACK;"
+  )
+  out <- system(Sys.getenv("ATLAS_TEST_PSQL"), input = sql, intern = TRUE)
+  listed <- grep("[|]", out, value = TRUE)
+  expect_identical(listed, c(
+    "iNaturalist|100|unknown", "MO Observations|200|unknown", "MO Observations|201|place",
+    "MO Observations|203|deleted", "MO Observations|204|place", "MO Observations|205|unknown"
+  ))
 })

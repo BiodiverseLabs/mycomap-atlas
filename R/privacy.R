@@ -11,7 +11,7 @@
 # the maps, or counts by state, which read every record: a state is no finer
 # than the source shows.
 #
-# Three kinds of record are left out of it, all read from .org:
+# Four kinds of record are left out of it, all read from .org:
 #   - an iNaturalist record .org holds no cached iNaturalist answer for, so
 #     whether iNaturalist obscures it is unknown (the pull drops the ones it
 #     knows are obscured);
@@ -20,7 +20,13 @@
 #   - a Mushroom Observer record with no GPS point its observer shows, which
 #     the pull places at its named place's centre: the place is public, the
 #     observer's point is not, and a cell of our own would say more than MO
-#     does.
+#     does;
+#   - a Mushroom Observer record .org marks as deleted at the source
+#     (ATLAS_SOURCE_DELETED). The pull keeps one that has a cached answer,
+#     and models train on it (Steve: train, never list); a record its source
+#     no longer holds is not listed record by record. It is listed as
+#     deleted only when no other kind holds for it, so the other kinds'
+#     counts mean what they meant before.
 # On 2026-10-13 that was about 42 iNaturalist and 767 uncached MO records,
 # and the MO records placed at a centre, of about 180,000.
 #
@@ -35,8 +41,9 @@ atlas_privacy_path <- function() atlas_path("occurrences", "privacy-latest.tsv.g
 
 #' The query for one window of record ids: the records the pull could take
 #' (green, with coordinates, in North America) whose place their source
-#' hides or may hide, with which kind. One line, with no double quote or
-#' percent sign, like every statement sent to the SQL route.
+#' hides or may hide, or that their source has deleted, with which kind.
+#' One line, with no double quote or percent sign, like every statement sent
+#' to the SQL route.
 atlas_privacy_sql <- function(from_id, to_id) {
   stopifnot(is.numeric(from_id), is.numeric(to_id), from_id >= 0, to_id > from_id)
   shown <- sprintf(
@@ -47,16 +54,18 @@ atlas_privacy_sql <- function(from_id, to_id) {
                        ATLAS_MO_POINTS)
   cached_inat <- paste("EXISTS (SELECT 1 FROM observation_cache c WHERE c.source = 'inat'",
                        "AND c.source_observation_id = o.observation_id)")
+  # Deleted at the source: MO only, as .org marks only MO today.
+  deleted <- sprintf("(o.source = '%s' AND %s IS NOT NULL)", ATLAS_MO_SOURCE, ATLAS_SOURCE_DELETED)
   sql <- sprintf(paste(
     "SELECT o.source, o.observation_id,",
-    "CASE WHEN o.source = '%s' THEN 'unknown' WHEN %s THEN 'place' ELSE 'unknown' END AS privacy",
+    "CASE WHEN o.source = '%s' THEN 'unknown' WHEN NOT %s THEN 'unknown' WHEN NOT %s THEN 'place' ELSE 'deleted' END AS privacy",
     "FROM observations o",
     "WHERE o.id > %d AND o.id <= %d",
     "AND 'yes' IN (%s) AND o.latitude IS NOT NULL AND o.longitude IS NOT NULL %s",
-    "AND ((o.source = '%s' AND NOT %s) OR (o.source = '%s' AND NOT %s))",
+    "AND ((o.source = '%s' AND NOT %s) OR (o.source = '%s' AND NOT %s) OR %s)",
     "ORDER BY o.id"
-  ), ATLAS_INAT_SOURCE, cached_mo, as.integer(from_id), as.integer(to_id), atlas_status_columns(),
-  atlas_place_clause(), ATLAS_INAT_SOURCE, cached_inat, ATLAS_MO_SOURCE, shown)
+  ), ATLAS_INAT_SOURCE, cached_mo, shown, as.integer(from_id), as.integer(to_id), atlas_status_columns(),
+  atlas_place_clause(), ATLAS_INAT_SOURCE, cached_inat, ATLAS_MO_SOURCE, shown, deleted)
   atlas_one_line(sql)
 }
 
