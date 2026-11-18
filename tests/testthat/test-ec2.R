@@ -1013,3 +1013,30 @@ test_that("a worker runs one fit per ATLAS_EC2_GB_PER_FIT of memory, and the def
   expect_false(grepl("/ 3 ))", roomy, fixed = TRUE))
   expect_error(test_config(ATLAS_EC2_GB_PER_FIT = "0"), "ATLAS_EC2_GB_PER_FIT must be a positive number")
 })
+
+# The boot script runs traced (set -x) and its log goes up to the store, so
+# the IMDSv2 session token must never be traced. Runs the script's own lines
+# for the instance type under bash, with a curl that hands out a token.
+test_that("a worker's log never holds its metadata session token, and still says its instance type", {
+  # ATLAS_TEST_BASH names one where the first on the PATH is WSL's (Windows).
+  bash <- Sys.getenv("ATLAS_TEST_BASH", unset = Sys.which("bash"))
+  skip_if(!nzchar(bash) || grepl("system32", bash, ignore.case = TRUE), "needs a bash that is not WSL's")
+  script <- strsplit(atlas_worker_user_data("job1", 2L, "draft", test_config("s3://bucket"), 90), "\n", fixed = TRUE)[[1]]
+  from <- grep("^# The instance type", script)
+  to <- grep("^docker run ", script)
+  expect_length(from, 1L)
+  expect_length(to, 1L)
+  file <- tempfile(fileext = ".sh")
+  on.exit(unlink(file), add = TRUE)
+  writeLines(c(
+    "set -x",
+    "curl() { case \" $* \" in *' -X PUT '*) echo TOKEN-must-not-be-logged ;; *) echo r7i.8xlarge ;; esac; }",
+    script[from:(to - 1L)],
+    "echo after"
+  ), file)
+  log <- suppressWarnings(system2(bash, file, stdout = TRUE, stderr = TRUE))
+  expect_false(any(grepl("TOKEN-must-not-be-logged", log, fixed = TRUE)), info = paste(log, collapse = "\n"))
+  expect_true(any(grepl("instance type: r7i.8xlarge", log, fixed = TRUE)), info = paste(log, collapse = "\n"))
+  # Tracing is back on after it.
+  expect_true(any(grepl("^[+]+ echo after", log)), info = paste(log, collapse = "\n"))
+})
