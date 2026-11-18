@@ -62,6 +62,23 @@ ATLAS_EC2_CAPACITY_ERRORS <- c(
 # running workers with it.
 ATLAS_EC2_TRANSIENT_ERRORS <- c("InternalError", "InternalFailure", "ServiceUnavailable", "Unavailable")
 
+# Refusals for the account's vCPU limit. For spot, EC2 says
+# MaxSpotInstanceCountExceeded, though the limit is in vCPUs. The limit holds
+# for every type and zone alike, but a smaller type may still fit under it,
+# so a launch goes on to the next type that needs fewer vCPUs.
+ATLAS_EC2_VCPU_ERRORS <- c("MaxSpotInstanceCountExceeded", "VcpuLimitExceeded")
+
+#' The vCPUs an instance type has, from its size: 4 per xlarge (the families
+#' the orchestrator may launch), 2 for large, 1 for medium. NA for any other
+#' size (metal), which a launch past a vCPU refusal does not try.
+atlas_ec2_vcpus <- function(type) {
+  size <- sub("^[^.]*[.]", "", as.character(type))
+  n <- suppressWarnings(as.numeric(sub("xlarge$", "", size)))
+  out <- ifelse(size == "xlarge", 4, ifelse(grepl("^[0-9]+xlarge$", size), 4 * n,
+                ifelse(size == "large", 2, ifelse(size == "medium", 1, NA_real_))))
+  stats::setNames(as.numeric(out), type)
+}
+
 # Errors that mean "not now": retry at the next poll rather than fail the job.
 ATLAS_EC2_RETRY_ERRORS <- c(ATLAS_EC2_CAPACITY_ERRORS, "MaxSpotInstanceCountExceeded",
                             "VcpuLimitExceeded", "RequestLimitExceeded", ATLAS_EC2_TRANSIENT_ERRORS)
@@ -241,8 +258,10 @@ atlas_ec2_error_code <- function(error, codes = ATLAS_EC2_RETRY_ERRORS) {
 }
 
 #' Launch one worker for one shard, trying each instance type in each subnet
-#' while capacity refuses (spot, or on-demand with market = "on-demand"). Returns the instance id, or NULL when every
-#' option refused for a reason worth retrying later. Any other error stops.
+#' while capacity refuses (spot, or on-demand with market = "on-demand"), and
+#' each smaller type when the vCPU limit refuses. Returns the instance id, or
+#' NULL when every option refused for a reason worth retrying later. Any other
+#' error stops.
 #'
 #' Each attempt starts one type further down the list: a worker taken back
 #' was taken because its type ran short, so its replacement asks first for
@@ -254,7 +273,10 @@ atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
   types <- config$instance_types
   turn <- (as.integer(attempt) - 1L) %% length(types)
   if (turn) types <- c(types[-seq_len(turn)], types[seq_len(turn)])
+  # Under a vCPU refusal, only types smaller than the one refused.
+  below <- Inf
   for (instance_type in types) {
+    if (is.finite(below) && !isTRUE(atlas_ec2_vcpus(instance_type) < below)) next
     for (subnet in config$subnets) {
       request <- atlas_worker_request(config, job_id, shard, grid, attempt, subnet, instance_type, minutes,
                                       command = command, market = market)
@@ -263,12 +285,22 @@ atlas_launch_worker <- function(ec2, config, job_id, shard, grid, attempt = 1L,
       code <- atlas_ec2_error_code(result)
       if (is.na(code)) stop(result)
       refusals <- c(refusals, paste0(instance_type, " in ", subnet, ": ", code))
-      # A quota applies to every type and zone alike: no point trying them.
+      # The vCPU limit holds in every zone: on to a smaller type, if any.
+      if (code %in% ATLAS_EC2_VCPU_ERRORS) {
+        below <- min(below, atlas_ec2_vcpus(instance_type), na.rm = TRUE)
+        break
+      }
+      # Any other quota or throttle applies to every type and zone alike.
       if (!code %in% ATLAS_EC2_CAPACITY_ERRORS) {
         say("shard ", shard, ": launch refused (", code, "); will try again")
         return(NULL)
       }
     }
+  }
+  if (is.finite(below)) {
+    say("shard ", shard, ": launch refused for the vCPU limit, and no smaller type would launch (",
+        paste(refusals, collapse = "; "), "); will try again")
+    return(NULL)
   }
   say("shard ", shard, ": no ", market, " capacity (", paste(refusals, collapse = "; "), "); will try again")
   NULL
