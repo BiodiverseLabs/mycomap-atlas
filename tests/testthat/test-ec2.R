@@ -459,7 +459,7 @@ test_that("when every zone and type refuses, the launch is tried again at the ne
   expect_true(time$clock() > as.POSIXct("2026-01-01 00:00:00", tz = "UTC"))
 })
 
-test_that("a quota refusal waits for the next poll instead of trying every type", {
+test_that("a quota refusal with no smaller type listed waits for the next poll instead of trying every type", {
   skip_if_not_installed("terra")
   setup <- planned(shards = 1L)
   time <- fake_clock()
@@ -473,11 +473,58 @@ test_that("a quota refusal waits for the next poll instead of trying every type"
     }
   })
   run_on(setup, ec2, time = time)
-  # One refused call, not one per type and zone; then the next poll's launch
-  # in the first place again.
+  # One refused call, not one per type and zone (both types are 8xlarge);
+  # then the next poll's launch in the first place again.
   expect_equal(tries_before_waiting, 1L)
   expect_equal(ec2$state$requests[[1]]$InstanceType, "c7a.8xlarge")
   expect_equal(ec2$state$requests[[1]]$SubnetId, "subnet-a")
+})
+
+# One launch against an EC2 that refuses by instance type: the types and
+# subnets asked for, in order, and the instance id or NULL.
+launch_refused <- function(types, refuse) {
+  asked <- character()
+  ec2 <- list(run_instances = function(...) {
+    request <- list(...)
+    asked <<- c(asked, paste(request$InstanceType, request$SubnetId))
+    code <- refuse(request$InstanceType)
+    if (!is.null(code)) stop(code, call. = FALSE)
+    list(Instances = list(list(InstanceId = "i-1")))
+  })
+  id <- atlas_launch_worker(ec2, test_config(types = types), "job1", 1L, "draft")
+  list(id = id, asked = asked)
+}
+
+test_that("an instance type's vCPUs are read from its size", {
+  expect_equal(unname(atlas_ec2_vcpus(c("r7i.4xlarge", "m7i.8xlarge", "r7i.16xlarge", "c7a.xlarge", "c7a.large",
+                                        "t3.medium", "r7i.metal-48xl"))),
+               c(16, 32, 64, 4, 2, 1, NA))
+})
+
+test_that("a vCPU-limit refusal goes on to a smaller type, once per type, not per zone", {
+  for (code in c("MaxSpotInstanceCountExceeded (HTTP 400). Max spot instance count exceeded",
+                 "VcpuLimitExceeded (HTTP 400). You have requested more vCPU capacity than your current vCPU limit")) {
+    got <- launch_refused("r7i.16xlarge,r7i.8xlarge", function(type) if (type == "r7i.16xlarge") code)
+    expect_identical(got$asked, c("r7i.16xlarge subnet-a", "r7i.8xlarge subnet-a"), info = code)
+    expect_equal(got$id, "i-1")
+  }
+})
+
+test_that("past a vCPU-limit refusal, a type as big or bigger is not asked for", {
+  got <- launch_refused("r7i.8xlarge,m7i.8xlarge,r7i.16xlarge,r7i.4xlarge",
+                        function(type) if (atlas_ec2_vcpus(type) >= 32) "MaxSpotInstanceCountExceeded (HTTP 400)")
+  expect_identical(got$asked, c("r7i.8xlarge subnet-a", "r7i.4xlarge subnet-a"))
+  expect_equal(got$id, "i-1")
+  # And with no smaller type that fits, it waits for the next poll.
+  none <- launch_refused("r7i.8xlarge,m7i.8xlarge", function(type) "VcpuLimitExceeded (HTTP 400)")
+  expect_identical(none$asked, "r7i.8xlarge subnet-a")
+  expect_null(none$id)
+})
+
+test_that("a throttle refusal still waits for the next poll after one call, whatever types are left", {
+  got <- launch_refused("r7i.16xlarge,r7i.8xlarge,r7i.4xlarge", function(type) "RequestLimitExceeded (HTTP 503)")
+  expect_identical(got$asked, "r7i.16xlarge subnet-a")
+  expect_null(got$id)
 })
 
 test_that("a launch error that is not about capacity stops the job and terminates the workers already up", {
@@ -1012,4 +1059,31 @@ test_that("a worker runs one fit per ATLAS_EC2_GB_PER_FIT of memory, and the def
   expect_match(roomy, "WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / 10 ))", fixed = TRUE)
   expect_false(grepl("/ 3 ))", roomy, fixed = TRUE))
   expect_error(test_config(ATLAS_EC2_GB_PER_FIT = "0"), "ATLAS_EC2_GB_PER_FIT must be a positive number")
+})
+
+# The boot script runs traced (set -x) and its log goes up to the store, so
+# the IMDSv2 session token must never be traced. Runs the script's own lines
+# for the instance type under bash, with a curl that hands out a token.
+test_that("a worker's log never holds its metadata session token, and still says its instance type", {
+  # ATLAS_TEST_BASH names one where the first on the PATH is WSL's (Windows).
+  bash <- Sys.getenv("ATLAS_TEST_BASH", unset = Sys.which("bash"))
+  skip_if(!nzchar(bash) || grepl("system32", bash, ignore.case = TRUE), "needs a bash that is not WSL's")
+  script <- strsplit(atlas_worker_user_data("job1", 2L, "draft", test_config("s3://bucket"), 90), "\n", fixed = TRUE)[[1]]
+  from <- grep("^# The instance type", script)
+  to <- grep("^docker run ", script)
+  expect_length(from, 1L)
+  expect_length(to, 1L)
+  file <- tempfile(fileext = ".sh")
+  on.exit(unlink(file), add = TRUE)
+  writeLines(c(
+    "set -x",
+    "curl() { case \" $* \" in *' -X PUT '*) echo TOKEN-must-not-be-logged ;; *) echo r7i.8xlarge ;; esac; }",
+    script[from:(to - 1L)],
+    "echo after"
+  ), file)
+  log <- suppressWarnings(system2(bash, file, stdout = TRUE, stderr = TRUE))
+  expect_false(any(grepl("TOKEN-must-not-be-logged", log, fixed = TRUE)), info = paste(log, collapse = "\n"))
+  expect_true(any(grepl("instance type: r7i.8xlarge", log, fixed = TRUE)), info = paste(log, collapse = "\n"))
+  # Tracing is back on after it.
+  expect_true(any(grepl("^[+]+ echo after", log)), info = paste(log, collapse = "\n"))
 })

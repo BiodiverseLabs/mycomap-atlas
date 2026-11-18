@@ -17,7 +17,8 @@
 # Planning reads the current release's model index, not the models, so it
 # needs no model files. A failed taxon keeps its previous model and is picked
 # up by the next plan, because its record set still differs from the one its
-# model was fitted on.
+# model was fitted on; unless it failed at a step the fit named, which fails
+# the same way on the same records and settings (R/failedrefits.R).
 #
 #   jobs/<grid>/<id>/job.json
 #   jobs/<grid>/<id>/shards/<n>.json
@@ -197,6 +198,10 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   base <- atlas_current_release(store, grid)
   index <- list()
   for (entry in base$index %||% list()) index[[paste(entry$algorithm, entry$taxon)]] <- entry
+  # Fits that failed at a named step on these records and settings, which
+  # would fail the same way again (R/failedrefits.R).
+  failed <- atlas_read_failed_refits(store, grid)
+  held <- 0L
   areas <- vapply(base$index %||% list(), function(e) {
     if (is.numeric(e$area_km2) && length(e$area_km2) == 1L) e$area_km2 else NA_real_
   }, numeric(1))
@@ -233,6 +238,11 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     for (name in candidates) {
       entry <- index[[paste(algorithm, name)]]
       if (atlas_index_current(entry, fingerprints[[name]], settings, minimum, maximum)) next
+      if (atlas_failed_refit_current(failed[[paste(algorithm, name, sep = "|")]], fingerprints[[name]],
+                                     atlas_settings_key(settings))) {
+        held <- held + 1L
+        next
+      }
       task <- list(
         taxon = name, algorithm = algorithm, fingerprint = fingerprints[[name]],
         cost = atlas_task_cost(algorithm, entry$area_km2, typical)
@@ -278,7 +288,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
   )
   public_changed <- any(vapply(public, function(e) !identical(unname(base_files[e$path]), e$sha256), logical(1)))
   if (!length(tasks) && !length(retire) && !public_changed) {
-    say("nothing to do: every model in release ", base$id %||% "(none)", " is current")
+    say("nothing to do: every model in release ", base$id %||% "(none)", " is current",
+        if (held) paste0(" (", held, " left out after failing at a named step on the same records)") else "")
     return(invisible(NULL))
   }
 
@@ -319,6 +330,9 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
     tasks = tasks,
     retire = retire,
     deferred = deferred,
+    # Left out because they failed at a named step on the same records and
+    # settings (R/failedrefits.R).
+    held_after_failure = held,
     sample = if (is.finite(sample)) as.integer(sample) else NULL,
     trained_ids = trained_ids,
     # QA stops this job's pull had and that were accepted by name (R/qa.R).
@@ -330,7 +344,8 @@ atlas_plan_job <- function(store = atlas_store(), grid = "draft", algorithms = "
       paste(names(per_algorithm), per_algorithm, sep = " ", collapse = ", "), ") in ",
       shards, " shard", if (shards == 1L) "" else "s", "; ", length(retire), " to retire",
       if (deferred) paste0("; ", deferred, " left for a later job (--",
-                           if (is.finite(sample)) "sample" else "limit", ")") else "")
+                           if (is.finite(sample)) "sample" else "limit", ")") else "",
+      if (held) paste0("; ", held, " left out after failing at a named step on the same records") else "")
   for (taxon in unique(unlist(lapply(tasks, function(t) if (!is.null(t$reason)) t$taxon)))) {
     say("  ", taxon, ": ", reasons[[taxon]])
   }
@@ -379,6 +394,9 @@ atlas_shard_result <- function(name, algorithm, row, fingerprint, settings_key) 
   Filter(Negate(is.null), list(
     taxon = name, algorithm = algorithm, status = row$status,
     error = row$error %||% NULL,
+    # The step a failed fit stopped at, when it named one: a failure with a
+    # stage is recorded so the same fit is not planned again (R/failedrefits.R).
+    stage = row$stage %||% NULL,
     # A refusal is recorded against the record set and settings it was
     # made for, so the next plan does not try it again.
     fingerprint = fingerprint,
@@ -784,6 +802,7 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
 
   for (r in job$retire) drop(r$taxon, r$algorithm)
   counts <- c(fitted = 0L, refused = 0L, failed = 0L)
+  results <- list()
   for (n in seq_len(job$shards)) {
     record <- if (n %in% status$missing) {
       atlas_shard_progress(store, id, n, grid)
@@ -794,6 +813,7 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
     for (f in record$files) shard_files[[f$path]] <- f
     for (r in record$results) {
       if (!r$status %in% names(counts)) next
+      results[[length(results) + 1L]] <- r
       counts[[r$status]] <- counts[[r$status]] + 1L
       if (identical(r$status, "refused")) {
         drop(r$taxon, r$algorithm)
@@ -810,6 +830,15 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
     }
     for (e in record$index) index[[paste(e$algorithm, e$taxon)]] <- e
   }
+  # A model kept because its refit failed at a named step says so; that
+  # failure is not planned again for the same records (R/failedrefits.R).
+  for (r in Filter(atlas_failed_refit_recordable, results)) {
+    key <- paste(r$algorithm, r$taxon)
+    if (!is.null(index[[key]]) && !isTRUE(index[[key]]$refused)) {
+      index[[key]]$kept_after_failed_refit <- TRUE
+      index[[key]]$failed_refit_stage <- r$stage
+    }
+  }
   for (f in job$public) files[[f$path]] <- f
   layer_manifest <- Filter(function(f) grepl("manifest[.]json$", f$path), job$inputs)
   for (f in layer_manifest) files[[f$path]] <- f
@@ -825,13 +854,21 @@ atlas_finish_job <- function(store = atlas_store(), id, grid = "draft", promote 
   )
   atlas_store_json(store, paste0("jobs/", grid, "/", id, "/finished.json"),
                    list(release = release$id, finished_at = release$created_at))
+  # After the release: a record that cannot be written costs a retry next
+  # night, never the release.
+  held <- tryCatch(atlas_record_failed_refits(store, grid, id, results), error = function(e) {
+    warning("failed fits not recorded: ", conditionMessage(e), call. = FALSE)
+    list()
+  })
   atlas_trained_ids_quietly(
     atlas_write_trained_ids(store, release, grid, prefer = atlas_json_string(job$trained_ids), quiet = quiet),
     release$id
   )
   say("job ", id, " finished", if (length(status$missing)) " in part" else "", ": ",
       counts[["fitted"]], " fitted, ", counts[["refused"]], " refused, ",
-      counts[["failed"]], " failed (kept their previous models), ", length(job$retire), " retired",
+      counts[["failed"]], " failed (kept their previous models",
+      if (length(held)) paste0("; ", length(held), " not to be tried again on the same records") else "",
+      "), ", length(job$retire), " retired",
       if (length(status$missing)) paste0("; shard", if (length(status$missing) > 1L) "s " else " ",
                                          paste(status$missing, collapse = ", "),
                                          " did not report, so only what they saved is in it"))

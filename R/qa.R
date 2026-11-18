@@ -490,9 +490,14 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
   list(
     pull = manifest$stamp %||% NA_character_, records = nrow(occurrences), taxa = length(names),
     checks = checks, stops = as.list(stops), thresholds = thresholds,
-    not_measured = list(twins = "cross-post pairs more than 5 km apart: needs the twin lists",
-                        deleted_at_source = "deleted MO records on the privacy list: the pull does not carry the marker"),
-    detail = list(by_source = now, privacy_list = if (!is.null(privacy)) nrow(privacy))
+    not_measured = list(twins = "cross-post pairs more than 5 km apart: needs the twin lists"),
+    detail = list(by_source = now, privacy_list = if (!is.null(privacy)) nrow(privacy),
+                  # MO records deleted at the source that the pull kept, on
+                  # the list so out of the cells (R/privacy.R).
+                  deleted_at_source = if (!is.null(privacy)) {
+                    sum(privacy$privacy == "deleted" &
+                          atlas_record_key(privacy$source, privacy$observation_id) %in% keys)
+                  })
   )
 }
 

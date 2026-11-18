@@ -91,7 +91,9 @@ atlas_batch_fit_one <- function(name, fingerprint, fit, args) {
       list(status = "refused", presences = e$presences, error = conditionMessage(e))
     },
     error = function(e) {
-      list(status = "failed", error = conditionMessage(e))
+      # The step that failed, when the fit named it (atlas_fit_stage).
+      Filter(Negate(is.null), list(status = "failed", error = conditionMessage(e),
+                                   stage = if (inherits(e, "atlas_fit_failure")) e$stage))
     }
   )
   c(

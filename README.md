@@ -938,9 +938,13 @@ steps, each on whatever machine suits it:
 - **finish** checks every shard reported and that no other release became
   current meanwhile, then builds the new release from the old one: refitted
   models replaced, retired and refused ones removed, public files refreshed. A
-  model that failed keeps its previous version and is planned again next time.
-  A refusal is recorded against its record set, so it is not retried until the
-  records change.
+  model that failed keeps its previous version and is planned again next time,
+  unless it failed at a step the fit names (cross-validation, tuning, the
+  final fit, the null test and so on): that fails the same way on the same
+  records, so it is recorded privately against its record set and settings,
+  its kept model is marked `kept_after_failed_refit` with the step, and it is
+  not planned again until either changes. A refusal is recorded against its
+  record set, so it is not retried until the records change.
 
 On the draft grid, a real two-shard job — each worker starting from an empty
 data directory — fetched 103 MB of inputs, fitted its model and uploaded it in
@@ -965,7 +969,9 @@ A worker boots Amazon Linux, pulls the release image built from the box's own
 commit (CI publishes one for every commit on main), runs its shard and shuts
 down, which deletes it. A shard whose spot instance is reclaimed is launched
 again, up to three times; with no spot capacity, a launch tries each allowed
-instance type in each zone and otherwise waits for the next poll. Every
+instance type in each zone and otherwise waits for the next poll. Refused
+for the account's vCPU limit, it tries only the listed types with fewer vCPUs.
+Every
 worker has a shutdown timer set to the job's deadline (6 h by default), and
 if the job fails or overruns, the box terminates them all; the next night's
 plan picks the same work up. A box without layers of its own plans from the
