@@ -938,9 +938,13 @@ steps, each on whatever machine suits it:
 - **finish** checks every shard reported and that no other release became
   current meanwhile, then builds the new release from the old one: refitted
   models replaced, retired and refused ones removed, public files refreshed. A
-  model that failed keeps its previous version and is planned again next time.
-  A refusal is recorded against its record set, so it is not retried until the
-  records change.
+  model that failed keeps its previous version and is planned again next time,
+  unless it failed at a step the fit names (cross-validation, tuning, the
+  final fit, the null test and so on): that fails the same way on the same
+  records, so it is recorded privately against its record set and settings,
+  its kept model is marked `kept_after_failed_refit` with the step, and it is
+  not planned again until either changes. A refusal is recorded against its
+  record set, so it is not retried until the records change.
 
 On the draft grid, a real two-shard job — each worker starting from an empty
 data directory — fetched 103 MB of inputs, fitted its model and uploaded it in

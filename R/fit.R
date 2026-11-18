@@ -906,6 +906,22 @@ atlas_model_path <- function(name, grid = "draft", extension = ".tif", algorithm
 }
 
 #' A refusal for any other reason: a message, classed like the others.
+#' Run one step of a taxon's fit, naming the step in any failure. A failure
+#' comes out as an "atlas_fit_failure" condition with its stage, so a job can
+#' record which step failed (R/failedrefits.R). A refusal passes through as
+#' it is, and so does a failure a step inside already named.
+atlas_fit_stage <- function(stage, expr) {
+  # One handler: tryCatch nests several, so one re-raised from an inner
+  # handler would be caught by the next.
+  tryCatch(expr, error = function(e) {
+    if (inherits(e, c("atlas_insufficient_evidence", "atlas_fit_failure"))) stop(e)
+    stop(structure(
+      class = c("atlas_fit_failure", "error", "condition"),
+      list(message = paste0(stage, ": ", conditionMessage(e)), call = NULL, stage = stage)
+    ))
+  })
+}
+
 atlas_refusal <- function(name, presences, reason) {
   structure(
     class = c("atlas_insufficient_evidence", "error", "condition"),
@@ -1098,13 +1114,13 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     occurrences <- occurrences %||% atlas_read_occurrences()
     points <- atlas_occurrence_points(occurrences, grid)
   }
-  training <- atlas_build_training(
+  training <- atlas_fit_stage("training table", atlas_build_training(
     name, grid,
     n_background = n_background, buffer_km = buffer_km,
     write = FALSE, quiet = TRUE, points = points, stack = stack,
     occurrences = occurrences, fingerprint = fingerprint, thin_km = thin_km,
     seed_from = seed_from
-  )
+  ))
   presences <- sum(training$presence == 1L)
   refuse <- function(condition) {
     # A model left from when the taxon had more sites, or from before the
@@ -1123,12 +1139,12 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
 
   considered <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
   if (isTRUE(prune)) {
-    keep <- if (is.function(algo$choose)) {
+    keep <- atlas_fit_stage("predictor choice", if (is.function(algo$choose)) {
       algo$choose(training, correlation, priority, atlas_host_allowance(guild))
     } else {
       atlas_choose_predictors(training, threshold = correlation, priority = priority,
                               host_share = atlas_host_allowance(guild))
-    }
+    })
     kept_attributes <- attributes(training)[c("area_km2", "seed", "fingerprint", "dropped", "thin_km")]
     training <- training[, c("presence", "cell", "x", "y", keep), drop = FALSE]
     attributes(training)[names(kept_attributes)] <- kept_attributes
@@ -1148,7 +1164,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     list(block_km = as.numeric(recorded_block$block_km),
          range_km = suppressWarnings(as.numeric(recorded_block$range_km %||% NA)), source = "recorded")
   } else {
-    atlas_block_size(training, seed = seed)
+    atlas_fit_stage("block size", atlas_block_size(training, seed = seed))
   }
   blocks <- atlas_presence_blocks(training, block$block_km)
   if (blocks < min_blocks) {
@@ -1157,10 +1173,10 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
       blocks = blocks, min_blocks = min_blocks, block_km = block$block_km
     ))
   }
-  fold_ids <- atlas_spatial_folds(
+  fold_ids <- atlas_fit_stage("folds", atlas_spatial_folds(
     training$x, training$y, k = folds, block_km = block$block_km, seed = seed,
     presence = training$presence
-  )
+  ))
   effort_at <- atlas_effort_level(training)
 
   bands <- atlas_layer_bands(grid)
@@ -1172,22 +1188,24 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   groups <- if (isTRUE(importance)) {
     atlas_importance_groups(atlas_predictor_columns(training), layer_of)
   }
-  scores <- atlas_nested_cross_validate(
+  scores <- atlas_fit_stage("cross-validation", atlas_nested_cross_validate(
     training, fold_ids, algo, block_km = block$block_km, seed = seed,
     effort_at = effort_at, tune = tune, importance = groups
-  )
+  ))
   final <- if (isTRUE(tune)) {
-    atlas_tune(training, fold_ids, algo, seed, effort_at)
+    atlas_fit_stage("tuning", atlas_tune(training, fold_ids, algo, seed, effort_at))
   } else {
     list(params = algo$default(training), tried = NULL)
   }
-  model <- algo$fit(training, final$params, seed)
+  model <- atlas_fit_stage("final fit", algo$fit(training, final$params, seed))
   auc_mean <- mean(scores$auc, na.rm = TRUE)
   boyce_mean <- mean(scores$boyce, na.rm = TRUE)
   boyce_pooled <- atlas_pooled_boyce(scores)
   null <- if (is.finite(auc_mean)) {
-    atlas_null_test_sequential(training, fold_ids, algo, reps = nulls, seed = seed,
-                               design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER)
+    atlas_fit_stage("null test", atlas_null_test_sequential(
+      training, fold_ids, algo, reps = nulls, seed = seed,
+      design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER
+    ))
   } else {
     list(reps = 0L)
   }
@@ -1201,15 +1219,16 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   # Where the map knows what it is talking about (R/aoa.R): the model's own
   # predictors, weighted by what it owed each on held-out ground.
   used <- setdiff(atlas_predictor_columns(training), ATLAS_EFFORT_COLUMN)
-  aoa <- atlas_aoa_train(training, used, atlas_aoa_weights(attr(scores, "falls"), used),
-                         fold_ids, seed = seed)
+  aoa <- atlas_fit_stage("applicability", atlas_aoa_train(
+    training, used, atlas_aoa_weights(attr(scores, "falls"), used), fold_ids, seed = seed
+  ))
   suitability <- NULL
   dissimilarity <- NULL
   if (isTRUE(predict) && !withheld) {
     occupied <- training[training$presence == 1L, , drop = FALSE]
     area <- atlas_accessible_area(occupied$x, occupied$y, buffer_km)
-    suitability <- atlas_predict_raster(model, stack, area, score = held_score)
-    dissimilarity <- atlas_predict_raster(aoa, stack, area, score = atlas_aoa_index)
+    suitability <- atlas_fit_stage("prediction", atlas_predict_raster(model, stack, area, score = held_score))
+    dissimilarity <- atlas_fit_stage("prediction", atlas_predict_raster(aoa, stack, area, score = atlas_aoa_index))
     names(dissimilarity) <- "dissimilarity"
   } else if (isTRUE(write)) {
     # A map left over from an older fit would be drawn beside scores it does

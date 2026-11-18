@@ -98,6 +98,8 @@ test_that("a model that fails keeps its previous version, and is planned again",
   expect_equal(second$job_results$failed, 2L)
   expect_identical(release_hash(first, "models/draft/taxon-b.json"),
                    release_hash(second, "models/draft/taxon-b.json"))
+  # A failure no step named (here, memory) is not recorded: tried again.
+  expect_length(atlas_read_failed_refits(store), 0L)
   again <- on_machine(boss, atlas_plan_job(store, algorithms = c("maxnet", "rf"), quiet = TRUE))
   expect_setequal(vapply(again$tasks, function(t) t$taxon, ""), "Taxon B")
 })
