@@ -12,9 +12,9 @@
 # than the source shows.
 #
 # Four kinds of record are left out of it, all read from .org:
-#   - an iNaturalist record .org holds no cached iNaturalist answer for (no
-#     cache row, or one with no stored answer), so whether iNaturalist
-#     obscures it is unknown (the pull drops the ones it knows are obscured);
+#   - an iNaturalist record .org holds no cached iNaturalist answer for, so
+#     whether iNaturalist obscures it is unknown (the pull drops the ones it
+#     knows are obscured);
 #   - a Mushroom Observer record .org holds no cached MO answer for (the
 #     pull keeps it at .org's own coordinate);
 #   - a Mushroom Observer record with no GPS point its observer shows, which
@@ -52,11 +52,8 @@ atlas_privacy_sql <- function(from_id, to_id) {
   )
   cached_mo <- sprintf("EXISTS (SELECT 1 FROM %s m WHERE m.source_observation_id = o.observation_id)",
                        ATLAS_MO_POINTS)
-  # A cache row with no stored iNaturalist answer is no answer: whether
-  # iNaturalist obscures the record is still unknown (four such rows on
-  # 2026-11-19). Only the column's null flag is read, never its text.
   cached_inat <- paste("EXISTS (SELECT 1 FROM observation_cache c WHERE c.source = 'inat'",
-                       "AND c.source_observation_id = o.observation_id AND c.api_response_json IS NOT NULL)")
+                       "AND c.source_observation_id = o.observation_id)")
   # Deleted at the source: MO only, as .org marks only MO today.
   deleted <- sprintf("(o.source = '%s' AND %s IS NOT NULL)", ATLAS_MO_SOURCE, ATLAS_SOURCE_DELETED)
   sql <- sprintf(paste(

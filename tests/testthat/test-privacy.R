@@ -131,7 +131,7 @@ test_that("the privacy query lists MO records deleted at the source, as deleted 
     "  longitude numeric, validation_status_1 text, validation_status_2 text, validation_status_3 text,",
     "  country text, state text, source_deleted_at timestamp);",
     "CREATE TEMP TABLE mo_points (source_observation_id text, latitude numeric, longitude numeric);",
-    "CREATE TEMP TABLE observation_cache (source text, source_observation_id text, api_response_json text);",
+    "CREATE TEMP TABLE observation_cache (source text, source_observation_id text);",
     "INSERT INTO observations VALUES",
     paste(c(
       row(1, "100", "iNaturalist"),                       # no cached answer: unknown
@@ -142,11 +142,10 @@ test_that("the privacy query lists MO records deleted at the source, as deleted 
       row(6, "203", "MO Observations", deleted = TRUE),   # shown point, deleted: deleted
       row(7, "204", "MO Observations", deleted = TRUE),   # no shown point, deleted: place
       row(8, "205", "MO Observations", deleted = TRUE),   # no cached answer, deleted: unknown
-      row(9, "206", "iNaturalist", deleted = TRUE),       # answered iNaturalist: not listed
-      row(10, "207", "iNaturalist")                       # a cache row with no answer: unknown
+      row(9, "206", "iNaturalist", deleted = TRUE)        # answered iNaturalist: not listed
     ), collapse = ", "), ";",
     "INSERT INTO mo_points VALUES ('201', NULL, NULL), ('202', 45, -122), ('203', 45, -122), ('204', NULL, NULL);",
-    "INSERT INTO observation_cache VALUES ('inat', '101', '{}'), ('inat', '206', '{}'), ('inat', '207', NULL);",
+    "INSERT INTO observation_cache VALUES ('inat', '101'), ('inat', '206');",
     paste0(gsub("atlas.mo_points", "pg_temp.mo_points", atlas_privacy_sql(0, 100), fixed = TRUE), ";"),
     "ROLLBACK;"
   )
@@ -155,7 +154,27 @@ test_that("the privacy query lists MO records deleted at the source, as deleted 
   listed <- gsub(",", "|", grep("[|,]", out, value = TRUE), fixed = TRUE)
   expect_identical(listed, c(
     "iNaturalist|100|unknown", "MO Observations|200|unknown", "MO Observations|201|place",
-    "MO Observations|203|deleted", "MO Observations|204|place", "MO Observations|205|unknown",
-    "iNaturalist|207|unknown"
+    "MO Observations|203|deleted", "MO Observations|204|place", "MO Observations|205|unknown"
   ))
+})
+
+# atlas_ro, the role the box's read-only route runs as, may read only these
+# columns of .org's observation_cache (has_column_privilege, 2026-11-20). A
+# query naming any other fails on the box with "permission denied", and the
+# privacy list then stays as it was, so every query Atlas sends against the
+# cache is held to them here.
+test_that("every query on .org's iNaturalist cache reads only the columns atlas_ro may read", {
+  readable <- c("source", "source_observation_id", "coordinates_obscured", "positional_accuracy")
+  statements <- c(
+    atlas_privacy_sql(0, 100),
+    unlist(atlas_cells_now_sql()$inat),
+    atlas_occurrence_sql(0, 100),
+    atlas_waterfall_sql(0, 100)
+  )
+  for (sql in statements) {
+    expect_match(sql, "observation_cache c", fixed = TRUE)
+    used <- unique(regmatches(sql, gregexpr("\\bc[.][a-z_]+", sql))[[1]])
+    expect_true(all(sub("^c[.]", "", used) %in% readable),
+                info = paste(setdiff(sub("^c[.]", "", used), readable), collapse = ", "))
+  }
 })
