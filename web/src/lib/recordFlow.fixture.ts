@@ -40,4 +40,4 @@ export const FLOW_FIXTURE: RecordFlowData = {
   ],
 };
 
-export const EXAMPLE_IDS = new Set(["total", "dna", "coordinates", "north_america", "obscured", "inat_coarse", "other_coarse", "not_species"]);
+export const EXAMPLE_IDS = new Set(["total", "dna", "coordinates", "north_america", "obscured", "inat_coarse", "other_coarse", "name"]);

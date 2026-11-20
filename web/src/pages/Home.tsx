@@ -357,8 +357,8 @@ export default function Home() {
             value={formatNumber(status.data?.records)}
             label={
               <>
-                DNA-validated collections ·{" "}
-                <Link href="/methods#records" className="text-myco-green hover:underline">
+                DNA-validated collections
+                <Link href="/methods#records" className="block text-myco-green hover:underline">
                   where the records go
                 </Link>
               </>
