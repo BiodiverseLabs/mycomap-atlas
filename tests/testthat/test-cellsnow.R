@@ -378,11 +378,11 @@ test_that("on Postgres an iNaturalist cache row with no stored answer is not an 
     "CREATE TEMP TABLE observation_cache (source text, source_observation_id text, coordinates_obscured boolean,",
     "  positional_accuracy integer, api_response_json text);",
     "INSERT INTO observation_cache VALUES ('inat', '11', false, 10, '{}'), ('inat', '12', true, 10, '{}'),",
-    "  ('inat', '13', false, NULL, NULL), ('mo', '14', false, 10, '{}');",
+    "  ('inat', '13', false, 10, NULL), ('mo', '14', false, 10, '{}');",
     paste0(unlist(atlas_cells_now_sql(1000)$inat), ";", collapse = " "),
     "ROLLBACK;"
   )
   out <- system(Sys.getenv("ATLAS_TEST_PSQL"), input = sql, intern = TRUE)
-  rows <- sub("[|,]", "|", grep("^[0-9]+[|,][tf]$", out, value = TRUE))
+  rows <- sub("[|,]", "|", grep("^[0-9]+[|,]", out, value = TRUE))
   expect_setequal(rows, c("11|f", "12|t"))
 })
