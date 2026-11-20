@@ -60,6 +60,12 @@ ATLAS_NULL_STOP_AFTER <- 5L
 # less often between refits on the same evidence. Models fitted before it
 # record a first stage only, and are stale (atlas_design).
 ATLAS_NULL_EXTEND <- list(from = 99L, to = 499L, stop_after = 25L, clear_pass = 1L, near_from = 50L)
+# Fold splits the null test pools over (R/nulls.R, atlas_null_fold_splits;
+# Steve, 2026-11-19): the map and every null are scored on each, and compared
+# by the mean. The first is the map's own split, so its scores do not change.
+# Recorded in each model's settings (null_splits), so models tested on one
+# split are stale.
+ATLAS_NULL_SPLITS <- 5L
 # A map is shown as skilled when its AUC beats the nulls at this level and its
 # Boyce index is above zero.
 ATLAS_SKILL_ALPHA <- 0.05
@@ -1017,7 +1023,8 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
                                algorithm = "maxnet", thin_km = ATLAS_SITE_KM,
                                nulls = ATLAS_NULL_REPS, tune = TRUE,
                                min_blocks = ATLAS_MIN_BLOCKS,
-                               guild_table = atlas_guild_table_key()) {
+                               guild_table = atlas_guild_table_key(),
+                               null_splits = ATLAS_NULL_SPLITS) {
   algo <- atlas_algorithm(algorithm)
   design <- atlas_algorithm_design(algo, folds, block_km, min_blocks)
   folds <- design$folds
@@ -1048,6 +1055,7 @@ atlas_fit_settings <- function(grid = "draft", n_background = 10000,
     tuning = if (isTRUE(tune)) algo$grid_description() else list(default = TRUE, regmult = regmult),
     learner = algo$learner(),
     nulls = as.numeric(nulls),
+    null_splits = as.numeric(null_splits),
     design = atlas_design(),
     layers = layers
   )
@@ -1097,7 +1105,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                             thin_km = ATLAS_SITE_KM, nulls = ATLAS_NULL_REPS,
                             tune = TRUE, min_blocks = ATLAS_MIN_BLOCKS,
                             guilds = atlas_guild_table(), importance = TRUE, full = NULL,
-                            seed_from = NULL, recorded_block = NULL) {
+                            seed_from = NULL, recorded_block = NULL,
+                            null_splits = ATLAS_NULL_SPLITS) {
   algo <- atlas_algorithm(algorithm)
   # Each algorithm has its own habit about correlated predictors; an explicit
   # prune overrides it.
@@ -1115,7 +1124,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     correlation = correlation, prune = prune,
     layers = layers %||% atlas_layers_key(grid), algorithm = algo$id,
     thin_km = thin_km, nulls = nulls, tune = tune, min_blocks = min_blocks,
-    guild_table = atlas_guild_table_key(guilds)
+    guild_table = atlas_guild_table_key(guilds), null_splits = null_splits
   )
   guild <- atlas_taxon_guild(name, guilds)
   priority <- atlas_predictor_priority(guild)
@@ -1214,7 +1223,10 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   boyce_pooled <- atlas_pooled_boyce(scores)
   null <- if (is.finite(auc_mean)) {
     atlas_fit_stage("null test", atlas_null_test_sequential(
-      training, fold_ids, algo, reps = nulls, seed = seed,
+      training,
+      atlas_null_fold_splits(training$x, training$y, fold_ids, k = folds, block_km = block$block_km,
+                             seed = seed, presence = training$presence, splits = null_splits),
+      algo, reps = nulls, seed = seed,
       design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER,
       extend = ATLAS_NULL_EXTEND
     ))

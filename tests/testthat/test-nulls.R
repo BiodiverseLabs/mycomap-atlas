@@ -312,3 +312,72 @@ test_that("the extension is for a first stage of 99, and without it the test is 
   expect_false(extended$extended)
   expect_identical(extended[names(study)], study)
 })
+
+# Pooled fold splits (atlas_null_fold_splits): the map and every null are
+# scored on several splits and compared by the mean.
+test_that("the pooled test's first split is the map's own, the others are dealt afresh, and the random stream is left as it was", {
+  world <- null_world("habitat")
+  own <- atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1, presence = world$presence)
+  set.seed(42)
+  before <- .Random.seed
+  splits <- atlas_null_fold_splits(world$x, world$y, own, k = 5, block_km = 200, seed = 1,
+                                   presence = world$presence, splits = 5L)
+  expect_identical(.Random.seed, before)
+  expect_length(splits, 5)
+  expect_identical(splits[[1]], own)
+  for (i in 2:5) {
+    expect_false(identical(splits[[i]], own))
+    expect_setequal(unique(splits[[i]]), 1:5)
+    expect_identical(splits[[i]], atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1 + 100 * (i - 1),
+                                                      presence = world$presence))
+  }
+  expect_identical(atlas_null_fold_splits(world$x, world$y, own, 5, 200, 1, world$presence, splits = 1L), list(own))
+})
+
+test_that("pooled over splits, the map and its nulls are compared by their mean over the splits; one split is the single-split test", {
+  skip_if_not_installed("maxnet")
+  world <- null_world("habitat")
+  own <- atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1, presence = world$presence)
+  splits <- atlas_null_fold_splits(world$x, world$y, own, k = 5, block_km = 200, seed = 1,
+                                   presence = world$presence, splits = 3L)
+  algo <- atlas_algorithm("maxnet")
+  test <- function(folds) atlas_null_test_sequential(world, folds, algo, reps = 7, seed = 3,
+                                                     design = "shift", stop_after = 100L)
+  single <- test(own)
+  expect_identical(test(list(own)), single)
+  each <- lapply(splits, test)
+  pooled <- test(splits)
+  expect_equal(pooled$splits, 3L)
+  expect_equal(pooled$first_split_auc, single$observed_auc)
+  # Every null is scored on every split, so the nulls' mean is the mean of
+  # each split's nulls' mean (rounding aside).
+  expect_equal(pooled$auc_mean, mean(vapply(each, function(x) x$auc_mean, numeric(1))), tolerance = 2e-3)
+  expect_equal(pooled$observed_auc, mean(vapply(each, function(x) x$observed_auc, numeric(1))), tolerance = 2e-3)
+  expect_equal(pooled$reps, 7L)
+  expect_null(single$splits)
+})
+
+test_that("production pools its null test over 5 splits, records it in the settings, and leaves the map's own scores alone", {
+  expect_equal(ATLAS_NULL_SPLITS, 5L)
+  expect_equal(atlas_fit_settings()$null_splits, 5)
+  expect_false(identical(atlas_settings_key(atlas_fit_settings()), atlas_settings_key(atlas_fit_settings(null_splits = 1L))))
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  with_data_dir({
+    world <- synthetic_landscape()
+    fit <- function(splits) atlas_fit_taxon("Eastern fungus", points = world$points, stack = world$stack,
+                                            fingerprint = "f00dfeed", layers = "synthetic", n_background = 500,
+                                            buffer_km = 300, predict = FALSE, quiet = TRUE, nulls = 5L,
+                                            tune = FALSE, guilds = stats::setNames(character(), character()),
+                                            null_splits = splits)$metrics
+    one <- fit(1L)
+    five <- fit(5L)
+    expect_equal(five$null$splits, 5L)
+    expect_null(one$null$splits)
+    expect_equal(five$settings$null_splits, 5)
+    expect_equal(five$null$first_split_auc, one$null$observed_auc)
+    for (field in c("auc_mean", "boyce", "boyce_mean", "folds", "block_km")) {
+      expect_identical(five[[field]], one[[field]], info = field)
+    }
+  })
+})

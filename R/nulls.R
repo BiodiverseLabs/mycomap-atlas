@@ -40,6 +40,13 @@
 # The pass rule is unchanged, and the exact size (a map that knows nothing is
 # exchangeable with its nulls) is 0.0495, against 0.05 for 99 alone.
 #
+# One fold split decides a lot too: a record that changes one block re-deals
+# every fold, and at 10 to 60 sites the map's score against its nulls moves
+# with the split it got (paper E11, 2026-11-19). So production scores the map
+# and every null on ATLAS_NULL_SPLITS fold splits and compares their means
+# (atlas_null_fold_splits). The first split is the map's own; the others are
+# dealt from further seeds, with the same block size.
+#
 # Across thousands of taxa, 5% of maps of species that know nothing would
 # pass at p = 0.05. atlas_null_qvalues gives Benjamini-Hochberg q-values, the
 # false discovery rate at which each map would pass.
@@ -161,6 +168,19 @@ atlas_null_draw <- function(training, n, seed, design = "scatter") {
   )
 }
 
+#' The fold splits a pooled null test scores on: the map's own (fold_ids),
+#' then splits - 1 more dealt by atlas_spatial_folds with the same block size
+#' from seeds seed + 100, seed + 200, ... The random number stream is put back
+#' as it was, so nothing fitted after this sees a different one.
+atlas_null_fold_splits <- function(x, y, fold_ids, k, block_km, seed, presence, splits = ATLAS_NULL_SPLITS) {
+  if (splits <= 1L) return(list(fold_ids))
+  stream <- atlas_rng_state()
+  on.exit(atlas_rng_restore(stream), add = TRUE)
+  c(list(fold_ids), lapply(seq_len(splits - 1L), function(i) {
+    atlas_spatial_folds(x, y, k = k, block_km = block_km, seed = seed + 100L * i, presence = presence)
+  }))
+}
+
 #' Whether a first test of reps nulls ended near the pass line, so the test
 #' goes on to more (extend, production's ATLAS_NULL_EXTEND): it stopped at its
 #' stop_after'th null on the near_from'th scored null or later (p at most
@@ -240,6 +260,12 @@ atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L
 #' stopped early, how many shifted nulls were placed best-effort, and the mean
 #' share of their points that landed far from a site. With extend, also
 #' whether the test went on past its first stage, and that stage's nulls and p.
+#'
+#' folds is one fold split, or a list of them (production's pooled test,
+#' atlas_null_fold_splits): the taxon and every null are then scored on each
+#' split, and compared by the mean over the splits; observed_auc is that mean,
+#' and the result says how many splits were used and the first split's AUC.
+#' One split gives exactly the single-split test.
 atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed = 1L,
                                        design = "scatter", stop_after = 5L, batch = 10L,
                                        extend = NULL) {
@@ -261,29 +287,48 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     attributes(null$presence) <- NULL
     null
   }
-  run_tables <- function(tables) {
+  run_split <- function(tables, split) {
     if (atlas_shares_features(algo)) {
       features <- atlas_feature_cache()
       fit <- atlas_fit_sharing(algo, params, seed, features)
       runs <- lapply(tables, function(table) {
         list(training = table, fit = fit, score = algo$score, effort_at = atlas_effort_level(table))
       })
-      lapply(atlas_cross_validate_by_fold(runs, folds, features), summarise)
+      lapply(atlas_cross_validate_by_fold(runs, split, features), summarise)
     } else {
       lapply(tables, function(table) summarise(tryCatch(
-        atlas_cross_validate(table, folds,
+        atlas_cross_validate(table, split,
                              fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
                              score = algo$score, effort_at = atlas_effort_level(table)),
         error = function(e) NULL
       )))
     }
   }
+  # Several fold splits: every table is scored on each, and its score is the
+  # mean over them. A null that cannot be scored on one of them is a null that
+  # failed, and is replaced.
+  run_tables <- function(tables) {
+    per_split <- lapply(splits, function(split) run_split(tables, split))
+    if (length(per_split) == 1L) return(per_split[[1]])
+    lapply(seq_along(tables), function(i) {
+      scores <- vapply(per_split, function(scored) scored[[i]], numeric(2))
+      c(auc = mean(scores["auc", ]), boyce = mean(scores["boyce", ]))
+    })
+  }
+  splits <- if (is.list(folds)) folds else list(folds)
+  pooled <- length(splits) > 1L
   stream <- atlas_rng_state()
-  observed <- run_tables(list(training))[[1]]
-  if (!is.finite(observed[["auc"]])) {
+  by_split <- lapply(splits, function(split) run_split(list(training), split)[[1]])
+  if (!is.finite(by_split[[1]][["auc"]])) {
     atlas_rng_restore(stream)
     return(list(reps = 0L))
   }
+  # A further split the taxon itself cannot be scored on is left out before
+  # any null is drawn, for the taxon and every null alike.
+  scored_on <- vapply(by_split, function(x) is.finite(x[["auc"]]), logical(1))
+  splits <- splits[scored_on]
+  observed <- c(auc = mean(vapply(by_split[scored_on], function(x) x[["auc"]], numeric(1))),
+                boyce = mean(vapply(by_split[scored_on], function(x) x[["boyce"]], numeric(1))))
   run <- atlas_null_sequence(observed[["auc"]], function(take) run_tables(lapply(take, null_table)),
                              reps = reps, stop_after = stop_after, batch = batch, extend = extend)
   aucs <- run$aucs
@@ -306,6 +351,9 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     extended = run$extended,
     first_reps = run$first$reps,
     first_auc_p = round(run$first$p, 4)
+  ), if (pooled) list(
+    splits = length(splits),
+    first_split_auc = round(by_split[[1]][["auc"]], 3)
   ))
 }
 
