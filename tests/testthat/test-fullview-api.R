@@ -19,10 +19,10 @@ test_that("the full view is published only when the site says so", {
   with_env(c(ATLAS_FULL_VIEW = "TRUE"), expect_true(atlas_full_view_on()))
 })
 
-# A strong model with a full view, and a weak one without, as stand-in files:
+# A strong model with a full view, and a failed one without, as stand-in files:
 # the route sends whatever file the view names.
 full_view_fixture <- function() {
-  for (taxon in c("Strong one", "Weak one")) {
+  for (taxon in c("Strong one", "Failed one")) {
     path <- atlas_model_path(taxon, "draft", ".png", "maxnet")
     dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
     writeLines("the default map", path)
@@ -50,10 +50,10 @@ test_that("with the full view on, the map route serves it and a model names it",
       expect_match(full$body, "FULL-VIEW-PICTURE", fixed = TRUE)
       model <- jsonlite::fromJSON(call_api(api, "/api/taxa/Strong%20one/model")$body)
       expect_equal(model$full_map$bounds$north, 72)
-      # A weak map has no full view: it makes no claim beyond its reach.
-      weak <- call_api(api, "/api/taxa/Weak%20one/map.png", query = "view=full")
-      expect_equal(weak$status, 404L)
-      expect_match(weak$body, "only strong maps are drawn beyond their reach", fixed = TRUE)
+      # A failed map has no full view: it is no better than chance.
+      failed <- call_api(api, "/api/taxa/Failed%20one/map.png", query = "view=full")
+      expect_equal(failed$status, 404L)
+      expect_match(failed$body, "failed maps, and maps fitted before full views, are not drawn beyond their reach", fixed = TRUE)
       expect_equal(call_api(api, "/api/taxa/Strong%20one/map.png", query = "view=sideways")$status, 400L)
     })
   })
