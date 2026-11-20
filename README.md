@@ -845,9 +845,10 @@ and served at `/api/downloads`. Sandbox series end in `-sandbox` and never
 mix with real ones. Creators, licence, keywords and related identifiers are
 in `inst/archive/zenodo.json`.
 
-A waiting draft publishes itself a few days after it is made, unless a person
-deletes it on zenodo.org first (Steve, 2026-11-19). `archive-auto-publish`,
-run daily by `atlas-zenodo-publish.timer` on the server, reads each series'
+A waiting draft can publish itself a few days after it is made, unless a
+person deletes it on zenodo.org first (Steve, 2026-11-19). The timer that does
+it, `atlas-zenodo-publish.timer`, is off until Steve decides on auto-publish
+(deploy/lightsail/README.md). `archive-auto-publish` reads each series'
 draft back and acts: deleted on Zenodo, it is marked `discarded` in the
 ledger; published there by a person, its DOI is recorded; past the grace
 period (`ATLAS_ZENODO_PUBLISH_AFTER_DAYS`, default 3, or `off`), it is
