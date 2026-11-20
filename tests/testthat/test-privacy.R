@@ -157,3 +157,24 @@ test_that("the privacy query lists MO records deleted at the source, as deleted 
     "MO Observations|203|deleted", "MO Observations|204|place", "MO Observations|205|unknown"
   ))
 })
+
+# atlas_ro, the role the box's read-only route runs as, may read only these
+# columns of .org's observation_cache (has_column_privilege, 2026-11-20). A
+# query naming any other fails on the box with "permission denied", and the
+# privacy list then stays as it was, so every query Atlas sends against the
+# cache is held to them here.
+test_that("every query on .org's iNaturalist cache reads only the columns atlas_ro may read", {
+  readable <- c("source", "source_observation_id", "coordinates_obscured", "positional_accuracy")
+  statements <- c(
+    atlas_privacy_sql(0, 100),
+    unlist(atlas_cells_now_sql()$inat),
+    atlas_occurrence_sql(0, 100),
+    atlas_waterfall_sql(0, 100)
+  )
+  for (sql in statements) {
+    expect_match(sql, "observation_cache c", fixed = TRUE)
+    used <- unique(regmatches(sql, gregexpr("\\bc[.][a-z_]+", sql))[[1]])
+    expect_true(all(sub("^c[.]", "", used) %in% readable),
+                info = paste(setdiff(sub("^c[.]", "", used), readable), collapse = ", "))
+  }
+})
