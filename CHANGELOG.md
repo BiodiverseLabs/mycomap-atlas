@@ -147,6 +147,17 @@ changed and what it means for you.
 
 ### Maps
 
+- **A map near the null test's pass line is tested against up to 499 nulls,
+  not 99.** A first stage of 99 shifted nulls stands when at most one did as
+  well as the map, or when the fifth that did came before the 50th null.
+  Otherwise the test goes on, stopping after 25, and the map passes at
+  p = (1 + k) / 500 <= 0.05, the same rule as before. Grades near the line
+  change less often between refits on much the same records. Each model's
+  `null` now says whether the test went on (`extended`) and gives its first
+  stage (`first_reps`, `first_auc_p`). Every model refits once under the new
+  rule; releases before that, and the archived releases, keep the 99-null
+  test.
+
 - **Collection cells leave out Mushroom Observer records the source no longer
   holds.** A record .org marks as deleted at Mushroom Observer is kept in the
   pull when its answer was cached, and models still learn from it, but it is

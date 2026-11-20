@@ -2997,7 +2997,19 @@
               },
               "stopped_early": {
                 "type": "boolean",
-                "description": "The sequential test stopped once 5 nulls did as well as the map."
+                "description": "The sequential test stopped once 5 nulls did as well as the map, or 25 when it went on past its first stage (extended)."
+              },
+              "extended": {
+                "type": "boolean",
+                "description": "The first stage of 99 nulls ended near the pass line (2 to 4 as good, or the fifth by the 50th null or later), so the test went on to up to 499 nulls, stopping after 25; auc_p, reps and stopped_early are then the whole test's. Absent for fits from before the near-line extension, which ran the first stage only."
+              },
+              "first_reps": {
+                "type": "integer",
+                "description": "Nulls scored in the first stage. Absent for fits from before the near-line extension."
+              },
+              "first_auc_p": {
+                "type": "number",
+                "description": "auc_p after the first stage alone, as fits from before the near-line extension were graded. Absent for those fits."
               },
               "drawn": {
                 "type": "integer",
