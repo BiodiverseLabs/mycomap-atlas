@@ -4,7 +4,8 @@
 # Eligibility (decided 2026-09-28):
 #   - green in at least one validation project (decided 2026-09-30: a red in
 #     another project does not rule it out; the green project settled the name);
-#   - coordinates present, not obscured, accuracy within 1 km where recorded;
+#   - coordinates present, not obscured, accuracy within ATLAS_MAX_ACCURACY_M
+#     (2 km; 1 km in earlier pulls) where recorded;
 #   - for a Mushroom Observer record, a GPS point the observer has not hidden,
 #     or else a named location small enough that its centre is within
 #     ATLAS_MO_MAX_LOCATION_M of every point in it (R/occurrences.R
@@ -457,6 +458,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     host = host,
     records = nrow(occurrences),
     taxa = nrow(taxa),
+    # The iNaturalist accuracy cutoff this pull used, in metres.
+    max_accuracy_m = ATLAS_MAX_ACCURACY_M,
     names = list(rule = audit$rule, pulled = audit$pulled,
                  by_status = stats::setNames(as.list(audit$by_status$records),
                                              audit$by_status$status)),

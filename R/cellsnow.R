@@ -7,7 +7,9 @@
 # leaving out four groups:
 #   (a) the records on the release's own privacy list;
 #   (b) iNaturalist records whose cached answer now says obscured, or placed no
-#       better than ATLAS_MAX_ACCURACY_M, or that have no cached answer now;
+#       better than the release's own cutoff (its pull's max_accuracy_m; 1 km
+#       for every pull before pulls recorded it), or that have no cached
+#       answer now;
 #   (c) Mushroom Observer records whose observer shows no point now, or that
 #       have no cached answer now;
 #   (d) Mushroom Observer records .org marks as deleted at the source.
@@ -19,7 +21,7 @@
 
 ATLAS_CELLS_NOW_GROUPS <- c(
   a = "on the release's privacy list",
-  b = "iNaturalist: obscured, coarser than 1 km, or no cached answer now",
+  b = "iNaturalist: obscured, coarser than %s km, or no cached answer now",
   c = "Mushroom Observer: no point the observer shows, or no cached answer now",
   d = "Mushroom Observer: deleted at the source"
 )
@@ -66,9 +68,25 @@ atlas_cells_now_sql <- function(max_m = ATLAS_MAX_ACCURACY_M) {
   )
 }
 
-#' Ask .org how the sources stand now.
-atlas_cells_now_status <- function(run = atlas_run_sql, host = atlas_sql_host()) {
-  sql <- atlas_cells_now_sql()
+#' The iNaturalist accuracy cutoff a pull used, in metres, from its manifest
+#' or its release's pull summary: 1 km for a pull from before pulls recorded
+#' it.
+atlas_pull_max_accuracy <- function(pull) {
+  value <- pull$max_accuracy_m
+  if (is.numeric(value) && length(value) == 1L && is.finite(value)) value else ATLAS_LEGACY_MAX_ACCURACY_M
+}
+
+#' A group's name, with the cutoff the cells were made at.
+atlas_cells_now_group_name <- function(group, max_m = ATLAS_LEGACY_MAX_ACCURACY_M) {
+  name <- unname(ATLAS_CELLS_NOW_GROUPS[[group]])
+  if (identical(group, "b")) sprintf(name, format(max_m / 1000)) else name
+}
+
+#' Ask .org how the sources stand now, an iNaturalist record counting as
+#' coarse above max_m metres (the release's own cutoff).
+atlas_cells_now_status <- function(run = atlas_run_sql, host = atlas_sql_host(),
+                                   max_m = ATLAS_MAX_ACCURACY_M) {
+  sql <- atlas_cells_now_sql(max_m)
   ask <- function(statement, columns) {
     page <- atlas_parse_tsv(run(statement, host = host))
     if (!nrow(page)) {
@@ -84,6 +102,7 @@ atlas_cells_now_status <- function(run = atlas_run_sql, host = atlas_sql_host())
     inat = inat,
     mo = ask(sql$mo, c("number", "shown")),
     deleted = ask(sql$deleted, "number")$number,
+    max_accuracy_m = max_m,
     checked_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   )
 }
@@ -171,7 +190,7 @@ atlas_cells_now <- function(pull, listed, release_cells, status, release = NULL)
   by_group <- list()
   for (g in colnames(groups)) {
     by_group[[g]] <- list(
-      group = unname(ATLAS_CELLS_NOW_GROUPS[[g]]),
+      group = atlas_cells_now_group_name(g, status$max_accuracy_m %||% ATLAS_LEGACY_MAX_ACCURACY_M),
       records = sum(groups[, g]),
       not_in_an_earlier_group = sum(groups[, g] & !earlier)
     )
@@ -228,8 +247,10 @@ atlas_cells_now_run <- function(dir, store = atlas_store(), grid = "draft", run 
   if (is.null(pull_file) || !file.exists(atlas_path("occurrences", pull_file))) {
     stop("this machine does not hold release ", manifest$id, "'s pull", call. = FALSE)
   }
+  # The release's own cutoff, not today's.
+  max_m <- atlas_pull_max_accuracy(manifest$pull)
   result <- atlas_cells_now(atlas_read_occurrences(atlas_path("occurrences", pull_file)), listed, release_cells,
-                            atlas_cells_now_status(run, host), release = manifest$id)
+                            atlas_cells_now_status(run, host, max_m = max_m), release = manifest$id)
   atlas_write_cells_now(result, dir)
 }
 

@@ -17,14 +17,23 @@ test_that("obscured and coarse coordinates are excluded", {
   sql <- atlas_occurrence_sql()
   expect_match(sql, "NOT EXISTS", fixed = TRUE)
   expect_match(sql, "c.coordinates_obscured = true", fixed = TRUE)
-  expect_match(sql, "c.positional_accuracy > 1000", fixed = TRUE)
+  expect_match(sql, "c.positional_accuracy > 2000", fixed = TRUE)
+})
+
+test_that("an iNaturalist record is kept to 2 km, and pulls from before that are read as 1 km", {
+  expect_equal(ATLAS_MAX_ACCURACY_M, 2000)
+  expect_equal(ATLAS_LEGACY_MAX_ACCURACY_M, 1000)
+  expect_match(atlas_obscured_clause(1000), "c.positional_accuracy > 1000)", fixed = TRUE)
+  expect_equal(atlas_pull_max_accuracy(list()), 1000)
+  expect_equal(atlas_pull_max_accuracy(list(max_accuracy_m = 2000)), 2000)
+  expect_equal(atlas_pull_max_accuracy(NULL), 1000)
 })
 
 test_that("the obscured-coordinates check stays a per-record probe, inside the route's 60 s cap", {
   # As an anti join it rescanned every cached iNat answer per record and a
   # page timed out (2026-10-08); OFFSET 0 keeps the planner from flattening it.
   sql <- atlas_occurrence_sql()
-  expect_match(sql, "OR c.positional_accuracy > 1000) OFFSET 0)", fixed = TRUE)
+  expect_match(sql, "OR c.positional_accuracy > 2000) OFFSET 0)", fixed = TRUE)
 })
 
 test_that("only an iNaturalist record is checked against cached iNaturalist answers", {
