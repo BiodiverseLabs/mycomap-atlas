@@ -306,12 +306,7 @@ atlas_mo_left_out_sql <- function(after_id = 0, through_id = NULL, since = NULL,
 #' that fails never fails the pull: the manifest says why it has none.
 atlas_mo_left_out <- function(bounds, complete, since = NULL, host = atlas_sql_host(),
                               unknown = ATLAS_MO_UNKNOWN) {
-  windows <- if (length(bounds)) {
-    lapply(seq_along(bounds), function(i) c(if (i == 1L) 0 else bounds[[i - 1L]], bounds[[i]]))
-  } else {
-    list()
-  }
-  if (isTRUE(complete)) windows <- c(windows, list(c(if (length(bounds)) utils::tail(bounds, 1) else 0, NA)))
+  windows <- atlas_pull_windows(bounds, complete)
   tryCatch({
     totals <- c(deleted_at_source_uncached = 0, uncached = 0, too_coarse = 0)
     for (w in windows) {
@@ -430,6 +425,21 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   kingdoms <- tryCatch(atlas_pull_kingdoms(occurrences$scientific_name), error = function(e) e)
   left_out <- atlas_kingdom_left_out(occurrences, if (!inherits(kingdoms, "error")) kingdoms, atlas_kingdom_allow())
   occurrences <- left_out$kept
+  # Where the records went, step by step (R/waterfall.R): a full pull only,
+  # and a count that fails never fails the pull.
+  waterfall <- if (is.null(since) && !is.finite(max_rows) && isTRUE(complete)) {
+    tryCatch(
+      atlas_waterfall(atlas_waterfall_counts(atlas_pull_windows(bounds, complete), host = host),
+                      labelled, mo_left_out, excluded = excluded$info$removed %||% 0L,
+                      kingdom = left_out$info$records %||% 0L, used = nrow(occurrences)),
+      error = function(e) {
+        warning("the records waterfall was not counted: ", conditionMessage(e), call. = FALSE)
+        list(error = conditionMessage(e))
+      }
+    )
+  } else {
+    list(skipped = "not a full pull")
+  }
   atlas_write_json(atlas_name_merges(occurrences), atlas_name_merges_path())
   # Only a full pull can say a name is gone; read before this pull replaces
   # the previous one.
@@ -457,6 +467,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     kingdom_left_out = left_out$info,
     # MO records left out by place, and why (atlas_mo_left_out).
     mo_left_out = mo_left_out,
+    # Every step from .org's observations to these records, as counts.
+    waterfall = waterfall,
     file = basename(combined),
     # Private, like the rest of this manifest: atlas_release_pull_summary
     # publishes none of it.
@@ -468,6 +480,7 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     first_green_sql = atlas_first_green_sql(0, 1),
     names_sql = atlas_sequence_names_sql(0, chunk_size)
   )
+  if (!is.null(manifest$waterfall$steps)) manifest$waterfall$pulled_at <- manifest$pulled_at
   atlas_write_json(manifest, atlas_path("occurrences", "latest.json", create = TRUE))
   atlas_write_json(taxa, atlas_path("occurrences", "taxa-latest.json", create = TRUE))
   # After the pull's own files, and outside its fingerprint: a count that moves
