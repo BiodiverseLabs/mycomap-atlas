@@ -1,6 +1,6 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-**READY TO SEND (Steve, 2026-10-30). Steve sends it himself; no agent sends it.**
+**READY TO SEND (Steve, 2026-10-30; header and one word refreshed 2026-11-20). Steve sends it himself; no agent sends it.**
 
 **Route** (Ecological Monographs Author Guidelines, revised September 2026,
 "Presubmission Inquiries"; https://esajournals.onlinelibrary.wiley.com/hub/journal/15577015/author-guidelines):
@@ -16,14 +16,14 @@ American macrofungi".
 **What to paste:** everything below the line, from "Intended type" to the
 end of the references. **Figures:** optional; none is needed. If one is
 wanted, `figures/fig3.svg` (later finds by grade, beside distance to known
-records) is drafted; Figure 2 (the null tests on simulated species) is not
-drawn yet.
+records) and `figures/fig2.svg` (the null tests on simulated species, from
+E1's registered numbers) have been drafted since 2026-11-04.
 
 **Before sending, read in the draft** (about 20 minutes): the core claims
 C1–C4 and Q1; the abstract; Results 3.2 (E1) and 3.4 (E2, E6b); the
 Discussion's "The cost of an honest grade", the recommendations and
-"Limits". If the nightly is live when it is sent (the first run slipped past 2026-11-04),
-"designed to rebuild nightly" can become "rebuilt nightly".
+"Limits". The nightly has run since 19 November 2026 (first timed nightly
+20261119T110027Z-7f37e0fd), so the summary says "rebuilt nightly".
 
 ---
 
@@ -46,7 +46,7 @@ at a large cost in power that we quantify.
 
 We use this null to grade every map of MycoMap Atlas, habitat
 models for 6,369 macrofungal taxa defined by DNA barcodes rather than morphological
-names, designed to rebuild nightly from validated community-science collections. In a
+names, rebuilt nightly from validated community-science collections. In a
 hindcast, maps graded strong placed 91% of records validated after the
 training cutoff in their top half, against 78% for failed maps (95%
 interval of the difference 9–17 points), and beat a map of distance to
