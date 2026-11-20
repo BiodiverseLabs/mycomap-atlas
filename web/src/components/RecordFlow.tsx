@@ -17,23 +17,13 @@ function Bar({ share, used }: { share: number; used?: boolean }) {
   );
 }
 
-// MOCKUP ONLY: marks a placeholder count.
-function ExampleTag() {
-  return (
-    <span className="ml-2 rounded border border-dashed border-amber-500 px-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
-      example
-    </span>
-  );
-}
-
 const ROW = "grid gap-x-4 gap-y-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]";
 
-export default function RecordFlow({ data, examples }: { data: RecordFlowData; examples?: Set<string> }) {
+export default function RecordFlow({ data }: { data: RecordFlowData }) {
   const rows = flowRows(data);
   if (!rows) return null;
   const pulledOn = longDate(data.pulled_at.slice(0, 10));
   const total = data.total;
-  const tag = (id: string) => (examples?.has(id) ? <ExampleTag /> : null);
   return (
     <figure className="rounded-xl border border-[#A87146]/15 bg-[#f8f5f0]/60 p-4 sm:p-6">
       <figcaption className="mb-4">
@@ -52,7 +42,6 @@ export default function RecordFlow({ data, examples }: { data: RecordFlowData; e
             <div className="flex items-baseline justify-between gap-2 text-sm">
               <span className="font-medium text-[#4a3728]">
                 All records on mycomap.org
-                {tag("total")}
               </span>
               <span className="tabular-nums text-[#4a3728]">{formatNumber(total)}</span>
             </div>
@@ -65,7 +54,6 @@ export default function RecordFlow({ data, examples }: { data: RecordFlowData; e
               <div className="flex items-baseline justify-between gap-2 text-sm">
                 <span className="font-medium text-[#4a3728]">
                   {row.label}
-                  {tag(row.id)}
                 </span>
                 <span className="tabular-nums text-[#4a3728]">{formatNumber(row.left)}</span>
               </div>

@@ -33,7 +33,13 @@ export function distanceLabel(metres: number): string {
   return metres >= 1000 ? `${+(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`;
 }
 
-type StepText = { label: string; why: (d: RecordFlowData) => string; parts?: Record<string, string> };
+type StepText = {
+  label: string;
+  why: (d: RecordFlowData) => string;
+  parts?: Record<string, string>;
+  /** A part not listed above, named from its slug. */
+  otherPart?: (slug: string) => string;
+};
 
 export const STEP_TEXT: Record<string, StepText> = {
   dna: {
@@ -65,10 +71,14 @@ export const STEP_TEXT: Record<string, StepText> = {
     parts: {
       mo_place_centre: "Mushroom Observer, only a large named place's centre",
       mo_deleted: "Mushroom Observer, deleted at the source",
+      mo_uncached: "Mushroom Observer, no answer from the source yet",
+      mo_unexplained: "Mushroom Observer, no point Atlas could check",
       mycoportal: "MyCoPortal, no precise point",
       sequences: "Sequences without a usable point",
       genbank: "GenBank, no usable point",
     },
+    // A source no rule above explains: records that changed while the pull ran.
+    otherPart: (slug) => `${sourceName(slug)}, changed while the pull ran`,
   },
   name: {
     label: "Species name settled by DNA",
@@ -77,14 +87,40 @@ export const STEP_TEXT: Record<string, StepText> = {
       disagree: "sequences name different species",
       no_named_sequence: "no approved named sequence yet",
       genus_only: "sequence names only a genus",
-      not_species: "name above species level",
+      sequence_one_word: "sequence name is one word",
+      rank_above_species: "named only above species level",
+      not_a_species_name: "not a species name",
     },
   },
   excluded: {
     label: "Not on the exclusion list",
     why: () => "Found by hand to be errors in their source, such as plants named by their own sequences.",
   },
+  other_kingdom: {
+    label: "A fungus, by its name",
+    why: () => "Named by its sequence as a plant, animal or other organism that is not a fungus.",
+  },
 };
+
+const SOURCE_NAMES: Record<string, string> = {
+  inaturalist: "iNaturalist",
+  mushroom_observer: "Mushroom Observer",
+  mo_observations: "Mushroom Observer",
+  mycoportal: "MyCoPortal",
+  sequences: "Sequences",
+  genbank: "GenBank",
+};
+
+/** A source's name from its slug ("inaturalist" → "iNaturalist"). */
+export function sourceName(slug: string): string {
+  return SOURCE_NAMES[slug] ?? slug.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
+/** What a step's part is called, or null when this page cannot name it. */
+function partLabel(stepId: string, partId: string): string | null {
+  const text = STEP_TEXT[stepId];
+  return text?.parts?.[partId] ?? (text?.otherPart && /^[a-z][a-z0-9_]*$/.test(partId) ? text.otherPart(partId) : null);
+}
 
 /** Whether every bar adds up: each step's parts make its count, no count is
  *  negative, every step is one this page can describe, and what is left after
@@ -94,7 +130,7 @@ export function flowAddsUp(d: RecordFlowData): boolean {
   for (const s of d.steps) {
     if (!STEP_TEXT[s.id] || !Number.isInteger(s.removed) || s.removed < 0) return false;
     if (s.parts && s.parts.reduce((n, p) => n + p.count, 0) !== s.removed) return false;
-    if (s.parts?.some((p) => !STEP_TEXT[s.id].parts?.[p.id] || p.count < 0)) return false;
+    if (s.parts?.some((p) => !partLabel(s.id, p.id) || !Number.isInteger(p.count) || p.count < 0)) return false;
     left -= s.removed;
     if (left < 0) return false;
   }
@@ -114,7 +150,7 @@ export function flowRows(d: RecordFlowData): FlowRow[] | null {
       left,
       removed: s.removed,
       why: text.why(d),
-      parts: (s.parts ?? []).filter((p) => p.count > 0).map((p) => ({ label: text.parts![p.id], count: p.count })),
+      parts: (s.parts ?? []).filter((p) => p.count > 0).map((p) => ({ label: partLabel(s.id, p.id)!, count: p.count })),
     };
   });
 }

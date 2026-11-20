@@ -1,9 +1,8 @@
 import type { RecordFlowData } from "./recordFlow.ts";
 
-// MOCKUP data until the API serves the pull's counts. The real counts of the
-// 19 November 2026 pull: pulled 152,107; Mushroom Observer place centres
-// 2,533 and deleted at the source 27; names 3,293 / 2,313 / 1,142; excluded
-// 55; used 145,258. Everything in EXAMPLE_IDS is a placeholder.
+// Test data in the shape /api/status serves. Some counts are the 19 November
+// 2026 pull's (Mushroom Observer place centres 2,533, names 3,293 / 2,313 /
+// 1,142, excluded 55, used 145,258); the rest are made up to add up.
 export const FLOW_FIXTURE: RecordFlowData = {
   pulled_at: "2026-11-19T07:13:52Z",
   total: 199_000,
@@ -33,11 +32,10 @@ export const FLOW_FIXTURE: RecordFlowData = {
         { id: "disagree", count: 3_293 },
         { id: "no_named_sequence", count: 2_313 },
         { id: "genus_only", count: 1_142 },
-        { id: "not_species", count: 46 },
+        { id: "not_a_species_name", count: 46 },
       ],
     },
     { id: "excluded", removed: 55 },
   ],
 };
 
-export const EXAMPLE_IDS = new Set(["total", "dna", "coordinates", "north_america", "obscured", "inat_coarse", "other_coarse", "name"]);
