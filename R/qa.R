@@ -356,11 +356,22 @@ atlas_qa_check <- function(value, previous = NULL, stop = FALSE, why = NULL, det
 #' from this pull. Pure.
 atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL, previous = NULL,
                             kingdoms = NULL, allow = character(), exclusions = NULL, left_out = NULL,
-                            thresholds = ATLAS_QA_THRESHOLDS) {
+                            thresholds = ATLAS_QA_THRESHOLDS, privacy_refreshed = NA) {
   t <- thresholds
   last <- function(name) previous$checks[[name]]$value
   share <- function(k, n) if (n) k / n else 0
   checks <- list()
+
+  # The privacy list made with this pull (R/privacy.R). When its query failed
+  # the last good list stays, older than the pull, and cells cut with it could
+  # show a record the new pull should have listed: so the night stops here.
+  # NA: the caller did not say (a report made outside a pull).
+  if (!is.na(privacy_refreshed)) {
+    checks$privacy_refreshed <- atlas_qa_check(
+      isTRUE(privacy_refreshed), stop = !isTRUE(privacy_refreshed),
+      why = "the hidden-place list was not refreshed with this pull; the last good list is older than the pull"
+    )
+  }
 
   # Kingdom of every modelled name.
   names <- sort(unique(as.character(occurrences$scientific_name)))
@@ -503,7 +514,8 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
 
 #' Make and write this pull's QA report beside it: qa-<stamp>.json and
 #' qa-latest.json, the last report read first as the one to compare with.
-atlas_pull_qa <- function(occurrences, manifest, audit = NULL, kingdoms = NULL, left_out = NULL, quiet = FALSE) {
+atlas_pull_qa <- function(occurrences, manifest, audit = NULL, kingdoms = NULL, left_out = NULL, quiet = FALSE,
+                          privacy_refreshed = NA) {
   previous <- if (file.exists(atlas_qa_path())) jsonlite::fromJSON(atlas_qa_path(), simplifyVector = TRUE)
   privacy <- if (file.exists(atlas_privacy_path())) {
     utils::read.delim(gzfile(atlas_privacy_path(), encoding = "UTF-8"), sep = "	", quote = "", comment.char = "",
@@ -511,7 +523,8 @@ atlas_pull_qa <- function(occurrences, manifest, audit = NULL, kingdoms = NULL, 
   }
   exclusions <- tryCatch(atlas_exclusion_keys(), error = function(e) NULL)
   report <- atlas_qa_report(occurrences, manifest, audit, privacy, previous, kingdoms = kingdoms,
-                            allow = atlas_kingdom_allow(), exclusions = exclusions, left_out = left_out)
+                            allow = atlas_kingdom_allow(), exclusions = exclusions, left_out = left_out,
+                            privacy_refreshed = privacy_refreshed)
   atlas_write_json(report, atlas_qa_path(manifest$stamp))
   atlas_write_json(report, atlas_qa_path())
   if (!is.null(left_out)) {
