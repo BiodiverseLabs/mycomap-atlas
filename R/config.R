@@ -34,10 +34,18 @@ atlas_sql_host <- function() {
 # handled separately in the occurrence query.
 ATLAS_NA_COUNTRIES <- c("US", "CA", "MX", "PR", "VI")
 
-# Coordinates coarser than this (metres) cannot support a 1 km model. Records
-# with no accuracy recorded are kept: on iNaturalist a missing value usually
-# means the app did not store one, not that the location is poor.
-ATLAS_MAX_ACCURACY_M <- 1000
+# An iNaturalist record placed no better than this (metres) is left out of
+# the pull. Releases are fitted on the draft grid's 5 km cells, with sites at
+# least 5 km apart (ATLAS_SITE_KM), so a point within 2 km mostly lies in its
+# own cell (Steve, 2026-11-19: 2 km, from 1 km). Records with no accuracy
+# recorded are kept: on iNaturalist a missing value usually means the app did
+# not store one, not that the location is poor. Each pull records the value
+# it used (max_accuracy_m in its manifest and its release's pull summary).
+ATLAS_MAX_ACCURACY_M <- 2000
+# The cutoff of every pull made before pulls recorded their own: 1 km. Remaking
+# a release's cells reads the release's own value, never today's
+# (R/cellsnow.R), so a frozen release's cells do not move with this file.
+ATLAS_LEGACY_MAX_ACCURACY_M <- 1000
 
 # Grid for counting independent localities, in degrees. 0.01 degrees is about
 # 1.1 km of latitude.

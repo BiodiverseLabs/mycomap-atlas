@@ -669,6 +669,9 @@ test_that("a pull leaves the exact names out before it is written, and says so p
     expect_equal(manifest$kingdom_left_out$names$name, "Juglans nigra")
     # The release's summary of a pull does not publish it.
     expect_false("kingdom_left_out" %in% names(atlas_release_pull_summary(manifest)))
+    # The pull says which iNaturalist cutoff it used, and its release carries it.
+    expect_equal(manifest$max_accuracy_m, ATLAS_MAX_ACCURACY_M)
+    expect_equal(atlas_release_pull_summary(manifest)$max_accuracy_m, ATLAS_MAX_ACCURACY_M)
     report <- jsonlite::fromJSON(atlas_qa_path())
     expect_length(report$stops, 0L)
     expect_equal(report$checks$kingdom_left_out$detail$left_out$name, "Juglans nigra")

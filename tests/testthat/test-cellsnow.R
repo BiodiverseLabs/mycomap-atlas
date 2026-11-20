@@ -177,7 +177,8 @@ test_that("the status queries are single read-only lines the route takes, and co
   expect_length(sql$inat, 11)
   expect_true(any(grepl("NOT IN ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')", sql$inat, fixed = TRUE)))
   for (d in 0:9) expect_true(any(grepl(sprintf("= '%d' GROUP BY", d), sql$inat, fixed = TRUE)))
-  expect_true(all(grepl("positional_accuracy > 1000) AS hidden", sql$inat, fixed = TRUE)))
+  expect_true(all(grepl("positional_accuracy > 2000) AS hidden", sql$inat, fixed = TRUE)))
+  expect_true(all(grepl("positional_accuracy > 1000) AS hidden", atlas_cells_now_sql(1000)$inat, fixed = TRUE)))
   expect_match(sql$mo, ATLAS_MO_POINTS, fixed = TRUE)
   expect_match(sql$deleted, "o.source_deleted_at IS NOT NULL", fixed = TRUE)
   expect_match(sql$deleted, "o.source = 'MO Observations'", fixed = TRUE)
@@ -367,4 +368,42 @@ test_that("the Zenodo description says of the cells what Steve approved, word fo
   summary <- atlas_archive_template()$models$summary
   expect_true(endsWith(summary, "Collection locations are given as record counts per 0.1 degree cell. Records from iNaturalist and Mushroom Observer whose location the source hides, obscures or may hide, and Mushroom Observer records the source no longer holds, as checked when the version was made, are left out of the cells; records from other sources are counted where recorded."))
   expect_false(grepl("exact coordinates are never published|appear only as", summary))
+})
+
+test_that("cells are remade at the release's own iNaturalist cutoff: 1 km for a release from before pulls recorded one", {
+  remake <- function(cutoff) with_data_dir({
+    computed_data()
+    if (!is.null(cutoff)) {
+      manifest <- jsonlite::fromJSON(atlas_path("occurrences", "latest.json"), simplifyVector = FALSE)
+      manifest$max_accuracy_m <- cutoff
+      atlas_write_json(manifest, atlas_path("occurrences", "latest.json"))
+    }
+    store <- new_store()
+    release <- atlas_publish_release(store, quiet = TRUE)
+    atlas_write_tsv_gz(data.frame(source = character(), observation_id = character(), privacy = character()),
+                       atlas_privacy_path())
+    asked <- character()
+    run <- function(statement, host) {
+      asked <<- c(asked, statement)
+      if (grepl("AS shown", statement, fixed = TRUE)) return("number	shown")
+      if (grepl("source_deleted_at", statement, fixed = TRUE)) return("number")
+      if (grepl("NOT IN", statement, fixed = TRUE)) return("number	hidden
+a	f
+b	f
+c	f")
+      ""
+    }
+    dir <- tempfile("cells-now-")
+    summary <- atlas_cells_now_run(dir, store, run = run, host = "test")
+    list(release = release, asked = asked[grepl("AS hidden", asked, fixed = TRUE)], summary = summary)
+  })
+  old <- remake(NULL)
+  expect_null(old$release$pull$max_accuracy_m)
+  expect_length(old$asked, 11)
+  expect_true(all(grepl("positional_accuracy > 1000) AS hidden", old$asked, fixed = TRUE)))
+  expect_equal(old$summary$groups$b$group, "iNaturalist: obscured, coarser than 1 km, or no cached answer now")
+  new <- remake(2000)
+  expect_equal(new$release$pull$max_accuracy_m, 2000)
+  expect_true(all(grepl("positional_accuracy > 2000) AS hidden", new$asked, fixed = TRUE)))
+  expect_equal(new$summary$groups$b$group, "iNaturalist: obscured, coarser than 2 km, or no cached answer now")
 })

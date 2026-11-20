@@ -180,7 +180,8 @@ atlas_public_pull_path <- function() {
 #' The pull's summary without the SQL text or the host it came from.
 atlas_release_pull_summary <- function(manifest) {
   if (is.null(manifest)) return(NULL)
-  manifest[intersect(names(manifest), c("stamp", "pulled_at", "records", "taxa", "fingerprint", "file"))]
+  manifest[intersect(names(manifest), c("stamp", "pulled_at", "records", "taxa", "fingerprint", "file",
+                                        "max_accuracy_m"))]
 }
 
 #' The files a release publishes to its store, relative to the data directory.
