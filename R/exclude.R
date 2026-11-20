@@ -125,6 +125,8 @@ atlas_exclude_records <- function(ids, by = ATLAS_EXCLUDE_BY, reason = "", quiet
   new_manifest <- utils::modifyList(manifest, list(
     stamp = stamp, file = basename(file), records = nrow(kept), taxa = nrow(taxa),
     fingerprint = atlas_fingerprint(kept), exclusions = excluded,
+    # The waterfall's last steps follow the rows removed now.
+    waterfall = atlas_waterfall_recut(manifest$waterfall, applied$info$removed, nrow(kept)),
     # The pull the cleaning was made from, however many times it is cleaned.
     from_file = excluded$from_file, from_sha256 = excluded$from_sha256
   ))
