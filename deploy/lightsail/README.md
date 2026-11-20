@@ -116,6 +116,51 @@ sudo /usr/local/lib/atlas/alert.sh --summary      # the banner's line
 sudo /usr/local/lib/atlas/alert.sh --ok atlas-nightly
 ```
 
+## Zenodo drafts that publish themselves
+
+An archive version is still made by hand (`archive-release`, after
+`cells-now` for a models version), and stops at a draft. Since 2026-11-19 a
+draft then publishes itself 3 days later unless a person deletes it on
+zenodo.org first (`archive-auto-publish`, R/autopublish.R). Publishing is
+permanent.
+
+- **The token** is in `/etc/atlas/zenodo.env`, root:root, mode 600, one
+  line `ZENODO_TOKEN=...` (a personal access token with `deposit:write` and
+  `deposit:actions`, from the account that owns the Atlas records). It is
+  kept apart from `atlas.env`, which every container gets, so only this
+  unit's container is given it. Zenodo's tokens cannot be limited to one
+  record: this one can publish or edit any of that account's uploads.
+  Revoking it on zenodo.org makes the next run fail, loudly. Optional, in the
+  same file: `ATLAS_ZENODO_PUBLISH_AFTER_DAYS` (a number of days, 1 or more,
+  or `off`).
+- **The timer**: `atlas-zenodo-publish.timer`, daily at 15:00 UTC, runs
+  [zenodo-publish.sh](zenodo-publish.sh). It runs the command in the deployed
+  image with the data directory mounted, so the ledger the site serves
+  changes with the store's. It is not part of the nightly: it takes the
+  nightly's lock and skips the day while the nightly runs (the nightly's
+  pull-release rewrites `/data/archives`), and a skipped day only means a
+  draft publishes a day later.
+- **A refusal** (a draft changed on Zenodo since it was made, or one made
+  before this command existed, or a published version whose description has
+  text a person added there) leaves the draft, fails the unit and puts it in
+  the banner, every day, until a person publishes it with
+  `archive-publish --series=<series>` or deletes it on zenodo.org.
+- **Logs**: `journalctl -u atlas-zenodo-publish`. Each series gets one line:
+  `nothing waiting`, `waiting` (with the date it will publish), `published`,
+  `published by hand`, `discarded`, `refused` or `failed`, with why.
+
+Setting it up, once, after deploying a commit that has it:
+
+```bash
+sudo install -m 755 deploy/lightsail/zenodo-publish.sh /usr/local/lib/atlas/
+sudo install -m 644 deploy/lightsail/systemd/atlas-zenodo-publish.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+# the token file, written by the token's owner:
+sudo install -m 600 -o root -g root /dev/null /etc/atlas/zenodo.env   # then add ZENODO_TOKEN=...
+sudo systemctl start atlas-zenodo-publish      # once by hand; read its journal
+sudo systemctl enable --now atlas-zenodo-publish.timer
+```
+
 ## A trial run
 
 Before the timer is trusted with a whole night's work, fit a few taxa end to

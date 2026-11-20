@@ -39,7 +39,9 @@ atlas_zenodo <- function(target = c("zenodo", "sandbox"),
          "deposit:actions (for the sandbox, a token made on sandbox.zenodo.org)", call. = FALSE)
   }
   base <- ATLAS_ZENODO_API[[target]]
-  call <- function(method, url, json = NULL, file = NULL, expect = c(200L, 201L, 202L, 204L)) {
+  # raw = TRUE returns list(status, body) rather than the body alone, for a
+  # caller that acts on which of the expected answers came.
+  call <- function(method, url, json = NULL, file = NULL, expect = c(200L, 201L, 202L, 204L), raw = FALSE) {
     if (!grepl("^https?://", url)) url <- paste0(base, url)
     # A gateway error or a dropped connection is retried, but only for calls
     # that do the same thing twice: reading, uploading a file to its name,
@@ -71,6 +73,7 @@ atlas_zenodo <- function(target = c("zenodo", "sandbox"),
       stop("Zenodo answered ", response$status, " to ", method, " ", sub("[?].*$", "", url),
            if (nzchar(detail)) paste0(": ", detail) else "", call. = FALSE)
     }
+    if (isTRUE(raw)) return(response)
     response$body
   }
   list(target = target, base = base, call = call)

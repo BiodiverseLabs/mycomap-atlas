@@ -3531,6 +3531,10 @@
           },
           "sha256": {
             "type": "string"
+          },
+          "md5": {
+            "type": "string",
+            "description": "Zenodo's own checksum, which a draft is read back against before it publishes itself. Versions made before 2026-11 have none."
           }
         }
       },
@@ -3551,7 +3555,7 @@
               "draft",
               "published"
             ],
-            "description": "Only published versions have a DOI and can be downloaded."
+            "description": "Only published versions have a DOI and can be downloaded. A draft publishes itself a few days after it is made unless deleted on Zenodo first; a deleted one is not listed."
           },
           "doi": {
             "type": "string",
@@ -3584,6 +3588,19 @@
           "published_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "drafted_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the draft was ready; it publishes itself a few days after this unless deleted on Zenodo first."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title the version was given on Zenodo."
+          },
+          "published_by": {
+            "type": "string",
+            "description": "Present when a person published the version on zenodo.org rather than Atlas."
           },
           "files": {
             "type": "array",
