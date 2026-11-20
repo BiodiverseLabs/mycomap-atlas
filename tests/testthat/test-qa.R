@@ -764,3 +764,39 @@ test_that("the QA report counts the deleted-at-source records on the privacy lis
   expect_identical(with$checks$uncached$value, without$checks$uncached$value)
   expect_null(with$not_measured$deleted_at_source)
 })
+
+test_that("a pull whose hidden-place list was not refreshed stops its QA, so no cells are cut from an older list", {
+  kingdoms <- c("Amanita muscaria" = "Fungi", "Russula emetica" = "Fungi")
+  failed <- report_of(kingdoms = kingdoms, privacy_refreshed = FALSE)
+  expect_true("privacy_refreshed" %in% unlist(failed$stops))
+  expect_match(failed$checks$privacy_refreshed$why, "not refreshed", fixed = TRUE)
+  fresh <- report_of(kingdoms = kingdoms, privacy_refreshed = TRUE)
+  expect_length(fresh$stops, 0L)
+  expect_false(fresh$checks$privacy_refreshed$stop)
+  # A report made outside a pull says nothing about it.
+  expect_null(report_of(kingdoms = kingdoms)$checks$privacy_refreshed)
+})
+
+test_that("on a pull whose privacy query is refused, nothing is planned until the stop is accepted by name", {
+  records <- fake_occurrences()
+  text <- function(df) paste(c(paste(names(df), collapse = "\t"), do.call(paste, c(df, sep = "\t"))), collapse = "\n")
+  with_data_dir({
+    atlas_name_kingdoms(unique(records$scientific_name), lookup = function(name) "Fungi")
+    testthat::local_mocked_bindings(atlas_run_sql = function(sql, host) {
+      if (startsWith(sql, "SELECT g.observation_id")) return(first_green_none)
+      if (startsWith(sql, "SELECT o.id, s.species_name")) {
+        return(text(data.frame(id = records$id, species_name = records$scientific_name)))
+      }
+      if (grepl("not_yet_validated", sql, fixed = TRUE)) return("name\tnot_yet_validated\n")
+      if (grepl("max(id)", sql, fixed = TRUE)) return("top\n1\n")
+      if (grepl("AS privacy", sql, fixed = TRUE)) stop("ERROR:  permission denied for table observation_cache")
+      text(records)
+    })
+    manifest <- suppressWarnings(atlas_pull_occurrences(host = "test", quiet = TRUE))
+    report <- jsonlite::fromJSON(atlas_qa_path(), simplifyVector = TRUE)
+    expect_equal(report$pull, manifest$stamp)
+    expect_true("privacy_refreshed" %in% unlist(report$stops))
+    expect_error(atlas_qa_gate(quiet = TRUE), "hidden-place list was not refreshed")
+    expect_silent(atlas_qa_gate(accept = paste0(manifest$stamp, ":privacy_refreshed"), quiet = TRUE))
+  })
+})

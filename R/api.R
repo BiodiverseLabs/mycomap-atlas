@@ -198,6 +198,45 @@ atlas_status_manifest <- function() {
   jsonlite::fromJSON(path, simplifyVector = TRUE)
 }
 
+#' Where mycomap.org's records went before the pull kept them (the pull's
+#' "waterfall", R/occurrences.R), as /api/status serves it to the Methods
+#' page: counts only, from the same file as the rest of the status. NULL
+#' unless it adds up exactly: total less every step's removed is used, and
+#' every step's parts make its removed. A wrong bar is worse than none.
+atlas_status_waterfall <- function() {
+  path <- atlas_path("occurrences", "latest.json")
+  if (!file.exists(path)) path <- atlas_public_pull_path()
+  if (!file.exists(path)) return(NULL)
+  read <- tryCatch(jsonlite::fromJSON(path, simplifyVector = FALSE), error = function(e) NULL)
+  atlas_waterfall_checked(read$waterfall)
+}
+
+#' The waterfall when it is whole and adds up, trimmed to what the page draws;
+#' otherwise NULL (skipped, failed, another version, or a sum that is off).
+atlas_waterfall_checked <- function(w) {
+  count <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x) && x >= 0 && x == round(x)
+  id <- function(x) is.character(x) && length(x) == 1L && grepl("^[a-z][a-z0-9_]*$", x)
+  if (!is.list(w) || !identical(suppressWarnings(as.integer(w$version %||% NA)), 1L) || !isTRUE(w$adds_up)) return(NULL)
+  if (!count(w$total) || !count(w$used) || !count(w$max_accuracy_m) || !is.list(w$steps) || !length(w$steps)) return(NULL)
+  if (!is.character(w$pulled_at) || length(w$pulled_at) != 1L) return(NULL)
+  steps <- list()
+  for (s in w$steps) {
+    if (!is.list(s) || !id(s$id) || !count(s$removed)) return(NULL)
+    step <- list(id = s$id, removed = as.integer(s$removed))
+    if (!is.null(s$parts)) {
+      if (!is.list(s$parts)) return(NULL)
+      parts <- lapply(s$parts, function(p) if (is.list(p) && id(p$id) && count(p$count)) list(id = p$id, count = as.integer(p$count)))
+      if (any(vapply(parts, is.null, TRUE))) return(NULL)
+      if (sum(vapply(parts, function(p) p$count, 0L)) != step$removed) return(NULL)
+      step$parts <- parts
+    }
+    steps[[length(steps) + 1L]] <- step
+  }
+  if (w$total - sum(vapply(steps, function(s) s$removed, 0L)) != w$used) return(NULL)
+  list(pulled_at = w$pulled_at, total = as.integer(w$total), used = as.integer(w$used),
+       max_accuracy_m = as.integer(w$max_accuracy_m), steps = steps)
+}
+
 #' A JSON answer kept for ttl seconds in cache under key, so a route that is
 #' slow to build (reading thousands of model files) is built at most once a
 #' minute however many visitors ask. compute() returns the value; the answer

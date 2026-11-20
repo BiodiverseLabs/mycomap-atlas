@@ -2364,6 +2364,72 @@
           "grading": {
             "type": "string",
             "description": "How a map's grade is decided: \"shift\" (clustered, shifted null models) from the 2026-10 rebuild on. Absent before. Apps that show strong maps only can wait for it."
+          },
+          "waterfall": {
+            "type": "object",
+            "description": "Where mycomap.org's records went before the pull kept them, step by step: counts only. Present only for a full pull whose counts add up exactly: total less every step's removed is used, and each step's parts make its removed.",
+            "required": [
+              "pulled_at",
+              "total",
+              "used",
+              "max_accuracy_m",
+              "steps"
+            ],
+            "properties": {
+              "pulled_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "total": {
+                "type": "integer",
+                "description": "Every record on mycomap.org when the pull was made."
+              },
+              "used": {
+                "type": "integer",
+                "description": "The records the pull kept: what the maps are fitted on."
+              },
+              "max_accuracy_m": {
+                "type": "integer",
+                "description": "The iNaturalist accuracy cutoff the pull used, in metres."
+              },
+              "steps": {
+                "type": "array",
+                "description": "In order: dna, coordinates, north_america, obscured, inat_coarse, other_coarse, name, excluded, other_kingdom.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "removed"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "removed": {
+                      "type": "integer"
+                    },
+                    "parts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "count"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -3477,6 +3543,10 @@
           },
           "sha256": {
             "type": "string"
+          },
+          "md5": {
+            "type": "string",
+            "description": "Zenodo's own checksum, which a draft is read back against before it publishes itself. Versions made before 2026-11 have none."
           }
         }
       },
@@ -3497,7 +3567,7 @@
               "draft",
               "published"
             ],
-            "description": "Only published versions have a DOI and can be downloaded."
+            "description": "Only published versions have a DOI and can be downloaded. A draft publishes itself a few days after it is made unless deleted on Zenodo first; a deleted one is not listed."
           },
           "doi": {
             "type": "string",
@@ -3530,6 +3600,19 @@
           "published_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "drafted_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the draft was ready; it publishes itself a few days after this unless deleted on Zenodo first."
+          },
+          "title": {
+            "type": "string",
+            "description": "The title the version was given on Zenodo."
+          },
+          "published_by": {
+            "type": "string",
+            "description": "Present when a person published the version on zenodo.org rather than Atlas."
           },
           "files": {
             "type": "array",

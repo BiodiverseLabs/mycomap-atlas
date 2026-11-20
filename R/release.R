@@ -181,7 +181,7 @@ atlas_public_pull_path <- function() {
 atlas_release_pull_summary <- function(manifest) {
   if (is.null(manifest)) return(NULL)
   manifest[intersect(names(manifest), c("stamp", "pulled_at", "records", "taxa", "fingerprint", "file",
-                                        "max_accuracy_m"))]
+                                        "max_accuracy_m", "waterfall"))]
 }
 
 #' The files a release publishes to its store, relative to the data directory.

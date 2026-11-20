@@ -240,6 +240,9 @@ function() {
   # ahead of the maps; the release is what to cite.
   release <- atlas_status_release()
   if (!is.null(release)) out$release <- release
+  # Where mycomap.org's records went before the pull kept them, when it adds up.
+  waterfall <- atlas_status_waterfall()
+  if (!is.null(waterfall)) out$waterfall <- waterfall
   out
 }
 

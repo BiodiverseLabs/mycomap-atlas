@@ -1,0 +1,14 @@
+[Unit]
+Description=Look at the MycoMap Atlas Zenodo drafts once a day
+
+[Timer]
+# 15:00 UTC is 10 am in the eastern US: after the nightly (07:00 UTC) has
+# usually finished, and in the working day, so a publish or a refusal happens
+# while someone can look. A missed run is not caught up: the next day's does
+# the same.
+OnCalendar=*-*-* 15:00:00 UTC
+RandomizedDelaySec=10min
+Persistent=false
+
+[Install]
+WantedBy=timers.target
