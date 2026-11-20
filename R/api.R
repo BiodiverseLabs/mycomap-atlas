@@ -152,7 +152,7 @@ atlas_request_algorithm <- function(value) {
 
 #' The map file a request's view asks for: the default map, within the
 #' model's 500 km reach ("accessible", also when no view is given), or a
-#' strong map's full-extent view ("full", R/fullextent.R). NULL for anything
+#' strong or weak map's full-extent view ("full", R/fullextent.R). NULL for anything
 #' else, so the route can answer 400.
 atlas_map_view_extension <- function(value) {
   if (is.null(value) || !length(value) || !nzchar(as.character(value)[[1]])) return(".png")

@@ -505,7 +505,7 @@ function(name, grid = "draft", algorithm = "maxnet", view = "accessible", res) {
   path <- atlas_model_path(atlas_decode_name(name), grid, extension, algorithm)
   if (!file.exists(path)) {
     return(atlas_json_error(res, 404L, if (identical(view, "full")) {
-      "no full-extent map for this model: only strong maps are drawn beyond their reach"
+      "no full-extent map for this model: failed maps, and maps fitted before full views, are not drawn beyond their reach"
     } else {
       "no map for this taxon yet"
     }))

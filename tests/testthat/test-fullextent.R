@@ -158,7 +158,7 @@ test_that("a job's release carries a strong map's full view, a pull for serving 
   timing <- atlas_job_timing(store, release$job)
   expect_equal(timing$extent$models, timing$timed)
   expect_equal(timing$extent$mean_mb, 1)
-  # Refitted without one (weak now), the old full view goes.
+  # Refitted without one (failed now), the old full view goes.
   on_machine(boss, orchestrator_data(synthetic_occurrences(c(TAXA[-1], "Taxon A" = 26))))
   again <- full_cycle(store, boss, fit = fake_fit)
   expect_false(any(paste0("models/draft/taxon-a", ATLAS_FULL_EXTS) %in% release_paths(again)))
@@ -268,4 +268,14 @@ test_that("a full view is predicted across the slivers between states and provin
   # Every land cell of the window is predicted: no streak of missing cells.
   expect_false(anyNA(terra::values(out$suitability, mat = FALSE)))
   expect_false(anyNA(terra::values(out$dissimilarity, mat = FALSE)))
+})
+
+test_that("strong and weak maps get a full view, failed and untested ones do not, and a job can say otherwise", {
+  expect_true(atlas_full_extent_wanted("strong"))
+  expect_true(atlas_full_extent_wanted("weak"))
+  expect_false(atlas_full_extent_wanted("failed"))
+  expect_false(atlas_full_extent_wanted("untested"))
+  expect_false(atlas_full_extent_wanted(NULL))
+  expect_true(atlas_full_extent_wanted("failed", full = TRUE))
+  expect_false(atlas_full_extent_wanted("strong", full = FALSE))
 })

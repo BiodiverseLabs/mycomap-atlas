@@ -1070,7 +1070,7 @@
         ],
         "operationId": "getTaxonMap",
         "summary": "A taxon's habitat map as an image",
-        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks among the cells inside the model's area of applicability, darkest green highest; ground in the accessible area that no training site resembles is hatched grey, and beyond the accessible area the image is transparent. With view=full, a strong map's full-extent view instead, laid over the model's full_map.bounds: the same colour scale carried beyond 500 km wherever conditions resemble the known sites, and hatched where they do not. It shows potential, not range: the model cannot tell ground nobody surveyed from ground searched without a find. Add any v= query value to bust a cache.",
+        "description": "A PNG in web-map coordinates, ready to lay over a slippy map at the bounds the model route gives. Colours are ranks among the cells inside the model's area of applicability, darkest green highest; ground in the accessible area that no training site resembles is hatched grey, and beyond the accessible area the image is transparent. With view=full, a strong or weak map's full-extent view instead, laid over the model's full_map.bounds: the same colour scale carried beyond 500 km wherever conditions resemble the known sites, and hatched where they do not. It shows potential, not range: the model cannot tell ground nobody surveyed from ground searched without a find. Add any v= query value to bust a cache.",
         "parameters": [
           {
             "$ref": "#/components/parameters/name"
@@ -1085,7 +1085,7 @@
             "name": "view",
             "in": "query",
             "required": false,
-            "description": "accessible (default): the map within 500 km of the taxon's records. full: a strong map's full-extent view, when this site publishes full views; 404 for a model without one (weak and failed maps make no claim beyond their reach), and 404 for every model while the site does not publish them.",
+            "description": "accessible (default): the map within 500 km of the taxon's records. full: a strong or weak map's full-extent view, when this site publishes full views; a weak map's is drawn faint and claims nothing. 404 for a model without one (failed maps, and maps fitted before full views), and 404 for every model while the site does not publish them.",
             "schema": {
               "type": "string",
               "enum": [
@@ -2913,7 +2913,7 @@
           },
           "full_map": {
             "type": "object",
-            "description": "A strong model's full-extent view (map.png?view=full): absent for weak and failed models, for models fitted before 2026-10, and for every model while this site does not publish full views. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
+            "description": "A strong or weak model's full-extent view (map.png?view=full); a weak one's is faint and claims nothing. Absent for failed models, for models fitted before full views, and for every model while this site does not publish full views. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
             "properties": {
               "raster": {
                 "type": "string",

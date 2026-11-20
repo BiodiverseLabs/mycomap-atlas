@@ -1,9 +1,10 @@
-# Full-extent maps: what a strong model says beyond its 500 km reach
-# (Steve, 2026-10-12, session "Map distribution cutoff option").
+# Full-extent maps: what a strong or weak model says beyond its 500 km reach
+# (Steve, 2026-10-12, session "Map distribution cutoff option"; weak maps
+# too, Steve 2026-11-19).
 #
 # A model is fitted inside its accessible area (500 km around its sites), and
 # its map is predicted only there (atlas_predict_raster masks first). That
-# stays the default everywhere. A strong model is also predicted over the
+# stays the default everywhere. A strong or weak model is also predicted over the
 # rest of North America (the states and provinces of the three countries
 # Atlas maps), at the same 5 km cells, and written beside its map:
 #
@@ -22,8 +23,10 @@
 # Only the web map's "full extent" view reads these. Everything downstream
 # reads the default files: counts by state and "beyond reach", the here
 # index, the combined maps, the sitemap, the prior export, best-map and
-# maps/best, and trained ids (tests hold them to that). Weak and failed
-# models are not predicted beyond their reach: their maps make no claim.
+# maps/best, and trained ids (tests hold them to that), and every claim the
+# site makes comes from strong maps alone. A weak map's full view is drawn
+# faint, as its default map is, and claims nothing. Failed models are not
+# predicted beyond their reach: their maps are no better than chance.
 
 ATLAS_FULL_EXTS <- c(".full.tif", ".full.di.tif", ".full.png")
 
@@ -31,12 +34,12 @@ ATLAS_FULL_EXTS <- c(".full.tif", ".full.di.tif", ".full.png")
 # its 5 km cells, where a 500 km map is drawn at up to 1,600.
 ATLAS_FULL_MAX_PIXELS <- 4096
 
-#' Whether a model gets a full-extent map: a strong one does; a refit job may
+#' Whether a model gets a full-extent map: a strong or weak one does; a refit job may
 #' ask for it whatever the grade (full = TRUE), and a fit may refuse it
 #' (full = FALSE).
 atlas_full_extent_wanted <- function(grade, full = NULL) {
   if (!is.null(full)) return(isTRUE(full))
-  identical(grade, "strong")
+  isTRUE(grade %in% c("strong", "weak"))
 }
 
 #' Predict over the whole stack, no mask.
@@ -197,7 +200,7 @@ atlas_write_full_map <- function(name, grid, algorithm, full, full_dissimilarity
   )
 }
 
-#' Remove a model's full-extent files: a refit that makes none (a weak map
+#' Remove a model's full-extent files: a refit that makes none (a failed map
 #' now) must not leave an old one to be drawn.
 atlas_remove_full_map <- function(name, grid = "draft", algorithm = "maxnet") {
   paths <- atlas_model_path(name, grid, c(ATLAS_FULL_EXTS, ".full.png.aux.xml"), algorithm)
