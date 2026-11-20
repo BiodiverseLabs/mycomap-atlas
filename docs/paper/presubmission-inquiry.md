@@ -1,6 +1,6 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-**READY TO SEND (Steve, 2026-10-30; header and one word refreshed 2026-11-20). Steve sends it himself; no agent sends it.**
+**READY TO SEND (Steve, 2026-10-30; header and one word refreshed 2026-11-20; related-work line added 2026-11-20, Steve). Steve sends it himself; no agent sends it.**
 
 **Route** (Ecological Monographs Author Guidelines, revised September 2026,
 "Presubmission Inquiries"; https://esajournals.onlinelibrary.wiley.com/hub/journal/15577015/author-guidelines):
@@ -14,7 +14,8 @@ Habitat-suitability maps with a null-tested trust grade for DNA-defined North
 American macrofungi".
 
 **What to paste:** everything below the line, from "Intended type" to the
-end of the references. **Figures:** optional; none is needed. If one is
+"Related work" line after the references. That line sits outside the
+300-word summary (Steve, 2026-11-20). **Figures:** optional; none is needed. If one is
 wanted, `figures/fig3.svg` (later finds by grade, beside distance to known
 records) and `figures/fig2.svg` (the null tests on simulated species, from
 E1's registered numbers) have been drafted since 2026-11-04.
@@ -64,5 +65,7 @@ Steege 2007 (Ecography); Beale et al. 2008 (PNAS); Osborne et al. 2022
 (Ecography); Ridder, Hardy & Ovaskainen 2024 (Methods in Ecology and
 Evolution); Hijmans 2012 (Ecology); Meyer & Pebesma 2021 (Methods in Ecology and Evolution); Valavi
 et al. 2022 (Ecological Monographs); Zurell et al. 2020 (Ecography).
+
+**Related work:** A separate data descriptor of a later Atlas release, under a different DOI, is planned for Scientific Data; please tell us if the journal has a view.
 
 *Words in the inquiry body: about 280.*
