@@ -42,6 +42,12 @@ ATLAS_CALIBRATION_REDRAWS <- 20L
 ATLAS_CALIBRATION_DESIGNS <- c("scatter", "shift")
 ATLAS_CALIBRATION_NULLS <- 99L
 ATLAS_CALIBRATION_STOP_AFTER <- 5L
+# The null test a run uses: "e1", the 99-null test on one fold split, as E1
+# was registered and run (2026-10-25); or "production", production's test as
+# it stands (several fold splits pooled, and more nulls near the pass line:
+# atlas_null_fold_splits, ATLAS_NULL_EXTEND), to check it against E1's
+# species, which the same seed draws again.
+ATLAS_CALIBRATION_NULL_RULES <- c("e1", "production")
 ATLAS_CALIBRATION_EFFORT_ARMS <- c("maxnet:covariate", "maxnet:weights", "maxnet:offset")
 # Habitat below this is "outside the habitat": a weak species' detections
 # there are the flat half's doing. (A product of bells is never exactly 0.)
@@ -191,7 +197,8 @@ atlas_calibration_table <- function(training, learner, correlation = 0.7) {
 #' and, unless nulls is 0, its verdict under each null design.
 atlas_calibration_learner <- function(arm, table, folds, seed, cells, truth, nulls,
                                       designs = ATLAS_CALIBRATION_DESIGNS,
-                                      stop_after = ATLAS_CALIBRATION_STOP_AFTER) {
+                                      stop_after = ATLAS_CALIBRATION_STOP_AFTER,
+                                      null_folds = NULL, extend = NULL) {
   started <- Sys.time()
   learner <- atlas_virtual_learner(arm, seed)
   effort_at <- atlas_effort_level(table)
@@ -207,15 +214,19 @@ atlas_calibration_learner <- function(arm, table, folds, seed, cells, truth, nul
     algo <- atlas_algorithm(sub(":.*$", "", arm))
     out$nulls <- stats::setNames(lapply(designs, function(design) {
       tryCatch({
-        null <- atlas_null_test_sequential(table, folds, algo, reps = nulls, seed = seed,
-                                           design = design, stop_after = stop_after)
+        null <- atlas_null_test_sequential(table, null_folds %||% folds, algo, reps = nulls, seed = seed,
+                                           design = design, stop_after = stop_after, extend = extend)
         # The null AUCs' mean and spread as well as p: the looser map tiers
         # (plan-map-tiers, E24) are scored on them as a secondary analysis.
-        list(design = design, p = null$auc_p, observed_auc = null$observed_auc,
-             auc_mean = null$auc_mean, auc_sd = null$auc_sd, observed_boyce = null$observed_boyce,
-             drawn = null$drawn, reps = null$reps, stopped_early = null$stopped_early,
-             best_effort = null$best_effort, far_share = null$far_share,
-             verdict = atlas_skill(null, boyce))
+        found <- list(design = design, p = null$auc_p, observed_auc = null$observed_auc,
+                      auc_mean = null$auc_mean, auc_sd = null$auc_sd, observed_boyce = null$observed_boyce,
+                      drawn = null$drawn, reps = null$reps, stopped_early = null$stopped_early,
+                      best_effort = null$best_effort, far_share = null$far_share)
+        # Production's test only, so an E1 run's rows are what they always were.
+        production <- list(splits = null$splits, extended = null$extended, first_reps = null$first_reps,
+                           first_p = null$first_auc_p)
+        c(found, production[!vapply(production, is.null, logical(1))],
+          list(verdict = atlas_skill(null, boyce)))
       }, error = function(e) list(design = design, error = conditionMessage(e)))
     }), designs)
   }
@@ -231,7 +242,9 @@ atlas_calibration_taxon <- function(name, fingerprint, points, stack, cells, gri
                                     stop_after = ATLAS_CALIBRATION_STOP_AFTER,
                                     effort_arms = ATLAS_CALIBRATION_EFFORT_ARMS,
                                     redraws = ATLAS_CALIBRATION_REDRAWS,
-                                    truth_cells = ATLAS_VIRTUAL_TRUTH_CELLS) {
+                                    truth_cells = ATLAS_VIRTUAL_TRUTH_CELLS,
+                                    null_rule = "e1") {
+  null_rule <- match.arg(null_rule, ATLAS_CALIBRATION_NULL_RULES)
   started <- Sys.time()
   seconds <- function() round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1)
   cell <- cells[[name]]
@@ -262,12 +275,21 @@ atlas_calibration_taxon <- function(name, fingerprint, points, stack, cells, gri
   row$effort_habitat_rho <- round(suppressWarnings(stats::cor(
     training[[ATLAS_EFFORT_COLUMN]], atlas_virtual_habitat(drawn$spec, training), method = "spearman")), 3)
 
+  # Production's test: the species' own split first, then more dealt with the
+  # same block size, and the near-line extension.
+  null_folds <- if (identical(null_rule, "production")) {
+    atlas_null_fold_splits(training$x, training$y, drawn$folds, k = atlas_calibration_design(cell$family)$folds,
+                           block_km = drawn$block_km, seed = drawn$seed, presence = training$presence)
+  }
+  extend <- if (identical(null_rule, "production")) ATLAS_NULL_EXTEND
+  if (!identical(null_rule, "e1")) row$null_rule <- null_rule
   run <- function(arm, learner, with_nulls) {
     tryCatch(
       atlas_calibration_learner(arm, atlas_calibration_table(training, learner, correlation),
                                 drawn$folds, drawn$seed, truth_at, truth,
                                 nulls = if (with_nulls) as.integer(nulls) else 0L,
-                                designs = designs, stop_after = stop_after),
+                                designs = designs, stop_after = stop_after,
+                                null_folds = null_folds, extend = extend),
       error = function(e) list(arm = arm, error = conditionMessage(e))
     )
   }
@@ -402,7 +424,17 @@ atlas_calibration_study <- function(grid = "draft", layout = atlas_calibration_l
                                     seed = 1L, shard = "1/1", workers = 1L, out = NULL,
                                     nulls = ATLAS_CALIBRATION_NULLS, n_background = 10000,
                                     buffer_km = 500, plan_only = FALSE, quiet = FALSE,
-                                    occurrences = NULL, points = NULL, stack = NULL, store = NULL) {
+                                    occurrences = NULL, points = NULL, stack = NULL, store = NULL,
+                                    null_rule = "e1", designs = ATLAS_CALIBRATION_DESIGNS,
+                                    effort_arms = ATLAS_CALIBRATION_EFFORT_ARMS,
+                                    kinds = c("habitat", "geography")) {
+  null_rule <- match.arg(null_rule, ATLAS_CALIBRATION_NULL_RULES)
+  designs <- vapply(designs, atlas_null_design, character(1), USE.NAMES = FALSE)
+  unknown_arms <- setdiff(effort_arms, ATLAS_CALIBRATION_EFFORT_ARMS)
+  if (length(unknown_arms)) stop("unknown effort arm: ", paste(unknown_arms, collapse = ", "), call. = FALSE)
+  # The kinds are kept before sharding, so a run of one kind is sharded as a
+  # whole; its species are E1's species of that kind, drawn from the same seeds.
+  layout <- layout[layout$kind %in% kinds, , drop = FALSE]
   names <- atlas_study_shard(layout$name, shard)
   layout <- layout[layout$name %in% names, , drop = FALSE]
   plan <- atlas_calibration_plan(layout)
@@ -418,18 +450,29 @@ atlas_calibration_study <- function(grid = "draft", layout = atlas_calibration_l
     occurrences <- occurrences %||% atlas_read_occurrences()
     points <- atlas_occurrence_points(occurrences, grid)
   }
-  out <- atlas_study_out(out, "virtual-studies", grid, paste0("e1-seed", seed, "-shard-", sub("/", "of", shard)))
+  # A run of production's test is named apart, so it is never read as E1.
+  label <- if (identical(null_rule, "e1")) "e1" else "e1-production-nulls"
+  out <- atlas_study_out(out, "virtual-studies", grid, paste0(label, "-seed", seed, "-shard-", sub("/", "of", shard)))
   cells <- lapply(stats::setNames(seq_len(nrow(layout)), layout$name), function(i) as.list(layout[i, ]))
   fingerprints <- stats::setNames(lapply(layout$name, atlas_virtual_fingerprint, seed = seed), layout$name)
   args <- list(cells = cells, grid = grid, n_background = n_background, buffer_km = buffer_km,
-               nulls = as.integer(nulls))
+               nulls = as.integer(nulls), null_rule = null_rule, designs = designs,
+               effort_arms = effort_arms)
   settings <- list(seed = seed, shard = shard, nulls = nulls, stop_after = ATLAS_CALIBRATION_STOP_AFTER,
-                   designs = ATLAS_CALIBRATION_DESIGNS, redraws = ATLAS_CALIBRATION_REDRAWS,
+                   designs = designs, redraws = ATLAS_CALIBRATION_REDRAWS,
                    breadths = as.list(ATLAS_CALIBRATION_BREADTHS), top_target = ATLAS_CALIBRATION_TOP_TARGET,
-                   outside_h = ATLAS_CALIBRATION_OUTSIDE_H, effort_arms = ATLAS_CALIBRATION_EFFORT_ARMS,
+                   outside_h = ATLAS_CALIBRATION_OUTSIDE_H, effort_arms = effort_arms,
                    truth_cells = ATLAS_VIRTUAL_TRUTH_CELLS, design = atlas_design(),
                    drivers = list(climate = ATLAS_VIRTUAL_CLIMATE, bell = ATLAS_VIRTUAL_BELL,
                                   rising = ATLAS_VIRTUAL_RISING))
+  # Recorded only when they differ from E1's run, so an E1 run's settings are
+  # what they always were.
+  if (identical(null_rule, "production")) {
+    settings$null_rule <- null_rule
+    settings$null_splits <- ATLAS_NULL_SPLITS
+    settings$near_line <- ATLAS_NULL_EXTEND
+  }
+  if (!setequal(kinds, c("habitat", "geography"))) settings$kinds <- as.list(kinds)
   result <- atlas_run_study(
     kind = "virtual-studies", file_prefix = out$prefix, taxon_fn = "atlas_calibration_taxon",
     sample = data.frame(scientific_name = layout$name, stringsAsFactors = FALSE),
@@ -444,8 +487,12 @@ atlas_calibration_study <- function(grid = "draft", layout = atlas_calibration_l
     },
     opening = paste0(nrow(layout), " virtual species (shard ", shard, ", seed ", seed,
                      "), collected at the real survey sites with their real effort; nulls ",
-                     paste(ATLAS_CALIBRATION_DESIGNS, collapse = " and "), " x", nulls,
-                     ", stopping at ", ATLAS_CALIBRATION_STOP_AFTER)
+                     paste(designs, collapse = " and "), " x", nulls,
+                     ", stopping at ", ATLAS_CALIBRATION_STOP_AFTER,
+                     if (identical(null_rule, "production")) {
+                       paste0("; production's test: ", ATLAS_NULL_SPLITS, " fold splits pooled, up to ",
+                              ATLAS_NULL_EXTEND$to, " nulls near the line")
+                     })
   )
   if (!is.null(out$key) && !is.null(store)) {
     files <- c(result$path, sub("[.]json$", ".log", result$path))

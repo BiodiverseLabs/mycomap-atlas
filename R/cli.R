@@ -225,6 +225,11 @@ atlas_usage <- function() {
   message("      --shard=i/n               every n-th species from the i-th (default 1/1)")
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
+  message("      --null-rule=e1|production e1 (default): E1's 99-null test on one split; production:")
+  message("                                production's test now (pooled splits, more nulls near the line)")
+  message("      --designs=shift,scatter   the null designs (default both)")
+  message("      --effort-arms=none|a,b    the Maxent effort arms (default all three; none for no arms)")
+  message("      --kinds=geography,habitat only these species (default both)")
   message("      --pool-from=study/<id>/   read a full run: its shards pooled, the pre-registered tests")
   message("  study-repro --draw paper E12's refit arms: the drawn models of --release=ID, graded, each on its")
   message("                     own fitting job's inputs ([--label] [--order=seeded|reverse] [--workers=N])")
@@ -997,6 +1002,9 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       if (!is.null(per_cell) && (is.na(per_cell) || per_cell < 1L)) {
         stop("--per-cell must be a whole number, 1 or more", call. = FALSE)
       }
+      list_flag <- function(value, default) {
+        if (is.null(value)) default else trimws(strsplit(as.character(value), ",", fixed = TRUE)[[1]])
+      }
       atlas_calibration_study(
         grid = atlas_flag_grid(flags),
         layout = if (is.null(per_cell)) atlas_calibration_layout() else
@@ -1006,7 +1014,11 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         shard = as.character(flags$shard %||% "1/1"),
         workers = as.integer(atlas_flag_number(flags, "workers", 1)),
         out = out, store = if (!is.null(out)) atlas_flag_store(flags),
-        plan_only = isTRUE(flags$plan_only)
+        plan_only = isTRUE(flags$plan_only),
+        null_rule = as.character(flags$null_rule %||% "e1"),
+        designs = list_flag(flags$designs, ATLAS_CALIBRATION_DESIGNS),
+        effort_arms = setdiff(list_flag(flags$effort_arms, ATLAS_CALIBRATION_EFFORT_ARMS), "none"),
+        kinds = list_flag(flags$kinds, c("habitat", "geography"))
       )
       invisible(0L)
     },

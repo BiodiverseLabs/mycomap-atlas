@@ -285,8 +285,13 @@ test_that("each learner gets its own scores, map-to-truth and verdict under each
         expect_true(all(c("p", "reps", "drawn", "stopped_early", "observed_auc", "auc_mean", "auc_sd",
                           "observed_boyce") %in% names(n)))
         expect_true(is.finite(as.numeric(n$auc_mean)))
+        # E1's own test: nothing of production's pooled one.
+        expect_null(n$splits)
+        expect_null(n$extended)
       }
     }
+    expect_null(habitat$null_rule)
+    expect_null(saved$settings$null_rule)
     # The effort arms run without nulls.
     for (a in habitat$arms[3:5]) expect_null(a$nulls)
     expect_true(is.finite(as.numeric(habitat$realised_breadth)))
@@ -366,4 +371,46 @@ test_that("a calibration test's signal line reads the learner's held-out AUC", {
                                                          observed_auc = 0.45, auc_mean = 0.5, auc_sd = 0.05,
                                                          verdict = "failed")))))
   expect_equal(atlas_calibration_long(list(row))$tier, "indicative")
+})
+
+test_that("a run of production's null test draws E1's species again and pools their shifted nulls over five splits", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  skip_if_not_installed("ranger")
+  skip_if_not_installed("glmnet")
+  with_data_dir({
+    world <- calibration_world()
+    layout <- atlas_calibration_layout()
+    pick <- c(which(layout$cell == "full/habitat/20-29/narrow/weak/-")[1],
+              which(layout$cell == "esm/geography/10-19/-/-/-")[1])
+    run <- function(...) {
+      result <- atlas_calibration_study(layout = layout[pick, ], nulls = 3L, n_background = 2000,
+                                        buffer_km = 600, quiet = TRUE, points = world$points,
+                                        stack = world$stack, ...)
+      c(jsonlite::fromJSON(result$path, simplifyVector = FALSE), list(path = result$path))
+    }
+    e1 <- run()
+    production <- run(null_rule = "production", designs = "shift", effort_arms = character(), kinds = "geography")
+    expect_match(production$path, "e1-production-nulls-seed1", fixed = TRUE)
+    expect_equal(production$settings$null_rule, "production")
+    expect_equal(production$settings$null_splits, ATLAS_NULL_SPLITS)
+    expect_equal(production$settings$near_line$to, 499L)
+    expect_equal(unlist(production$settings$kinds), "geography")
+    # Only the geography species, the same one E1 drew.
+    expect_length(production$taxa, 1L)
+    row <- production$taxa[[1]]
+    expect_equal(row$kind, "geography")
+    e1_row <- Filter(function(r) identical(r$taxon, row$taxon), e1$taxa)[[1]]
+    expect_equal(row$presences, e1_row$presences)
+    expect_equal(row$null_rule, "production")
+    nulls <- row$arms[[1]]$nulls
+    expect_equal(names(nulls), "shift")
+    expect_equal(nulls$shift$splits, ATLAS_NULL_SPLITS)
+    expect_false(nulls$shift$extended)
+    expect_true(nulls$shift$verdict %in% c("passed", "failed"))
+    expect_error(atlas_calibration_study(layout = layout[pick, ], null_rule = "other", quiet = TRUE,
+                                         points = world$points, stack = world$stack))
+    expect_error(atlas_calibration_study(layout = layout[pick, ], effort_arms = "maxnet:nothing", quiet = TRUE,
+                                         points = world$points, stack = world$stack), "unknown effort arm")
+  })
 })
