@@ -149,12 +149,13 @@ permanent.
   `nothing waiting`, `waiting` (with the date it will publish), `published`,
   `published by hand`, `discarded`, `refused` or `failed`, with why.
 
-Setting it up, once, after deploying a commit that has it:
+`setup-box.sh` installs the script and both units **disabled**. It never
+enables or starts them, and never writes the token file. Until Steve OKs
+drafts publishing themselves (today each Zenodo record needs his explicit OK,
+and the token is deleted after each run), the timer stays off, and nothing
+publishes on its own. Turning it on later, with that OK:
 
 ```bash
-sudo install -m 755 deploy/lightsail/zenodo-publish.sh /usr/local/lib/atlas/
-sudo install -m 644 deploy/lightsail/systemd/atlas-zenodo-publish.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload
 # the token file, written by the token's owner:
 sudo install -m 600 -o root -g root /dev/null /etc/atlas/zenodo.env   # then add ZENODO_TOKEN=...
 sudo systemctl start atlas-zenodo-publish      # once by hand; read its journal
