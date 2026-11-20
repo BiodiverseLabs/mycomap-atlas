@@ -177,10 +177,11 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
     # The log, and the fits' own progress logs, go up every 5 minutes while
     # the shard runs: a worker stopped at the deadline (terminated, not shut
     # down) never reaches the upload at the end, and its log was lost (the
-    # 2026-10-12 pilot).
+    # 2026-10-12 pilot). A worker that fits no batches (a finishing worker)
+    # has no batches folder, so that part is skipped rather than failing.
     if (!is.null(logs)) {
       sprintf(paste("( while sleep %d; do aws s3 cp --quiet /var/log/atlas-worker.log %s/%d.log;",
-                    "aws s3 sync --quiet --exclude '*' --include '*.log' /data/batches/ %s/%d-batches/; done ) &"),
+                    "[ ! -d /data/batches ] || aws s3 sync --quiet --exclude '*' --include '*.log' /data/batches/ %s/%d-batches/; done ) &"),
               ATLAS_WORKER_LOG_SECONDS, logs, as.integer(shard), logs, as.integer(shard))
     },
     sprintf("# One fit per ~%s GB of memory, at most one per core.", format(config$gb_per_fit %||% 3)),

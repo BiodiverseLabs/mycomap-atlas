@@ -63,25 +63,89 @@ atlas_current_layers <- function(store = atlas_store(), grid = "draft") {
 
 #' Bring files onto this machine from the store, checking each against its
 #' hash, and skipping those already here with the right content.
-atlas_fetch_entries <- function(store, entries) {
-  fetched <- 0L
-  bytes <- 0
-  for (entry in entries) {
-    dest <- file.path(atlas_data_dir(), entry$path)
-    if (file.exists(dest) && identical(atlas_sha256(dest), entry$sha256)) next
+#'
+#' One at a time, a release's 40,000 files took 50 minutes at about 5 MB/s
+#' (2026-11-20): each object is its own request, and waiting on the store,
+#' not the network or the CPU, set the pace. So a long list is fetched by
+#' `workers` R processes at once, each with its own connection to the store.
+#' Each file is checked exactly as before, wherever it is fetched: a file
+#' already here with the right hash is kept, a fetched one goes to a ".part"
+#' beside it and replaces the file only when its hash matches, and one that
+#' does not match is removed and replaces nothing. A mismatch, or a file the
+#' store cannot give, stops the fetch with that file named, once every file
+#' has been tried; those that matched stay.
+atlas_fetch_entries <- function(store, entries, workers = atlas_fetch_workers()) {
+  entries <- unname(entries)
+  workers <- as.integer(workers)
+  results <- if (is.na(workers) || workers <= 1L || length(entries) < ATLAS_FETCH_PARALLEL_MIN ||
+                 !is.character(store$uri) || !nzchar(store$uri)) {
+    lapply(entries, function(entry) atlas_fetch_one(store, entry, atlas_data_dir()))
+  } else {
+    atlas_fetch_in_parallel(store$uri, entries, workers)
+  }
+  failed <- Filter(function(r) !is.null(r$error), results)
+  if (length(failed)) stop(failed[[1]]$error, call. = FALSE)
+  list(fetched = sum(vapply(results, function(r) isTRUE(r$fetched), logical(1))),
+       bytes = sum(vapply(results, function(r) as.numeric(r$bytes %||% 0), numeric(1))))
+}
+
+# Fewer files than this are fetched one at a time: starting the processes
+# costs more than they save.
+ATLAS_FETCH_PARALLEL_MIN <- 200L
+
+#' How many processes fetch at once: ATLAS_FETCH_WORKERS, else 16, never more
+#' than the machine's cores.
+atlas_fetch_workers <- function() {
+  wanted <- suppressWarnings(as.integer(Sys.getenv("ATLAS_FETCH_WORKERS", unset = "16")))
+  if (is.na(wanted) || wanted < 1L) wanted <- 1L
+  cores <- tryCatch(as.integer(parallel::detectCores()), error = function(e) NA_integer_)
+  if (is.na(cores) || cores < 1L) cores <- 1L
+  min(wanted, cores)
+}
+
+#' Fetch one entry into data_dir: list(fetched, bytes) or list(error).
+atlas_fetch_one <- function(store, entry, data_dir) {
+  tryCatch({
+    dest <- file.path(data_dir, entry$path)
+    if (file.exists(dest) && identical(atlas_sha256(dest), entry$sha256)) return(list(fetched = FALSE, bytes = 0))
     staging <- paste0(dest, ".part")
     store$get(atlas_object_key(entry$sha256), staging)
     if (!identical(atlas_sha256(staging), entry$sha256)) {
       unlink(staging)
-      stop("the store's copy of ", entry$path, " does not match its hash; nothing replaced",
-           call. = FALSE)
+      return(list(error = paste0("the store's copy of ", entry$path, " does not match its hash; nothing replaced")))
     }
     file.rename(staging, dest)
-    fetched <- fetched + 1L
-    bytes <- bytes + as.numeric(entry$bytes)
-  }
-  list(fetched = fetched, bytes = bytes)
+    list(fetched = TRUE, bytes = as.numeric(entry$bytes))
+  }, error = function(e) list(error = paste0("could not fetch ", entry$path, ": ", conditionMessage(e))))
 }
+
+#' Fetch entries across a pool of processes, each opening the store from its
+#' URI (a connection is not shared between processes). Results come back in
+#' the entries' order.
+atlas_fetch_in_parallel <- function(uri, entries, workers) {
+  cluster <- atlas_package_pool(workers)
+  on.exit(parallel::stopCluster(cluster), add = TRUE)
+  data_dir <- atlas_data_dir()
+  open <- function(uri) {
+    assign(".atlas_fetch_store", atlas_store(uri), envir = globalenv())
+    TRUE
+  }
+  fetch <- function(chunk, data_dir) {
+    store <- get(".atlas_fetch_store", envir = globalenv())
+    lapply(chunk, function(entry) atlas_fetch_one(store, entry, data_dir))
+  }
+  # Functions sent to a worker carry their enclosing frame; cut it loose, or
+  # each is sent every entry.
+  environment(open) <- globalenv()
+  environment(fetch) <- globalenv()
+  parallel::clusterCall(cluster, open, uri)
+  # A few files to a message: one each would spend the time on messages.
+  chunks <- split(entries, ceiling(seq_along(entries) / ATLAS_FETCH_CHUNK))
+  unlist(parallel::clusterApplyLB(cluster, chunks, fetch, data_dir = data_dir), recursive = FALSE)
+}
+
+# Files handed to a fetching process at a time.
+ATLAS_FETCH_CHUNK <- 25L
 
 # ---- planning ------------------------------------------------------------
 

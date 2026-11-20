@@ -54,7 +54,9 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
   say <- function(...) if (!isTRUE(quiet)) message(...)
   started <- Sys.time()
   manifest <- atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
-  atlas_pull_release(store, grid, release = release, rasters = TRUE, quiet = quiet)
+  # Every raster but the full views of maps that are not strong, which
+  # nothing here reads (atlas_pull_release).
+  atlas_pull_release(store, grid, release = release, rasters = TRUE, quiet = quiet, full_rasters = "strong")
 
   counted <- count(grid = grid, workers = workers, only_missing = TRUE, quiet = quiet)
   # The combined maps: built for each taxon with two or more strong maps,

@@ -305,6 +305,20 @@ atlas_build_finish_indexes <- function(grid = "draft", quiet = FALSE) {
 
 # ---- weak maps, privately ---------------------------------------------------
 
+#' One weak map's ranks by 20 km cell, as atlas_build_weak_ranks writes
+#' them, or NULL when it has no raster or no ranked cell. model is
+#' list(taxon, algorithm).
+atlas_weak_rank_rows <- function(model, grid = "draft") {
+  raster <- atlas_model_path(model$taxon, grid, ".tif", model$algorithm)
+  if (!file.exists(raster)) return(NULL)
+  metrics <- atlas_read_metrics(model$taxon, grid, model$algorithm)
+  cells <- atlas_model_cell_ranks(raster, atlas_model_path(model$taxon, grid, ".di.tif", model$algorithm),
+                                  as.numeric(metrics$applicability$threshold %||% NA))
+  if (!nrow(cells)) return(NULL)
+  data.frame(taxon = model$taxon, algorithm = model$algorithm, grade = "weak",
+             cell_id = cells$cell, rank = cells$rank, stringsAsFactors = FALSE)
+}
+
 #' Where finishing leaves the weak maps' ranks for the box to file privately.
 #' Not under any path a release's allowlist publishes (R/release.R).
 atlas_weak_ranks_path <- function(grid = "draft") {
@@ -316,22 +330,17 @@ atlas_weak_ranks_path <- function(grid = "draft") {
 #' published: a weak map has not been shown to beat its own collecting
 #' pattern, so the public prior leaves it out. Finishing files it under
 #' private/atlas-weak/<release>/ (atlas_apply_finish). NULL when no map is weak.
-atlas_build_weak_ranks <- function(grid = "draft", quiet = FALSE) {
+atlas_build_weak_ranks <- function(grid = "draft", quiet = FALSE, workers = NULL) {
   path <- atlas_weak_ranks_path(grid)
   unlink(path)
   models <- atlas_model_index(grid)
   weak <- models[models$map & models$grade %in% "weak", c("taxon", "algorithm"), drop = FALSE]
   if (!nrow(weak)) return(invisible(NULL))
-  rows <- lapply(seq_len(nrow(weak)), function(i) {
-    raster <- atlas_model_path(weak$taxon[[i]], grid, ".tif", weak$algorithm[[i]])
-    if (!file.exists(raster)) return(NULL)
-    metrics <- atlas_read_metrics(weak$taxon[[i]], grid, weak$algorithm[[i]])
-    cells <- atlas_model_cell_ranks(raster, atlas_model_path(weak$taxon[[i]], grid, ".di.tif", weak$algorithm[[i]]),
-                                    as.numeric(metrics$applicability$threshold %||% NA))
-    if (!nrow(cells)) return(NULL)
-    data.frame(taxon = weak$taxon[[i]], algorithm = weak$algorithm[[i]], grade = "weak",
-               cell_id = cells$cell, rank = cells$rank, stringsAsFactors = FALSE)
-  })
+  # Each map is read on its own, so across processes when there are many;
+  # the rows come back in the same order, so the file is the same.
+  models <- lapply(seq_len(nrow(weak)), function(i) list(taxon = weak$taxon[[i]], algorithm = weak$algorithm[[i]]))
+  rows <- atlas_parallel_map(models, "atlas_weak_rank_rows", workers = workers %||% atlas_export_workers(nrow(weak)),
+                             chunk = 10L, grid = grid)
   table <- do.call(rbind, rows)
   if (is.null(table)) return(invisible(NULL))
   atlas_write_tsv_gz(table, path)
