@@ -50,6 +50,16 @@ ATLAS_NULL_REPS <- 99L
 ATLAS_NULL_DESIGN <- "shift"
 # The sequential test stops once this many nulls have done as well as the map.
 ATLAS_NULL_STOP_AFTER <- 5L
+# Near the pass line the test goes on (R/nulls.R, atlas_null_sequence; Steve,
+# 2026-11-19). A first stage of 99 stands when at most clear_pass nulls did
+# as well as the map, or when it stopped before its near_from'th null;
+# otherwise the test draws up to `to` nulls, stopping after stop_after, and
+# the pass rule is the same (p <= ATLAS_SKILL_ALPHA). Checked against the
+# virtual species of E1 before it went into production: false passes and
+# power each moved by under half a point, and a grade near the line flips
+# less often between refits on the same evidence. Models fitted before it
+# record a first stage only, and are stale (atlas_design).
+ATLAS_NULL_EXTEND <- list(from = 99L, to = 499L, stop_after = 25L, clear_pass = 1L, near_from = 50L)
 # A map is shown as skilled when its AUC beats the nulls at this level and its
 # Boyce index is above zero.
 ATLAS_SKILL_ALPHA <- 0.05
@@ -972,6 +982,7 @@ atlas_design <- function() list(
                boyce = "held-out scores of every fold together",
                nulls = "taxon and nulls both at untuned settings",
                design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER,
+               near_line = ATLAS_NULL_EXTEND,
                grades = "strong: passed shifted nulls; weak: held-out skill only; failed"),
   applicability = list(method = "dissimilarity index, Meyer & Pebesma 2021",
                        weights = "mean fall in held-out AUC per predictor",
@@ -1204,7 +1215,8 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   null <- if (is.finite(auc_mean)) {
     atlas_fit_stage("null test", atlas_null_test_sequential(
       training, fold_ids, algo, reps = nulls, seed = seed,
-      design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER
+      design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER,
+      extend = ATLAS_NULL_EXTEND
     ))
   } else {
     list(reps = 0L)

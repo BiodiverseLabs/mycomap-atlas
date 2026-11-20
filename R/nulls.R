@@ -32,6 +32,14 @@
 # or fail at 0.05 as drawing all 99, at a fraction of the cost for maps that
 # fail.
 #
+# Near the pass line one draw of 99 decides little: a map that 5% of nulls
+# beat passes 45% of the time. So production goes on (ATLAS_NULL_EXTEND,
+# Steve 2026-11-19): a first stage of 99 that passed with at most one null
+# as good, or stopped before its 50th null, stands; otherwise the test draws
+# up to 499, stopping after 25, and passes at p = (1 + k) / 500 <= 0.05.
+# The pass rule is unchanged, and the exact size (a map that knows nothing is
+# exchangeable with its nulls) is 0.0495, against 0.05 for 99 alone.
+#
 # Across thousands of taxa, 5% of maps of species that know nothing would
 # pass at p = 0.05. atlas_null_qvalues gives Benjamini-Hochberg q-values, the
 # false discovery rate at which each map would pass.
@@ -153,16 +161,88 @@ atlas_null_draw <- function(training, n, seed, design = "scatter") {
   )
 }
 
+#' Whether a first test of reps nulls ended near the pass line, so the test
+#' goes on to more (extend, production's ATLAS_NULL_EXTEND): it stopped at its
+#' stop_after'th null on the near_from'th scored null or later (p at most
+#' stop_after / near_from), or it did not stop and more than clear_pass nulls
+#' did as well as the taxon.
+atlas_null_near_line <- function(scored, above, stopped, extend) {
+  if (isTRUE(stopped)) scored >= extend$near_from else above > extend$clear_pass
+}
+
+#' Draw nulls in batches until reps are scored or stop_after of them have
+#' done at least as well as the taxon, then, when extend is given and the
+#' first reps ended near the pass line, on to extend$to, stopping at
+#' extend$stop_after.
+#'
+#' fetch(draws) scores the nulls of those draw numbers, in order: a list of
+#' c(auc, boyce), auc NA for a null that could not be scored. A null that
+#' fails is replaced, up to twice as many draws as nulls wanted. Results are
+#' taken in draw order and counting stops exactly where a one-at-a-time test
+#' would, so the batch size changes nothing but speed. drawn counts every
+#' draw made, including any left over in the last batch.
+#'
+#' p is stop_after over the nulls scored when the test stopped, else
+#' (1 + nulls at least as good) / (1 + nulls scored), for whichever stage
+#' decided. extend applies only to a first stage of extend$from nulls, the
+#' size it was calibrated for.
+atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L,
+                                batch = 10L, extend = NULL) {
+  aucs <- numeric()
+  boyces <- numeric()
+  above <- 0L
+  draw <- 0L
+  # Scored but not yet counted: the rest of a batch when a stage ends, which
+  # the next stage counts first, so the nulls are the same whatever the batch.
+  pending <- list()
+  draw_until <- function(want, enough, cap) {
+    while (length(aucs) < want && above < enough) {
+      if (!length(pending)) {
+        if (draw >= cap) break
+        take <- seq.int(draw + 1L, min(draw + batch, cap))
+        draw <<- take[[length(take)]]
+        pending <<- fetch(take)
+      }
+      result <- pending[[1]]
+      pending <<- pending[-1]
+      if (!is.finite(result[["auc"]])) next
+      aucs <<- c(aucs, result[["auc"]])
+      boyces <<- c(boyces, result[["boyce"]])
+      if (result[["auc"]] >= observed_auc) above <<- above + 1L
+    }
+  }
+  p_of <- function(stopped, enough) {
+    if (!length(aucs)) NA_real_ else if (stopped) enough / length(aucs) else (1 + above) / (1 + length(aucs))
+  }
+  draw_until(reps, stop_after, 2L * reps)
+  stopped <- above >= stop_after
+  first <- list(reps = length(aucs), p = p_of(stopped, stop_after))
+  p <- first$p
+  extended <- !is.null(extend) && identical(as.integer(reps), as.integer(extend$from)) &&
+    length(aucs) > 0L && atlas_null_near_line(length(aucs), above, stopped, extend)
+  if (extended) {
+    draw_until(extend$to, extend$stop_after, 2L * extend$to)
+    stopped <- above >= extend$stop_after
+    p <- p_of(stopped, extend$stop_after)
+  }
+  list(aucs = aucs, boyces = boyces, above = above, drawn = draw, stopped = stopped, p = p,
+       extended = extended, first = first)
+}
+
 #' The null test with any design, drawing nulls in batches until reps are
-#' scored or stop_after of them have done at least as well as the taxon.
+#' scored or stop_after of them have done at least as well as the taxon, and,
+#' with extend, on to more nulls when that first stage ends near the pass
+#' line (atlas_null_sequence).
 #'
 #' Same procedure as atlas_null_test (same sites, folds and untuned
 #' settings; a failed null is replaced, up to 2 x reps draws), and the same
 #' result, with the design, how many nulls were drawn, whether the test
 #' stopped early, how many shifted nulls were placed best-effort, and the mean
-#' share of their points that landed far from a site.
+#' share of their points that landed far from a site. With extend, also
+#' whether the test went on past its first stage, and that stage's nulls and p.
 atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed = 1L,
-                                       design = "scatter", stop_after = 5L, batch = 10L) {
+                                       design = "scatter", stop_after = 5L, batch = 10L,
+                                       extend = NULL) {
   design <- atlas_null_design(design)
   if (!reps) return(list(reps = 0L))
   params <- atlas_null_params(algo, training)
@@ -204,33 +284,11 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     atlas_rng_restore(stream)
     return(list(reps = 0L))
   }
-  aucs <- numeric()
-  boyces <- numeric()
-  above <- 0L
-  draw <- 0L
-  while (length(aucs) < reps && above < stop_after && draw < 2L * reps) {
-    take <- seq.int(draw + 1L, min(draw + batch, 2L * reps))
-    draw <- take[[length(take)]]
-    # Results are taken in draw order and the count stops exactly where a
-    # one-at-a-time test would, so the batch size changes nothing but speed.
-    for (result in run_tables(lapply(take, null_table))) {
-      if (length(aucs) >= reps || above >= stop_after) break
-      if (!is.finite(result[["auc"]])) next
-      aucs <- c(aucs, result[["auc"]])
-      boyces <- c(boyces, result[["boyce"]])
-      if (result[["auc"]] >= observed[["auc"]]) above <- above + 1L
-    }
-  }
-  stopped <- above >= stop_after
-  p <- if (!length(aucs)) {
-    NA_real_
-  } else if (stopped) {
-    stop_after / length(aucs)
-  } else {
-    (1 + above) / (1 + length(aucs))
-  }
-  boyces <- boyces[is.finite(boyces)]
-  list(
+  run <- atlas_null_sequence(observed[["auc"]], function(take) run_tables(lapply(take, null_table)),
+                             reps = reps, stop_after = stop_after, batch = batch, extend = extend)
+  aucs <- run$aucs
+  boyces <- run$boyces[is.finite(run$boyces)]
+  c(list(
     reps = length(aucs),
     design = design,
     settings = atlas_params_label(params),
@@ -238,13 +296,17 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     observed_boyce = round(observed[["boyce"]], 3),
     auc_mean = round(mean(aucs), 3),
     auc_sd = round(stats::sd(aucs), 3),
-    auc_p = round(p, 4),
+    auc_p = round(run$p, 4),
     boyce_mean = if (length(boyces)) round(mean(boyces), 3) else NA_real_,
-    stopped_early = stopped,
-    drawn = draw,
+    stopped_early = run$stopped,
+    drawn = run$drawn,
     best_effort = best_effort,
     far_share = if (length(far_shares)) round(mean(far_shares), 3) else NA_real_
-  )
+  ), if (!is.null(extend)) list(
+    extended = run$extended,
+    first_reps = run$first$reps,
+    first_auc_p = round(run$first$p, 4)
+  ))
 }
 
 #' Benjamini-Hochberg q-values: for each p, the false discovery rate at
