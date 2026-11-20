@@ -150,6 +150,18 @@ changed and what it means for you.
 
 ### Maps
 
+- **Weak maps get a full-extent view too.** Like a strong map's, it carries
+  the colour scale beyond 500 km wherever conditions resemble the known
+  sites, and is drawn faint, as the weak map itself is. It claims nothing:
+  counts by state, the here index, combined maps, the prior and the sitemap
+  read strong maps alone. It is the picture only: a weak map's full-view
+  rasters are not kept or published, so its model's `full_map` has no
+  `raster` or `dissimilarity`. Failed maps get none.
+
+- **iNaturalist records placed to within 2 km are kept** (it was 1 km).
+  Obscured records stay out as before. Each pull records its cutoff
+  (`max_accuracy_m` in its summary); earlier pulls used 1 km.
+
 - **Collection cells leave out Mushroom Observer records the source no longer
   holds.** A record .org marks as deleted at Mushroom Observer is kept in the
   pull when its answer was cached, and models still learn from it, but it is

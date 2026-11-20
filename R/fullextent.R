@@ -25,8 +25,11 @@
 # index, the combined maps, the sitemap, the prior export, best-map and
 # maps/best, and trained ids (tests hold them to that), and every claim the
 # site makes comes from strong maps alone. A weak map's full view is drawn
-# faint, as its default map is, and claims nothing. Failed models are not
-# predicted beyond their reach: their maps are no better than chance.
+# faint, as its default map is, and claims nothing; it is the picture alone
+# (Steve, 2026-11-20): its .full.tif and .full.di.tif are neither kept nor
+# published, since only the continent export reads those, for strong maps.
+# Failed models are not predicted beyond their reach: their maps are no
+# better than chance.
 
 ATLAS_FULL_EXTS <- c(".full.tif", ".full.di.tif", ".full.png")
 
@@ -165,13 +168,19 @@ atlas_full_map_layers <- function(full, full_dissimilarity, suitability, dissimi
 
 #' Write a model's full-extent files and say what they hold and cost.
 atlas_write_full_map <- function(name, grid, algorithm, full, full_dissimilarity, suitability,
-                                 dissimilarity, threshold, predict_seconds = NA_real_) {
+                                 dissimilarity, threshold, predict_seconds = NA_real_, keep_rasters = TRUE) {
   started <- Sys.time()
   paths <- atlas_model_path(name, grid, ATLAS_FULL_EXTS, algorithm = algorithm)
   dir.create(dirname(paths[[1]]), recursive = TRUE, showWarnings = FALSE)
-  gdal <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
-  terra::writeRaster(full, paths[[1]], overwrite = TRUE, gdal = gdal)
-  terra::writeRaster(full_dissimilarity, paths[[2]], overwrite = TRUE, gdal = gdal)
+  if (isTRUE(keep_rasters)) {
+    gdal <- c("COMPRESS=DEFLATE", "PREDICTOR=2", "TILED=YES")
+    terra::writeRaster(full, paths[[1]], overwrite = TRUE, gdal = gdal)
+    terra::writeRaster(full_dissimilarity, paths[[2]], overwrite = TRUE, gdal = gdal)
+  } else {
+    # The picture only (a weak map): drawn from the layers in memory, its
+    # rasters neither kept nor published, and an older copy of them removed.
+    unlink(paths[1:2][file.exists(paths[1:2])])
+  }
   layers <- atlas_full_map_layers(full, full_dissimilarity, suitability, dissimilarity, threshold)
   # Drawn over the cells that have data, not the grid's whole rectangle: in
   # Albers its corners reach past the pole and the antimeridian, and the
@@ -184,9 +193,8 @@ atlas_write_full_map <- function(name, grid, algorithm, full, full_dissimilarity
   rank <- terra::values(layers[["rank"]], mat = FALSE)
   outside <- terra::values(layers[["outside"]], mat = FALSE)
   in_area <- !is.na(terra::values(terra::extend(suitability, full), mat = FALSE))
-  list(
-    raster = basename(paths[[1]]),
-    dissimilarity = basename(paths[[2]]),
+  kept <- if (isTRUE(keep_rasters)) paths[1:2] else character()
+  c(if (isTRUE(keep_rasters)) list(raster = basename(paths[[1]]), dissimilarity = basename(paths[[2]])), list(
     map = basename(drawn$path),
     bounds = drawn$bounds,
     width = drawn$width,
@@ -196,8 +204,8 @@ atlas_write_full_map <- function(name, grid, algorithm, full, full_dissimilarity
     beyond_reach_ranked = sum(is.finite(rank) & !in_area),
     seconds = round(predict_seconds + as.numeric(difftime(Sys.time(), started, units = "secs")), 1),
     png_seconds = round(as.numeric(difftime(Sys.time(), started, units = "secs")), 1),
-    bytes = sum(file.info(c(paths[1:2], drawn$path))$size)
-  )
+    bytes = sum(file.info(c(kept, drawn$path))$size)
+  ))
 }
 
 #' Remove a model's full-extent files: a refit that makes none (a failed map

@@ -279,3 +279,49 @@ test_that("strong and weak maps get a full view, failed and untested ones do not
   expect_true(atlas_full_extent_wanted("failed", full = TRUE))
   expect_false(atlas_full_extent_wanted("strong", full = FALSE))
 })
+
+test_that("a weak map's full view is the picture alone; a strong map's, or one a job asks for, keeps its rasters", {
+  skip_if_not_installed("terra")
+  skip_if_not_installed("maxnet")
+  graded <- function(grade, full = NULL) {
+    testthat::local_mocked_bindings(atlas_map_grade = function(...) grade)
+    fit_synthetic(full)
+  }
+  weak <- graded("weak")
+  expect_true(all(is.na(weak$sha[4:5])))
+  expect_false(is.na(weak$sha[[6]]))
+  expect_equal(weak$metrics$full_map$map, "eastern-fungus.full.png")
+  expect_null(weak$metrics$full_map$raster)
+  expect_null(weak$metrics$full_map$dissimilarity)
+  strong <- graded("strong")
+  expect_true(all(!is.na(strong$sha[4:6])))
+  expect_equal(strong$metrics$full_map$raster, "eastern-fungus.full.tif")
+  # The picture is the same either way, and a job asking for full views keeps
+  # a weak map's rasters too.
+  expect_identical(weak$sha[[6]], strong$sha[[6]])
+  asked <- graded("weak", full = TRUE)
+  expect_true(all(!is.na(asked$sha[4:6])))
+  expect_true(all(is.na(graded("failed")$sha[4:6])))
+})
+
+test_that("drawing a picture-only full view removes an older copy's rasters", {
+  skip_if_not_installed("terra")
+  f <- full_fixture()
+  testthat::local_mocked_bindings(atlas_write_map_png = function(suitability, path, ..., layers = NULL) {
+    writeLines("picture", path)
+    list(path = path, bounds = list(), width = 1L, height = 1L)
+  })
+  with_data_dir({
+    paths <- atlas_model_path("Eastern", "draft", ATLAS_FULL_EXTS)
+    kept <- atlas_write_full_map("Eastern", "draft", "maxnet", f$full, f$full_dissimilarity, f$suitability,
+                                 f$dissimilarity, f$threshold)
+    expect_true(all(file.exists(paths)))
+    expect_equal(kept$raster, basename(paths[[1]]))
+    only <- atlas_write_full_map("Eastern", "draft", "maxnet", f$full, f$full_dissimilarity, f$suitability,
+                                 f$dissimilarity, f$threshold, keep_rasters = FALSE)
+    expect_false(any(file.exists(paths[1:2])))
+    expect_true(file.exists(paths[[3]]))
+    expect_null(only$raster)
+    expect_equal(only$bytes, file.info(paths[[3]])$size)
+  })
+})

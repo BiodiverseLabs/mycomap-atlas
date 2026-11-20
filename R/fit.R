@@ -1292,8 +1292,12 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
   full_map <- NULL
   if (isTRUE(write)) {
     if (!is.null(full_suitability)) {
+      # A strong map's full view keeps its rasters (the continent export reads
+      # them), as does one a job asked for whatever the grade (full = TRUE);
+      # otherwise a weak map's is the picture alone.
       full_map <- atlas_write_full_map(name, grid, algo$id, full_suitability, full_dissimilarity,
-                                       suitability, dissimilarity, aoa$threshold, full_seconds)
+                                       suitability, dissimilarity, aoa$threshold, full_seconds,
+                                       keep_rasters = isTRUE(full) || identical(grade, "strong"))
     } else {
       atlas_remove_full_map(name, grid, algo$id)
     }
