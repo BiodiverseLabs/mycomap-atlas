@@ -147,16 +147,30 @@ changed and what it means for you.
 
 ### Maps
 
-- **A map near the null test's pass line is tested against up to 499 nulls,
-  not 99.** A first stage of 99 shifted nulls stands when at most one did as
-  well as the map, or when the fifth that did came before the 50th null.
-  Otherwise the test goes on, stopping after 25, and the map passes at
-  p = (1 + k) / 500 <= 0.05, the same rule as before. Grades near the line
-  change less often between refits on much the same records. Each model's
-  `null` now says whether the test went on (`extended`) and gives its first
-  stage (`first_reps`, `first_auc_p`). Every model refits once under the new
-  rule; releases before that, and the archived releases, keep the 99-null
-  test.
+- **The null test is pooled over five fold splits, and near the pass line it
+  goes on to up to 499 nulls.** A map and each of its shifted nulls are
+  scored on five ways of dealing the spatial blocks into folds, the map's
+  own first, and compared by their mean, so a grade no longer rests on one
+  split that a single new record can re-deal. A first stage of 99 nulls
+  stands when at most one did as well as the map, or when the fifth that did
+  came before the 50th null; otherwise the test goes on, stopping after 25,
+  and the map passes at p = (1 + k) / 500 <= 0.05. The pass rule is
+  unchanged, and so are a map's own cross-validated scores and the Boyce
+  index it must keep above 0. Each model's `null` now gives `splits`,
+  `first_split_auc`, `extended`, `first_reps` and `first_auc_p`, and its
+  settings `null_splits`. Every model refits once under the new test;
+  releases before that, and the archived releases, keep the 99-null test on
+  one split.
+
+- **Weak maps get a full-extent view too.** Like a strong map's, it carries
+  the colour scale beyond 500 km wherever conditions resemble the known
+  sites, and is drawn faint, as the weak map itself is. It claims nothing:
+  counts by state, the here index, combined maps, the prior and the sitemap
+  read strong maps alone. Failed maps get none.
+
+- **iNaturalist records placed to within 2 km are kept** (it was 1 km).
+  Obscured records stay out as before. Each pull records its cutoff
+  (`max_accuracy_m` in its summary); earlier pulls used 1 km.
 
 - **Collection cells leave out Mushroom Observer records the source no longer
   holds.** A record .org marks as deleted at Mushroom Observer is kept in the

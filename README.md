@@ -622,7 +622,10 @@ at 0.05 as drawing them all. Near the pass line production goes on to up to
 499 nulls (`ATLAS_NULL_EXTEND`, `atlas_null_sequence`): a first stage of 99
 stands when at most one null did as well, or when it stopped before its 50th
 null, and otherwise the test draws on, stopping after 25, and passes at
-p = (1 + k) / 500 <= 0.05. The studies run the 99-null test alone.
+p = (1 + k) / 500 <= 0.05. Production also pools the test over five fold
+splits (`ATLAS_NULL_SPLITS`, `atlas_null_fold_splits`): the map and every
+null are scored on each and compared by the mean, the map's own split first.
+The studies run the 99-null test on one split unless asked otherwise.
 `atlas_null_qvalues` gives Benjamini-Hochberg
 q-values across taxa. The virtual-species study compares the designs:
 
