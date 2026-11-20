@@ -490,9 +490,15 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
     warning("not-yet-validated counts not refreshed: ", conditionMessage(e), call. = FALSE)
   })
   # Likewise the private list of records whose place their source hides
-  # (R/privacy.R): kept out of the published collection cells.
-  tryCatch(atlas_pull_privacy(host = host, quiet = quiet), error = function(e) {
+  # (R/privacy.R): kept out of the published collection cells. A list that
+  # was not refreshed does not fail the pull, but it stops the pull's QA
+  # (privacy_refreshed), so no cells are cut from a list older than the pull.
+  privacy_refreshed <- tryCatch({
+    atlas_pull_privacy(host = host, quiet = quiet)
+    TRUE
+  }, error = function(e) {
     warning("hidden-place list not refreshed: ", conditionMessage(e), call. = FALSE)
+    FALSE
   })
   # And .org's name-change log (R/namechanges.R), read from its cursor: its
   # renames go into renames.json ahead of the guessed ones. Neither step can
@@ -507,7 +513,8 @@ atlas_pull_occurrences <- function(since = NULL, chunk_size = 10000,
   # made is written as a stop of its own, so it never passes unseen.
   tryCatch({
     if (inherits(kingdoms, "error")) stop("the kingdom lookup failed: ", conditionMessage(kingdoms), call. = FALSE)
-    atlas_pull_qa(occurrences, manifest, audit, kingdoms = kingdoms, left_out = left_out$info, quiet = quiet)
+    atlas_pull_qa(occurrences, manifest, audit, kingdoms = kingdoms, left_out = left_out$info, quiet = quiet,
+                  privacy_refreshed = privacy_refreshed)
   }, error = function(e) {
     atlas_write_json(list(pull = manifest$stamp, stops = list("qa_failed"),
                           checks = list(qa_failed = list(stop = TRUE, why = paste("the QA report could not be made:",

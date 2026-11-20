@@ -178,3 +178,77 @@ test_that("every query on .org's iNaturalist cache reads only the columns atlas_
                 info = paste(setdiff(sub("^c[.]", "", used), readable), collapse = ", "))
   }
 })
+
+# Against a real Postgres (ATLAS_TEST_PSQL): every statement the box sends to
+# .org, run as a role holding exactly the column grants atlas_ro holds
+# (.org's deploy/readonly-sql/atlas-install.sh, as of 2026-11-20). A statement
+# naming a column atlas_ro may not read fails here as it fails on the box. The
+# tables, the role and the grants live in one transaction that is rolled back.
+ATLAS_RO_GRANTS <- list(
+  observations = c("id", "observation_id", "source", "scientific_name", "genus", "observed_on", "latitude",
+                   "longitude", "state", "country", "sequence_id", "updated_at", "validation_status_1",
+                   "validation_status_2", "validation_status_3", "validation_date_1", "validation_date_2",
+                   "validation_date_3", "source_deleted_at"),
+  observation_cache = c("source", "source_observation_id", "coordinates_obscured", "positional_accuracy"),
+  mycoportal_data = c("observation_id", "sync_status", "decimal_latitude", "coordinate_uncertainty_in_meters",
+                      "locality"),
+  sequences = c("observation", "com_inat_record_id", "approved", "species_name", "category_id", "flags"),
+  linked_observations = c("database_id", "external_id", "record_id")
+)
+
+as_atlas_ro <- function(statement) {
+  schema <- paste0("atlas_grants_", paste(sample(letters, 8), collapse = ""))
+  role <- paste0(schema, "_ro")
+  # Every granted column, and one more the role may not read, as text: the
+  # statements only need the columns to exist.
+  extra <- c(observations = "observer", observation_cache = "api_response_json",
+             mycoportal_data = "raw_json", sequences = "bases", linked_observations = "notes")
+  types <- c(id = "integer", latitude = "numeric", longitude = "numeric", decimal_latitude = "numeric",
+             coordinate_uncertainty_in_meters = "numeric", positional_accuracy = "integer",
+             coordinates_obscured = "boolean", approved = "integer", category_id = "integer",
+             database_id = "integer", source_deleted_at = "timestamp", updated_at = "timestamp",
+             observed_on = "date", flags = "jsonb")
+  column <- function(name) paste(name, if (name %in% names(types)) types[[name]] else "text")
+  tables <- vapply(names(ATLAS_RO_GRANTS), function(table) {
+    sprintf("CREATE TABLE %s.%s (%s); GRANT SELECT (%s) ON %s.%s TO %s;", schema, table,
+            paste(vapply(c(ATLAS_RO_GRANTS[[table]], extra[[table]]), column, ""), collapse = ", "),
+            paste(ATLAS_RO_GRANTS[[table]], collapse = ", "), schema, table, role)
+  }, "")
+  sql <- paste(
+    "BEGIN;",
+    sprintf("CREATE ROLE %s NOLOGIN; CREATE SCHEMA %s; GRANT USAGE ON SCHEMA %s TO %s;", role, schema, schema, role),
+    paste(tables, collapse = " "),
+    # atlas.mo_points is a view atlas_ro may read whole.
+    sprintf(paste("CREATE TABLE %s.mo_points (source_observation_id text, latitude numeric, longitude numeric,",
+                  "latitude_north numeric, latitude_south numeric, longitude_east numeric, longitude_west numeric);",
+                  "GRANT SELECT ON %s.mo_points TO %s;"), schema, schema, role),
+    sprintf("SET LOCAL ROLE %s; SET LOCAL search_path = %s;", role, schema),
+    paste0(gsub("atlas.mo_points", paste0(schema, ".mo_points"), statement, fixed = TRUE), ";"),
+    "ROLLBACK;"
+  )
+  # Errors come on stderr, kept with the rows.
+  command <- strsplit(trimws(Sys.getenv("ATLAS_TEST_PSQL")), "[[:space:]]+")[[1]]
+  suppressWarnings(system2(command[[1]], command[-1], input = sql, stdout = TRUE, stderr = TRUE))
+}
+
+test_that("on Postgres every statement the box sends to .org runs under atlas_ro's column grants", {
+  testthat::skip_if(!nzchar(Sys.getenv("ATLAS_TEST_PSQL")), "set ATLAS_TEST_PSQL to run SQL against Postgres")
+  cells <- atlas_cells_now_sql()
+  statements <- c(
+    privacy = atlas_privacy_sql(0, 100),
+    stats::setNames(unlist(cells$inat), paste0("cells_now_inat_", seq_along(cells$inat))),
+    cells_now_mo = cells$mo, cells_now_deleted = cells$deleted,
+    pull = atlas_occurrence_sql(0, 100),
+    mo_left_out = atlas_mo_left_out_sql(0, 100),
+    waterfall = atlas_waterfall_sql(0, 100),
+    first_green = atlas_first_green_sql(0, 100),
+    names = atlas_sequence_names_sql(0, 100)
+  )
+  for (name in names(statements)) {
+    out <- as_atlas_ro(statements[[name]])
+    expect_false(any(grepl("ERROR", out, fixed = TRUE)), info = paste(name, paste(out, collapse = " | ")))
+  }
+  # The harness itself: a column atlas_ro may not read is refused here too.
+  refused <- as_atlas_ro("SELECT count(*) FROM observation_cache c WHERE c.api_response_json IS NOT NULL")
+  expect_true(any(grepl("permission denied", refused, fixed = TRUE)))
+})
