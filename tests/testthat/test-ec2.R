@@ -1040,6 +1040,9 @@ test_that("a running worker uploads its logs every few minutes, so one stopped a
   expect_match(loop, sprintf("while sleep %d;", ATLAS_WORKER_LOG_SECONDS), fixed = TRUE)
   expect_match(loop, "aws s3 cp --quiet /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3.log", fixed = TRUE)
   expect_match(loop, "/data/batches/ s3://bucket/jobs/draft/job1/logs/3-batches/", fixed = TRUE)
+  # A worker with no batches folder (a finishing worker) skips that part
+  # rather than logging an error every few minutes.
+  expect_match(loop, "[ ! -d /data/batches ] || aws s3 sync", fixed = TRUE)
   expect_match(loop, "&$")
   # It starts before the shard runs, and the last upload at the end stays.
   expect_lt(grep("while sleep", lines), grep("^docker run", lines))
