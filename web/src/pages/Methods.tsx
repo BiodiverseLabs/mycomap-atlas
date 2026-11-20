@@ -4,6 +4,8 @@ import { Link } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
+import RecordFlow from "@/components/RecordFlow";
+import { EXAMPLE_IDS, FLOW_FIXTURE } from "@/lib/recordFlow.fixture";
 import { PageHeader } from "@/components/Layout";
 import { GITHUB_URL, SOURCES } from "@/lib/contract";
 import { usePageMeta } from "@/lib/usePageMeta";
@@ -239,6 +241,7 @@ export default function Methods() {
                 species concept can be wrong even after its synonyms are sorted out, and a model
                 trained on a wrong name draws a confident, wrong map.
               </p>
+              <RecordFlow data={FLOW_FIXTURE} examples={EXAMPLE_IDS} />
               <p>A record must also:</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>have coordinates that are present and not obscured;</li>

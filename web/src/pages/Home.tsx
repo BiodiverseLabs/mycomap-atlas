@@ -195,7 +195,7 @@ const ROUTES: { icon: Icon; title: string; text: string; href: string }[] = [
   },
 ];
 
-function BigStat({ value, label }: { value: ReactNode; label: string }) {
+function BigStat({ value, label }: { value: ReactNode; label: ReactNode }) {
   return (
     <div>
       <div className="font-display text-3xl text-[#4a3728] tabular-nums md:text-4xl">{value}</div>
@@ -353,7 +353,17 @@ export default function Home() {
 
       <Page>
         <section className="grid grid-cols-2 gap-6 border-b border-[#A87146]/10 pb-8 md:grid-cols-4">
-          <BigStat value={formatNumber(status.data?.records)} label="DNA-validated collections" />
+          <BigStat
+            value={formatNumber(status.data?.records)}
+            label={
+              <>
+                DNA-validated collections ·{" "}
+                <Link href="/methods#records" className="text-myco-green hover:underline">
+                  where the records go
+                </Link>
+              </>
+            }
+          />
           <BigStat value={formatNumber(status.data?.taxa)} label="taxa recorded" />
           <BigStat value={models.data ? formatNumber(mapped.size) : "—"} label="taxa with habitat maps" />
           <BigStat value={models.data ? formatNumber(mappedModels.length) : "—"} label="fitted models" />
