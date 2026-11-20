@@ -221,7 +221,7 @@ test_that("on Postgres the waterfall query counts each step by source", {
       row(9, "MO Observations", country = NA, state = "'Puerto Rico'"),  # in, by its state
       row(10, "iNaturalist")                       # out of the window
     ), collapse = ", "), ";",
-    "INSERT INTO observation_cache VALUES ('inat', '1', false, 500), ('inat', '2', true, 10),",
+    "INSERT INTO observation_cache VALUES ('inat', '1', false, 500), ('inat', '2', true, 5000),",
     "  ('inat', '3', false, 3000), ('inat', '4', false, 1500), ('inat', '10', true, 10);",
     paste0(atlas_waterfall_sql(0, 9, max_m = 2000), ";"),
     "ROLLBACK;"
