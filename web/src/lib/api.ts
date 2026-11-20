@@ -1,3 +1,4 @@
+import type { RecordFlowData } from "@/lib/recordFlow";
 // The development API is the plumber server started by `./atlas api`. In
 // production the same routes are served from atlas.mycomap.org.
 
@@ -12,6 +13,8 @@ export interface Status {
   since?: string | null;
   /** The release the maps come from: what to cite. */
   release?: StatusRelease;
+  /** Where mycomap.org's records went before the pull kept them; only when it adds up. */
+  waterfall?: RecordFlowData;
 }
 
 export interface StatusRelease {

@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 
 import { GithubMark } from "@/components/Common";
+import RecordFlow from "@/components/RecordFlow";
 import { PageHeader } from "@/components/Layout";
 import { GITHUB_URL, SOURCES } from "@/lib/contract";
 import { usePageMeta } from "@/lib/usePageMeta";
@@ -179,6 +180,14 @@ function ReleaseRecords() {
   );
 }
 
+// Where mycomap.org's records went before the pull, from /api/status: absent
+// (so nothing is drawn) until a full pull has counted them and they add up.
+function PullFlow() {
+  const status = useQuery({ queryKey: ["status"], queryFn: getStatus });
+  const flow = status.data?.waterfall;
+  return flow ? <RecordFlow data={flow} /> : null;
+}
+
 export default function Methods() {
   usePageMeta({
     title: "Methods",
@@ -239,6 +248,7 @@ export default function Methods() {
                 species concept can be wrong even after its synonyms are sorted out, and a model
                 trained on a wrong name draws a confident, wrong map.
               </p>
+              <PullFlow />
               <p>A record must also:</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>have coordinates that are present and not obscured;</li>

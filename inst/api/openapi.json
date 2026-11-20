@@ -2364,6 +2364,72 @@
           "grading": {
             "type": "string",
             "description": "How a map's grade is decided: \"shift\" (clustered, shifted null models) from the 2026-10 rebuild on. Absent before. Apps that show strong maps only can wait for it."
+          },
+          "waterfall": {
+            "type": "object",
+            "description": "Where mycomap.org's records went before the pull kept them, step by step: counts only. Present only for a full pull whose counts add up exactly: total less every step's removed is used, and each step's parts make its removed.",
+            "required": [
+              "pulled_at",
+              "total",
+              "used",
+              "max_accuracy_m",
+              "steps"
+            ],
+            "properties": {
+              "pulled_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "total": {
+                "type": "integer",
+                "description": "Every record on mycomap.org when the pull was made."
+              },
+              "used": {
+                "type": "integer",
+                "description": "The records the pull kept: what the maps are fitted on."
+              },
+              "max_accuracy_m": {
+                "type": "integer",
+                "description": "The iNaturalist accuracy cutoff the pull used, in metres."
+              },
+              "steps": {
+                "type": "array",
+                "description": "In order: dna, coordinates, north_america, obscured, inat_coarse, other_coarse, name, excluded, other_kingdom.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "removed"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "removed": {
+                      "type": "integer"
+                    },
+                    "parts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "count"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },
