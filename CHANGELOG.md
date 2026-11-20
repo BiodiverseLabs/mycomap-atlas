@@ -169,7 +169,9 @@ changed and what it means for you.
   the colour scale beyond 500 km wherever conditions resemble the known
   sites, and is drawn faint, as the weak map itself is. It claims nothing:
   counts by state, the here index, combined maps, the prior and the sitemap
-  read strong maps alone. Failed maps get none.
+  read strong maps alone. It is the picture only: a weak map's full-view
+  rasters are not kept or published, so its model's `full_map` has no
+  `raster` or `dissimilarity`. Failed maps get none.
 
 - **iNaturalist records placed to within 2 km are kept** (it was 1 km).
   Obscured records stay out as before. Each pull records its cutoff

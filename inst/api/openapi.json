@@ -2913,7 +2913,7 @@
           },
           "full_map": {
             "type": "object",
-            "description": "A strong or weak model's full-extent view (map.png?view=full); a weak one's is faint and claims nothing. Absent for failed models, for models fitted before full views, and for every model while this site does not publish full views. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
+            "description": "A strong or weak model's full-extent view (map.png?view=full); a weak one's is faint, claims nothing, and is the picture only (no raster or dissimilarity here). Absent for failed models, for models fitted before full views, and for every model while this site does not publish full views. Inside the accessible area it equals the default map; beyond it each cell is placed on the same rank scale and hatched outside the area of applicability. Potential, not range.",
             "properties": {
               "raster": {
                 "type": "string",
