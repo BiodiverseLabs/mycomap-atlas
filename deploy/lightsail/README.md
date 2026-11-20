@@ -119,10 +119,11 @@ sudo /usr/local/lib/atlas/alert.sh --ok atlas-nightly
 ## Zenodo drafts that publish themselves
 
 An archive version is still made by hand (`archive-release`, after
-`cells-now` for a models version), and stops at a draft. Since 2026-11-19 a
-draft then publishes itself 3 days later unless a person deletes it on
-zenodo.org first (`archive-auto-publish`, R/autopublish.R). Publishing is
-permanent.
+`cells-now` for a models version), and stops at a draft. Once the timer
+below is on, a draft publishes itself 3 days later unless a person deletes it
+on zenodo.org first (`archive-auto-publish`, R/autopublish.R). Publishing is
+permanent. **The timer is off, and its files are not on atlas-box**, until
+Steve decides on auto-publish (installing it, below).
 
 - **The token** is in `/etc/atlas/zenodo.env`, root:root, mode 600, one
   line `ZENODO_TOKEN=...` (a personal access token with `deposit:write` and
@@ -149,12 +150,33 @@ permanent.
   `nothing waiting`, `waiting` (with the date it will publish), `published`,
   `published by hand`, `discarded`, `refused` or `failed`, with why.
 
-Setting it up, once, after deploying a commit that has it:
+Until Steve OKs drafts publishing themselves, the timer stays off and nothing
+publishes on its own: today each Zenodo record needs his explicit OK, and the
+token is deleted after each run. On a fresh box `setup-box.sh` installs the
+script and both units **disabled** (it never enables or starts them, and never
+writes the token file). **Never re-run `setup-box.sh` on atlas-box** to get
+them: it enables `atlas-nightly.timer` and rewrites the box's configuration.
+
+Installing it on atlas-box, by hand, only with Steve's OK. The three files
+come from the commit he approved, and each must have the hash that commit
+holds:
 
 ```bash
-sudo install -m 755 deploy/lightsail/zenodo-publish.sh /usr/local/lib/atlas/
-sudo install -m 644 deploy/lightsail/systemd/atlas-zenodo-publish.{service,timer} /etc/systemd/system/
+# On a machine with the repo: the hashes of the approved commit (<sha>).
+for f in zenodo-publish.sh systemd/atlas-zenodo-publish.service systemd/atlas-zenodo-publish.timer; do
+  printf '%s  %s\n' "$(git show "<sha>:deploy/lightsail/$f" | sha256sum | cut -d' ' -f1)" "$(basename "$f")"
+done
+# On the box, in a folder holding the three copied files: the same hashes, or stop.
+sha256sum zenodo-publish.sh atlas-zenodo-publish.service atlas-zenodo-publish.timer
+sudo install -m 755 -o root -g root zenodo-publish.sh /usr/local/lib/atlas/zenodo-publish.sh
+sudo install -m 644 -o root -g root atlas-zenodo-publish.service atlas-zenodo-publish.timer /etc/systemd/system/
 sudo systemctl daemon-reload
+```
+
+Installed, it still does nothing until the token file exists and the timer
+is enabled. Each of those is a step of its own, with Steve's OK:
+
+```bash
 # the token file, written by the token's owner:
 sudo install -m 600 -o root -g root /dev/null /etc/atlas/zenodo.env   # then add ZENODO_TOKEN=...
 sudo systemctl start atlas-zenodo-publish      # once by hand; read its journal

@@ -853,9 +853,10 @@ and served at `/api/downloads`. Sandbox series end in `-sandbox` and never
 mix with real ones. Creators, licence, keywords and related identifiers are
 in `inst/archive/zenodo.json`.
 
-A waiting draft publishes itself a few days after it is made, unless a person
-deletes it on zenodo.org first (Steve, 2026-11-19). `archive-auto-publish`,
-run daily by `atlas-zenodo-publish.timer` on the server, reads each series'
+A waiting draft can publish itself a few days after it is made, unless a
+person deletes it on zenodo.org first (Steve, 2026-11-19). The timer that does
+it, `atlas-zenodo-publish.timer`, is off until Steve decides on auto-publish
+(deploy/lightsail/README.md). `archive-auto-publish` reads each series'
 draft back and acts: deleted on Zenodo, it is marked `discarded` in the
 ledger; published there by a person, its DOI is recorded; past the grace
 period (`ATLAS_ZENODO_PUBLISH_AFTER_DAYS`, default 3, or `off`), it is
@@ -990,7 +991,12 @@ release file. A worker whose table differs from the plan's refuses its shard.
 
 A worker boots Amazon Linux, pulls the release image built from the box's own
 commit (CI publishes one for every commit on main), runs its shard and shuts
-down, which deletes it. A shard whose spot instance is reclaimed is launched
+down, which deletes it. A study job (`./atlas plan-study`) of a commit not on
+main runs on that commit's study image instead: someone with write access
+builds it from the Actions tab (workflow "study image", the commit's full
+SHA), which publishes `ghcr.io/biodiverselabs/mycomap-atlas:study-<sha>` and
+no other tag, and the job is run with `ATLAS_IMAGE=` that tag. A production
+job never pulls a study tag. A shard whose spot instance is reclaimed is launched
 again, up to three times; with no spot capacity, a launch tries each allowed
 instance type in each zone and otherwise waits for the next poll. Refused
 for the account's vCPU limit, it tries only the listed types with fewer vCPUs.

@@ -97,11 +97,16 @@ rm -f /etc/nginx/sites-enabled/default
 install -d -o root -g root -m 700 /etc/ssl/atlas
 
 echo "== the API, the nightly job and the checks on them"
-for script in nightly.sh deploy.sh alert.sh uptime.sh; do
+for script in nightly.sh deploy.sh alert.sh uptime.sh zenodo-publish.sh; do
   install -m 755 "$here/$script" "/usr/local/lib/atlas/$script"
 done
+# The Zenodo publish units are installed and left disabled. Enabling the timer
+# lets drafts publish themselves, which waits on Steve's OK, and it needs the
+# token file /etc/atlas/zenodo.env, which setup never writes
+# (README.md here, "Zenodo drafts that publish themselves").
 for unit in atlas-api.service atlas-nightly.service atlas-nightly.timer \
-            atlas-uptime.service atlas-uptime.timer atlas-alert@.service; do
+            atlas-uptime.service atlas-uptime.timer atlas-alert@.service \
+            atlas-zenodo-publish.service atlas-zenodo-publish.timer; do
   install -m 644 "$here/systemd/$unit" "/etc/systemd/system/$unit"
 done
 # A failing check greets whoever signs in next.

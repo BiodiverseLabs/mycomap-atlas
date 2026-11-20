@@ -101,12 +101,33 @@ atlas_continent_model_cells <- function(full, full_dissimilarity, suitability, d
   out
 }
 
+#' One taxon's export rows: its strong maps' cells combined
+#' (atlas_continent_combine), or NULL when none has a cell. models is the
+#' taxon's rows of atlas_build_continent's model table.
+atlas_continent_taxon_cells <- function(models) {
+  parts <- lapply(seq_len(nrow(models)), function(i) {
+    full_index <- sub("[.]full[.]tif$", ".full.di.tif", models$full[[i]])
+    cells <- atlas_continent_model_cells(
+      terra::rast(models$full[[i]]), terra::rast(full_index), terra::rast(models$raster[[i]]),
+      if (file.exists(models$dissimilarity[[i]])) terra::rast(models$dissimilarity[[i]]),
+      models$threshold[[i]]
+    )
+    threshold <- models$threshold[[i]]
+    # No usable threshold: this model cannot say whether a cell is inside.
+    cells$ratio <- if (is.finite(threshold) && threshold > 0) cells$dissimilarity / threshold else NA_real_
+    cells
+  })
+  all <- do.call(rbind, parts)
+  if (is.null(all) || !nrow(all)) return(NULL)
+  atlas_continent_combine(all)
+}
+
 #' Build the export from every strong model with full-extent files: for each
 #' taxon and 20 km cell, rank is the mean over its models (0-100), and aoa the
 #' lowest over its models of the cell's mean index over that model's
 #' threshold, as a percentage (capped at 255): 100 or less is inside at least
 #' one model's area of applicability. NULL when no strong map has a full view.
-atlas_build_continent <- function(grid = "draft", quiet = FALSE) {
+atlas_build_continent <- function(grid = "draft", quiet = FALSE, workers = NULL) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   dir <- atlas_continent_dir(grid)
   unlink(file.path(dir, ATLAS_CONTINENT_FILES))
@@ -119,24 +140,14 @@ atlas_build_continent <- function(grid = "draft", quiet = FALSE) {
   if (!nrow(models)) return(invisible(NULL))
 
   names <- sort(unique(models$taxon))
-  pieces <- vector("list", length(names))
-  for (k in seq_along(names)) {
-    parts <- lapply(which(models$taxon == names[[k]]), function(i) {
-      full_index <- sub("[.]full[.]tif$", ".full.di.tif", models$full[[i]])
-      cells <- atlas_continent_model_cells(
-        terra::rast(models$full[[i]]), terra::rast(full_index), terra::rast(models$raster[[i]]),
-        if (file.exists(models$dissimilarity[[i]])) terra::rast(models$dissimilarity[[i]]),
-        models$threshold[[i]]
-      )
-      threshold <- models$threshold[[i]]
-      # No usable threshold: this model cannot say whether a cell is inside.
-      cells$ratio <- if (is.finite(threshold) && threshold > 0) cells$dissimilarity / threshold else NA_real_
-      cells
-    })
-    all <- do.call(rbind, parts)
-    if (is.null(all) || !nrow(all)) next
-    pieces[[k]] <- cbind(taxon_id = k, atlas_continent_combine(all))
-  }
+  # Each taxon's maps are read on their own, so across processes when there
+  # are many; the pieces come back in the same order, so the table is the same.
+  combined <- atlas_parallel_map(lapply(names, function(n) models[models$taxon == n, , drop = FALSE]),
+                                 "atlas_continent_taxon_cells", workers = workers %||% atlas_export_workers(nrow(models)),
+                                 chunk = 4L)
+  pieces <- lapply(seq_along(names), function(k) {
+    if (is.null(combined[[k]])) NULL else cbind(taxon_id = k, combined[[k]])
+  })
   table <- do.call(rbind, pieces)
   if (is.null(table)) return(invisible(NULL))
   for (column in names(table)) table[[column]] <- as.integer(table[[column]])

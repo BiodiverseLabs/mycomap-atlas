@@ -43,7 +43,7 @@ if [ "${1:-}" = "--check-cloudflare" ]; then
 fi
 
 echo "== scripts"
-for script in setup-box.sh deploy.sh nightly.sh alert.sh uptime.sh; do
+for script in setup-box.sh deploy.sh nightly.sh alert.sh uptime.sh zenodo-publish.sh; do
   if bash -n "$here/$script"; then pass "$script parses"; else fail "$script does not parse"; fi
 done
 expect_exit() { # name, expected status, command...
@@ -56,6 +56,7 @@ expect_exit "deploy.sh refuses a short commit"     64 bash "$here/deploy.sh" 7a2
 expect_exit "deploy.sh refuses a tag"              64 bash "$here/deploy.sh" latest
 expect_exit "setup-box.sh refuses an unknown flag" 64 bash "$here/setup-box.sh" --sqlhost=x
 expect_exit "nightly.sh refuses with no image"     1  env -u ATLAS_IMAGE bash "$here/nightly.sh"
+expect_exit "zenodo-publish.sh refuses with no image" 1 env -u ATLAS_IMAGE bash "$here/zenodo-publish.sh"
 expect_exit "alert.sh refuses no check"            64 bash "$here/alert.sh"
 expect_exit "alert.sh refuses a check that is a path" 64 env ATLAS_HEALTH_DIR=/nonexistent bash "$here/alert.sh" ../x boom
 expect_exit "alert.sh refuses a failure with no message" 64 env ATLAS_HEALTH_DIR=/nonexistent bash "$here/alert.sh" atlas-nightly
@@ -88,6 +89,13 @@ grep -qx 'ExecStart=/usr/local/lib/atlas/uptime.sh' "$here/systemd/atlas-uptime.
   && grep '^systemctl enable' "$here/setup-box.sh" | grep -q 'atlas-uptime.timer' \
   && pass "the uptime check runs every 5 minutes, enabled by setup" \
   || fail "atlas-uptime: the service, its 5-minute timer and setup's enable disagree"
+# Drafts publishing themselves waits on Steve's OK: setup installs the Zenodo
+# publish units and never enables or starts them.
+if grep -E '^[[:space:]]*systemctl' "$here/setup-box.sh" | grep -q zenodo; then
+  fail "setup-box.sh must not enable or start the Zenodo publish units"
+else
+  pass "setup never enables or starts the Zenodo publish units"
+fi
 grep -q 'run atlas-cards build-cards --upload' "$here/nightly.sh" \
   && pass "the nightly job draws the served release's link-preview cards beside it" \
   || fail "nightly.sh must run build-cards --upload after pulling the release"
@@ -145,10 +153,12 @@ check "the SQL host entry names the given host and atlas_ro" 'grep -q "HostName 
 check "known_hosts holds exactly the host's own ed25519 key" \
   '[ "$(awk "{print \$3}" /home/atlas/.ssh/known_hosts)" = "$(awk "{print \$2}" /etc/ssh/ssh_host_ed25519_key.pub)" ]'
 check "nginx has the Atlas site and not the default" '[ -L /etc/nginx/sites-enabled/atlas ] && [ ! -e /etc/nginx/sites-enabled/default ] && [ -f /etc/nginx/snippets/atlas-proxy.conf ]'
-check "the units and scripts are installed" 'for f in atlas-api.service atlas-nightly.service atlas-nightly.timer atlas-uptime.service atlas-uptime.timer atlas-alert@.service; do [ -f /etc/systemd/system/$f ] || exit 1; done; for f in nightly.sh deploy.sh alert.sh uptime.sh; do [ -x /usr/local/lib/atlas/$f ] || exit 1; done'
+check "the units and scripts are installed" 'for f in atlas-api.service atlas-nightly.service atlas-nightly.timer atlas-uptime.service atlas-uptime.timer atlas-alert@.service atlas-zenodo-publish.service atlas-zenodo-publish.timer; do [ -f /etc/systemd/system/$f ] || exit 1; done; for f in nightly.sh deploy.sh alert.sh uptime.sh zenodo-publish.sh; do [ -x /usr/local/lib/atlas/$f ] || exit 1; done'
 check "the API unit, the nightly timer and the uptime timer are enabled" 'grep -q "enable atlas-api.service atlas-nightly.timer atlas-uptime.timer" /tmp/stubbed'
+check "the Zenodo publish units are installed but neither enabled nor started" '! grep -q zenodo /tmp/stubbed && [ ! -e /etc/systemd/system/timers.target.wants/atlas-zenodo-publish.timer ]'
+check "setup writes no Zenodo token" '[ ! -e /etc/atlas/zenodo.env ]'
 check "the units are valid to systemd" \
-  'systemd-analyze verify /etc/systemd/system/atlas-nightly.service /etc/systemd/system/atlas-uptime.service /etc/systemd/system/atlas-uptime.timer /etc/systemd/system/atlas-alert@atlas-nightly.service'
+  'systemd-analyze verify /etc/systemd/system/atlas-nightly.service /etc/systemd/system/atlas-uptime.service /etc/systemd/system/atlas-uptime.timer /etc/systemd/system/atlas-alert@atlas-nightly.service /etc/systemd/system/atlas-zenodo-publish.service /etc/systemd/system/atlas-zenodo-publish.timer'
 # Monitoring: alert.sh as the failure handler runs it (root), then the API's
 # user reads what it wrote, and the login banner shows it.
 check "the health directory is in the data directory, atlas's" '[ "$(stat -c %U:%a /srv/atlas/data/health)" = atlas:750 ]'
