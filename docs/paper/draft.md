@@ -370,15 +370,18 @@ selection, effort handling and maps are in Appendix S1: Section S4.
 
 A held-out score cannot say whether a map knows anything, because clustered
 records are easy to separate from their background with almost any smooth
-predictor (Fourcade et al. 2018). Each model is therefore refitted, with
-the same untuned settings and folds, on null species. In the *shift*
-design, the taxon's own detection sites are rotated by one random angle and
-moved together to another surveyed place, and each point is snapped to a
-survey site: the pattern's clustering is kept and its tie to environment is
-broken. In the *scatter* design, used until October 2026 and close to
-common practice (Raes & ter Steege 2007), null detections are drawn site by
-site. Up to 99 nulls are drawn, and the sequential test of Besag & Clifford
-(1991) stops once five match the map.
+predictor (Fourcade et al. 2018). Each model is therefore refitted, with the
+same untuned settings and folds, on null species. In the *shift* design, the
+taxon's own detection sites are rotated by one random angle and moved together
+to another surveyed place, and each point is snapped to a survey site: the
+pattern's clustering is kept and its tie to environment is broken. In the
+*scatter* design, used until October 2026 and close to common practice (Raes &
+ter Steege 2007), null detections are drawn site by site. Up to 99 nulls are
+drawn, and the sequential test of Besag & Clifford (1991) stops once five
+match the map. With 99 nulls the test resolves p in steps of 0.01, and a grade
+is one test at α = 0.05 on one random spatial fold split, so a model near the
+line can change grade when it is refitted: from the null draws alone, or
+because a changed record re-deals its folds and nulls (Section 3.8).
 
 A model is **strong** when its held-out AUC beats its shifted nulls at
 p ≤ 0.05 and its Boyce index is above zero; **weak** when it ranks held-out
@@ -573,23 +576,24 @@ refresh 20261013T155140Z-026d3a26 (job full-20261013T140649Z-5cf5b864, image
 release record) → finished (v5) **20261013T191324Z-fa1b4198** = the frozen
 release (continent export, prior, privacy-filtered cells: 130,466 records).
 
-*Grades (`docs/experiments/2026-10-19-grade-tiers-fa1b4198.md`).* The
-frozen release holds 9,041 models of 6,369 taxa. A further 441 taxa with
-three or more sites were refused (412 of them at 3–4 sites), and 9,442 of
-the pull's 16,252 taxa have fewer than three sites. Of the models, 576 are
-strong (ensembles of small models 365, Maxent 121, random forests 85,
-boosted trees 5), 6,667 weak, 1,797 failed and 1 untested; 470 taxa have a
-strong map, 7.4% of those modelled and 2.9% of all. Most models that are
-not strong miss on the null test alone (7,073 of 8,465). The strong share of
-taxa rises with sites from 2.1% at 3–4 sites to 16.4% at 20–49, then falls
-to 8.0% at 50–99, and none of the 52 taxa with 100 or more sites has a
-strong map: their best models score below their own shifted nulls on
-average (median z −1.36), although their held-out Boyce is high (median
-0.84). At 3–4 sites, 45% of the small-model ensembles fail (median held-out
-AUC of those 0.41). Counting the looser tiers, 1,816 taxa (28.5%) have a
-strong or moderate map and 4,856 (76.2%) at least an indicative one; neither
-tier beats distance to known records (Section 3.4), so both are drawn as
-weak maps. Every count by learner, band and tier is in S4.
+*Grades (`docs/experiments/2026-10-19-grade-tiers-fa1b4198.md`).* The frozen
+release holds 9,041 models of 6,369 taxa. A further 441 taxa with three or
+more sites were refused (412 of them at 3–4 sites), and 9,442 of the pull's
+16,252 taxa have fewer than three sites. Of the models, 576 are strong
+(ensembles of small models 365, Maxent 121, random forests 85, boosted trees
+5), 6,667 weak, 1,797 failed and 1 untested; 470 taxa have a strong map, 7.4%
+of those modelled and 2.9% of all. Each of these grades rests on one spatial
+fold split and one test at α = 0.05, and grades near the line move between
+refits (Section 3.8). Most models that are not strong miss on the null test
+alone (7,073 of 8,465). The strong share of taxa rises with sites from 2.1% at
+3–4 sites to 16.4% at 20–49, then falls to 8.0% at 50–99, and none of the 52
+taxa with 100 or more sites has a strong map: their best models score below
+their own shifted nulls on average (median z −1.36), although their held-out
+Boyce is high (median 0.84). At 3–4 sites, 45% of the small-model ensembles
+fail (median held-out AUC of those 0.41). Counting the looser tiers, 1,816
+taxa (28.5%) have a strong or moderate map and 4,856 (76.2%) at least an
+indicative one; neither tier beats distance to known records (Section 3.4), so
+both are drawn as weak maps. Every count by learner, band and tier is in S4.
 
 [PENDING: strong maps by guild and region; combined maps; share of reach
 inside the area of applicability.]
@@ -731,8 +735,26 @@ guilds, strong maps only.] → Appendix S1: Section S3 only (one sentence in the
 
 ### 3.8 Stability across nightly releases (E11)
 
-[PENDING: map rank correlation and grade changes between releases against the
-number of new records.] → Appendix S1: Section S10.
+*Descriptive and exploratory: measured after the flips were seen, on one pair
+of releases.* The first timed nightly (20261119T110027Z-7f37e0fd) refitted the
+models of taxa whose records had changed since the release before it
+(20261118T112141Z-42873a81). Of the 2,174 models graded in both, 136 (6.3%)
+crossed the strong line: 79 left strong and 57 joined. Counting new and
+departed models, strong went from 630 to 617 across the release. Flips per
+refit fell with site count for the full models, from about 0.09 at 20–29 sites
+to 0.02 at 100–199, and stayed near 0.08 for ensembles of small models from 5
+sites up. Strong maps sat close to the line: of the 169 strong before, 66
+(39%) had 3 or 4 of their 99 nulls doing as well as the map (p 0.04–0.05). If
+a refit changed only the null draws, about 70 flips would be expected (38 out,
+32 in). A likelihood-ratio test on each flip found 54 consistent with one
+unchanged chance, 28 borderline, and 52 where it moved. The moves mostly
+followed one to a few new detection sites, which re-deal the taxon's spatial
+folds and null draws. In 2 more flips, the Boyce index crossed zero
+(`2026-11-19-e11-grade-stability.md`). Near the line, then, a grade from one
+fold split and 99 nulls is not stable from one night to the next. Nightly
+releases will pool several splits and draw more nulls near the line; the
+frozen release keeps the rule it was graded by. Map agreement between the two
+releases was not measured. Details: Appendix S1: Section S10.
 
 ### 3.9 Q1: maps as a place signal for photo identification (E21, E22)
 
@@ -872,28 +894,32 @@ the paper's.
 *Draft, 2026-10-21.* Read the grade before the map. Only strong maps support a
 claim about habitat; in the hindcast they were also the only grade to rank
 later finds better than distance to known records, and mostly through finds
-100 to 500 km away. Weak maps, including the moderate and indicative tiers,
-describe which ground near known records resembles occupied ground, but they
-predict later finds no better than distance does, and failed maps did worse.
-Suitability is a relative rank within one taxon, fitted against other
-collectors' sites rather than true absences: it is not a probability of
-occurrence and is not comparable between taxa. Outside the area of
-applicability, hatched on every map, the model is extrapolating, and nothing
-is drawn beyond a taxon's 500 km accessible area. Maps of taxa with 3 to 19
-sites are ensembles of small models and say little on their own. Records whose
-location iNaturalist or Mushroom Observer hides, obscures or may hide, as of
-the release's privacy list (13 October 2026), are left out of the frozen
-release's record cells, and of the live site's since 5 November 2026 (19:07 US
-Eastern) (Appendix S1: Section S10). Cite a map by its release id and the
-release's DOI; maps and rasters are CC BY-SA 4.0, so derived maps carry the
-same licence. The site's data are also served by a public, read-only API
-described in `/api/openapi.json` (taxa, a taxon's best map and models, map
-images, region lists, the location prior and the Zenodo downloads);
-full-resolution rasters need sign-in or a token, issued per mycomap.org
-account. Anonymous use is limited to 300 requests a minute, 1,200 with a token
-and 6,000 with a bulk token. Problems with a map are reported from the site's
-"Report a map problem" link, which opens an issue on the code repository, or
-to info@mycomap.org. The endpoint list is in Appendix S1: Section S10.
+100 to 500 km away. A grade belongs to its release. A strong map whose
+`null.auc_p` is 0.04 or 0.05 (3 or 4 of 99 nulls as good;
+`/api/taxa/<name>/model`) sits at the line and may be weak in the next
+release, so cite the release id with the grade. Weak maps, including the
+moderate and indicative tiers, describe which ground near known records
+resembles occupied ground, but they predict later finds no better than
+distance does, and failed maps did worse. Suitability is a relative rank
+within one taxon, fitted against other collectors' sites rather than true
+absences: it is not a probability of occurrence and is not comparable between
+taxa. Outside the area of applicability, hatched on every map, the model is
+extrapolating, and nothing is drawn beyond a taxon's 500 km accessible area.
+Maps of taxa with 3 to 19 sites are ensembles of small models and say little
+on their own. Records whose location iNaturalist or Mushroom Observer hides,
+obscures or may hide, as of the release's privacy list (13 October 2026), are
+left out of the frozen release's record cells, and of the live site's since 5
+November 2026 (19:07 US Eastern) (Appendix S1: Section S10). Cite a map by its
+release id and the release's DOI; maps and rasters are CC BY-SA 4.0, so
+derived maps carry the same licence. The site's data are also served by a
+public, read-only API described in `/api/openapi.json` (taxa, a taxon's best
+map and models, map images, region lists, the location prior and the Zenodo
+downloads); full-resolution rasters need sign-in or a token, issued per
+mycomap.org account. Anonymous use is limited to 300 requests a minute, 1,200
+with a token and 6,000 with a bulk token. Problems with a map are reported
+from the site's "Report a map problem" link, which opens an issue on the code
+repository, or to info@mycomap.org. The endpoint list is in Appendix S1:
+Section S10.
 
 ### 4.4 What it costs (E23)
 
@@ -988,53 +1014,58 @@ ectomycorrhizal fungi and climate for the rest, consistent with the
 partner-dependence of mycorrhizal fruiting.
 
 **Limits.** The maps describe habitat suitability, not occurrence, and are
-fitted to presences against other collectors' sites, not to true
-absences, which MycoMap's own soil sequencing and published metabarcoding
-data could supply [PENDING E4]. Host-tree layers stop at the two national
-inventories, so Alaska, Hawaii, Puerto Rico and Mexico have climate and
-soil but no trees; the climate is a 1970–2000 average; provisional names can
-be re-clustered. The hindcast reads today's validation state, names and
+fitted to presences against other collectors' sites, not to true absences,
+which MycoMap's own soil sequencing and published metabarcoding data could
+supply [PENDING E4]. Host-tree layers stop at the two national inventories, so
+Alaska, Hawaii, Puerto Rico and Mexico have climate and soil but no trees; the
+climate is a 1970–2000 average; provisional names can be re-clustered. Each
+grade comes from one spatial fold split and one null test at α = 0.05, with no
+correction across models or releases. Between two nightly releases, 6.3% of
+refitted models crossed the strong line, about 40% of them by the null test's
+own chance (Section 3.8), and the frozen release's grades carry the same
+sensitivity. The hindcast reads today's validation state, names and
 coordinates for pre-cutoff records, and the design was chosen on data that
-include later records [PENDING: the rebuild lane's list]. Most of the hindcast's
-later finds were collected before the cutoff and validated afterwards, so
-the hindcast mostly tests the maps on a validation backlog; too few finds
-were both collected and validated after the cutoff to test strong maps on
-them, which is what the prospective test (E3) is for. Seventy-six
+include later records [PENDING: the rebuild lane's list]. Most of the
+hindcast's later finds were collected before the cutoff and validated
+afterwards, so the hindcast mostly tests the maps on a validation backlog; too
+few finds were both collected and validated after the cutoff to test strong
+maps on them, which is what the prospective test (E3) is for. Seventy-six
 erroneous records were removed by an exclusion list rather than a new pull,
 which would have moved the validation cutoff, so other models' backgrounds
 still include their sites (under 0.06% of records); and the frozen pull's
 naming read some sequences it should have skipped (about 527 records named
-only by them and 2,287 left out when counted on 2026-10-13; 268 such
-records when recounted on 2026-10-30), corrected from the next release on
-(Appendix S1: Section S2). The pull also lost 21 validated records (20
-from Mushroom Observer, 1 from MyCoPortal) to a check for obscured
-iNaturalist coordinates that matched by observation number alone, and the
-hindcast's training set held at most four of its 124,955 records that were
-in fact validated after the cutoff, through a similar mix-up of
-first-validation dates; two of them trained models, one of which
-(*Sparassis spathulata*, 15 sites) is refitted without it, and all four are
-kept out of the scored test finds (both bugs fixed for later pulls). Some finds appear twice, posted to both
-iNaturalist and Mushroom Observer: at least about 1,630 such pairs have both
-records in the training data. For the 91% whose two points lie within 5 km,
-site thinning counts the find once and only the effort predictor is
-slightly inflated; about 146 pairs, in 132 taxa (39 with 3–19 sites), lie
-further apart and may give their taxon a second detection site. In 131 of
-them the far copy is a Mushroom Observer record whose own coordinates
-Atlas could not check, so it kept mycomap.org's point, often a named
-place's centre: 797 of the frozen pull's 5,035 Mushroom Observer records
-were placed that way, and when their answers were later fetched, the 560
-that turned out to have a GPS point moved a median of 1.4 km (130 of them
-over 5 km). A further 1,936 are placed at a named place's centre by design;
-they alone provide 1.3% of survey sites, and without them 36 modelled taxa
-would fall below 3 sites. Fetching the answers cuts the far pairs to 20 for
-the next pull (Appendix S1: Section S2). Fits are deterministic within a processor family
-but not quite across families: about 0.4% of grades (95% interval
-0.0–1.2%) would change on the other family, all among full-design models,
-because a few taxa's variogram-estimated spatial blocks differ between
-families, by up to 240 km; that is the only cross-family effect found. The shifted null's false-pass rate was 5–6% overall, not the 5% or
-less we registered, and about 11% for Maxent at 200 or more sites. One plant record also stayed in the frozen pull after the two cleanings (a
-single site, no model of its own; Appendix S1: Section S2). The maps
-can only be as good as where people collect and sequence.
+only by them and 2,287 left out when counted on 2026-10-13; 268 such records
+when recounted on 2026-10-30), corrected from the next release on (Appendix
+S1: Section S2). The pull also lost 21 validated records (20 from Mushroom
+Observer, 1 from MyCoPortal) to a check for obscured iNaturalist coordinates
+that matched by observation number alone, and the hindcast's training set held
+at most four of its 124,955 records that were in fact validated after the
+cutoff, through a similar mix-up of first-validation dates; two of them
+trained models, one of which (*Sparassis spathulata*, 15 sites) is refitted
+without it, and all four are kept out of the scored test finds (both bugs
+fixed for later pulls). Some finds appear twice, posted to both iNaturalist
+and Mushroom Observer: at least about 1,630 such pairs have both records in
+the training data. For the 91% whose two points lie within 5 km, site thinning
+counts the find once and only the effort predictor is slightly inflated; about
+146 pairs, in 132 taxa (39 with 3–19 sites), lie further apart and may give
+their taxon a second detection site. In 131 of them the far copy is a Mushroom
+Observer record whose own coordinates Atlas could not check, so it kept
+mycomap.org's point, often a named place's centre: 797 of the frozen pull's
+5,035 Mushroom Observer records were placed that way, and when their answers
+were later fetched, the 560 that turned out to have a GPS point moved a median
+of 1.4 km (130 of them over 5 km). A further 1,936 are placed at a named
+place's centre by design; they alone provide 1.3% of survey sites, and without
+them 36 modelled taxa would fall below 3 sites. Fetching the answers cuts the
+far pairs to 20 for the next pull (Appendix S1: Section S2). Fits are
+deterministic within a processor family but not quite across families: about
+0.4% of grades (95% interval 0.0–1.2%) would change on the other family, all
+among full-design models, because a few taxa's variogram-estimated spatial
+blocks differ between families, by up to 240 km; that is the only cross-family
+effect found. The shifted null's false-pass rate was 5–6% overall, not the 5%
+or less we registered, and about 11% for Maxent at 200 or more sites. One
+plant record also stayed in the frozen pull after the two cleanings (a single
+site, no model of its own; Appendix S1: Section S2). The maps can only be as
+good as where people collect and sequence.
 
 **Where habitat adds over distance.** Near known records, distance alone
 ranked later finds as well as a strong map or better; the strong maps'
@@ -1218,7 +1249,7 @@ data, command, result, release, commit).
 | E7 | Sensitivity: (a) site count (thinning study), (b) validation level (automatic-only verdicts excluded, −11%; manual verdicts only; ≥ 2 projects; no rejection anywhere; needs per-record validation provenance joined to the frozen pull), (c) coordinate precision (1 vs 5 km; MO/MyCoPortal rules), (d) pre-1980 records | C2, C4 | (a) pre-freeze, 118 taxa, old nulls; (b–d) no | Paired arms on a stratified ~150-taxon panel; skill, map correlation, grade changes | ~20–40 CPU-h per arm, ~1 week | P2 |
 | E8 | Variable and layer importance by guild | secondary | Yes in every model's metrics; layer sweeps pre-freeze | Aggregate over strong maps from the release | ~1 day, read-only | P2 |
 | E10 | AOA and extrapolation: share of reach inside AOA; finds inside vs outside | C2 | Partly (per-model applicability; tracker counts outside-AOA finds) | Release + E2/E3 | ~1 day | P2 |
-| E11 | Stability across nightly releases | C4 | No; releases are kept indefinitely | Per-taxon rank correlation and grade flips vs new records | ~2 days code, ≥4 weeks of nightlies | P2 |
+| E11 | **Done (descriptive, exploratory) 2026-11-19**, one release pair (42873a81 → 7f37e0fd): 136 of 2,174 refitted models crossed the strong line; map rank correlation not measured (`docs/experiments/2026-11-19-e11-grade-stability.md`). Stability across nightly releases | C4 | No; releases are kept indefinitely | Per-taxon rank correlation and grade flips vs new records | ~2 days code, ≥4 weeks of nightlies | P2 |
 | E14 | Effort handling on virtual species | methods | Pre-freeze, 198 species | Rerun inside E1 | inside E1 | P2 |
 | E15 | Combined map vs its members on independent finds | C2 | No | From E2/E3 | hours, after E2 | P2 |
 | E18 | Small-site maps: grades and power at 3–19 sites (ESM alone there; ESM also runs at 20–49 beside Maxent and RF) | secondary | Pre-freeze (thinning study; first-build pass rates) | Inside E1 + E7a | inside E1 | P2 |
@@ -1465,6 +1496,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.12 (2026-11-19).** Grade stability between nightly releases (E11, descriptive; Steve): 2.3, 3.3, 3.8, 4.3, Limits, evidence plan; Appendix S1 Section S10.1c; registry entry `2026-11-19-e11-grade-stability.md`.
 - **0.23.11 (2026-11-14).** The 14 November 2026 models version in the text (Steve): 2.6, 4.1, 4.2, Open Research; Appendix S1 Sections S10 and S11; registry entry `2026-11-08-cells-now.md`; 4.1's iNaturalist accuracy rule stated exactly (over 1,000 m), and the same phrase in `2026-11-07-fingerprint-sizing.md`.
 - **0.23.10 (2026-11-14).** The 14 November 2026 models version (doi:10.5281/zenodo.24214060) cited: front matter, Appendix S1 Section S11 table, open decision 13.
 - **0.23.9 (2026-11-07).** Privacy statements scoped to what is true (Steve): 2.6, 4.1, 4.3 and Open Research; Appendix S1 Sections S10 and S11, with the live-site correction in S10.1 and two registry entries (`2026-11-07-live-cells-counts.md`, `2026-11-07-fingerprint-sizing.md`).

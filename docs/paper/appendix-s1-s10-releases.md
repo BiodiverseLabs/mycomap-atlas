@@ -206,6 +206,76 @@ session also unlocks downloads. Map problems are reported through the
 site's "Report a map problem" link (a GitHub issue on the code repository,
 bug template) or to info@mycomap.org.
 
+## S10.1c Night-to-night grade stability (E11)
+
+*Descriptive and exploratory, written after the flips were seen; one pair of
+releases* (`2026-11-19-e11-grade-stability.md`). The earlier release is
+20261118T112141Z-42873a81, the later 20261119T110027Z-7f37e0fd (the first
+timed nightly). Both graded by the frozen release's rule: strong when at most
+4 of up to 99 shifted nulls (stopping once 5 did as well) did at least as well
+as the map, p = (1 + k)/100 ≤ 0.05, and the pooled Boyce index was above 0. Of
+2,360 changed models, 138 are new in the later release, 33 left it and 2,189
+are in both; 2,174 of those have a grade on both sides.
+
+**Flips per refit, by learner and site band** (band by detection sites in the
+later release; graded in both):
+
+| Learner | Band | Refits | Flips | Per refit |
+|---|---|---|---|---|
+| ESM | 3–4 | 50 | 1 | 0.020 |
+| ESM | 5–9 | 178 | 15 | 0.084 |
+| ESM | 10–19 | 238 | 20 | 0.084 |
+| ESM | 20–49 | 344 | 28 | 0.081 |
+| Maxent | 20–29 | 128 | 12 | 0.094 |
+| Maxent | 30–49 | 194 | 14 | 0.072 |
+| Maxent | 50–99 | 181 | 10 | 0.055 |
+| Maxent | 100–199 | 57 | 1 | 0.018 |
+| Maxent | 200+ | 5 | 0 | 0 |
+| Random forest | 20–29 | 128 | 10 | 0.078 |
+| Random forest | 30–49 | 194 | 11 | 0.057 |
+| Random forest | 50–99 | 181 | 8 | 0.044 |
+| Random forest | 100–199 | 57 | 1 | 0.018 |
+| Random forest | 200+ | 5 | 0 | 0 |
+| Boosted trees | 50–99 | 172 | 4 | 0.023 |
+| Boosted trees | 100–199 | 57 | 1 | 0.018 |
+| Boosted trees | 200+ | 5 | 0 | 0 |
+
+**Strong models in the earlier release, by k** (nulls of 99 as good as the
+map): k = 0: 35; 1: 40; 2: 28; 3: 41; 4: 25 (169 in all).
+
+**Chance alone.** For each model, the chance π that a null does as well as the
+map was taken from its earlier test (uniform prior, updated by that test's
+outcome), and the probability that a fresh test of 99 lands on the other side
+of the line was summed over models, with the Boyce index held as it was (exact
+binomial and negative-binomial probabilities). Expected: 38.1 strong models
+falling out and 31.6 coming in, about 70 flips, against 136 seen.
+
+**Which flips chance explains** (likelihood-ratio test, 1 df, one π for both
+releases' null outcomes):
+
+| | Flips |
+|---|---|
+| One π fits both (LR < 3.84) | 54 |
+| Borderline (3.84 ≤ LR < 6.63) | 28 |
+| π moved (LR ≥ 6.63) | 52 |
+| Boyce index crossed 0 while one π fits | 2 |
+
+**Detection sites, later minus earlier:**
+
+| | 0 | +1 | +2 to +5 | over +5 | fewer |
+|---|---|---|---|---|---|
+| All 2,174 refits | 246 | 1,227 | 589 | 15 | 97 |
+| The 136 flips | 14 | 83 | 33 | 2 | 4 |
+
+The block size or its source changed in 7 of the 136 flips (random forest 4,
+Maxent 3); the ensembles' block is fixed at 100 km. Limits: one night's refit
+set, the taxa whose records changed, not a sample of all taxa; the chance
+estimate takes π from one earlier test per model and holds the Boyce index
+fixed; map agreement between the releases (rank correlation of the maps) was
+not measured. Both releases ran on one processor family. [PENDING: the
+calibration of the nightly rule that pools several fold splits and draws more
+nulls near the line, and the first release graded by it.]
+
 ## S10.2 Cost and time
 
 The ledger of every run is `docs/paper/costs.md` (E23); its tables move here at submission.
