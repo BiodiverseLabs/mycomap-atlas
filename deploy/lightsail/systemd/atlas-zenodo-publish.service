@@ -1,0 +1,17 @@
+# Publish Zenodo drafts past their grace period, record ones deleted or
+# published by hand on zenodo.org (zenodo-publish.sh). A refused draft fails
+# the unit, recorded by atlas-alert@ (alert.sh); a clean run clears it.
+[Unit]
+Description=Publish MycoMap Atlas Zenodo drafts past their grace period
+OnFailure=atlas-alert@%N.service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/atlas/image.env
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/atlas/image.env
+ExecStart=/usr/local/lib/atlas/zenodo-publish.sh
+ExecStartPost=/usr/local/lib/atlas/alert.sh --ok %N
+TimeoutStartSec=1h

@@ -845,6 +845,21 @@ and served at `/api/downloads`. Sandbox series end in `-sandbox` and never
 mix with real ones. Creators, licence, keywords and related identifiers are
 in `inst/archive/zenodo.json`.
 
+A waiting draft publishes itself a few days after it is made, unless a person
+deletes it on zenodo.org first (Steve, 2026-11-19). `archive-auto-publish`,
+run daily by `atlas-zenodo-publish.timer` on the server, reads each series'
+draft back and acts: deleted on Zenodo, it is marked `discarded` in the
+ledger; published there by a person, its DOI is recorded; past the grace
+period (`ATLAS_ZENODO_PUBLISH_AFTER_DAYS`, default 3, or `off`), it is
+published, but only if it reads back as it was made: not submitted, and its
+version label, title, description, file names and MD5s as the ledger
+recorded them. It is also refused while the newest published version's
+description on Zenodo holds text the code did not write, since a paragraph
+added there by hand (as on version 23463939) needs a person to decide whether
+it carries over. A refusal leaves the draft and fails the run, every day,
+until a person publishes it with `archive-publish` or deletes it. `--sandbox`
+does the same for the `-sandbox` ledgers.
+
 A record holds at most 100 files and 50 GB, which is why maps are packed per
 model. The draft grid's models come to about 2.3 GB and the 1 km layers to
 2.2 GB; 1 km models will be far larger, and the archive refuses anything over

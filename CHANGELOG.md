@@ -10,6 +10,9 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/downloads`** no longer lists a draft deleted on Zenodo. Each
+  version may now carry `drafted_at`, `title` and `published_by`, and each
+  file its `md5`. Added fields.
 - **Removed: each taxon's `fingerprint` and each model's `seed`**, for privacy,
   without the usual 30 days' notice.
 - **`GET /api/taxa/{name}/card.jpg`** is new: a species' link-preview card,
@@ -295,6 +298,14 @@ changed and what it means for you.
 
 ### The server
 
+- A Zenodo draft now publishes itself 3 days after it is made
+  (`ATLAS_ZENODO_PUBLISH_AFTER_DAYS`), unless a person deletes it on
+  zenodo.org first: `atlas archive-auto-publish`, run daily by
+  `atlas-zenodo-publish.timer`. It publishes only a draft that reads back as
+  it was made (version label, title, description, file names and MD5s), and
+  refuses while the version before it carries description text a person
+  added on Zenodo. A deleted draft is marked discarded; one a person
+  published there has its DOI recorded.
 - A fit that fails at a step it names (cross-validation, tuning, the final
   fit, the null test, ...) is recorded privately against its record set and
   settings and not planned again until either changes; its kept model is
