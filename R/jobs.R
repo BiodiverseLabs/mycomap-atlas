@@ -123,24 +123,9 @@ atlas_fetch_one <- function(store, entry, data_dir) {
 #' URI (a connection is not shared between processes). Results come back in
 #' the entries' order.
 atlas_fetch_in_parallel <- function(uri, entries, workers) {
-  cluster <- parallel::makePSOCKcluster(workers)
+  cluster <- atlas_package_pool(workers)
   on.exit(parallel::stopCluster(cluster), add = TRUE)
   data_dir <- atlas_data_dir()
-  # Where this package's code is: its source when loaded from a checkout,
-  # its installed copy otherwise (then a worker loads it by name).
-  source_root <- normalizePath(getNamespaceInfo(asNamespace("mycomapatlas"), "path"), winslash = "/",
-                               mustWork = FALSE)
-  setup <- function(source_root, data_dir) {
-    Sys.setenv(ATLAS_DATA_DIR = data_dir)
-    if (requireNamespace("mycomapatlas", quietly = TRUE)) {
-      attach(asNamespace("mycomapatlas"), name = "atlas", warn.conflicts = FALSE)
-    } else {
-      for (file in list.files(file.path(source_root, "R"), pattern = "[.][Rr]$", full.names = TRUE)) {
-        sys.source(file, envir = globalenv())
-      }
-    }
-    TRUE
-  }
   open <- function(uri) {
     assign(".atlas_fetch_store", atlas_store(uri), envir = globalenv())
     TRUE
@@ -151,10 +136,8 @@ atlas_fetch_in_parallel <- function(uri, entries, workers) {
   }
   # Functions sent to a worker carry their enclosing frame; cut it loose, or
   # each is sent every entry.
-  environment(setup) <- globalenv()
   environment(open) <- globalenv()
   environment(fetch) <- globalenv()
-  parallel::clusterCall(cluster, setup, source_root, data_dir)
   parallel::clusterCall(cluster, open, uri)
   # A few files to a message: one each would spend the time on messages.
   chunks <- split(entries, ceiling(seq_along(entries) / ATLAS_FETCH_CHUNK))

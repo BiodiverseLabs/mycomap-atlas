@@ -177,6 +177,18 @@ atlas_public_pull_path <- function() {
   atlas_path("public", "pull.json")
 }
 
+#' The paths, as a release lists them, of its strong maps' full-view rasters
+#' (.full.tif and .full.di.tif), from its index.
+atlas_release_strong_full_rasters <- function(manifest, grid = "draft") {
+  strong <- Filter(function(e) identical(e$grade, "strong") && !isTRUE(e$refused), manifest$index %||% list())
+  root <- normalizePath(atlas_data_dir(), winslash = "/", mustWork = FALSE)
+  paths <- unlist(lapply(strong, function(e) {
+    normalizePath(atlas_model_path(e$taxon, grid, c(".full.tif", ".full.di.tif"), e$algorithm), winslash = "/",
+                  mustWork = FALSE)
+  }), use.names = FALSE)
+  substring(paths, nchar(root) + 2L)
+}
+
 #' The pull's summary without the SQL text or the host it came from.
 atlas_release_pull_summary <- function(manifest) {
   if (is.null(manifest)) return(NULL)
@@ -550,7 +562,9 @@ atlas_list_releases <- function(store = atlas_store(), grid = "draft") {
 #' answers from the maps and scores, and its disk is the limit. Any raster
 #' already here is removed, so none can be older than its map.
 atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = NULL,
-                               keep_local = FALSE, rasters = TRUE, quiet = FALSE) {
+                               keep_local = FALSE, rasters = TRUE, quiet = FALSE,
+                               full_rasters = c("all", "strong")) {
+  full_rasters <- match.arg(full_rasters)
   say <- function(...) if (!isTRUE(quiet)) message(...)
   manifest <- if (is.null(release)) {
     atlas_current_release(store, grid)
@@ -562,6 +576,12 @@ atlas_pull_release <- function(store = atlas_store(), grid = "draft", release = 
   root <- atlas_data_dir()
   is_raster <- function(path) grepl("[.]tif$", path)
   wanted <- if (isTRUE(rasters)) manifest$files else Filter(function(e) !is_raster(e$path), manifest$files)
+  # The finish reads full-view rasters of strong maps only (the continent
+  # export); a weak map's are for nothing it builds, so it leaves them.
+  if (identical(full_rasters, "strong")) {
+    strong <- atlas_release_strong_full_rasters(manifest, grid)
+    wanted <- Filter(function(e) !grepl("[.]full([.]di)?[.]tif$", e$path) || e$path %in% strong, wanted)
+  }
   got <- atlas_fetch_entries(store, wanted)
   fetched <- got$fetched
   bytes <- got$bytes
