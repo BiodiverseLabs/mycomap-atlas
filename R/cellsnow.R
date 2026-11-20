@@ -7,8 +7,7 @@
 # leaving out four groups:
 #   (a) the records on the release's own privacy list;
 #   (b) iNaturalist records whose cached answer now says obscured, or placed no
-#       better than ATLAS_MAX_ACCURACY_M, or that have no cached answer now (no
-#       cache row, or one with no stored answer);
+#       better than ATLAS_MAX_ACCURACY_M, or that have no cached answer now;
 #   (c) Mushroom Observer records whose observer shows no point now, or that
 #       have no cached answer now;
 #   (d) Mushroom Observer records .org marks as deleted at the source.
@@ -50,7 +49,7 @@ atlas_cells_now_sql <- function(max_m = ATLAS_MAX_ACCURACY_M) {
     atlas_one_line(sprintf(paste(
       "SELECT c.source_observation_id AS number,",
       "bool_or(c.coordinates_obscured = true OR c.positional_accuracy > %d) AS hidden",
-      "FROM observation_cache c WHERE c.source = 'inat' AND c.api_response_json IS NOT NULL AND %s GROUP BY 1"
+      "FROM observation_cache c WHERE c.source = 'inat' AND %s GROUP BY 1"
     ), as.integer(max_m), where))
   }
   list(

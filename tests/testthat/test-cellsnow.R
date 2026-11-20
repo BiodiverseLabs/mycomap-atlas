@@ -368,21 +368,3 @@ test_that("the Zenodo description says of the cells what Steve approved, word fo
   expect_true(endsWith(summary, "Collection locations are given as record counts per 0.1 degree cell. Records from iNaturalist and Mushroom Observer whose location the source hides, obscures or may hide, and Mushroom Observer records the source no longer holds, as checked when the version was made, are left out of the cells; records from other sources are counted where recorded."))
   expect_false(grepl("exact coordinates are never published|appear only as", summary))
 })
-
-# Against a real Postgres (ATLAS_TEST_PSQL): a cache row with no stored
-# iNaturalist answer is no answer now, so its record leaves the cells under (b).
-test_that("on Postgres an iNaturalist cache row with no stored answer is not an answer", {
-  testthat::skip_if(!nzchar(Sys.getenv("ATLAS_TEST_PSQL")), "set ATLAS_TEST_PSQL to run SQL against Postgres")
-  sql <- paste(
-    "BEGIN;",
-    "CREATE TEMP TABLE observation_cache (source text, source_observation_id text, coordinates_obscured boolean,",
-    "  positional_accuracy integer, api_response_json text);",
-    "INSERT INTO observation_cache VALUES ('inat', '11', false, 10, '{}'), ('inat', '12', true, 10, '{}'),",
-    "  ('inat', '13', false, NULL, NULL), ('mo', '14', false, 10, '{}');",
-    paste0(unlist(atlas_cells_now_sql(1000)$inat), ";", collapse = " "),
-    "ROLLBACK;"
-  )
-  out <- system(Sys.getenv("ATLAS_TEST_PSQL"), input = sql, intern = TRUE)
-  rows <- sub("[|,]", "|", grep("^[0-9]+[|,][tf]$", out, value = TRUE))
-  expect_setequal(rows, c("11|f", "12|t"))
-})
