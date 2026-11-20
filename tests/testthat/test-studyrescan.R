@@ -65,9 +65,11 @@ test_that("a release model rebuilt from its pull matches what production recorde
   row <- atlas_rescan_model(id, "f00dfeed", world$points, world$stack, records = records,
                             reps = 3, n_background = 500, buffer_km = 300)
   expect_equal(row$status, "scored")
-  # The taxon's own untuned AUC is the one the release's shift test recorded:
-  # the same sites, predictors and folds.
-  expect_equal(row$scatter$observed_auc, metrics$null$observed_auc)
+  # The taxon's own untuned AUC is the one the release's shift test recorded
+  # on the model's own fold split: the same sites, predictors and folds. (A
+  # pooled test's observed_auc is the mean over its splits.)
+  expect_equal(row$scatter$observed_auc, metrics$null$first_split_auc)
+  expect_equal(metrics$null$splits, ATLAS_NULL_SPLITS)
   expect_true(row$scatter$verdict %in% c("passed", "failed"))
   expect_equal(row$scatter$reps, 3L)
 })

@@ -99,7 +99,10 @@ atlas_rescan_record <- function(metrics) {
     seed = suppressWarnings(as.integer(metrics$seed %||% NA)),
     fingerprint = as.character(metrics$fingerprint %||% NA),
     fold_presences = vapply(metrics$folds %||% list(), function(f) as.integer(f$presences %||% NA), 0L),
-    observed_auc = suppressWarnings(as.numeric(metrics$null$observed_auc %||% NA)),
+    # A rebuild scores the model's own fold split, so it is checked against
+    # that split's AUC: a pooled test (R/nulls.R) records it apart from the
+    # mean over its splits.
+    observed_auc = suppressWarnings(as.numeric(metrics$null$first_split_auc %||% metrics$null$observed_auc %||% NA)),
     boyce = suppressWarnings(as.numeric(metrics$boyce %||% NA)),
     grade = as.character(metrics$grade %||% NA),
     settings = as.character(metrics$null$settings %||% NA)
