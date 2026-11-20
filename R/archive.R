@@ -48,10 +48,21 @@ atlas_archive_save_ledger <- function(store, ledger) {
   invisible(ledger)
 }
 
-#' Every ledger this machine holds, for the API.
+#' Every ledger this machine holds, for the API: without the drafts a person
+#' deleted on zenodo.org, which the ledger keeps as discarded, and without the
+#' description each draft was given, which only the read-back before
+#' publishing needs (R/autopublish.R).
 atlas_archive_ledgers <- function() {
   files <- list.files(atlas_path("archives"), pattern = "[.]json$", full.names = TRUE)
-  lapply(sort(files), jsonlite::fromJSON, simplifyVector = FALSE)
+  lapply(sort(files), function(file) {
+    ledger <- jsonlite::fromJSON(file, simplifyVector = FALSE)
+    kept <- Filter(function(v) !identical(v$state, "discarded"), ledger$versions %||% list())
+    ledger$versions <- lapply(kept, function(v) {
+      v$description <- NULL
+      v
+    })
+    ledger
+  })
 }
 
 #' The layers version a release was fitted on: the one archived from the same
@@ -585,6 +596,9 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
     atlas_zenodo_new_version(z, latest$deposition_id)
   }
 
+  # The MD5 is Zenodo's own checksum: what a draft is read back against
+  # before it publishes itself (atlas_archive_auto_publish).
+  md5 <- vapply(files$path, function(p) digest::digest(file = p, algo = "md5"), character(1), USE.NAMES = FALSE)
   entry <- list(
     version = bundle$version,
     key = bundle$key,
@@ -595,8 +609,12 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
     state = "uploading",
     created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     bytes = total,
+    # What the draft was given, word for word, so a change made on zenodo.org
+    # afterwards is seen before anything publishes.
+    title = metadata$title,
+    description = metadata$description,
     files = lapply(seq_len(nrow(files)), function(i) {
-      list(name = files$name[i], bytes = files$bytes[i], sha256 = files$sha256[i])
+      list(name = files$name[i], bytes = files$bytes[i], sha256 = files$sha256[i], md5 = md5[i])
     })
   )
   entry <- Filter(Negate(is.null), entry)
@@ -611,6 +629,8 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
   atlas_zenodo_set_metadata(z, draft$id, metadata)
 
   ledger$versions[[index]]$state <- "draft"
+  # The grace period before it publishes itself runs from here.
+  ledger$versions[[index]]$drafted_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   atlas_archive_save_ledger(store, ledger)
   say(series, " version ", bundle$version, ": draft ready at ", entry$url)
 

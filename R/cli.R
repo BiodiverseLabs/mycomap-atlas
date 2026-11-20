@@ -188,6 +188,10 @@ atlas_usage <- function() {
   message("      --resume-draft=ID         carry on in an existing unpublished Zenodo draft")
   message("  archive-publish    publish the waiting draft of a series (--series=models-production)")
   message("  archive-discard    throw away the waiting draft of a series")
+  message("  archive-auto-publish  publish each series' waiting draft once its grace period is over, if it")
+  message("                     reads back as made; record drafts deleted or published on zenodo.org")
+  message("      --after-days=N|off        the grace period (default ATLAS_ZENODO_PUBLISH_AFTER_DAYS, else 3)")
+  message("      --sandbox                 the -sandbox ledgers, against sandbox.zenodo.org")
   message("  archives           list archived versions and their DOIs")
   message("  status             what the last pull holds")
   message("  api                serve the development API on port 5100")
@@ -895,6 +899,17 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       z <- atlas_flag_zenodo(list(sandbox = endsWith(series, "-sandbox")))
       if (command == "archive-publish") atlas_archive_publish(store, series, z) else atlas_archive_discard(store, series, z)
       invisible(0L)
+    },
+    "archive-auto-publish" = {
+      # Safe to run as often as wanted: by a timer, after the nightly
+      # (R/autopublish.R). Fails when a draft is refused, so a person looks.
+      days <- if (is.null(flags$after_days)) atlas_archive_publish_after_days() else atlas_archive_publish_after_days(flags$after_days)
+      outcomes <- atlas_archive_auto_publish(
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        target = if (isTRUE(flags$sandbox)) "sandbox" else "zenodo",
+        after_days = days
+      )
+      invisible(if (any(outcomes$outcome %in% c("refused", "failed"))) 1L else 0L)
     },
     "archives" = {
       store <- atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
