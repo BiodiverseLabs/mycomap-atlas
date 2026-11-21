@@ -347,7 +347,11 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
   splits <- if (is.list(folds)) folds else list(folds)
   pooled <- length(splits) > 1L
   stream <- atlas_rng_state()
+  started <- proc.time()[["elapsed"]]
   by_split <- lapply(splits, function(split) run_split(list(training), split)[[1]])
+  # What one table costs on every split: a forked run of nulls that takes
+  # many times that is taken to be stuck (atlas_null_fork_map).
+  per_table <- proc.time()[["elapsed"]] - started
   if (!is.finite(by_split[[1]][["auc"]])) {
     atlas_rng_restore(stream)
     return(list(reps = 0L))
@@ -363,13 +367,19 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
   observed <- c(auc = mean(vapply(by_split[scored_on], function(x) x[["auc"]], numeric(1))),
                 boyce = mean(vapply(by_split[scored_on], function(x) x[["boyce"]], numeric(1))))
   using <- 1L
+  # Once a forked run is lost or stuck, this test forks no more: its nulls
+  # are scored here, slower but sure.
+  forking <- TRUE
   batch_now <- function() {
-    using <<- as.integer(cores())
+    using <<- if (forking) as.integer(cores()) else 1L
     if (using > 1L) max(as.integer(batch), 2L * using) else as.integer(batch)
   }
   fetch <- function(take) {
     tables <- lapply(take, null_table)
-    scores <- atlas_null_score(tables, run_tables, using, map = map)
+    run_size <- ceiling(length(tables) / max(1L, using))
+    scores <- atlas_null_score(tables, run_tables, using, map = map,
+                               timeout = max(ATLAS_NULL_FORK_MIN_SECONDS, ATLAS_NULL_FORK_SLACK * run_size * per_table))
+    if (isTRUE(attr(scores, "lost") > 0L)) forking <<- FALSE
     Map(function(score, table) {
       c(score, best_effort = as.numeric(attr(table, "best_effort")), far_share = as.numeric(attr(table, "far_share")))
     }, scores, tables)
@@ -412,21 +422,40 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
 # in one process, while at the end of a shard the pool's other cores sit idle.
 ATLAS_NULL_MAX_CORES <- 8L
 
+# A forked run of nulls is given ATLAS_NULL_FORK_SLACK times what its
+# tables would cost here, and never less than ATLAS_NULL_FORK_MIN_SECONDS,
+# before it is taken to be stuck, killed, and scored here instead.
+ATLAS_NULL_FORK_SLACK <- 20
+ATLAS_NULL_FORK_MIN_SECONDS <- 120
+
 #' How many processes the null test may use now: 1, unless this process is
-#' one of a pool's (atlas_make_workers) on a machine that can fork, and the
-#' pool's scheduler says some of its processes are idle (ATLAS_POOL_STATE,
-#' written by atlas_run_on_workers): then an equal share of the idle ones,
-#' at most ATLAS_NULL_MAX_CORES (overridden by that variable in the
-#' environment). A pool of n processes then never runs more than n fits at
-#' once, so each process's memory budget (ATLAS_EC2_GB_PER_FIT) holds.
+#' one of a pool's (atlas_make_workers) on a machine that can fork, its BLAS
+#' and OpenMP were started on one thread (ATLAS_WORKER_ENV, as a pool's
+#' processes are), and the pool's scheduler says some of its processes are
+#' idle (ATLAS_POOL_STATE, written by atlas_run_on_workers): then an equal
+#' share of the idle ones, at most ATLAS_NULL_MAX_CORES (overridden by that
+#' variable in the environment). A pool of n processes then never runs more
+#' than n fits at once, so each process's memory budget
+#' (ATLAS_EC2_GB_PER_FIT) holds.
+#'
+#' A process whose BLAS runs its own threads must not fork: a child that
+#' calls into a thread pool copied mid-use can wait for ever (a test that
+#' forked so hung for 8.5 hours on Linux, 2026-11-21).
 atlas_null_cores <- function(state = Sys.getenv("ATLAS_POOL_STATE", unset = ""),
-                             most = atlas_null_max_cores(), can_fork = .Platform$OS.type == "unix") {
-  if (!isTRUE(can_fork) || !nzchar(state) || most <= 1L || !file.exists(state)) return(1L)
+                             most = atlas_null_max_cores(), can_fork = .Platform$OS.type == "unix",
+                             pinned = atlas_threads_pinned()) {
+  if (!isTRUE(can_fork) || !isTRUE(pinned) || !nzchar(state) || most <= 1L || !file.exists(state)) return(1L)
   line <- tryCatch(readLines(state, n = 1L, warn = FALSE), error = function(e) character())
   if (!length(line)) return(1L)
   v <- suppressWarnings(as.integer(strsplit(trimws(line), "[[:space:]]+")[[1]]))
   if (length(v) != 2L || anyNA(v) || v[[1]] < 0L || v[[2]] < 1L) return(1L)
   as.integer(max(1L, min(most, 1L + v[[1]] %/% v[[2]])))
+}
+
+#' Whether this process was started with its BLAS and OpenMP on one thread,
+#' as ATLAS_WORKER_ENV starts a pool's processes.
+atlas_threads_pinned <- function(env = Sys.getenv) {
+  all(vapply(names(ATLAS_WORKER_ENV), function(name) identical(env(name, unset = ""), "1"), logical(1)))
 }
 
 atlas_null_max_cores <- function() {
@@ -435,30 +464,58 @@ atlas_null_max_cores <- function() {
 }
 
 #' Score a batch of null tables with score(tables) (a list of c(auc, boyce)
-#' in their order), in up to `cores` processes, each scoring a run of them.
-#' A process that is lost (killed, out of memory) has its run scored here
-#' instead, so a lost process costs time, never a null.
-atlas_null_score <- function(tables, score, cores = 1L, map = atlas_null_fork_map) {
+#' in their order), in up to `cores` processes, each scoring a run of them
+#' within `timeout` seconds. A process that is lost (killed, out of memory)
+#' or stuck has its run scored here instead, so it costs time, never a null;
+#' attr(, "lost") says how many runs were.
+atlas_null_score <- function(tables, score, cores = 1L, map = atlas_null_fork_map, timeout = Inf) {
   cores <- min(as.integer(cores), length(tables))
   if (is.na(cores) || cores <= 1L) return(score(tables))
   runs <- split(seq_along(tables), sort(rep_len(seq_len(cores), length(tables))))
   names(runs) <- NULL
-  parts <- tryCatch(map(runs, function(i) score(tables[i]), cores),
+  parts <- tryCatch(map(runs, function(i) score(tables[i]), cores, timeout = timeout),
                     error = function(e) vector("list", length(runs)))
   out <- vector("list", length(tables))
+  lost <- 0L
   for (r in seq_along(runs)) {
     part <- if (length(parts) >= r) parts[[r]]
     whole <- is.list(part) && length(part) == length(runs[[r]]) &&
       all(vapply(part, function(x) is.numeric(x) && length(x) == 2L, logical(1)))
+    if (!whole) lost <- lost + 1L
     out[runs[[r]]] <- if (whole) part else score(tables[runs[[r]]])
   }
+  attr(out, "lost") <- lost
   out
 }
 
-#' Run f over runs in forked processes, each starting from this process's
-#' random stream (mc.set.seed = FALSE), as the same work done here would.
-atlas_null_fork_map <- function(runs, f, cores) {
-  parallel::mclapply(runs, f, mc.cores = cores, mc.preschedule = TRUE, mc.set.seed = FALSE)
+#' Run f over runs, one forked process each, each starting from this
+#' process's random stream (mc.set.seed = FALSE), as the same work done here
+#' would. A run not back within timeout seconds is killed and comes back as
+#' NULL, as does one whose process died: a stuck child never holds up the
+#' model, only costs it the timeout.
+atlas_null_fork_map <- function(runs, f, cores, timeout = Inf) {
+  jobs <- lapply(runs, function(run) parallel::mcparallel(f(run), mc.set.seed = FALSE, silent = TRUE))
+  pids <- vapply(jobs, function(job) as.integer(job$pid), integer(1))
+  out <- vector("list", length(runs))
+  pending <- seq_along(jobs)
+  deadline <- Sys.time() + timeout
+  while (length(pending)) {
+    left <- as.numeric(difftime(deadline, Sys.time(), units = "secs"))
+    if (left <= 0) break
+    got <- parallel::mccollect(jobs[pending], wait = FALSE, timeout = min(left, 5))
+    for (key in names(got)) {
+      i <- match(as.integer(key), pids)
+      if (is.na(i) || !i %in% pending) next
+      value <- got[[key]]
+      if (!inherits(value, "try-error")) out[i] <- list(value)
+      pending <- setdiff(pending, i)
+    }
+  }
+  if (length(pending)) {
+    tools::pskill(pids[pending], tools::SIGKILL)
+    try(parallel::mccollect(jobs[pending], wait = TRUE), silent = TRUE)
+  }
+  out
 }
 
 #' Benjamini-Hochberg q-values: for each p, the false discovery rate at

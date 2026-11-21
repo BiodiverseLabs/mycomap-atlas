@@ -388,7 +388,7 @@ test_that("production pools its null test over 5 splits, records it in the setti
 # each run starts from the stream as it stood, works on its own copy of
 # nothing it could pass back but its result, and leaves this process's
 # stream untouched, as a forked child does.
-emulated_forks <- function(runs, f, cores) {
+emulated_forks <- function(runs, f, cores, ...) {
   stream <- atlas_rng_state()
   on.exit(atlas_rng_restore(stream), add = TRUE)
   lapply(runs, function(run) {
@@ -400,19 +400,23 @@ emulated_forks <- function(runs, f, cores) {
 test_that("a fit uses idle processes only in a pool that says some are idle, and an equal share of them", {
   state <- tempfile()
   writeLines("6 2", state)
-  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 4L)
-  expect_equal(atlas_null_cores(state, most = 3L, can_fork = TRUE), 3L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE, pinned = TRUE), 4L)
+  expect_equal(atlas_null_cores(state, most = 3L, can_fork = TRUE, pinned = TRUE), 3L)
   writeLines("0 21", state)
-  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 1L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE, pinned = TRUE), 1L)
   writeLines("20 1", state)
-  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 8L)
-  # Not in a pool, no state yet, a machine that cannot fork, or a state that
-  # makes no sense: one process.
-  expect_equal(atlas_null_cores("", most = 8L, can_fork = TRUE), 1L)
-  expect_equal(atlas_null_cores(tempfile(), most = 8L, can_fork = TRUE), 1L)
-  expect_equal(atlas_null_cores(state, most = 8L, can_fork = FALSE), 1L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE, pinned = TRUE), 8L)
+  # Not in a pool, no state yet, a machine that cannot fork, a process whose
+  # BLAS runs its own threads, or a state that makes no sense: one process.
+  expect_equal(atlas_null_cores("", most = 8L, can_fork = TRUE, pinned = TRUE), 1L)
+  expect_equal(atlas_null_cores(tempfile(), most = 8L, can_fork = TRUE, pinned = TRUE), 1L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = FALSE, pinned = TRUE), 1L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE, pinned = FALSE), 1L)
   writeLines("half a line", state)
-  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 1L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE, pinned = TRUE), 1L)
+  # A pool's processes start pinned; this one need not be.
+  expect_true(atlas_threads_pinned(function(name, unset) "1"))
+  expect_false(atlas_threads_pinned(function(name, unset) if (name == "OMP_NUM_THREADS") "1" else ""))
   with_env(c(ATLAS_NULL_MAX_CORES = "2"), expect_equal(atlas_null_max_cores(), 2L))
   with_env(c(ATLAS_NULL_MAX_CORES = "nonsense"), expect_equal(atlas_null_max_cores(), ATLAS_NULL_MAX_CORES))
 })
@@ -421,17 +425,20 @@ test_that("a batch scored in several processes comes back in order, and a lost p
   tables <- as.list(1:7)
   score <- function(ts) lapply(ts, function(t) c(auc = t / 10, boyce = 0))
   serial <- score(tables)
-  expect_identical(atlas_null_score(tables, score, 3L, map = emulated_forks), serial)
-  expect_identical(atlas_null_score(tables, score, 20L, map = emulated_forks), serial)
+  expect_identical(c(atlas_null_score(tables, score, 3L, map = emulated_forks)), serial)
+  expect_identical(c(atlas_null_score(tables, score, 20L, map = emulated_forks)), serial)
+  expect_equal(attr(atlas_null_score(tables, score, 3L, map = emulated_forks), "lost"), 0L)
   # One process killed (mclapply gives NULL or an error in its place).
-  lose_second <- function(runs, f, cores) {
+  lose_second <- function(runs, f, cores, ...) {
     out <- emulated_forks(runs, f, cores)
     out[2] <- list(NULL)
     out[[3]] <- structure("killed", class = "try-error")
     out
   }
-  expect_identical(atlas_null_score(tables, score, 4L, map = lose_second), serial)
-  expect_identical(atlas_null_score(tables, score, 4L, map = function(...) stop("cannot fork")), serial)
+  lost <- atlas_null_score(tables, score, 4L, map = lose_second)
+  expect_identical(unclass(lost)[seq_along(serial)], serial)
+  expect_equal(attr(lost, "lost"), 2L)
+  expect_identical(c(atlas_null_score(tables, score, 4L, map = function(...) stop("cannot fork"))), serial)
 })
 
 test_that("a model's null test gives the same result in one process or several, for every learner", {
@@ -458,11 +465,70 @@ test_that("a model's null test gives the same result in one process or several, 
       expect_identical(other$result, one$result, info = learner)
       expect_identical(other$after, one$after, info = learner)
     }
-    # Forked for real where the machine can fork.
-    if (.Platform$OS.type == "unix") {
-      expect_identical(run(3L, map = atlas_null_fork_map)$result, one$result, info = learner)
-    }
   }
+})
+
+test_that("forked for real in a pool's process, as production forks, a model's nulls give the one-process result", {
+  skip_on_os("windows")
+  skip_if_not_installed("maxnet")
+  root <- normalizePath(testthat::test_path("..", ".."), winslash = "/")
+  skip_if_not(file.exists(file.path(root, "R", "nulls.R")), "sources not found")
+  world <- null_world("cluster")
+  learners <- c("maxnet", if (requireNamespace("ranger", quietly = TRUE)) "rf",
+                if (requireNamespace("xgboost", quietly = TRUE)) "xgboost")
+  with_env(c(ATLAS_ROOT = root), with_data_dir({
+    cluster <- atlas_start_workers(1L, "draft", points = NULL)
+    on.exit(parallel::stopCluster(cluster), add = TRUE)
+    compare <- function(world, learners) {
+      folds <- atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1, presence = world$presence)
+      splits <- atlas_null_fold_splits(world$x, world$y, folds, k = 5, block_km = 200, seed = 1,
+                                       presence = world$presence, splits = 2L)
+      lapply(stats::setNames(nm = learners), function(learner) {
+        # Every forked run must come back: one lost or stuck would be scored
+        # in this process and hide the fault.
+        lost <- 0L
+        forked <- 0L
+        counting <- function(runs, f, cores, timeout) {
+          out <- atlas_null_fork_map(runs, f, cores, timeout = 120)
+          forked <<- forked + length(runs)
+          lost <<- lost + sum(vapply(out, is.null, logical(1)))
+          out
+        }
+        run <- function(cores) atlas_null_test_sequential(
+          world, splits, atlas_algorithm(learner), reps = 19L, seed = 3, design = "shift", stop_after = 20L,
+          cores = function() cores, map = counting)
+        list(pinned = atlas_threads_pinned(), same = identical(run(3L), run(1L)), forked = forked, lost = lost)
+      })
+    }
+    environment(compare) <- globalenv()
+    answers <- parallel::clusterCall(cluster, compare, world, learners)[[1]]
+    for (learner in learners) {
+      expect_true(answers[[learner]]$pinned, info = learner)
+      expect_true(answers[[learner]]$same, info = learner)
+      expect_gt(answers[[learner]]$forked, 0L)
+      expect_equal(answers[[learner]]$lost, 0L, info = learner)
+    }
+  }))
+})
+
+test_that("a forked run that does not come back in time is killed and scored here, and the model forks no more", {
+  skip_on_os("windows")
+  stuck <- function(i) if (identical(i, 2L)) { Sys.sleep(600); "late" } else paste("done", i)
+  started <- Sys.time()
+  out <- atlas_null_fork_map(list(1L, 2L, 3L), stuck, 3L, timeout = 3)
+  expect_lt(as.numeric(difftime(Sys.time(), started, units = "secs")), 60)
+  expect_equal(out[[1]], "done 1")
+  expect_null(out[[2]])
+  expect_equal(out[[3]], "done 3")
+  # In a model's test: the batch still comes back whole, from here.
+  parent <- Sys.getpid()
+  tables <- as.list(1:6)
+  score <- function(ts) lapply(ts, function(t) c(auc = t / 10, boyce = 0))
+  hang_one <- function(ts) if (identical(ts[[1]], 3L)) { Sys.sleep(600); list() } else score(ts)
+  scored <- atlas_null_score(tables, function(ts) if (Sys.getpid() != parent) hang_one(ts) else score(ts),
+                             3L, timeout = 3)
+  expect_identical(c(scored), score(tables))
+  expect_equal(attr(scored, "lost"), 1L)
 })
 
 test_that("a pool's processes are told where it says how many of them are idle, and it says so once its queue is empty", {
