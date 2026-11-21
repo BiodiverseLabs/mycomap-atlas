@@ -513,7 +513,8 @@ atlas_null_fork_map <- function(runs, f, cores, timeout = Inf) {
   }
   if (length(pending)) {
     tools::pskill(pids[pending], tools::SIGKILL)
-    try(parallel::mccollect(jobs[pending], wait = TRUE), silent = TRUE)
+    # Reaped, so no zombie is left; mccollect warns that they sent nothing.
+    suppressWarnings(try(parallel::mccollect(jobs[pending], wait = TRUE), silent = TRUE))
   }
   out
 }
