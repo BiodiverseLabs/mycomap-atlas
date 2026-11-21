@@ -34,12 +34,18 @@ atlas_study_worker_task <- function(name, fingerprints, taxon_fn, args) {
 #' summarise function(rows, baseline) giving the results file's summary
 #' extra     function(rows) giving more named entries for the results file
 #' detail    function(arm) giving the short text an arm is logged as
+#' progress  on a study job's worker (atlas_run_study_shard sets it): where
+#'           the rows scored so far are uploaded, at most every
+#'           upload_seconds, and where a later attempt at the same shard
+#'           resumes from, scoring only the taxa they do not hold
 atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
                             args, settings, baseline, grid = "draft",
                             workers = 1L, points, stack = NULL, quiet = FALSE,
                             opening = NULL, summarise = atlas_sweep_summary,
                             extra = NULL,
-                            detail = function(arm) sprintf("%s:%s", atlas_arm_name(arm), arm$auc)) {
+                            detail = function(arm) sprintf("%s:%s", atlas_arm_name(arm), arm$auc),
+                            progress = getOption("atlas.study_progress"),
+                            upload_seconds = ATLAS_WORKER_LOG_SECONDS) {
   started <- Sys.time()
   stamp <- format(started, "%Y%m%dT%H%M%SZ", tz = "UTC")
   path <- atlas_path(kind, grid, paste0(file_prefix, "-", stamp, ".json"))
@@ -55,6 +61,33 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   if (!is.null(opening)) say(opening)
 
   rows <- list()
+  names <- sample$scientific_name
+  # A study job's worker resumes what an earlier attempt at its shard saved
+  # (a worker taken back or stopped mid-shard): those taxa are not scored
+  # again, so a shard whose taxa take hours still gets through. Each taxon's
+  # draws are seeded from its own fingerprint, so a resumed row is the row an
+  # unbroken run would have scored.
+  if (!is.null(progress)) {
+    progress$kind <- kind
+    progress$file_prefix <- file_prefix
+    progress$settings <- settings
+    resumed <- atlas_study_progress_rows(progress, names)
+    if (length(resumed)) {
+      rows <- resumed
+      names <- setdiff(names, vapply(resumed, function(r) as.character(r$taxon), ""))
+      say(length(resumed), " of ", nrow(sample), " taxa already scored by an earlier attempt at this shard; ",
+          "resuming with the other ", length(names))
+    }
+  }
+  uploaded_at <- NULL
+  upload <- function() {
+    if (is.null(progress)) return(invisible(NULL))
+    # A failed upload costs the next attempt some taxa, never this run.
+    tryCatch({
+      atlas_study_progress_put(progress, rows, path)
+      uploaded_at <<- Sys.time()
+    }, error = function(e) say("could not upload this shard's progress: ", conditionMessage(e)))
+  }
   save <- function() {
     atlas_write_json(
       c(list(started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
@@ -69,6 +102,8 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   record <- function(row) {
     rows[[length(rows) + 1L]] <<- row
     save()
+    if (is.null(uploaded_at) ||
+        as.numeric(difftime(Sys.time(), uploaded_at, units = "secs")) >= upload_seconds) upload()
     described <- if (identical(row$status, "scored")) {
       paste(vapply(row$arms, function(a) paste(detail(a), collapse = ""), character(1)),
             collapse = " ")
@@ -79,7 +114,6 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
                 row$status, row$taxon, row$presences %||% "?", row$seconds %||% NA, described))
   }
 
-  names <- sample$scientific_name
   # The layers must open here before any taxon is tried, with one worker or
   # many: a run without them stops at once rather than failing every taxon.
   if (length(names)) stack <- stack %||% atlas_predictor_stack(grid)
@@ -101,6 +135,7 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   }
 
   save()
+  upload()
   summary <- summarise(rows, baseline = baseline)
   if (!isTRUE(quiet) && nrow(summary)) {
     print(summary, row.names = FALSE)
@@ -108,6 +143,71 @@ atlas_run_study <- function(kind, file_prefix, taxon_fn, sample, fingerprints,
   say("done in ", round(as.numeric(difftime(Sys.time(), started, units = "secs"))),
       "s -> ", path)
   invisible(list(summary = summary, taxa = rows, path = path))
+}
+
+# ---- resuming a study job's shard ------------------------------------------
+
+#' Where one study run of a study job's shard keeps its progress: beside the
+#' shard's record (a worker may write there), one pair of files per study
+#' run, as a shard's command may run more than one.
+atlas_study_progress_key <- function(progress, ext = "rds") {
+  slug <- gsub("(^-|-$)", "", gsub("[^A-Za-z0-9]+", "-", paste(progress$kind, progress$file_prefix)))
+  paste0("jobs/", progress$grid %||% "draft", "/", progress$job, "/shards/", as.integer(progress$shard),
+         ".study-", slug, ".progress.", ext)
+}
+
+#' Upload a study run's rows so far: an .rds a later attempt resumes from,
+#' exactly as scored, and the run's results file as it stands, to read.
+atlas_study_progress_put <- function(progress, rows, results_path = NULL) {
+  file <- tempfile(fileext = ".rds")
+  on.exit(unlink(file), add = TRUE)
+  saveRDS(list(job = progress$job, shard = as.integer(progress$shard), kind = progress$kind,
+               file_prefix = progress$file_prefix, settings = progress$settings,
+               saved_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), rows = rows), file)
+  progress$store$put(atlas_study_progress_key(progress, "rds"), file)
+  if (!is.null(results_path) && file.exists(results_path)) {
+    progress$store$put(atlas_study_progress_key(progress, "json"), results_path)
+  }
+  invisible(length(rows))
+}
+
+#' The rows an earlier attempt at this shard saved that this run may keep:
+#' the same job, shard, study and settings, taxa of this sample, and not
+#' failed (a failed taxon is tried again). Empty when there are none, or
+#' when what was saved belongs to another run.
+atlas_study_progress_rows <- function(progress, names = NULL) {
+  saved <- atlas_study_progress_read(progress$store, atlas_study_progress_key(progress, "rds"))
+  if (is.null(saved) || !identical(saved$job, progress$job) ||
+      !identical(saved$shard, as.integer(progress$shard)) || !identical(saved$kind, progress$kind) ||
+      !identical(saved$file_prefix, progress$file_prefix) || !identical(saved$settings, progress$settings)) {
+    return(list())
+  }
+  keep <- Filter(function(r) !identical(as.character(r$status %||% "unknown"), "failed") &&
+                   (is.null(names) || as.character(r$taxon %||% "") %in% names), saved$rows %||% list())
+  # One row per taxon.
+  taxa <- vapply(keep, function(r) as.character(r$taxon), "")
+  keep[!duplicated(taxa)]
+}
+
+atlas_study_progress_read <- function(store, key) {
+  if (!store$exists(key)) return(NULL)
+  file <- tempfile(fileext = ".rds")
+  on.exit(unlink(file), add = TRUE)
+  store$get(key, file)
+  tryCatch(readRDS(file), error = function(e) NULL)
+}
+
+#' How many taxa a study job's shard has saved across its study runs, not
+#' counting failed ones: the orchestrator tells a worker that was lost after
+#' saving from one that never got going.
+atlas_study_saved_count <- function(store, id, shard, grid = "draft") {
+  keys <- store$list(paste0("jobs/", grid, "/", id, "/shards/"))
+  mine <- keys[grepl(paste0("^", as.integer(shard), "[.]study-.*[.]progress[.]rds$"), basename(keys))]
+  sum(vapply(mine, function(key) {
+    saved <- atlas_study_progress_read(store, key)
+    if (is.null(saved)) return(0L)
+    sum(vapply(saved$rows %||% list(), function(r) !identical(as.character(r$status %||% "unknown"), "failed"), FALSE))
+  }, 0L))
 }
 
 # The share of a shard's taxa that may fail (an error, not a refusal) before

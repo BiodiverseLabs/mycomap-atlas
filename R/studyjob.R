@@ -17,6 +17,11 @@
 # grant in deploy/aws/worker/permissions.json; production never reads there.
 # Each shard writes a record when its command returns, as a fitting shard
 # does, saying whether it succeeded; the job succeeds when every one did.
+# On the way its study runs upload the taxa scored so far beside that record
+# (atlas_run_study), and a worker that replaces a lost one resumes from them.
+# A shard whose workers keep being lost without saving is given up, but its
+# siblings run on: their results are kept, and running the job again
+# launches only the shards that did not report.
 
 ATLAS_STUDY_PREFIX <- "study"
 
@@ -88,6 +93,10 @@ atlas_run_study_shard <- function(store = atlas_store(), id, shard, grid = "draf
   atlas_fetch_entries(store, job$inputs %||% list())
   argv <- c(job$command, unlist(job$args), sprintf("--shard=%d/%d", shard, as.integer(job$shards)),
             paste0("--out=", job$out))
+  # The study runs it starts (atlas_run_study) upload their rows as they go
+  # and resume from what an earlier attempt at this shard uploaded.
+  old <- options(atlas.study_progress = list(store = store, job = id, shard = shard, grid = grid))
+  on.exit(options(old), add = TRUE)
   outcome <- tryCatch({
     code <- main(argv)
     if (is.numeric(code) && length(code) == 1L && code != 0) {
@@ -105,15 +114,25 @@ atlas_run_study_shard <- function(store = atlas_store(), id, shard, grid = "draf
   invisible(record)
 }
 
-#' Once every shard of a study job has reported: its outcome. Stops, naming
-#' them, when any shard failed.
-atlas_study_outcome <- function(store, job, grid = "draft") {
-  records <- lapply(seq_len(job$shards), function(n) atlas_store_text(store, atlas_shard_key(job$id, n, grid)))
+#' Once every shard of a study job has reported or been given up (lost
+#' `attempts` times without saving): its outcome. Stops, naming them, when
+#' any shard failed or was given up; the others' results stay where they are.
+atlas_study_outcome <- function(store, job, grid = "draft", given_up = integer(), attempts = NA_integer_) {
+  reported <- setdiff(seq_len(job$shards), given_up)
+  records <- lapply(reported, function(n) atlas_store_text(store, atlas_shard_key(job$id, n, grid)))
   failed <- Filter(function(r) !identical(r$status, "succeeded"), records)
-  if (length(failed)) {
-    stop("study job ", job$id, ": shard", if (length(failed) > 1L) "s " else " ",
-         paste(vapply(failed, function(r) paste0(r$shard, " (", r$error %||% "no reason", ")"), ""), collapse = ", "),
-         " failed; results of the others are under ", job$out, call. = FALSE)
+  reasons <- c(
+    vapply(failed, function(r) paste0(r$shard, " (", r$error %||% "no reason", ")"), ""),
+    vapply(sort(as.integer(given_up)), function(n) {
+      paste0(n, " (given up: its workers were lost ", if (!is.na(attempts)) paste0(attempts, " times "),
+             "without saving anything)")
+    }, "")
+  )
+  if (length(reasons)) {
+    stop("study job ", job$id, ": shard", if (length(reasons) > 1L) "s " else " ",
+         paste(reasons, collapse = ", "), " failed; results of the others are under ", job$out,
+         if (length(given_up)) "; running the job again launches only the shards that did not report",
+         call. = FALSE)
   }
   list(job = job$id, shards = job$shards, out = job$out, command = job$command)
 }
