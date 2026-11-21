@@ -155,13 +155,14 @@ atlas_ec2_config <- function(env = function(name, unset = "") Sys.getenv(name, u
 ATLAS_WORKER_LOG_SECONDS <- 300L
 
 atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config$max_hours * 60,
-                                   command = NULL) {
+                                   command = NULL, attempt = 1L) {
   store <- config$store
   # A fitting worker runs its shard; a finishing worker (R/finish.R) is
   # given its own command.
   command <- command %||% sprintf("run-shard --grid=%s --job=%s --shard=%d --workers=$WORKERS",
                                   grid, job_id, as.integer(shard))
   logs <- if (grepl("^s3://", store)) sprintf("%s/jobs/%s/%s/logs", sub("/$", "", store), grid, job_id)
+  log_name <- sprintf("%d-%d", as.integer(shard), as.integer(attempt))
   paste(c(
     "#!/bin/bash",
     "# MycoMap Atlas worker. Runs one shard of a job, then shuts down (which",
@@ -179,10 +180,14 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
     # down) never reaches the upload at the end, and its log was lost (the
     # 2026-10-12 pilot). A worker that fits no batches (a finishing worker)
     # has no batches folder, so that part is skipped rather than failing.
+    # Each attempt at a shard has its own log (<shard>-<attempt>.log): a
+    # replacement worker's log once overwrote the one before it, and with it
+    # the only record of what that worker had done (the 2026-11-20
+    # calibration run).
     if (!is.null(logs)) {
-      sprintf(paste("( while sleep %d; do aws s3 cp --quiet /var/log/atlas-worker.log %s/%d.log;",
-                    "[ ! -d /data/batches ] || aws s3 sync --quiet --exclude '*' --include '*.log' /data/batches/ %s/%d-batches/; done ) &"),
-              ATLAS_WORKER_LOG_SECONDS, logs, as.integer(shard), logs, as.integer(shard))
+      sprintf(paste("( while sleep %d; do aws s3 cp --quiet /var/log/atlas-worker.log %s/%s.log;",
+                    "[ ! -d /data/batches ] || aws s3 sync --quiet --exclude '*' --include '*.log' /data/batches/ %s/%s-batches/; done ) &"),
+              ATLAS_WORKER_LOG_SECONDS, logs, log_name, logs, log_name)
     },
     sprintf("# One fit per ~%s GB of memory, at most one per core.", format(config$gb_per_fit %||% 3)),
     sprintf("WORKERS=$(( $(free -g | awk '/^Mem:/{print $2}') / %d ))", as.integer(ceiling(config$gb_per_fit %||% 3))),
@@ -201,7 +206,7 @@ atlas_worker_user_data <- function(job_id, shard, grid, config, minutes = config
             shQuote(store), shQuote(config$region), config$image, command),
     "STATUS=$?",
     if (!is.null(logs)) {
-      sprintf("aws s3 cp /var/log/atlas-worker.log %s/%d.log || true", logs, as.integer(shard))
+      sprintf("aws s3 cp /var/log/atlas-worker.log %s/%s.log || true", logs, log_name)
     },
     sprintf("echo \"%s exited $STATUS\"", sub(" .*$", "", command)),
     "shutdown -h now"
@@ -221,7 +226,7 @@ atlas_worker_request <- function(config, job_id, shard, grid, attempt = 1L, subn
     list(Key = "atlas-shard", Value = as.character(shard)),
     list(Key = "atlas-attempt", Value = as.character(attempt))
   )
-  user_data <- atlas_worker_user_data(job_id, shard, grid, config, minutes, command = command)
+  user_data <- atlas_worker_user_data(job_id, shard, grid, config, minutes, command = command, attempt = attempt)
   request <- list(
     ImageId = config$ami,
     InstanceType = instance_type,
@@ -427,6 +432,11 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   # starts from there: only a worker that never gets anywhere uses up tries.
   fruitless <- integer(job$shards)
   saved_at_launch <- integer(job$shards)
+  # A study job's shards are independent experiments: one whose workers keep
+  # being lost without saving is given up, and the others run on (a fitting
+  # job stops instead, as its release needs every shard). The calibration
+  # run of 2026-11-20 lost seven shards' work to one shard's three losses.
+  given_up <- integer()
   tried_at <- rep(clock(), job$shards)
   launch <- function(shard) {
     tried_at[[shard]] <<- clock()
@@ -478,7 +488,7 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   if (length(reported)) say(length(reported), " of ", job$shards, " shards already reported; not launched again")
   for (shard in setdiff(seq_len(job$shards), reported)) launch(shard)
   repeat {
-    missing <- atlas_job_status(store, job$id, grid)$missing
+    missing <- setdiff(atlas_job_status(store, job$id, grid)$missing, given_up)
     if (!length(missing)) break
     if (clock() > deadline) {
       # Stop the workers first, so what they saved holds still, then publish
@@ -492,8 +502,9 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
         tryCatch(atlas_finish_job(store, job$id, grid, quiet = quiet, partial = TRUE),
                  error = function(e) e)
       }
+      unreported <- sort(c(missing, given_up))
       stop("job ", job$id, " ran past its ", config$max_hours, " h deadline with shard",
-           if (length(missing) > 1L) "s " else " ", paste(missing, collapse = ", "),
+           if (length(unreported) > 1L) "s " else " ", paste(unreported, collapse = ", "),
            " unreported; its workers were terminated",
            if (prior_only) {
              "; a prior-only job is never published, in part or whole: plan it again"
@@ -543,6 +554,12 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
       if (!gone || shard_done(shard)) next
       saved <- atlas_shard_saved_count(store, job$id, shard, grid)
       fruitless[[shard]] <- if (saved > saved_at_launch[[shard]]) 0L else fruitless[[shard]] + 1L
+      if (fruitless[[shard]] >= config$max_attempts && study) {
+        given_up <- c(given_up, shard)
+        say("shard ", shard, ": ", id, " is gone without reporting; lost ", fruitless[[shard]],
+            " times without saving anything, so it is given up and the other shards run on")
+        next
+      }
       if (fruitless[[shard]] >= config$max_attempts) {
         stop("shard ", shard, " of job ", job$id, " failed ", fruitless[[shard]],
              " times without reporting or saving anything; its workers were terminated", call. = FALSE)
@@ -554,7 +571,12 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
     }
     wait(poll_seconds)
   }
-  say("all ", job$shards, " shards reported")
+  if (length(given_up)) {
+    say(job$shards - length(given_up), " of ", job$shards, " shards reported; shard",
+        if (length(given_up) > 1L) "s " else " ", paste(sort(given_up), collapse = ", "), " given up")
+  } else {
+    say("all ", job$shards, " shards reported")
+  }
   if (prior_only) {
     finished <- TRUE
     terminate_all()
@@ -565,7 +587,8 @@ atlas_run_job_on_ec2 <- function(store, job, grid = "draft", ec2 = NULL, config 
   if (study) {
     finished <- TRUE
     terminate_all()
-    return(invisible(atlas_study_outcome(store, job, grid)))
+    return(invisible(atlas_study_outcome(store, job, grid, given_up = given_up,
+                                         attempts = config$max_attempts)))
   }
   if (private) {
     finished <- TRUE

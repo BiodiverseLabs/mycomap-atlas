@@ -40,6 +40,17 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
     for (id in names(state$instances)) {
       worker <- state$instances[[id]]
       if (!worker$state %in% c("pending", "running")) next
+      # "slow": runs for a few polls, then works.
+      if (identical(worker$behaviour, "slow")) {
+        worker$polls <- (worker$polls %||% 0L) + 1L
+        if (worker$polls > 5L) {
+          worker$behaviour <- "work"
+        } else {
+          worker$state <- "running"
+          state$instances[[id]] <- worker
+          next
+        }
+      }
       if (startsWith(worker$job, "finish-train-")) {
         # Building a prior-only job's prior (R/prioronly.R), its build stubbed.
         # With the worker's IAM limits: it may not write private/, so it defers.
@@ -75,6 +86,11 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
         worker$state <- "terminated"
       } else if (worker$behaviour == "work") {
         on_machine(machine(), atlas_run_shard(store, worker$job, worker$shard, quiet = TRUE, fit = fit))
+        worker$state <- "terminated"
+      } else if (worker$behaviour == "partial" && startsWith(worker$job, "study-")) {
+        # A study shard's worker that scores one more taxon, uploads it, and
+        # is taken back.
+        study_scores_one_more(worker_store(store), worker$job, worker$shard)
         worker$state <- "terminated"
       } else if (worker$behaviour == "partial") {
         # Fits one more model, saves it, and is taken back.
@@ -214,6 +230,15 @@ test_that("run-job-ec2 runs a study job's shards, one worker each, and builds no
   expect_length(still_running(ec2), 0L)
 })
 
+# What a study shard's worker uploads after scoring one more taxon.
+study_scores_one_more <- function(store, job_id, shard) {
+  progress <- list(store = store, job = job_id, shard = shard, grid = "draft", kind = "fake-studies",
+                   file_prefix = "fake", settings = list())
+  rows <- atlas_study_progress_rows(progress)
+  rows[[length(rows) + 1L]] <- list(taxon = paste("Taxon", length(rows) + 1L), status = "scored")
+  atlas_study_progress_put(progress, rows)
+}
+
 # The shards a fake EC2 was asked to launch workers for, for one job.
 launched_shards <- function(ec2, job_id) {
   tags <- lapply(ec2$state$requests, function(r) tag_values(r$TagSpecifications[[1]]$Tags))
@@ -237,6 +262,66 @@ test_that("run again on a study job part done, run-job-ec2 launches only the sha
   expect_identical(atlas_store_text(store, atlas_shard_key(job$id, 2L)), before)
   for (n in 1:3) expect_true(store$exists(paste0(job$out, "result-", n, ".json")))
   expect_length(still_running(ec2), 0L)
+})
+
+test_that("a study shard lost every attempt without saving is given up, and its siblings run on to report", {
+  store <- fresh_store()
+  boss <- machine()
+  job <- atlas_plan_study_job(store, "study-rescan", shards = 3L, commands = "study-rescan", quiet = TRUE)
+  # Shard 2's workers are all taken back; shard 1 is still running when
+  # shard 2 is given up.
+  ec2 <- fake_ec2(store, script = function(shard, attempt) c("slow", "reclaim", "work")[[shard]])
+  expect_error(run_on(list(store = store, boss = boss, job = job), ec2),
+               "shard 2 [(]given up: its workers were lost 3 times without saving anything[)] failed")
+  expect_equal(sum(launched_shards(ec2, job$id) == 2L), 3L)
+  for (n in c(1L, 3L)) {
+    expect_true(store$exists(paste0(job$out, "result-", n, ".json")))
+    expect_equal(atlas_store_text(store, atlas_shard_key(job$id, n))$status, "succeeded")
+  }
+  expect_false(store$exists(atlas_shard_key(job$id, 2L)))
+  # Shard 1's worker was never terminated: it finished its shard.
+  slow <- Filter(function(i) i$shard == 1L, ec2$state$instances)
+  expect_false(any(names(slow) %in% ec2$state$terminated))
+  expect_length(still_running(ec2), 0L)
+
+  # Run again, only the given-up shard is launched, and the job succeeds.
+  again <- fake_ec2(store)
+  outcome <- run_on(list(store = store, boss = boss, job = job), again)
+  expect_equal(outcome$job, job$id)
+  expect_identical(launched_shards(again, job$id), 2L)
+})
+
+test_that("a study worker lost after uploading taxa does not use up its shard's attempts", {
+  store <- fresh_store()
+  boss <- machine()
+  job <- atlas_plan_study_job(store, "study-rescan", shards = 2L, commands = "study-rescan", quiet = TRUE)
+  # Four workers in a row are taken back, each after scoring one more taxon:
+  # more than the three attempts a worker that saves nothing is allowed.
+  ec2 <- fake_ec2(store, script = function(shard, attempt) if (shard == 1L && attempt <= 4L) "partial" else "work")
+  outcome <- run_on(list(store = store, boss = boss, job = job), ec2)
+  expect_equal(outcome$job, job$id)
+  expect_equal(sum(launched_shards(ec2, job$id) == 1L), 5L)
+  expect_equal(atlas_shard_saved_count(store, job$id, 1L), 4L)
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("a fitting job still stops at a shard lost every attempt: its release needs every shard", {
+  skip_if_not_installed("terra")
+  setup <- planned()
+  ec2 <- fake_ec2(setup$store, script = function(shard, attempt) if (shard == 2L) "reclaim" else "slow")
+  expect_error(run_on(setup, ec2), "shard 2 .* failed 3 times")
+  expect_length(still_running(ec2), 0L)
+})
+
+test_that("each attempt at a shard uploads its own log, so a replacement never overwrites the one before", {
+  config <- test_config("s3://bucket")
+  first <- user_data(atlas_worker_request(config, "job1", 3L, "draft", 1L, "subnet-a", "c7a.8xlarge"))
+  second <- user_data(atlas_worker_request(config, "job1", 3L, "draft", 2L, "subnet-a", "c7a.8xlarge"))
+  expect_match(first, "s3://bucket/jobs/draft/job1/logs/3-1.log", fixed = TRUE)
+  expect_match(second, "s3://bucket/jobs/draft/job1/logs/3-2.log", fixed = TRUE)
+  expect_match(second, "s3://bucket/jobs/draft/job1/logs/3-2-batches/", fixed = TRUE)
+  expect_false(grepl("logs/3-1", second, fixed = TRUE))
+  expect_false(grepl("logs/3.log", second, fixed = TRUE))
 })
 
 test_that("run again on a job whose shards all reported, run-job-ec2 fits nothing again and finishes it", {
@@ -657,7 +742,7 @@ test_that("a worker's boot script carries no credentials, uploads its log, and a
   config <- test_config("s3://bucket")
   script <- atlas_worker_user_data("job1", 3L, "draft", config)
   expect_false(grepl("AWS_ACCESS_KEY|AWS_SECRET|AWS_SESSION_TOKEN", script))
-  expect_true(grepl("s3://bucket/jobs/draft/job1/logs/3.log", script, fixed = TRUE))
+  expect_true(grepl("s3://bucket/jobs/draft/job1/logs/3-1.log", script, fixed = TRUE))
   expect_true(grepl("--job=job1 --shard=3", script, fixed = TRUE))
   lines <- strsplit(script, "\n")[[1]]
   expect_equal(lines[[length(lines)]], "shutdown -h now")
@@ -1038,17 +1123,17 @@ test_that("a running worker uploads its logs every few minutes, so one stopped a
   loop <- grep("while sleep", lines, value = TRUE)
   expect_length(loop, 1L)
   expect_match(loop, sprintf("while sleep %d;", ATLAS_WORKER_LOG_SECONDS), fixed = TRUE)
-  expect_match(loop, "aws s3 cp --quiet /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3.log", fixed = TRUE)
-  expect_match(loop, "/data/batches/ s3://bucket/jobs/draft/job1/logs/3-batches/", fixed = TRUE)
+  expect_match(loop, "aws s3 cp --quiet /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3-1.log", fixed = TRUE)
+  expect_match(loop, "/data/batches/ s3://bucket/jobs/draft/job1/logs/3-1-batches/", fixed = TRUE)
   # A worker with no batches folder (a finishing worker) skips that part
   # rather than logging an error every few minutes.
   expect_match(loop, "[ ! -d /data/batches ] || aws s3 sync", fixed = TRUE)
   expect_match(loop, "&$")
   # It starts before the shard runs, and the last upload at the end stays.
   expect_lt(grep("while sleep", lines), grep("^docker run", lines))
-  expect_true(any(grepl("aws s3 cp /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3.log || true", lines, fixed = TRUE)))
+  expect_true(any(grepl("aws s3 cp /var/log/atlas-worker.log s3://bucket/jobs/draft/job1/logs/3-1.log || true", lines, fixed = TRUE)))
   # Where the worker may write: its job's logs (deploy/aws/worker/permissions.json).
-  expect_true(grepl("^jobs/[^/]+/[^/]+/logs/", "jobs/draft/job1/logs/3-batches/batch-x.log"))
+  expect_true(grepl("^jobs/[^/]+/[^/]+/logs/", "jobs/draft/job1/logs/3-1-batches/batch-x.log"))
 })
 
 test_that("a worker runs one fit per ATLAS_EC2_GB_PER_FIT of memory, and the default leaves the script as it was", {
