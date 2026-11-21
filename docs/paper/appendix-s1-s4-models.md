@@ -72,3 +72,48 @@ projected over North America on the same scale ("potential, not range"),
 with the AOA computed over the full extent. When two or more of a taxon's
 models are strong, they are averaged by rank, weighted by AUC − 0.5, with a
 disagreement layer.
+
+## S4.5 Strong maps by sites and spread (descriptive)
+
+*Descriptive, on the frozen release
+(`2026-11-20-pass-by-sites-and-spread.md`); the logistic model is exploratory,
+registered as such.* Within a site band, from 10 sites up, taxa whose sites
+fall in fewer 100 km blocks were strong more often: at 10–19 sites, 12.2% (68
+of 556) with 5–9 blocks against 8.5% (71 of 840) with 10–19; at 20–49 sites,
+18.4% (94 of 510) with 10–19 blocks against 14.0% (69 of 492) with 20 or more.
+At 5–9 sites it ran the other way: 3.9% (18 of 460) with 3–4 blocks, 6.0% (91
+of 1,510) with 5–9. Adding log(blocks) to log(sites) in a taxon-level logistic
+model improved the fit (likelihood ratio 13.1, 1 df, p = 0.0003), with a
+negative coefficient on blocks given sites (−0.91; 95% interval −1.39 to
+−0.43). At a given number of sites, taxa over more blocks were strong less
+often in this release; the two are tied by construction (at least 3 blocks,
+and no more blocks than sites but for one taxon), so this is not read as an
+effect of spread. The rise by blocks alone (Figure S1c) mostly follows sites;
+it is not read on its own.
+
+**Appendix S1: Figure S1.** How often a taxon's map is strong, by its number
+of detection sites and by how many 100 km blocks those sites occupy, in the
+frozen release (20261013T191324Z-fa1b4198; descriptive). The 6,369 modelled
+taxa are each placed by the detection sites of their largest model (5 km
+survey sites) and by the number of distinct 100 km blocks of the Atlas grid
+holding their sites; a taxon counts as strong when any of its models is. (a)
+Strong share in each cell, with strong and total taxa; cells with fewer than
+20 taxa are grey and show counts only, and a dash marks a cell with no taxa.
+The 1–2 block column is empty by design: a map is refused unless its
+detections fall in at least 3 blocks of 100 km (the small-model design, under
+20 sites) or 5 blocks at the full models' own block size, and no modelled
+taxon has fewer than 3 occupied 100 km blocks. A taxon's sites cannot occupy
+more blocks than there are sites, so cells right of the diagonal are empty by
+construction; the one taxon there (3–4 sites, 5–9 blocks) arises because sites
+count the training presences while blocks count every site of the taxon's
+records, and training drops sites the predictor layers cannot describe, mostly
+coastal and island cells. (b) Strong share by detection sites alone, with
+Wilson 95% intervals; it reproduces Table 1c. (c) Strong share by occupied
+blocks alone. Each grade is one shifted-null test on one random fold split
+with up to 99 nulls, stopping at 5 that score as well as the map, under the
+frozen release's rules (one split; iNaturalist records accurate to 1 km), and
+grades near the pass line can move when a model is refitted (Section 3.8): a
+re-graded release could shift a cell's share by a few points. Sites and blocks
+describe where a taxon was collected, which mixes its range with where people
+collect. (`figures/figS1.svg`, made by `figures/figS1.py` from the registry
+numbers; table view `figures/figS1-data.md`.)

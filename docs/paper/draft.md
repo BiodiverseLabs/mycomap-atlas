@@ -589,11 +589,15 @@ alone (7,073 of 8,465). The strong share of taxa rises with sites from 2.1% at
 3–4 sites to 16.4% at 20–49, then falls to 8.0% at 50–99, and none of the 52
 taxa with 100 or more sites has a strong map: their best models score below
 their own shifted nulls on average (median z −1.36), although their held-out
-Boyce is high (median 0.84). At 3–4 sites, 45% of the small-model ensembles
-fail (median held-out AUC of those 0.41). Counting the looser tiers, 1,816
-taxa (28.5%) have a strong or moderate map and 4,856 (76.2%) at least an
-indicative one; neither tier beats distance to known records (Section 3.4), so
-both are drawn as weak maps. Every count by learner, band and tier is in S4.
+Boyce is high (median 0.84). At a given number of sites, taxa whose sites fell
+in more 100 km blocks were strong less often; sites and blocks are tied by
+construction, so this is not read as an effect of spread (descriptive,
+`2026-11-20-pass-by-sites-and-spread.md`; Appendix S1: Figure S1). At 3–4
+sites, 45% of the small-model ensembles fail (median held-out AUC of those
+0.41). Counting the looser tiers, 1,816 taxa (28.5%) have a strong or moderate
+map and 4,856 (76.2%) at least an indicative one; neither tier beats distance
+to known records (Section 3.4), so both are drawn as weak maps. Every count by
+learner, band and tier is in S4.
 
 [PENDING: strong maps by guild and region; combined maps; share of reach
 inside the area of applicability.]
@@ -1196,7 +1200,7 @@ appendix rather than words being added.
 | S1 | ODMAP protocol | E17 |
 | S2 | Records and data quality: eligibility with counts, validation provenance, coordinate rules, data errors and the exclusion list, query details, contributor table | E16, E19 |
 | S3 | Predictors, selection, layer sweeps, variable importance by guild | E8 |
-| S4 | Models: settings, tuning, small-site ensembles, area of applicability, thresholds and verdicts | E18 |
+| S4 | Models: settings, tuning, small-site ensembles, area of applicability, thresholds and verdicts; strong share by sites and spread (Figure S1) | E18 |
 | S5 | Null-test calibration in full; effort handling; the earlier study; the standard test on real models | E1, E1b, E1c, E14 |
 | S6 | Independent tests in full: every split (distance, applicability, learner, site band), combined maps, the tracker | E2, E3, E10, E15 |
 | S7 | Baselines: default-practice Maxent, distance-only, morphology-named models | E6a, E6b, E6c |
@@ -1496,6 +1500,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.13 (2026-11-20).** Strong share by detection sites and occupied 100 km blocks (descriptive; Steve): one sentence in 3.3; Appendix S1 Section S4.5 and Figure S1 (`figures/figS1.py`, `figS1.svg`, `figS1-data.md`); registry entry `2026-11-20-pass-by-sites-and-spread.md`.
 - **0.23.12 (2026-11-19).** Grade stability between nightly releases (E11, descriptive; Steve): 2.3, 3.3, 3.8, 4.3, Limits, evidence plan; Appendix S1 Section S10.1c; registry entry `2026-11-19-e11-grade-stability.md`.
 - **0.23.11 (2026-11-14).** The 14 November 2026 models version in the text (Steve): 2.6, 4.1, 4.2, Open Research; Appendix S1 Sections S10 and S11; registry entry `2026-11-08-cells-now.md`; 4.1's iNaturalist accuracy rule stated exactly (over 1,000 m), and the same phrase in `2026-11-07-fingerprint-sizing.md`.
 - **0.23.10 (2026-11-14).** The 14 November 2026 models version (doi:10.5281/zenodo.24214060) cited: front matter, Appendix S1 Section S11 table, open decision 13.
