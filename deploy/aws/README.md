@@ -161,8 +161,19 @@ To see what is running:
 aws ec2 describe-instances --filters Name=tag:atlas,Values=worker Name=instance-state-name,Values=pending,running --query "Reservations[].Instances[].[InstanceId,InstanceType,Tags[?Key=='atlas-job']|[0].Value,LaunchTime]" --output table $P
 ```
 
-A worker's log is uploaded to `jobs/<grid>/<job>/logs/<shard>.log` when it
-finishes. There is no SSH into a worker.
+A worker's log is uploaded to `jobs/<grid>/<job>/logs/<shard>-<attempt>.log`
+every 5 minutes and when it finishes, one log per attempt, so a replacement
+worker never overwrites the log of the one it replaced. There is no SSH into
+a worker.
+
+A study job's worker also uploads the taxa its shard has scored so far, at
+the same pace, beside the shard's record
+(`jobs/<grid>/<job>/shards/<shard>.study-<run>.progress.rds`, and the results
+file as it stands in `.progress.json`). A worker that replaces a lost one
+resumes from there, and a worker lost after saving does not use up its
+shard's attempts. A study shard lost every attempt without saving anything
+is given up, and the other shards run on; running the job again launches
+only the shards that did not report.
 
 ## A pilot before a full rebuild
 

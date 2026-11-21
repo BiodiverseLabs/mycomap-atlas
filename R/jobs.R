@@ -792,8 +792,10 @@ atlas_vector_extensions <- function(cpuinfo) {
 
 #' How many of a shard's tasks its saved progress holds: the orchestrator
 #' tells a worker that was lost after saving from one that never got going.
+#' A study job's shard saves taxa instead (atlas_study_saved_count).
 atlas_shard_saved_count <- function(store, id, shard, grid = "draft") {
-  length(tryCatch(atlas_shard_progress(store, id, shard, grid)$results, error = function(e) list()))
+  length(tryCatch(atlas_shard_progress(store, id, shard, grid)$results, error = function(e) list())) +
+    tryCatch(atlas_study_saved_count(store, id, shard, grid), error = function(e) 0L)
 }
 
 # ---- finishing -----------------------------------------------------------
