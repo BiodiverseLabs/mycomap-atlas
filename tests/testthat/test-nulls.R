@@ -135,11 +135,11 @@ test_that("q-values are Benjamini-Hochberg's, and a missing p is not counted as 
 
 # ---- production's null test (Steve, 2026-10-08) ---------------------------------
 
-test_that("production tests every map against shifted nulls, up to 99, stopping after 5, and up to 499 near the line", {
+test_that("production tests every map against shifted nulls, up to 99, stopping after 5, and up to 199 near the line", {
   expect_equal(ATLAS_NULL_DESIGN, "shift")
   expect_equal(ATLAS_NULL_REPS, 99L)
   expect_equal(ATLAS_NULL_STOP_AFTER, 5L)
-  expect_equal(ATLAS_NULL_EXTEND, list(from = 99L, to = 499L, stop_after = 25L, clear_pass = 1L, near_from = 50L))
+  expect_equal(ATLAS_NULL_EXTEND, list(from = 99L, to = 199L, stop_after = 10L, clear_pass = 1L, near_from = 50L))
   expect_equal(ATLAS_NULL_EXTEND$from, ATLAS_NULL_REPS)
   # Recorded in the design, so every model fitted under scattered nulls, or
   # without the near-line extension, is stale.
@@ -234,45 +234,45 @@ test_that("a clear first stage stands: one null in 99 as good passes, a fifth be
   expect_equal(failed$p, 5 / 49)
 })
 
-test_that("near the line the test goes on to 499 nulls, and can pass a map its first 99 failed", {
+test_that("near the line the test goes on to 199 nulls, and can pass a map its first 99 failed", {
   run <- run_nulls(beats = c(10, 20, 30, 40, 50))
   expect_true(run$extended)
   expect_equal(run$first$reps, 50)
   expect_equal(run$first$p, 5 / 50)
   expect_false(run$stopped)
-  expect_equal(length(run$aucs), 499)
+  expect_equal(length(run$aucs), 199)
   expect_equal(run$above, 5L)
-  expect_equal(run$p, 6 / 500)
+  expect_equal(run$p, 6 / 200)
   expect_lte(run$p, ATLAS_SKILL_ALPHA)
 })
 
-test_that("near the line the test can fail a map its first 99 passed, stopping at the 25th null as good", {
-  run <- run_nulls(beats = c(10, 20, 30, 100:121))
+test_that("near the line the test can fail a map its first 99 passed, stopping at the 10th null as good", {
+  run <- run_nulls(beats = c(10, 20, 30, 100:106))
   expect_equal(run$first$p, 4 / 100)
   expect_lte(run$first$p, ATLAS_SKILL_ALPHA)
   expect_true(run$extended)
   expect_true(run$stopped)
-  expect_equal(run$above, 25L)
-  expect_equal(length(run$aucs), 121)
-  expect_equal(run$p, 25 / 121)
+  expect_equal(run$above, 10L)
+  expect_equal(length(run$aucs), 106)
+  expect_equal(run$p, 10 / 106)
   expect_gt(run$p, ATLAS_SKILL_ALPHA)
 })
 
-test_that("at 499 nulls, 24 as good is p = 0.05 and passes, and a 25th stops the test and fails it", {
-  at_line <- run_nulls(beats = c(10, 20, 30, 100:120))
-  expect_equal(at_line$above, 24L)
+test_that("at 199 nulls, 9 as good is p = 0.05 and passes, and a 10th stops the test and fails it", {
+  at_line <- run_nulls(beats = c(10, 20, 30, 100:105))
+  expect_equal(at_line$above, 9L)
   expect_false(at_line$stopped)
-  expect_equal(at_line$p, 25 / 500)
+  expect_equal(at_line$p, 10 / 200)
   expect_lte(at_line$p, ATLAS_SKILL_ALPHA)
-  over <- run_nulls(beats = c(10, 20, 30, 100:120, 499))
+  over <- run_nulls(beats = c(10, 20, 30, 100:105, 199))
   expect_true(over$stopped)
-  expect_equal(over$p, 25 / 499)
+  expect_equal(over$p, 10 / 199)
   expect_gt(over$p, ATLAS_SKILL_ALPHA)
 })
 
 test_that("nulls that cannot be fitted are replaced in both stages, and the batch size changes nothing", {
-  beats <- c(10, 20, 30, 40, 150, 300)
-  fails <- c(5, 60, 61, 200, 450)
+  beats <- c(10, 20, 30, 40, 150)
+  fails <- c(5, 60, 61, 120, 180)
   runs <- lapply(c(1L, 7L, 10L, 33L), function(b) run_nulls(beats, fails, batch = b))
   for (run in runs[-1]) {
     expect_identical(run[c("aucs", "above", "stopped", "p", "extended", "first")],
@@ -280,13 +280,13 @@ test_that("nulls that cannot be fitted are replaced in both stages, and the batc
   }
   run <- runs[[1]]
   expect_true(run$extended)
-  expect_equal(length(run$aucs), 499)
-  expect_equal(run$drawn, 499 + length(fails))
-  expect_equal(run$p, 7 / 500)
+  expect_equal(length(run$aucs), 199)
+  expect_equal(run$drawn, 199 + length(fails))
+  expect_equal(run$p, 6 / 200)
   # Never more than twice as many draws as nulls wanted.
   hopeless <- run_nulls(beats = c(10, 20, 30), fails = 100:1200)
   expect_true(hopeless$extended)
-  expect_equal(hopeless$drawn, 2 * 499)
+  expect_equal(hopeless$drawn, 2 * 199)
   expect_equal(length(hopeless$aucs), 99)
 })
 
@@ -380,4 +380,111 @@ test_that("production pools its null test over 5 splits, records it in the setti
       expect_identical(five[[field]], one[[field]], info = field)
     }
   })
+})
+
+# ---- one model's nulls in several processes (Steve, 2026-11-20) -----------------
+
+# Stands in for forked processes where the machine cannot fork (Windows):
+# each run starts from the stream as it stood, works on its own copy of
+# nothing it could pass back but its result, and leaves this process's
+# stream untouched, as a forked child does.
+emulated_forks <- function(runs, f, cores) {
+  stream <- atlas_rng_state()
+  on.exit(atlas_rng_restore(stream), add = TRUE)
+  lapply(runs, function(run) {
+    atlas_rng_restore(stream)
+    f(run)
+  })
+}
+
+test_that("a fit uses idle processes only in a pool that says some are idle, and an equal share of them", {
+  state <- tempfile()
+  writeLines("6 2", state)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 4L)
+  expect_equal(atlas_null_cores(state, most = 3L, can_fork = TRUE), 3L)
+  writeLines("0 21", state)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 1L)
+  writeLines("20 1", state)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 8L)
+  # Not in a pool, no state yet, a machine that cannot fork, or a state that
+  # makes no sense: one process.
+  expect_equal(atlas_null_cores("", most = 8L, can_fork = TRUE), 1L)
+  expect_equal(atlas_null_cores(tempfile(), most = 8L, can_fork = TRUE), 1L)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = FALSE), 1L)
+  writeLines("half a line", state)
+  expect_equal(atlas_null_cores(state, most = 8L, can_fork = TRUE), 1L)
+  with_env(c(ATLAS_NULL_MAX_CORES = "2"), expect_equal(atlas_null_max_cores(), 2L))
+  with_env(c(ATLAS_NULL_MAX_CORES = "nonsense"), expect_equal(atlas_null_max_cores(), ATLAS_NULL_MAX_CORES))
+})
+
+test_that("a batch scored in several processes comes back in order, and a lost process's nulls are scored here", {
+  tables <- as.list(1:7)
+  score <- function(ts) lapply(ts, function(t) c(auc = t / 10, boyce = 0))
+  serial <- score(tables)
+  expect_identical(atlas_null_score(tables, score, 3L, map = emulated_forks), serial)
+  expect_identical(atlas_null_score(tables, score, 20L, map = emulated_forks), serial)
+  # One process killed (mclapply gives NULL or an error in its place).
+  lose_second <- function(runs, f, cores) {
+    out <- emulated_forks(runs, f, cores)
+    out[2] <- list(NULL)
+    out[[3]] <- structure("killed", class = "try-error")
+    out
+  }
+  expect_identical(atlas_null_score(tables, score, 4L, map = lose_second), serial)
+  expect_identical(atlas_null_score(tables, score, 4L, map = function(...) stop("cannot fork")), serial)
+})
+
+test_that("a model's null test gives the same result in one process or several, for every learner", {
+  skip_if_not_installed("maxnet")
+  world <- null_world("cluster")
+  folds <- atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1, presence = world$presence)
+  splits <- atlas_null_fold_splits(world$x, world$y, folds, k = 5, block_km = 200, seed = 1,
+                                   presence = world$presence, splits = 2L)
+  learners <- c("maxnet", if (requireNamespace("ranger", quietly = TRUE)) "rf",
+                if (requireNamespace("xgboost", quietly = TRUE)) "xgboost")
+  for (learner in learners) {
+    algo <- atlas_algorithm(learner)
+    run <- function(cores, map = emulated_forks, batch = 10L) {
+      set.seed(42)
+      result <- atlas_null_test_sequential(world, splits, algo, reps = 19L, seed = 3, design = "shift",
+                                           stop_after = 20L, batch = batch, cores = function() cores, map = map)
+      list(result = result, after = stats::runif(1))
+    }
+    one <- run(1L)
+    expect_equal(one$result$reps, 19L, info = learner)
+    # Several processes, and other batch sizes: the same nulls, the same
+    # scores, and the stream left where it would be.
+    for (other in list(run(3L), run(8L), run(1L, batch = 4L))) {
+      expect_identical(other$result, one$result, info = learner)
+      expect_identical(other$after, one$after, info = learner)
+    }
+    # Forked for real where the machine can fork.
+    if (.Platform$OS.type == "unix") {
+      expect_identical(run(3L, map = atlas_null_fork_map)$result, one$result, info = learner)
+    }
+  }
+})
+
+test_that("a pool's processes are told where it says how many of them are idle, and it says so once its queue is empty", {
+  cluster <- atlas_make_workers(2L)
+  on.exit(parallel::stopCluster(cluster), add = TRUE)
+  state <- attr(cluster, "pool_state")
+  expect_true(nzchar(state))
+  told <- unlist(parallel::clusterEvalQ(cluster, Sys.getenv("ATLAS_POOL_STATE")))
+  expect_equal(told, rep(state, 2L))
+  # The variable is the workers', not this process's.
+  expect_false(identical(Sys.getenv("ATLAS_POOL_STATE"), state))
+  # The slow taxon reads the state after the quick one has finished, with
+  # nothing left to send: one process idle, one busy.
+  task <- function(name, state) {
+    if (!identical(name, "slow")) return(list(taxon = name, status = "fitted"))
+    Sys.sleep(3)
+    list(taxon = name, status = "fitted", seen = readLines(state, n = 1L, warn = FALSE))
+  }
+  environment(task) <- globalenv()
+  seen <- list()
+  atlas_run_on_workers(cluster, c("slow", "quick"), task, function(row) seen[[row$taxon]] <<- row$seen,
+                       state = state)
+  expect_equal(seen$slow, "1 1")
+  expect_equal(readLines(state, warn = FALSE), "2 0")
 })

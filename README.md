@@ -619,10 +619,10 @@ the pattern's shape:
 The sequential test (Besag & Clifford 1991) draws up to 99 nulls and stops
 once a set number have done as well as the map. That gives the same verdict
 at 0.05 as drawing them all. Near the pass line production goes on to up to
-499 nulls (`ATLAS_NULL_EXTEND`, `atlas_null_sequence`): a first stage of 99
+199 nulls (`ATLAS_NULL_EXTEND`, `atlas_null_sequence`): a first stage of 99
 stands when at most one null did as well, or when it stopped before its 50th
-null, and otherwise the test draws on, stopping after 25, and passes at
-p = (1 + k) / 500 <= 0.05. Production also pools the test over five fold
+null, and otherwise the test draws on, stopping after 10, and passes at
+p = (1 + k) / 200 <= 0.05. Production also pools the test over five fold
 splits (`ATLAS_NULL_SPLITS`, `atlas_null_fold_splits`): the map and every
 null are scored on each and compared by the mean, the map's own split first.
 The studies run the 99-null test on one split unless asked otherwise.

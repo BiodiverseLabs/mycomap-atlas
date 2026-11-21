@@ -54,12 +54,13 @@ ATLAS_NULL_STOP_AFTER <- 5L
 # 2026-11-19). A first stage of 99 stands when at most clear_pass nulls did
 # as well as the map, or when it stopped before its near_from'th null;
 # otherwise the test draws up to `to` nulls, stopping after stop_after, and
-# the pass rule is the same (p <= ATLAS_SKILL_ALPHA). Checked against the
-# virtual species of E1 before it went into production: false passes and
-# power each moved by under half a point, and a grade near the line flips
-# less often between refits on the same evidence. Models fitted before it
-# record a first stage only, and are stale (atlas_design).
-ATLAS_NULL_EXTEND <- list(from = 99L, to = 499L, stop_after = 25L, clear_pass = 1L, near_from = 50L)
+# the pass rule is the same (p <= ATLAS_SKILL_ALPHA). Capped at 199 nulls,
+# stopping after 10 (Steve, 2026-11-20): at 499 a near-line Maxent with
+# hundreds of sites could run past a worker's deadline. Its exact size is
+# 0.0497. It is checked on E1's virtual species (the calibration study,
+# --null-rule=production) before it goes into production. Models fitted
+# before it record a first stage only, and are stale (atlas_design).
+ATLAS_NULL_EXTEND <- list(from = 99L, to = 199L, stop_after = 10L, clear_pass = 1L, near_from = 50L)
 # Fold splits the null test pools over (R/nulls.R, atlas_null_fold_splits;
 # Steve, 2026-11-19): the map and every null are scored on each, and compared
 # by the mean. The first is the map's own split, so its scores do not change.

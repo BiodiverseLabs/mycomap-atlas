@@ -3067,7 +3067,7 @@
               },
               "extended": {
                 "type": "boolean",
-                "description": "The first stage of 99 nulls ended near the pass line (2 to 4 as good, or the fifth by the 50th null or later), so the test went on to up to 499 nulls, stopping after 25; auc_p, reps and stopped_early are then the whole test's. Absent for fits from before the near-line extension, which ran the first stage only."
+                "description": "The first stage of 99 nulls ended near the pass line (2 to 4 as good, or the fifth by the 50th null or later), so the test went on to up to 199 nulls, stopping after 10; auc_p, reps and stopped_early are then the whole test's. Absent for fits from before the near-line extension, which ran the first stage only."
               },
               "first_reps": {
                 "type": "integer",

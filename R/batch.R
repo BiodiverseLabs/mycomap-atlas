@@ -157,6 +157,10 @@ ATLAS_WORKER_ENV <- c(OPENBLAS_NUM_THREADS = "1", OMP_NUM_THREADS = "1")
 #' environment the worker process is started with, not set inside it
 #' afterwards. It is set in this process for the start and put back as it was.
 atlas_make_workers <- function(workers, env = ATLAS_WORKER_ENV) {
+  # Where the pool's scheduler says how many of its processes are idle
+  # (atlas_run_on_workers), for a fit that can use them (atlas_null_cores).
+  state <- normalizePath(tempfile("atlas-pool-"), winslash = "/", mustWork = FALSE)
+  env <- c(env, ATLAS_POOL_STATE = state)
   old <- Sys.getenv(names(env), unset = NA, names = TRUE)
   on.exit({
     keep <- old[!is.na(old)]
@@ -165,7 +169,24 @@ atlas_make_workers <- function(workers, env = ATLAS_WORKER_ENV) {
     if (length(drop)) Sys.unsetenv(drop)
   }, add = TRUE)
   do.call(Sys.setenv, as.list(env))
-  parallel::makePSOCKcluster(workers)
+  cluster <- parallel::makePSOCKcluster(workers)
+  attr(cluster, "pool_state") <- state
+  cluster
+}
+
+#' Say how many of a pool's processes are idle and how many are busy, in its
+#' state file: "<idle> <busy>", written whole and then moved into place, so
+#' a reader never sees half a line. A pool without one says nothing.
+atlas_pool_state_write <- function(cluster, busy) {
+  state <- attr(cluster, "pool_state")
+  if (is.null(state)) return(invisible(NULL))
+  idle <- max(0L, length(cluster) - as.integer(busy))
+  tryCatch({
+    part <- paste0(state, ".part")
+    writeLines(paste(idle, as.integer(busy)), part)
+    file.rename(part, state)
+  }, error = function(e) NULL)
+  invisible(NULL)
 }
 
 #' Start a pool of R processes, each with Atlas loaded and its own stack.
@@ -236,12 +257,16 @@ atlas_run_on_workers <- function(cluster, names, task, on_result, ...) {
   for (node in seq_len(min(length(cluster), length(names)))) {
     send(node)
   }
+  atlas_pool_state_write(cluster, length(in_flight))
   for (i in seq_along(names)) {
     result <- tryCatch(receive(cluster), error = function(e) e)
     if (inherits(result, "error")) {
       return(abandon(conditionMessage(result)))
     }
     in_flight <- in_flight[-match(result$tag, in_flight)]
+    # Once nothing is left to send, the processes that finish stay idle, and
+    # the fits still running may use them (atlas_null_cores).
+    if (following > length(names)) atlas_pool_state_write(cluster, length(in_flight))
     if (following <= length(names)) {
       sent <- tryCatch({ send(result$node); TRUE }, error = function(e) e)
       if (!isTRUE(sent)) {

@@ -36,9 +36,11 @@
 # beat passes 45% of the time. So production goes on (ATLAS_NULL_EXTEND,
 # Steve 2026-11-19): a first stage of 99 that passed with at most one null
 # as good, or stopped before its 50th null, stands; otherwise the test draws
-# up to 499, stopping after 25, and passes at p = (1 + k) / 500 <= 0.05.
+# up to 199, stopping after 10, and passes at p = (1 + k) / 200 <= 0.05.
 # The pass rule is unchanged, and the exact size (a map that knows nothing is
-# exchangeable with its nulls) is 0.0495, against 0.05 for 99 alone.
+# exchangeable with its nulls) is 0.0497, against 0.05 for 99 alone. (It was
+# 499, stopping after 25, until 2026-11-20: a near-line Maxent with hundreds
+# of sites could then take longer than a worker's deadline.)
 #
 # One fold split decides a lot too: a record that changes one block re-deals
 # every fold, and at 10 to 60 sites the map's score against its nulls moves
@@ -199,8 +201,10 @@ atlas_null_near_line <- function(scored, above, stopped, extend) {
 #' c(auc, boyce), auc NA for a null that could not be scored. A null that
 #' fails is replaced, up to twice as many draws as nulls wanted. Results are
 #' taken in draw order and counting stops exactly where a one-at-a-time test
-#' would, so the batch size changes nothing but speed. drawn counts every
-#' draw made, including any left over in the last batch.
+#' would, so the batch size changes nothing but speed. drawn counts the
+#' draws the test used, a failed one included; draws scored in the last batch
+#' but never reached are not counted, and used holds the results of those it
+#' used, in order.
 #'
 #' p is stop_after over the nulls scored when the test stopped, else
 #' (1 + nulls at least as good) / (1 + nulls scored), for whichever stage
@@ -208,6 +212,9 @@ atlas_null_near_line <- function(scored, above, stopped, extend) {
 #' size it was calibrated for.
 atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L,
                                 batch = 10L, extend = NULL) {
+  # batch may be a function, asked before each batch (the null test's batch
+  # grows with the processes it may use).
+  batch_size <- function() as.integer(if (is.function(batch)) batch() else batch)
   aucs <- numeric()
   boyces <- numeric()
   above <- 0L
@@ -215,16 +222,18 @@ atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L
   # Scored but not yet counted: the rest of a batch when a stage ends, which
   # the next stage counts first, so the nulls are the same whatever the batch.
   pending <- list()
+  used <- list()
   draw_until <- function(want, enough, cap) {
     while (length(aucs) < want && above < enough) {
       if (!length(pending)) {
         if (draw >= cap) break
-        take <- seq.int(draw + 1L, min(draw + batch, cap))
+        take <- seq.int(draw + 1L, min(draw + batch_size(), cap))
         draw <<- take[[length(take)]]
         pending <<- fetch(take)
       }
       result <- pending[[1]]
       pending <<- pending[-1]
+      used[[length(used) + 1L]] <<- result
       if (!is.finite(result[["auc"]])) next
       aucs <<- c(aucs, result[["auc"]])
       boyces <<- c(boyces, result[["boyce"]])
@@ -245,7 +254,7 @@ atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L
     stopped <- above >= extend$stop_after
     p <- p_of(stopped, extend$stop_after)
   }
-  list(aucs = aucs, boyces = boyces, above = above, drawn = draw, stopped = stopped, p = p,
+  list(aucs = aucs, boyces = boyces, above = above, drawn = length(used), used = used, stopped = stopped, p = p,
        extended = extended, first = first)
 }
 
@@ -266,9 +275,17 @@ atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L
 #' split, and compared by the mean over the splits; observed_auc is that mean,
 #' and the result says how many splits were used and the first split's AUC.
 #' One split gives exactly the single-split test.
+#'
+#' A batch of nulls is scored across several processes when the machine has
+#' cores to spare (atlas_null_cores: a pool's fits that have finished leave
+#' theirs idle), each process scoring a run of the batch's nulls
+#' (atlas_null_score). Each null's fits are seeded from its own draw, and the
+#' random stream is left as the map's own scores left it, so the result is
+#' the same however many processes score the nulls, and whatever the batch.
 atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed = 1L,
                                        design = "scatter", stop_after = 5L, batch = 10L,
-                                       extend = NULL) {
+                                       extend = NULL, cores = atlas_null_cores,
+                                       map = atlas_null_fork_map) {
   design <- atlas_null_design(design)
   if (!reps) return(list(reps = 0L))
   params <- atlas_null_params(algo, training)
@@ -277,15 +294,25 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     if (is.null(scores)) return(c(auc = NA_real_, boyce = NA_real_))
     c(auc = mean(scores$auc, na.rm = TRUE), boyce = atlas_pooled_boyce(scores))
   }
-  best_effort <- 0L
-  far_shares <- numeric()
+  # Each null says whether it was placed best-effort, and how far its points
+  # moved, with its scores: counted for the nulls the test used, so a batch's
+  # unused nulls (more of them with more processes) change nothing.
   null_table <- function(draw) {
     null <- training
     null$presence <- atlas_null_draw(training, n, seed + 1000L + draw, design)
-    if (isTRUE(attr(null$presence, "best_effort"))) best_effort <<- best_effort + 1L
-    if (!is.null(attr(null$presence, "far_share"))) far_shares <<- c(far_shares, attr(null$presence, "far_share"))
+    attr(null, "best_effort") <- isTRUE(attr(null$presence, "best_effort"))
+    attr(null, "far_share") <- attr(null$presence, "far_share") %||% NA_real_
     attributes(null$presence) <- NULL
+    attr(null, "draw") <- draw
     null
+  }
+  # A null's fits draw from the random stream (boosted trees do): seeded from
+  # its draw, its scores do not depend on which nulls were scored before it
+  # in the same process.
+  seeded <- function(table) {
+    draw <- attr(table, "draw")
+    if (!is.null(draw)) set.seed(seed + 2000L + as.integer(draw))
+    table
   }
   run_split <- function(tables, split) {
     if (atlas_shares_features(algo)) {
@@ -294,10 +321,12 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
       runs <- lapply(tables, function(table) {
         list(training = table, fit = fit, score = algo$score, effort_at = atlas_effort_level(table))
       })
+      # Fitted fold by fold across the tables: seeded once, from the first.
+      if (length(tables)) seeded(tables[[1]])
       lapply(atlas_cross_validate_by_fold(runs, split, features), summarise)
     } else {
       lapply(tables, function(table) summarise(tryCatch(
-        atlas_cross_validate(table, split,
+        atlas_cross_validate(seeded(table), split,
                              fit = function(train) algo$fit(train, params, seed, tuning = TRUE),
                              score = algo$score, effort_at = atlas_effort_level(table)),
         error = function(e) NULL
@@ -323,16 +352,35 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     atlas_rng_restore(stream)
     return(list(reps = 0L))
   }
+  # Whatever the nulls draw, the stream goes on from where the map's own
+  # scores left it, as it does when the nulls are scored in other processes.
+  after_map <- atlas_rng_state()
+  on.exit(atlas_rng_restore(after_map), add = TRUE)
   # A further split the taxon itself cannot be scored on is left out before
   # any null is drawn, for the taxon and every null alike.
   scored_on <- vapply(by_split, function(x) is.finite(x[["auc"]]), logical(1))
   splits <- splits[scored_on]
   observed <- c(auc = mean(vapply(by_split[scored_on], function(x) x[["auc"]], numeric(1))),
                 boyce = mean(vapply(by_split[scored_on], function(x) x[["boyce"]], numeric(1))))
-  run <- atlas_null_sequence(observed[["auc"]], function(take) run_tables(lapply(take, null_table)),
-                             reps = reps, stop_after = stop_after, batch = batch, extend = extend)
+  using <- 1L
+  batch_now <- function() {
+    using <<- as.integer(cores())
+    if (using > 1L) max(as.integer(batch), 2L * using) else as.integer(batch)
+  }
+  fetch <- function(take) {
+    tables <- lapply(take, null_table)
+    scores <- atlas_null_score(tables, run_tables, using, map = map)
+    Map(function(score, table) {
+      c(score, best_effort = as.numeric(attr(table, "best_effort")), far_share = as.numeric(attr(table, "far_share")))
+    }, scores, tables)
+  }
+  run <- atlas_null_sequence(observed[["auc"]], fetch, reps = reps, stop_after = stop_after,
+                             batch = batch_now, extend = extend)
   aucs <- run$aucs
   boyces <- run$boyces[is.finite(run$boyces)]
+  best_effort <- sum(vapply(run$used, function(r) r[["best_effort"]], numeric(1)))
+  far_shares <- vapply(run$used, function(r) r[["far_share"]], numeric(1))
+  far_shares <- far_shares[is.finite(far_shares)]
   c(list(
     reps = length(aucs),
     design = design,
@@ -345,7 +393,7 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     boyce_mean = if (length(boyces)) round(mean(boyces), 3) else NA_real_,
     stopped_early = run$stopped,
     drawn = run$drawn,
-    best_effort = best_effort,
+    best_effort = as.integer(best_effort),
     far_share = if (length(far_shares)) round(mean(far_shares), 3) else NA_real_
   ), if (!is.null(extend)) list(
     extended = run$extended,
@@ -355,6 +403,62 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     splits = length(splits),
     first_split_auc = round(by_split[[1]][["auc"]], 3)
   ))
+}
+
+# ---- scoring one model's nulls in several processes -------------------------
+
+# The most processes one model's null test uses at once. A near-line
+# Maxent with hundreds of sites draws up to 199 nulls on five splits, hours
+# in one process, while at the end of a shard the pool's other cores sit idle.
+ATLAS_NULL_MAX_CORES <- 8L
+
+#' How many processes the null test may use now: 1, unless this process is
+#' one of a pool's (atlas_make_workers) on a machine that can fork, and the
+#' pool's scheduler says some of its processes are idle (ATLAS_POOL_STATE,
+#' written by atlas_run_on_workers): then an equal share of the idle ones,
+#' at most ATLAS_NULL_MAX_CORES (overridden by that variable in the
+#' environment). A pool of n processes then never runs more than n fits at
+#' once, so each process's memory budget (ATLAS_EC2_GB_PER_FIT) holds.
+atlas_null_cores <- function(state = Sys.getenv("ATLAS_POOL_STATE", unset = ""),
+                             most = atlas_null_max_cores(), can_fork = .Platform$OS.type == "unix") {
+  if (!isTRUE(can_fork) || !nzchar(state) || most <= 1L || !file.exists(state)) return(1L)
+  line <- tryCatch(readLines(state, n = 1L, warn = FALSE), error = function(e) character())
+  if (!length(line)) return(1L)
+  v <- suppressWarnings(as.integer(strsplit(trimws(line), "[[:space:]]+")[[1]]))
+  if (length(v) != 2L || anyNA(v) || v[[1]] < 0L || v[[2]] < 1L) return(1L)
+  as.integer(max(1L, min(most, 1L + v[[1]] %/% v[[2]])))
+}
+
+atlas_null_max_cores <- function() {
+  wanted <- suppressWarnings(as.integer(Sys.getenv("ATLAS_NULL_MAX_CORES", unset = "")))
+  if (is.na(wanted) || wanted < 1L) ATLAS_NULL_MAX_CORES else wanted
+}
+
+#' Score a batch of null tables with score(tables) (a list of c(auc, boyce)
+#' in their order), in up to `cores` processes, each scoring a run of them.
+#' A process that is lost (killed, out of memory) has its run scored here
+#' instead, so a lost process costs time, never a null.
+atlas_null_score <- function(tables, score, cores = 1L, map = atlas_null_fork_map) {
+  cores <- min(as.integer(cores), length(tables))
+  if (is.na(cores) || cores <= 1L) return(score(tables))
+  runs <- split(seq_along(tables), sort(rep_len(seq_len(cores), length(tables))))
+  names(runs) <- NULL
+  parts <- tryCatch(map(runs, function(i) score(tables[i]), cores),
+                    error = function(e) vector("list", length(runs)))
+  out <- vector("list", length(tables))
+  for (r in seq_along(runs)) {
+    part <- if (length(parts) >= r) parts[[r]]
+    whole <- is.list(part) && length(part) == length(runs[[r]]) &&
+      all(vapply(part, function(x) is.numeric(x) && length(x) == 2L, logical(1)))
+    out[runs[[r]]] <- if (whole) part else score(tables[runs[[r]]])
+  }
+  out
+}
+
+#' Run f over runs in forked processes, each starting from this process's
+#' random stream (mc.set.seed = FALSE), as the same work done here would.
+atlas_null_fork_map <- function(runs, f, cores) {
+  parallel::mclapply(runs, f, mc.cores = cores, mc.preschedule = TRUE, mc.set.seed = FALSE)
 }
 
 #' Benjamini-Hochberg q-values: for each p, the false discovery rate at

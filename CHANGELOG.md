@@ -151,13 +151,13 @@ changed and what it means for you.
 ### Maps
 
 - **The null test is pooled over five fold splits, and near the pass line it
-  goes on to up to 499 nulls.** A map and each of its shifted nulls are
+  goes on to up to 199 nulls.** A map and each of its shifted nulls are
   scored on five ways of dealing the spatial blocks into folds, the map's
   own first, and compared by their mean, so a grade no longer rests on one
   split that a single new record can re-deal. A first stage of 99 nulls
   stands when at most one did as well as the map, or when the fifth that did
-  came before the 50th null; otherwise the test goes on, stopping after 25,
-  and the map passes at p = (1 + k) / 500 <= 0.05. The pass rule is
+  came before the 50th null; otherwise the test goes on, stopping after 10,
+  and the map passes at p = (1 + k) / 200 <= 0.05. The pass rule is
   unchanged, and so are a map's own cross-validated scores and the Boyce
   index it must keep above 0. Each model's `null` now gives `splits`,
   `first_split_auc`, `extended`, `first_reps` and `first_auc_p`, and its

@@ -394,7 +394,7 @@ test_that("a run of production's null test draws E1's species again and pools th
     expect_match(production$path, "e1-production-nulls-seed1", fixed = TRUE)
     expect_equal(production$settings$null_rule, "production")
     expect_equal(production$settings$null_splits, ATLAS_NULL_SPLITS)
-    expect_equal(production$settings$near_line$to, 499L)
+    expect_equal(production$settings$near_line$to, 199L)
     expect_equal(unlist(production$settings$kinds), "geography")
     # Only the geography species, the same one E1 drew.
     expect_length(production$taxa, 1L)
