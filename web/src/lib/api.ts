@@ -138,7 +138,7 @@ export interface ModelImportance {
   predictors?: ModelImportance[];
 }
 
-/** What a strong model's full-extent view holds (R/fullextent.R). */
+/** What a strong or weak model's full-extent view holds (R/fullextent.R). */
 export interface FullMap {
   map: string;
   bounds: ModelBounds;
@@ -182,9 +182,10 @@ export interface Model {
   /** "rank" when colours are by percentile within the map. */
   map_scale?: string;
   map_drawn_at?: string;
-  /** A strong map's full-extent view (map.png?view=full): its potential
-   * wherever conditions resemble its sites, beyond the 500 km reach. Absent
-   * for weak and failed maps, and for fits from before it existed. */
+  /** A strong or weak map's full-extent view (map.png?view=full): its
+   * potential wherever conditions resemble its sites, beyond the 500 km
+   * reach; a weak map's is drawn faint and is the picture only. Absent for
+   * failed maps, and for fits from before it existed. */
   full_map?: FullMap;
   /** Whether the map beat its null models. Fits from before there were
    * null models have none, and read as "untested". */

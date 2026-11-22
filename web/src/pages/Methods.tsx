@@ -757,7 +757,7 @@ export default function Methods() {
                 makes its claim only on the ground it was fitted on.
               </p>
               <p>
-                <B>The full view.</B> A strong map is also predicted over the whole of North America,
+                <B>The full view.</B> A strong or weak map is also predicted over the whole of North America,
                 at the same 5 km cells, and its taxon page can show that instead ("Everywhere
                 conditions resemble its known sites"). Inside the 500 km area it is the default map
                 exactly. Beyond it each cell is placed on the same colour scale (its suitability
@@ -765,9 +765,11 @@ export default function Methods() {
                 conditions are unlike any training site, which far from the records is most of the
                 continent. It shows <B>potential, not range</B>: the model learned where the taxon was
                 found against where people collected other fungi, so beyond the survey it cannot
-                tell ground nobody looked at from ground searched without a find. Weak and failed
-                maps are not drawn beyond their reach, and everything else on the site (state
-                verdicts, Here, the combined maps, the location prior) reads the default map.
+                tell ground nobody looked at from ground searched without a find. A weak map's full
+                view is drawn faint, as the weak map is, and claims nothing; it is the picture only,
+                while a strong map's also comes as rasters in the Zenodo models version. Failed maps
+                are not drawn beyond their reach, and everything else on the site (state verdicts,
+                Here, the combined maps, the location prior) reads the default map.
               </p>
               <p>
                 <B>Where a map applies.</B> Parts of a 500 km circle hold conditions no survey site

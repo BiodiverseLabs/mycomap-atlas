@@ -521,7 +521,7 @@ function ModelMap({
         )}
         {ground === "full" && model && !model.map_withheld && !hasFullView(model) && !failed && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[500] mx-auto max-w-[90%] w-fit rounded-md bg-white/90 px-3 py-1 text-center text-xs text-muted-foreground shadow">
-            Only strong maps are drawn beyond 500 km; this one stays within its reach.
+            Not drawn beyond 500 km yet: this map gets its full view at its next fit.
           </div>
         )}
         {model?.map_withheld && (

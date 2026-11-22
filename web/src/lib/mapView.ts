@@ -66,7 +66,7 @@ export function openingView(points: readonly Point[], raster?: Extent | null): B
 
 /**
  * Which ground a map shows. "accessible", the default: within REACH_KM of the
- * records, where the model was fitted. "full": a strong map's full-extent
+ * records, where the model was fitted. "full": a strong or weak map's full-extent
  * view, the same colour scale carried everywhere conditions resemble its
  * known sites and hatched elsewhere. That is potential, not range: the model
  * cannot tell ground nobody surveyed from ground searched without a find.
@@ -79,15 +79,16 @@ export interface ViewableModel {
   full_map?: { bounds?: Extent | null } | null;
 }
 
-/** Whether a model can show the full view: only a strong map has one. */
+/** Whether a model can show the full view: a strong or weak map fitted since full views were drawn. */
 export function hasFullView(model?: ViewableModel | null): boolean {
   return model?.full_map?.bounds != null;
 }
 
 /**
  * What a model's overlay draws in the view asked for: the full-extent PNG
- * where the model has one, else its default map (a weak or failed map makes
- * no claim beyond its reach, so it stays as it is). null with no map at all.
+ * where the model has one, else its default map (a failed map makes no
+ * claim beyond its reach, and a map fitted before full views has none, so
+ * it stays as it is). null with no map at all.
  */
 export function mapOverlay(
   model: ViewableModel | null | undefined,

@@ -76,7 +76,7 @@ test("a map shows its 500 km view unless the full view is asked for", () => {
   assert.deepEqual(mapOverlay(strong, "full"), { view: "full", bounds: [[14, -170], [72, -52]] });
 });
 
-test("only a strong map has a full view: a weak one stays within its reach", () => {
+test("a map with no full view stays within its reach (a failed one, or one fitted before full views)", () => {
   assert.equal(hasFullView(strong), true);
   assert.equal(hasFullView(weak), false);
   assert.equal(hasFullView(null), false);
