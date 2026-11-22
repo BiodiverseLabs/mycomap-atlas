@@ -442,6 +442,30 @@ test_that("the null test runs the stricter test from its sites, says so, and sco
   expect_identical(short[names(asked)], asked)
 })
 
+test_that("a map with many sites that knows nothing stops at its third null as good, not its fifth", {
+  skip_if_not_installed("maxnet")
+  # Sites drawn at random: the map knows nothing, and about half its nulls
+  # do as well.
+  world <- null_world("habitat")
+  world$presence[] <- 0L
+  set.seed(5)
+  world$presence[sample.int(nrow(world), 60)] <- 1L
+  n <- sum(world$presence == 1L)
+  folds <- atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1, presence = world$presence)
+  algo <- atlas_algorithm("maxnet")
+  extend <- utils::modifyList(ATLAS_NULL_EXTEND, list(from = 9L, to = 15L))
+  large <- list(sites = n, reps = 39L, stop_after = 3L, alpha = 0.015)
+  got <- atlas_null_test_sequential(world, folds, algo, reps = 9L, seed = 3, design = "shift",
+                                    stop_after = 5L, extend = extend, large = large)
+  expect_true(got$large)
+  expect_true(got$stopped_early)
+  expect_equal(got$auc_p, round(3 / got$reps, 4))
+  expect_equal(atlas_skill(got, 0.3), "failed")
+  five <- atlas_null_test_sequential(world, folds, algo, reps = 39L, seed = 3, design = "shift", stop_after = 5L)
+  expect_true(five$stopped_early)
+  expect_lt(got$reps, five$reps)
+})
+
 # Pooled fold splits (atlas_null_fold_splits): the map and every null are
 # scored on several splits and compared by the mean.
 test_that("the pooled test's first split is the map's own, the others are dealt afresh, and the random stream is left as it was", {
