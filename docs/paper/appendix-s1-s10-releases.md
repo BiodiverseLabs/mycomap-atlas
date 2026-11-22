@@ -296,9 +296,9 @@ rates were 5.0% and 5.5%. Raising the cap from 199 to 499 nulls changed
 nothing measurable on a first, incomplete run; the rise comes from pooling the
 splits. Power and grade stability under the candidate were not measured. The
 test is held until a size-corrected cut-off, registered before it is checked,
-passes about 5% on fresh virtual species (seed 2). [PENDING: the
-size-corrected cut-off, its check on seed 2, and the first release graded by
-it.]
+passes about 5% on fresh virtual species (seed 2). [PENDING: seed 2's check of
+the size-corrected cut-off registered before it ran (E1e,
+`2026-11-22-large-taxon-rule-seed2.md`), and the first release graded by it.]
 
 ## S10.2 Cost and time
 
