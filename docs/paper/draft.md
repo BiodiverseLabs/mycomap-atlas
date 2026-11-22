@@ -755,15 +755,15 @@ unchanged chance, 28 borderline, and 52 where it moved. The moves mostly
 followed one to a few new detection sites, which re-deal the taxon's spatial
 folds and null draws. In 2 more flips, the Boyce index crossed zero
 (`2026-11-19-e11-grade-stability.md`). Near the line, then, a grade from one
-fold split and 99 nulls is not stable from one night to the next. A test that
-pools five fold splits and draws up to 199 nulls near the line was then
-measured on E1's species with no habitat signal (E1d; declared after the fact,
+fold split and 99 nulls is not stable from one night to the next. Map
+agreement between the two releases was not measured. A test that pools five
+fold splits and draws up to 199 nulls near the line was then measured on E1's
+species with no habitat signal (E1d; declared after the fact,
 `2026-11-21-null-rule-calibration.md`). It passed 6.5% of them for Maxent and
 6.6% for random forests, against 5.8% and 4.9% under the frozen release's
 test, and 11–13% at 200 or more sites. It is held until its cut-off is
 corrected and checked on fresh virtual species, and the nightly keeps the
-frozen release's test. Map agreement between the two releases was not
-measured. Details: Appendix S1: Section S10.
+frozen release's test. Details: Appendix S1: Section S10.
 
 ### 3.9 Q1: maps as a place signal for photo identification (E21, E22)
 
@@ -1506,6 +1506,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.15 (2026-11-22).** Editorial (coordinator): in 3.8, the sentence on map agreement moved ahead of the E1d text so it stays with E11's two nightly releases.
 - **0.23.14 (2026-11-22).** The pooled near-line null test measured on E1's virtual species (E1d, declared deviation; held, Steve): 3.8, evidence plan; Appendix S1 Sections S5.3 and S10.1c; cost ledger; registry entry `2026-11-21-null-rule-calibration.md`.
 - **0.23.13 (2026-11-20).** Strong share by detection sites and occupied 100 km blocks (descriptive; Steve): one sentence in 3.3; Appendix S1 Section S4.5 and Figure S1 (`figures/figS1.py`, `figS1.svg`, `figS1-data.md`); registry entry `2026-11-20-pass-by-sites-and-spread.md`.
 - **0.23.12 (2026-11-19).** Grade stability between nightly releases (E11, descriptive; Steve): 2.3, 3.3, 3.8, 4.3, Limits, evidence plan; Appendix S1 Section S10.1c; registry entry `2026-11-19-e11-grade-stability.md`.
