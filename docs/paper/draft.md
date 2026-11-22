@@ -755,10 +755,15 @@ unchanged chance, 28 borderline, and 52 where it moved. The moves mostly
 followed one to a few new detection sites, which re-deal the taxon's spatial
 folds and null draws. In 2 more flips, the Boyce index crossed zero
 (`2026-11-19-e11-grade-stability.md`). Near the line, then, a grade from one
-fold split and 99 nulls is not stable from one night to the next. Nightly
-releases will pool several splits and draw more nulls near the line; the
-frozen release keeps the rule it was graded by. Map agreement between the two
-releases was not measured. Details: Appendix S1: Section S10.
+fold split and 99 nulls is not stable from one night to the next. A test that
+pools five fold splits and draws up to 199 nulls near the line was then
+measured on E1's species with no habitat signal (E1d; declared after the fact,
+`2026-11-21-null-rule-calibration.md`). It passed 6.5% of them for Maxent and
+6.6% for random forests, against 5.8% and 4.9% under the frozen release's
+test, and 11–13% at 200 or more sites. It is held until its cut-off is
+corrected and checked on fresh virtual species, and the nightly keeps the
+frozen release's test. Map agreement between the two releases was not
+measured. Details: Appendix S1: Section S10.
 
 ### 3.9 Q1: maps as a place signal for photo identification (E21, E22)
 
@@ -1241,6 +1246,7 @@ data, command, result, release, commit).
 | E1b | Re-read the existing null study by site band | C1 | **Done 2026-10-13** (`docs/experiments/2026-10-13-null-calibration-by-band.md`): see 3.2 | 2026-10-06 virtual-species results file | read-only | P1 |
 | E1 | **Done 2026-10-29: C1 not supported as registered** (shift false pass 5.8% [4.3, 7.6] Maxent, 4.9% [3.6, 6.6] RF; scatter 75–82%; H1b–e hold; H1f fails by separation; Results 3.2). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e1-null-calibration.md`, amended 2026-10-13 before launch). Null calibration rerun: false pass and power by design × site band × habitat breadth × signal strength × learner (Maxent, RF, ESM), so power is a curve; map-to-truth ρ by grade | C1, C2 | Pre-freeze: 99 species, Maxent, 3 designs; power flat with sites (E1b) | `study-virtual` on the frozen pull and layers. Full models: habitat 5 site bands × 2 breadths × 2 signal strengths × 60 = 1,200, geography 5 bands × 2 centre counts × 80 = 800; Maxent and RF; scatter and shift ×99, stop at 5. ESM: 3 bands × (habitat 2 strengths × 80 + geography 120) = 840. Effort arms (E14) on the same species. Sizes doubled 2026-10-13 after the calibration pilot (`2026-10-13-e1-cost-pilot.md`) | est. 540–920 CPU-h ($27–46), pilot-scaled (`2026-10-13-e1-cost-pilot.md`), with an allowance for 200+ sites | P1 |
 | E1c | **Done: run 2026-10-25, read 2026-11-04**: of models passing the standard test, 84.2% [82.2, 85.9] are not strong; the test passes 35.7% of models (Results 3.3, S5). Plan: (`docs/experiments/2026-10-13-plan-e1c-standard-test-real-models.md`). Real models: share of the frozen release's maps that pass the standard test (19 scattered nulls, the old production design) but not the shift test | C1 | Shift results exist for every model of the frozen release; scatter does not | Scatter ×19 on a sample stratified by learner × site band × grade (~50 per cell, ~1,000 models); report the share with a CI, weighted to the release | est. 100–200 CPU-h ($5–10), ~1 day code | P1 |
+| E1d | **Done (declared deviation) 2026-11-21**: the candidate pooled near-line test (5 fold splits, up to 199 nulls near the line) on E1's 1,160 geography species, seed 1. False passes: Maxent 6.5% (E1 5.8%), random forest 6.6% (4.9%), ESM 1.7% (1.7%); 12.6% and 11.2% at 200+ sites. Held (Steve, 2026-11-21): size-corrected cut-off to be registered and checked on seed 2 before adoption (`docs/experiments/2026-11-21-null-rule-calibration.md`). Power not measured | C1, C4 | Seed 1 only; power and grade stability under the candidate not measured | E1's pull, layers and virtual species, read-only; two study runs | ≈ USD 55 (two runs) | P1 |
 | E2 | **Done 2026-10-19, C2 supported** (study-20261019T181851Z-35fc3d63; H2a 0.914 [0.886, 0.942], H2b 0.131 [0.090, 0.172], H2c 0.785 [0.763, 0.806]; tiers H2d–f hold; Results 3.4). **Pre-registered** (`docs/experiments/2026-10-13-prereg-e2-hindcast.md`). Hindcast: full graded job on records first validated ≤ 2026-08-17; score later finds by grade, new vs known places | C2 | **Approved 2026-10-13**: Vision's training run becomes this full graded job (nulls on, private never-promotable release); code ~1–1.5 days in the rebuild lane, after the full-view refresh | Cutoff-filtered pull; test set = first green > cutoff (optionally observed > cutoff); undated records dated or excluded, with a count | ~250–500 CPU-h ($10–25), runs after the cutover on Steve's go | P1 |
 | E3 | Prospective tracker by grade. **Registered 2026-10-21** (Steve): one read-out on the frozen release of finds first validated 2026-10-14 to 2026-12-15 (all unseen by it); read-out about 2026-12-16 | C2 | Built; ships at the rebuild cutover; backfill from 2026-10-03 | Daily scoring of new finds on the live release | ~0 compute; needs months of finds (3–6) | P1 (clock starts at cutover) |
 | E9 | **Redesigned 2026-10-25 (Steve): paired hindcast of both labellings, scored on E2's later finds** (see Path 7); earlier plan below, superseded. **Planned** (`docs/experiments/2026-10-13-plan-e9-record-names.md`); the refit runs as a private job (`plan-job --record-names`, on feat/hindcast ba03e73), the experiments lane builds only the comparison. Sequence names vs record names: refit affected taxa both ways | C3 | Counts yes (4,878 records with a different species or genus; ~1,435 taxa with ≥10 localities change) [pre-freeze]; refits no | Production (sequence names) is the frozen release; refit every taxon whose record set differs under record names (full graded fits, all learners); map Spearman and Schoener's D, grade changes, E2/E3 skill | est. 150–300 CPU-h ($8–15), 2–3 days | P1 |
@@ -1500,6 +1506,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.14 (2026-11-22).** The pooled near-line null test measured on E1's virtual species (E1d, declared deviation; held, Steve): 3.8, evidence plan; Appendix S1 Sections S5.3 and S10.1c; cost ledger; registry entry `2026-11-21-null-rule-calibration.md`.
 - **0.23.13 (2026-11-20).** Strong share by detection sites and occupied 100 km blocks (descriptive; Steve): one sentence in 3.3; Appendix S1 Section S4.5 and Figure S1 (`figures/figS1.py`, `figS1.svg`, `figS1-data.md`); registry entry `2026-11-20-pass-by-sites-and-spread.md`.
 - **0.23.12 (2026-11-19).** Grade stability between nightly releases (E11, descriptive; Steve): 2.3, 3.3, 3.8, 4.3, Limits, evidence plan; Appendix S1 Section S10.1c; registry entry `2026-11-19-e11-grade-stability.md`.
 - **0.23.11 (2026-11-14).** The 14 November 2026 models version in the text (Steve): 2.6, 4.1, 4.2, Open Research; Appendix S1 Sections S10 and S11; registry entry `2026-11-08-cells-now.md`; 4.1's iNaturalist accuracy rule stated exactly (over 1,000 m), and the same phrase in `2026-11-07-fingerprint-sizing.md`.

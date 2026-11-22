@@ -272,9 +272,33 @@ Maxent 3); the ensembles' block is fixed at 100 km. Limits: one night's refit
 set, the taxa whose records changed, not a sample of all taxa; the chance
 estimate takes π from one earlier test per model and holds the Boyce index
 fixed; map agreement between the releases (rank correlation of the maps) was
-not measured. Both releases ran on one processor family. [PENDING: the
-calibration of the nightly rule that pools several fold splits and draws more
-nulls near the line, and the first release graded by it.]
+not measured. Both releases ran on one processor family.
+
+**The pooled near-line test (E1d).** *Declared after the fact: E1's false-pass
+rates do not carry over to it* (`2026-11-21-null-rule-calibration.md`). The
+candidate test scores the map and every null on 5 fold splits, compared by
+mean AUC. If the first 99 nulls leave the map near the line, it goes on to
+199, stopping once 10 do as well, and passes at p = (1 + k)/200 ≤ 0.05. Each
+null is seeded from its own draw number. On E1's 1,160 geography species (seed
+1), its false-pass rates were:
+
+| Learner | Species | Frozen release's test | Candidate | Passed under one only (frozen / candidate; exact McNemar) |
+|---|---|---|---|---|
+| Maxent | 798 | 5.8% (4.3–7.6) | 6.5% (5.0–8.4) | 10 / 16 (p = 0.33) |
+| Random forest | 799 | 4.9% (3.6–6.6) | 6.6% (5.1–8.6) | 8 / 22 (p = 0.016) |
+| ESM | 360 | 1.7% (0.8–3.6) | 1.7% (0.8–3.6) | 1 / 1 |
+
+At 200 or more sites the candidate passed 12.6% (20 of 159) for Maxent and
+11.2% (18 of 160) for random forests, against 10.7% and 6.2% under the frozen
+release's test. Of these 38, 22 passed their first 99 nulls outright, and
+their shifted nulls were nearly all placed best-effort. Below 200 sites the
+rates were 5.0% and 5.5%. Raising the cap from 199 to 499 nulls changed
+nothing measurable on a first, incomplete run; the rise comes from pooling the
+splits. Power and grade stability under the candidate were not measured. The
+test is held until a size-corrected cut-off, registered before it is checked,
+passes about 5% on fresh virtual species (seed 2). [PENDING: the
+size-corrected cut-off, its check on seed 2, and the first release graded by
+it.]
 
 ## S10.2 Cost and time
 

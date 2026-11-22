@@ -70,7 +70,10 @@ bands.
 | 100–199 | 7/160 = 4.4% (2.1–8.8) | 7/160 = 4.4% (2.1–8.8) | 96.9% | 96.9% |
 | 200+ | 17/159 = 10.7% (6.8–16.5) | 10/160 = 6.3% (3.4–11.1) | 99.4% | 100% |
 
-Scatter trend, one-sided: Maxent p 3.6e-59, random forest p 4.2e-40.
+Scatter trend, one-sided: Maxent p 3.6e-59, random forest p 4.2e-40. These
+rates are for the frozen release's test (one fold split, up to 99 nulls). A
+candidate test that pools five splits passed more of the same species (E1d,
+Appendix S1: Section S10.1c).
 
 ## S5.4 Power of the shifted null
 

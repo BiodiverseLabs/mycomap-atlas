@@ -84,6 +84,8 @@ the orchestrator, S3 and boot time before a worker writes its start.
 | 2026-10-29 | E9 study-compare | — | 1 shard | — | — | — | ≈ 0.05 | — | |
 | 2026-10-28 | E16 descriptives | — | the public API and the Atlas box (read-only) | — | — | — | 0 (no EC2) | — | |
 | 2026-10-25 | E1c standard-test rescan | study-20261025T160517Z-0c069800 (and a first launch without layers, study-20261025T155216Z-725a1d1e) | 2 × r7i.8xlarge, spot | 1,083 models | ≈ 30 (code's estimate) | ≈ 1.2 instance-h | ≤ 2.6 | — | one reclaim before reporting |
+| 2026-11-20 | E1d candidate null test, run 1 (failed, partly salvaged) | study-20261120T165750Z-6d041658 | 8 × r7i.8xlarge, spot | 1,073 of 1,160 species salvaged | — | — | ≈ 28 | — | failed on spot reclaims (two job-runner faults, since fixed); up to 499 nulls near the line |
+| 2026-11-21 | E1d candidate null test, run 2 (the measurement) | study-20261121T201819Z-6d041658 | 8 × r7i.8xlarge, on-demand | 1,160 species | — (198.4 species-h) | 2.02 h; 12.93 instance-h | ≈ 27 | — | one attempt per worker; up to 199 nulls near the line |
 | — | E3 read-out | [PENDING] | | | | | est. E1 27–46 (doubled sizes); E1c 5–10; E9 8–15; E6a 12–15 | | estimates from Appendix A and the pilots |
 
 ## Standing costs
