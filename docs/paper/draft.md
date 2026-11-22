@@ -1506,6 +1506,7 @@ revised (Path).
 
 ## Changelog
 
+- **0.23.16 (2026-11-22).** Pre-registration added, before seed 2 ran: the stricter null test at 200 or more sites and its check on fresh virtual species (E1e; Steve), registry entry `2026-11-22-large-taxon-rule-seed2.md` (commit 392e26b4e). No paper text changes until seed 2 is read.
 - **0.23.15 (2026-11-22).** Editorial (coordinator): in 3.8, the sentence on map agreement moved ahead of the E1d text so it stays with E11's two nightly releases.
 - **0.23.14 (2026-11-22).** The pooled near-line null test measured on E1's virtual species (E1d, declared deviation; held, Steve): 3.8, evidence plan; Appendix S1 Sections S5.3 and S10.1c; cost ledger; registry entry `2026-11-21-null-rule-calibration.md`.
 - **0.23.13 (2026-11-20).** Strong share by detection sites and occupied 100 km blocks (descriptive; Steve): one sentence in 3.3; Appendix S1 Section S4.5 and Figure S1 (`figures/figS1.py`, `figS1.svg`, `figS1-data.md`); registry entry `2026-11-20-pass-by-sites-and-spread.md`.
