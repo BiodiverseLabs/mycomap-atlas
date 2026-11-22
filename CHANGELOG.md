@@ -165,6 +165,15 @@ changed and what it means for you.
   releases before that, and the archived releases, keep the 99-null test on
   one split.
 
+- **A map with 200 or more sites is held to a stricter null test.** Pooled
+  over the splits, the test above passed about 1 in 9 maps of virtual
+  species with no habitat signal at 200 or more sites, against about 1 in 20
+  below. So from 200 sites it runs 199 nulls with no early pass, stops
+  once 3 have done as well as the map, and passes at p <= 0.015: at most 2
+  of 199 as good. Below 200 sites nothing changes. Each model's `null` now
+  says whether it had this test (`large`) and the level its `auc_p` is read
+  at (`alpha`).
+
 - **Weak maps get a full-extent view too.** Like a strong map's, it carries
   the colour scale beyond 500 km wherever conditions resemble the known
   sites, and is drawn faint, as the weak map itself is. It claims nothing:

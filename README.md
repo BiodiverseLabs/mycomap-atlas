@@ -625,6 +625,11 @@ null, and otherwise the test draws on, stopping after 10, and passes at
 p = (1 + k) / 200 <= 0.05. Production also pools the test over five fold
 splits (`ATLAS_NULL_SPLITS`, `atlas_null_fold_splits`): the map and every
 null are scored on each and compared by the mean, the map's own split first.
+From 200 sites (`ATLAS_NULL_LARGE`, `atlas_null_plan`) production runs a
+stricter test in place of the extension: 199 nulls with no clear pass on the
+first 99, stopping after 3, passing at p <= 0.015, that is at most 2 of 199
+nulls as good. Pooled, the extended test passed about 12% of maps of virtual
+species with no habitat signal at 200 or more sites, against about 5% below.
 The studies run the 99-null test on one split unless asked otherwise.
 `atlas_null_qvalues` gives Benjamini-Hochberg
 q-values across taxa. The virtual-species study compares the designs:

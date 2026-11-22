@@ -230,10 +230,13 @@ atlas_usage <- function() {
   message("      --out=study/<id>/         also copy the results to this store prefix")
   message("      --workers=N               species at once (default 1)")
   message("      --null-rule=e1|production e1 (default): E1's 99-null test on one split; production:")
-  message("                                production's test now (pooled splits, more nulls near the line)")
+  message("                                production's test now (pooled splits, more nulls near the line,")
+  message("                                a stricter test from 200 sites)")
   message("      --designs=shift,scatter   the null designs (default both)")
   message("      --effort-arms=none|a,b    the Maxent effort arms (default all three; none for no arms)")
   message("      --kinds=geography,habitat only these species (default both)")
+  message("      --bands=habitat:200+      only these bands of a kind (kind:band, comma-separated;")
+  message("                                a kind not named keeps every band)")
   message("      --pool-from=study/<id>/   read a full run: its shards pooled, the pre-registered tests")
   message("  study-repro --draw paper E12's refit arms: the drawn models of --release=ID, graded, each on its")
   message("                     own fitting job's inputs ([--label] [--order=seeded|reverse] [--workers=N])")
@@ -1033,7 +1036,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         null_rule = as.character(flags$null_rule %||% "e1"),
         designs = list_flag(flags$designs, ATLAS_CALIBRATION_DESIGNS),
         effort_arms = setdiff(list_flag(flags$effort_arms, ATLAS_CALIBRATION_EFFORT_ARMS), "none"),
-        kinds = list_flag(flags$kinds, c("habitat", "geography"))
+        kinds = list_flag(flags$kinds, c("habitat", "geography")),
+        bands = list_flag(flags$bands, NULL)
       )
       invisible(0L)
     },

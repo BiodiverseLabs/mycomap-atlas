@@ -42,6 +42,15 @@
 # 499, stopping after 25, until 2026-11-20: a near-line Maxent with hundreds
 # of sites could then take longer than a worker's deadline.)
 #
+# Pooled over fold splits, the test passed more than its share of maps that
+# know nothing when they have many sites: on E1's virtual species with no
+# habitat signal, 12.6% of Maxent and 11.2% of random-forest maps at 200 or
+# more sites (2026-11-21), against about 5% below. So from 200 sites
+# production runs a stricter test in place of the extension
+# (ATLAS_NULL_LARGE, atlas_null_plan; Steve 2026-11-22): 199 nulls with no
+# clear pass on the first 99, stopping after 3, passing at p <= 0.015, that
+# is at most 2 of 199 as good.
+#
 # One fold split decides a lot too: a record that changes one block re-deals
 # every fold, and at 10 to 60 sites the map's score against its nulls moves
 # with the split it got (paper E11, 2026-11-19). So production scores the map
@@ -192,6 +201,25 @@ atlas_null_near_line <- function(scored, above, stopped, extend) {
   if (isTRUE(stopped)) scored >= extend$near_from else above > extend$clear_pass
 }
 
+#' The test a taxon of n detection sites gets: reps nulls stopping after
+#' stop_after, with extend near the line, at level alpha. With large
+#' (production's ATLAS_NULL_LARGE), a taxon of large$sites or more whose test
+#' is production's (reps is extend$from, the first stage the extension was
+#' calibrated for) gets large$reps nulls instead, stopping after
+#' large$stop_after, with no extension, at large$alpha; is_large says so.
+#' Without large, or below its sites, the test is as asked, at
+#' ATLAS_SKILL_ALPHA.
+atlas_null_plan <- function(n, reps, stop_after, extend = NULL, large = NULL) {
+  is_large <- !is.null(large) && !is.null(extend) &&
+    identical(as.integer(reps), as.integer(extend$from)) && isTRUE(n >= large$sites)
+  if (!is_large) {
+    return(list(reps = as.integer(reps), stop_after = as.integer(stop_after), extend = extend,
+                large = FALSE, alpha = ATLAS_SKILL_ALPHA))
+  }
+  list(reps = as.integer(large$reps), stop_after = as.integer(large$stop_after), extend = NULL,
+       large = TRUE, alpha = as.numeric(large$alpha))
+}
+
 #' Draw nulls in batches until reps are scored or stop_after of them have
 #' done at least as well as the taxon, then, when extend is given and the
 #' first reps ended near the pass line, on to extend$to, stopping at
@@ -270,6 +298,10 @@ atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L
 #' share of their points that landed far from a site. With extend, also
 #' whether the test went on past its first stage, and that stage's nulls and p.
 #'
+#' With large (production's ATLAS_NULL_LARGE) a taxon with many sites gets its
+#' stricter test instead (atlas_null_plan), and the result says whether it did
+#' (large) and the level its p is read at (alpha, which atlas_skill uses).
+#'
 #' folds is one fold split, or a list of them (production's pooled test,
 #' atlas_null_fold_splits): the taxon and every null are then scored on each
 #' split, and compared by the mean over the splits; observed_auc is that mean,
@@ -285,11 +317,12 @@ atlas_null_sequence <- function(observed_auc, fetch, reps = 99L, stop_after = 5L
 atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed = 1L,
                                        design = "scatter", stop_after = 5L, batch = 10L,
                                        extend = NULL, cores = atlas_null_cores,
-                                       map = atlas_null_fork_map) {
+                                       map = atlas_null_fork_map, large = NULL) {
   design <- atlas_null_design(design)
   if (!reps) return(list(reps = 0L))
   params <- atlas_null_params(algo, training)
   n <- sum(training$presence == 1L)
+  plan <- atlas_null_plan(n, reps, stop_after, extend, large)
   summarise <- function(scores) {
     if (is.null(scores)) return(c(auc = NA_real_, boyce = NA_real_))
     c(auc = mean(scores$auc, na.rm = TRUE), boyce = atlas_pooled_boyce(scores))
@@ -384,8 +417,8 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
       c(score, best_effort = as.numeric(attr(table, "best_effort")), far_share = as.numeric(attr(table, "far_share")))
     }, scores, tables)
   }
-  run <- atlas_null_sequence(observed[["auc"]], fetch, reps = reps, stop_after = stop_after,
-                             batch = batch_now, extend = extend)
+  run <- atlas_null_sequence(observed[["auc"]], fetch, reps = plan$reps, stop_after = plan$stop_after,
+                             batch = batch_now, extend = plan$extend)
   aucs <- run$aucs
   boyces <- run$boyces[is.finite(run$boyces)]
   best_effort <- sum(vapply(run$used, function(r) r[["best_effort"]], numeric(1)))
@@ -409,6 +442,9 @@ atlas_null_test_sequential <- function(training, folds, algo, reps = 99L, seed =
     extended = run$extended,
     first_reps = run$first$reps,
     first_auc_p = round(run$first$p, 4)
+  ), if (!is.null(large)) list(
+    large = plan$large,
+    alpha = plan$alpha
   ), if (pooled) list(
     splits = length(splits),
     first_split_auc = round(by_split[[1]][["auc"]], 3)

@@ -3010,7 +3010,7 @@
               "failed",
               "untested"
             ],
-            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well. Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
+            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 (0.015 for a map with 200 or more sites: null.alpha) with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well; near the pass line, and from 200 sites, it draws up to 199 (null.extended, null.large). Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
           },
           "grade": {
             "type": "string",
@@ -3063,7 +3063,7 @@
               },
               "stopped_early": {
                 "type": "boolean",
-                "description": "The sequential test stopped once 5 nulls did as well as the map, or 25 when it went on past its first stage (extended)."
+                "description": "The sequential test stopped once 5 nulls did as well as the map, 10 when it went on past its first stage (extended), or 3 under the stricter test (large)."
               },
               "extended": {
                 "type": "boolean",
@@ -3076,6 +3076,14 @@
               "first_auc_p": {
                 "type": "number",
                 "description": "auc_p after the first stage alone, as fits from before the near-line extension were graded. Absent for those fits."
+              },
+              "large": {
+                "type": "boolean",
+                "description": "The map has 200 or more sites, so it had the stricter test in place of the near-line extension: up to 199 nulls with no early pass, stopping once 3 did as well, passing at alpha. Absent for fits from before it."
+              },
+              "alpha": {
+                "type": "number",
+                "description": "The level auc_p is read at: 0.015 under the stricter test (large), else 0.05. Absent for fits from before the stricter test, which were read at 0.05."
               },
               "drawn": {
                 "type": "integer",
@@ -3275,7 +3283,7 @@
               "failed",
               "untested"
             ],
-            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well. Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
+            "description": "Whether the taxon beat its null models on blocked AUC at p <= 0.05 (0.015 for a map with 200 or more sites: null.alpha) with a positive blocked Boyce index (boyce). Since 2026-10-08 the nulls are shifted: the taxon's own detections rotated and moved onto other survey sites, so its clustering is kept, up to 99 of them, the test stopping once 5 have done as well; near the pass line, and from 200 sites, it draws up to 199 (null.extended, null.large). Fits from before used 19 scattered nulls. Use grade, not skill, to decide whether to use a map."
           },
           "grade": {
             "type": "string",

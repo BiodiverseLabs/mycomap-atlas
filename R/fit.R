@@ -61,6 +61,19 @@ ATLAS_NULL_STOP_AFTER <- 5L
 # --null-rule=production) before it goes into production. Models fitted
 # before it record a first stage only, and are stale (atlas_design).
 ATLAS_NULL_EXTEND <- list(from = 99L, to = 199L, stop_after = 10L, clear_pass = 1L, near_from = 50L)
+# A taxon with many sites gets a stricter test in place of the extension
+# (R/nulls.R, atlas_null_plan; Steve, 2026-11-22). Pooled over the splits, the
+# extended test passed 12.6% of Maxent and 11.2% of random-forest virtual
+# species with no habitat signal at 200 or more sites, against 5.0% and 5.5%
+# below (the calibration run of 2026-11-21). From `sites` detection sites the
+# test draws `reps` nulls with no clear pass on the first 99, stops after
+# `stop_after` as good, and passes at p <= `alpha`: at most 2 of 199 nulls as
+# good. A test that stops fails, as p = 3 / scored is above 0.015 for any
+# count up to 199. The count, 2, was chosen on that run from 1, 2 or 3, and
+# is checked on fresh virtual species (seed 2) before it goes into
+# production. Recorded in the design (skill$large), so models fitted before
+# it are stale.
+ATLAS_NULL_LARGE <- list(sites = 200L, reps = 199L, stop_after = 3L, alpha = 0.015)
 # Fold splits the null test pools over (R/nulls.R, atlas_null_fold_splits;
 # Steve, 2026-11-19): the map and every null are scored on each, and compared
 # by the mean. The first is the map's own split, so its scores do not change.
@@ -908,11 +921,14 @@ atlas_null_test <- function(training, folds, algo, reps = ATLAS_NULL_REPS, seed 
 
 #' Whether a map has shown it knows something: its AUC beats the null models
 #' and its Boyce index, over every held-out score together, says higher ground
-#' holds more detections. "untested" when no nulls were run.
-atlas_skill <- function(null, boyce, alpha = ATLAS_SKILL_ALPHA) {
+#' holds more detections. "untested" when no nulls were run. The AUC's level
+#' is the one the null test says it was run at (alpha: a taxon with many
+#' sites, ATLAS_NULL_LARGE), else ATLAS_SKILL_ALPHA.
+atlas_skill <- function(null, boyce, alpha = NULL) {
   if (is.null(null) || !isTRUE(null$reps > 0) || !is.finite(null$auc_p %||% NA_real_)) {
     return("untested")
   }
+  alpha <- as.numeric(alpha %||% null$alpha %||% ATLAS_SKILL_ALPHA)
   if (null$auc_p <= alpha && is.finite(boyce) && boyce > 0) "passed" else "failed"
 }
 
@@ -989,7 +1005,7 @@ atlas_design <- function() list(
                boyce = "held-out scores of every fold together",
                nulls = "taxon and nulls both at untuned settings",
                design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER,
-               near_line = ATLAS_NULL_EXTEND,
+               near_line = ATLAS_NULL_EXTEND, large = ATLAS_NULL_LARGE,
                grades = "strong: passed shifted nulls; weak: held-out skill only; failed"),
   applicability = list(method = "dissimilarity index, Meyer & Pebesma 2021",
                        weights = "mean fall in held-out AUC per predictor",
@@ -1229,7 +1245,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
                              seed = seed, presence = training$presence, splits = null_splits),
       algo, reps = nulls, seed = seed,
       design = ATLAS_NULL_DESIGN, stop_after = ATLAS_NULL_STOP_AFTER,
-      extend = ATLAS_NULL_EXTEND
+      extend = ATLAS_NULL_EXTEND, large = ATLAS_NULL_LARGE
     ))
   } else {
     list(reps = 0L)

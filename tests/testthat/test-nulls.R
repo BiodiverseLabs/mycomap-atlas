@@ -163,6 +163,9 @@ test_that("a fitted map's null test is the shifted one, and its grade follows it
     # the 99 it was calibrated for, so it stands.
     expect_false(metrics$null$extended)
     expect_equal(metrics$null$first_reps, metrics$null$reps)
+    # It asks for the stricter test too, which a taxon this small is not given.
+    expect_false(metrics$null$large)
+    expect_equal(metrics$null$alpha, ATLAS_SKILL_ALPHA)
     expect_true(metrics$grade %in% c("strong", "weak", "failed"))
     expect_equal(metrics$grade, atlas_map_grade(metrics$skill, metrics$null, metrics$auc_mean,
                                                 metrics$boyce))
@@ -311,6 +314,132 @@ test_that("the extension is for a first stage of 99, and without it the test is 
                                          design = "shift", stop_after = 5L, extend = ATLAS_NULL_EXTEND)
   expect_false(extended$extended)
   expect_identical(extended[names(study)], study)
+})
+
+# A taxon with many sites (ATLAS_NULL_LARGE, atlas_null_plan): 199 nulls,
+# no clear pass on the first 99, stopping after 3, passing at p <= 0.015.
+large_nulls <- function(beats = integer(), fails = integer(), batch = 10L) {
+  plan <- atlas_null_plan(250L, ATLAS_NULL_REPS, ATLAS_NULL_STOP_AFTER, ATLAS_NULL_EXTEND, ATLAS_NULL_LARGE)
+  run <- atlas_null_sequence(0.8, scripted_nulls(beats, fails), reps = plan$reps, stop_after = plan$stop_after,
+                             batch = batch, extend = plan$extend)
+  run$verdict <- atlas_skill(list(reps = length(run$aucs), auc_p = round(run$p, 4), alpha = plan$alpha), 0.3)
+  run
+}
+
+test_that("from 200 sites production tests a map against 199 nulls, stopping after 3, and passes it at p <= 0.015", {
+  expect_equal(ATLAS_NULL_LARGE, list(sites = 200L, reps = 199L, stop_after = 3L, alpha = 0.015))
+  # Recorded in the design, so every model fitted before it is stale.
+  expect_equal(atlas_design()$skill$large, ATLAS_NULL_LARGE)
+  # At most 2 of 199 as good passes, and a test that stops fails, wherever it stops.
+  expect_lte((1 + 2) / 200, ATLAS_NULL_LARGE$alpha)
+  expect_gt(round(ATLAS_NULL_LARGE$stop_after / ATLAS_NULL_LARGE$reps, 4), ATLAS_NULL_LARGE$alpha)
+})
+
+test_that("a taxon of 200 sites or more gets the stricter test, one of 199 the near-line extension", {
+  below <- atlas_null_plan(199L, 99L, 5L, ATLAS_NULL_EXTEND, ATLAS_NULL_LARGE)
+  expect_equal(below, list(reps = 99L, stop_after = 5L, extend = ATLAS_NULL_EXTEND, large = FALSE,
+                           alpha = ATLAS_SKILL_ALPHA))
+  at <- atlas_null_plan(200L, 99L, 5L, ATLAS_NULL_EXTEND, ATLAS_NULL_LARGE)
+  expect_equal(at, list(reps = 199L, stop_after = 3L, extend = NULL, large = TRUE, alpha = 0.015))
+  expect_true(atlas_null_plan(344L, 99L, 5L, ATLAS_NULL_EXTEND, ATLAS_NULL_LARGE)$large)
+  # Only production's test: a first stage of 99 with the extension, as it
+  # was calibrated. The studies' tests, and a short test, are as asked.
+  expect_false(atlas_null_plan(300L, 99L, 5L, NULL, ATLAS_NULL_LARGE)$large)
+  expect_false(atlas_null_plan(300L, 19L, 5L, ATLAS_NULL_EXTEND, ATLAS_NULL_LARGE)$large)
+  expect_equal(atlas_null_plan(300L, 19L, 5L, ATLAS_NULL_EXTEND, ATLAS_NULL_LARGE)$reps, 19L)
+  expect_false(atlas_null_plan(300L, 99L, 5L, ATLAS_NULL_EXTEND, NULL)$large)
+})
+
+test_that("for a taxon with many sites, 2 of 199 nulls as good passes and a third fails, even on the last null", {
+  two <- large_nulls(beats = c(40, 150))
+  expect_false(two$stopped)
+  expect_false(two$extended)
+  expect_equal(length(two$aucs), 199)
+  expect_equal(two$p, 3 / 200)
+  expect_equal(two$verdict, "passed")
+  last <- large_nulls(beats = c(40, 150, 199))
+  expect_true(last$stopped)
+  expect_equal(length(last$aucs), 199)
+  expect_equal(last$p, 3 / 199)
+  expect_equal(last$verdict, "failed")
+  # Below 200 sites, 3 as good of 199 would pass.
+  expect_lte((1 + 3) / 200, ATLAS_SKILL_ALPHA)
+  early <- large_nulls(beats = c(5, 10, 15))
+  expect_true(early$stopped)
+  expect_equal(length(early$aucs), 15)
+  expect_equal(early$verdict, "failed")
+})
+
+test_that("for a taxon with many sites, a clear first 99 does not stand: the test goes on to 199", {
+  # One of the first 99 as good is a clear pass below 200 sites.
+  clear <- run_nulls(beats = c(10, 150, 160))
+  expect_false(clear$extended)
+  expect_equal(length(clear$aucs), 99)
+  expect_lte(clear$p, ATLAS_SKILL_ALPHA)
+  run <- large_nulls(beats = c(10, 150, 160))
+  expect_equal(length(run$aucs), 160)
+  expect_true(run$stopped)
+  expect_equal(run$verdict, "failed")
+  none <- large_nulls()
+  expect_equal(length(none$aucs), 199)
+  expect_equal(none$p, 1 / 200)
+  expect_equal(none$verdict, "passed")
+})
+
+test_that("for a taxon with many sites, failed nulls are replaced and the batch size changes nothing", {
+  runs <- lapply(c(1L, 7L, 10L, 33L), function(b) large_nulls(beats = c(30, 170), fails = c(5, 60, 120), batch = b))
+  for (run in runs[-1]) {
+    expect_identical(run[c("aucs", "above", "stopped", "p", "verdict")],
+                     runs[[1]][c("aucs", "above", "stopped", "p", "verdict")])
+  }
+  expect_equal(runs[[1]]$drawn, 199 + 3)
+  expect_equal(runs[[1]]$verdict, "passed")
+  # Too few nulls scored to reach 199: 2 as good is then not enough.
+  short <- large_nulls(beats = c(30, 100), fails = 150:1200)
+  expect_equal(short$drawn, 2 * 199)
+  expect_equal(length(short$aucs), 149)
+  expect_equal(short$p, 3 / 150)
+  expect_equal(short$verdict, "failed")
+})
+
+test_that("a map is passed at the level its null test was run at, else at 0.05", {
+  null <- list(reps = 199L, auc_p = 0.02)
+  expect_equal(atlas_skill(null, 0.3), "passed")
+  expect_equal(atlas_skill(c(null, list(alpha = 0.015)), 0.3), "failed")
+  expect_equal(atlas_skill(list(reps = 199L, auc_p = 0.015, alpha = 0.015), 0.3), "passed")
+  expect_equal(atlas_skill(list(reps = 199L, auc_p = 0.015, alpha = 0.015), -0.1), "failed")
+  expect_equal(atlas_skill(c(null, list(alpha = 0.015)), 0.3, alpha = 0.05), "passed")
+  expect_equal(atlas_skill(list(reps = 0L), 0.3), "untested")
+})
+
+test_that("the null test runs the stricter test from its sites, says so, and scores the same nulls as asked for directly", {
+  skip_if_not_installed("maxnet")
+  world <- null_world("habitat")
+  n <- sum(world$presence == 1L)
+  folds <- atlas_spatial_folds(world$x, world$y, k = 5, block_km = 200, seed = 1, presence = world$presence)
+  algo <- atlas_algorithm("maxnet")
+  # Production's rule, scaled down so a test is quick: from n sites, 19
+  # nulls stopping after 3, in place of a first stage of 9 with its extension.
+  extend <- utils::modifyList(ATLAS_NULL_EXTEND, list(from = 9L, to = 15L))
+  large <- list(sites = n, reps = 19L, stop_after = 3L, alpha = 0.015)
+  got <- atlas_null_test_sequential(world, folds, algo, reps = 9L, seed = 3, design = "shift",
+                                    stop_after = 5L, extend = extend, large = large)
+  expect_true(got$large)
+  expect_equal(got$alpha, 0.015)
+  expect_false(got$extended)
+  direct <- atlas_null_test_sequential(world, folds, algo, reps = 19L, seed = 3, design = "shift",
+                                       stop_after = 3L)
+  expect_identical(got[names(direct)], direct)
+  # One site short of the rule, the test is the one asked for.
+  short <- atlas_null_test_sequential(world, folds, algo, reps = 9L, seed = 3, design = "shift",
+                                      stop_after = 5L, extend = extend,
+                                      large = utils::modifyList(large, list(sites = n + 1L)))
+  expect_false(short$large)
+  expect_equal(short$alpha, ATLAS_SKILL_ALPHA)
+  asked <- atlas_null_test_sequential(world, folds, algo, reps = 9L, seed = 3, design = "shift",
+                                      stop_after = 5L, extend = extend)
+  expect_null(asked$large)
+  expect_identical(short[names(asked)], asked)
 })
 
 # Pooled fold splits (atlas_null_fold_splits): the map and every null are

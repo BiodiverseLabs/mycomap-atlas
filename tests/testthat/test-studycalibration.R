@@ -337,6 +337,33 @@ test_that("a plan-only run sizes the layout and shards it", {
   expect_equal(half$species, 1420L)
 })
 
+test_that("a run can keep some bands of a kind, before sharding, and draw each species as the full layout does", {
+  layout <- atlas_calibration_layout()
+  # Seed 2's check (2026-11-22): every geography species, and the habitat
+  # species at 200+ sites.
+  plan <- atlas_calibration_study(plan_only = TRUE, quiet = TRUE, bands = "habitat:200+")
+  expect_equal(plan$species, 1160L + 240L)
+  expect_equal(plan$by_family[["full habitat"]], 240L)
+  expect_equal(plan$by_family[["full geography"]], 800L)
+  expect_equal(plan$by_family[["esm geography"]], 360L)
+  half <- atlas_calibration_study(plan_only = TRUE, quiet = TRUE, bands = "habitat:200+", shard = "1/2")
+  expect_equal(half$species, 700L)
+  only <- atlas_calibration_study(plan_only = TRUE, quiet = TRUE, kinds = "habitat",
+                                  bands = c("habitat:200+", "habitat:100-199"))
+  expect_equal(only$species, 480L)
+  expect_equal(atlas_calibration_bands(c("habitat:200+", "habitat:100-199", "habitat:200+")),
+               list(habitat = c("200+", "100-199")))
+  expect_equal(atlas_calibration_bands(list(geography = "3-4")), list(geography = "3-4"))
+  expect_equal(atlas_calibration_bands(NULL), list())
+  expect_error(atlas_calibration_bands("habitat"), "kind:band")
+  expect_error(atlas_calibration_bands("habitat:500+"), "no habitat band 500[+]")
+  expect_error(atlas_calibration_bands("fungus:200+"), "unknown kind 'fungus'")
+  # The flag, as a job passes it.
+  out <- capture.output(atlas_main(c("study-calibration", "--bands=habitat:200+", "--plan-only")), type = "message")
+  expect_true(any(grepl("1400 virtual species", out)))
+  expect_error(atlas_main(c("study-calibration", "--bands=habitat:1000+", "--plan-only")), "no habitat band")
+})
+
 test_that("a smoke run takes one species from every registered cell", {
   smoke <- atlas_calibration_layout(1L, 1L, 1L, 1L)
   expect_equal(nrow(smoke), 39L)
@@ -395,6 +422,8 @@ test_that("a run of production's null test draws E1's species again and pools th
     expect_equal(production$settings$null_rule, "production")
     expect_equal(production$settings$null_splits, ATLAS_NULL_SPLITS)
     expect_equal(production$settings$near_line$to, 199L)
+    expect_equal(production$settings$large, ATLAS_NULL_LARGE)
+    expect_null(e1$settings$large)
     expect_equal(unlist(production$settings$kinds), "geography")
     # Only the geography species, the same one E1 drew.
     expect_length(production$taxa, 1L)
@@ -407,6 +436,10 @@ test_that("a run of production's null test draws E1's species again and pools th
     expect_equal(names(nulls), "shift")
     expect_equal(nulls$shift$splits, ATLAS_NULL_SPLITS)
     expect_false(nulls$shift$extended)
+    # Below 200 sites: not the stricter test, and read at 0.05.
+    expect_false(nulls$shift$large)
+    expect_equal(nulls$shift$alpha, ATLAS_SKILL_ALPHA)
+    expect_null(e1_row$arms[[1]]$nulls$shift$large)
     expect_true(nulls$shift$verdict %in% c("passed", "failed"))
     expect_error(atlas_calibration_study(layout = layout[pick, ], null_rule = "other", quiet = TRUE,
                                          points = world$points, stack = world$stack))
