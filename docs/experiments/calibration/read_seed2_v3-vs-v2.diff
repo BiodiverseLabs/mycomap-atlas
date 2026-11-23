@@ -1,0 +1,100 @@
+--- calibration/read_seed2_v2.py	2026-11-23 01:41:43.010724400 -0500
++++ calibration/read_seed2_v3.py	2026-11-23 08:35:11.151984500 -0500
+@@ -30,6 +30,29 @@
+ # failure; one wholly above 5% still fails. Each way of counting the
+ # unscored, a part holds when its interval includes 5% or lies wholly below
+ # it; it is marked conservative when either way lies wholly below.
++#
++# Version 3, for the resume note of 2026-11-23
++# (registry/2026-11-23-large-taxon-rule-seed2-resume-note.md), written before
++# any seed-2 result was read. It differs from v2 (sha256 LF 78d2356c...) in
++# these four ways only:
++# 1. The expected learner-species come from seed 2's layout as well as from
++#    the saved results: the 1,400 species that R/studycalibration.R
++#    atlas_calibration_layout() keeps under --bands=habitat:200+ (LAYOUT,
++#    below). A species in no saved result and no log is counted unscored in
++#    the per-learner table. In v2 such a species was left out of that table.
++# 2. An unscored species that no saved result names takes its kind and band
++#    from the layout.
++# 3. The per-learner table also prints a learner, kind and band that has
++#    unscored species but no test, so such species are never silent.
++# 4. After the "learner-species tests" line, one more line: the layout's
++#    species, how many species the saved results name that the layout does
++#    not (expected 0), and how many layout species are in no saved result or
++#    log.
++# The success test already counted against the layout's totals in v2
++# (EXPECTED, 800 and 160 geography tests per learner) and is computed the
++# same way. Its unscored count can only rise, never fall, and it equals v2's
++# whenever every species carries its layout band. On a complete run v3
++# prints what v2 prints, plus the line in 4.
+ import collections, glob, json, math, os, re, sys
+ 
+ 
+@@ -67,6 +90,32 @@
+ EXPECTED = {('maxnet', 'all'): 800, ('rf', 'all'): 800, ('maxnet', '200+'): 160, ('rf', '200+'): 160}
+ 
+ 
++def seed2_layout():
++    # Seed 2's species, named as atlas_calibration_layout() names them: each
++    # kind numbered in the full layout's order (full bands low to high, each
++    # with its habitat species by breadth then signal, 60 each, then its
++    # geography species, 2 x 80; then the ESM bands, each with habitat 2 x 80
++    # and geography 120). --bands=habitat:200+ keeps habitat species at 200+
++    # only; every geography species is kept. 1,400 species.
++    out, h, g = {}, 0, 0
++    for band in BANDS[3:]:
++        for breadth in ('narrow', 'wide'):
++            for signal in ('strong', 'weak'):
++                for _ in range(60):
++                    h += 1
++                    if band == '200+': out[f'virtual-habitat-{h:04d}'] = ('habitat', band, breadth, signal, 'full')
++        for _ in range(160):
++            g += 1; out[f'virtual-geography-{g:04d}'] = ('geography', band, None, None, 'full')
++    for band in BANDS[:3]:
++        h += 160
++        for _ in range(120):
++            g += 1; out[f'virtual-geography-{g:04d}'] = ('geography', band, None, None, 'esm')
++    return out
++
++
++LAYOUT = seed2_layout()
++
++
+ def band_from(presences, learner):
+     lows = [3, 5, 10] if learner == 'esm' else [20, 30, 50, 100, 200]
+     labels = BANDS[:3] if learner == 'esm' else BANDS[3:]
+@@ -121,12 +170,15 @@
+ print(f'settings seen (seed, large, bands): {sorted(set(settings))}')
+ print(f'{len(got)} learner-species tests ({dict(source)}); {len(conflicts)} with copies that disagree; '
+       f'{len(info)} species named in saved results')
++named = set(info) | {t for (t, _) in got}
++print(f'layout: {len(LAYOUT)} species; named in saved results but not in the layout: {len(set(info) - set(LAYOUT))}; '
++      f'in the layout but in no saved result or log: {len(set(LAYOUT) - named)}')
+ 
+ # Expected learner-species, from the layout: Maxent and RF for full species,
+ # ESM for ESM species. A species named in no saved result is counted from the
+ # logs alone, so unscored counts are a floor when a shard saved nothing.
+ expected = set()
+-for taxon, (kind, band, breadth, signal, family) in info.items():
++for taxon, (kind, band, breadth, signal, family) in list(info.items()) + list(LAYOUT.items()):
+     for learner in (['esm'] if family == 'esm' else ['maxnet', 'rf']):
+         expected.add((taxon, learner))
+ band_of = {t: v[1] for t, v in info.items()}
+@@ -140,12 +192,14 @@
+         x = table[(learner, kind, b)]; x[0] += 1; x[1] += v['passed']
+ unscored = collections.Counter()
+ for (taxon, learner) in expected - set(got) - procedural:
+-    unscored[(learner, kind_of[taxon], band_of[taxon])] += 1
+-    unscored[(learner, kind_of[taxon], 'all')] += 1
++    kind = kind_of[taxon] if taxon in kind_of else LAYOUT[taxon][0]
++    band = band_of[taxon] if taxon in band_of else LAYOUT[taxon][1]
++    unscored[(learner, kind, band)] += 1
++    unscored[(learner, kind, 'all')] += 1
+ 
+ print('\nlearner kind      band     | passes (false passes for geography, power for habitat) | unscored')
+ order = lambda k: (k[0], k[1], BANDS.index(k[2]) if k[2] in BANDS else 99)
+-for key in sorted(table, key=order):
++for key in sorted(set(table) | set(unscored), key=order):
+     n, k = table[key]
+     print(f'{key[0]:7s} {key[1]:9s} {key[2]:8s} | {pct(k, n)} | {unscored[key]}')
+ 

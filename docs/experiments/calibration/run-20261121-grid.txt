@@ -1,0 +1,11 @@
+1597 learner-species tests read
+
+maxnet: 159 at 200+ (candidate rule passes 20), 639 below (passes 32, unchanged)
+  count 1 (p <= 0.010): 200+ 0.0-7.5%, estimate 4.7% (0 sure, 12 uncertain); overall 4.0-5.5%, estimate 5.0%
+  count 2 (p <= 0.015): 200+ 0.0-7.5%, estimate 5.9% (0 sure, 12 uncertain); overall 4.0-5.5%, estimate 5.2%
+  count 3 (p <= 0.020): 200+ 0.0-7.5%, estimate 6.6% (0 sure, 12 uncertain); overall 4.0-5.5%, estimate 5.3%
+
+rf: 160 at 200+ (candidate rule passes 18), 639 below (passes 35, unchanged)
+  count 1 (p <= 0.010): 200+ 0.0-6.2%, estimate 3.4% (0 sure, 10 uncertain); overall 4.4-5.6%, estimate 5.1%
+  count 2 (p <= 0.015): 200+ 0.0-6.2%, estimate 4.5% (0 sure, 10 uncertain); overall 4.4-5.6%, estimate 5.3%
+  count 3 (p <= 0.020): 200+ 0.0-6.2%, estimate 5.2% (0 sure, 10 uncertain); overall 4.4-5.6%, estimate 5.4%

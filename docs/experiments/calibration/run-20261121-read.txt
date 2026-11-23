@@ -1,0 +1,44 @@
+new rule: 1959 learner-species ({'saved': 1959}); 0 with copies that disagree
+499/25 salvage: 1830 learner-species ({'saved': 490, 'log': 1340}); E1: 1957
+
+learner band | species | E1 false pass | new-rule false pass | E1 only / new only | went past 99 (saved)
+esm     10-19      120 |   5 =  4.2% (1.8-9.4) |   4 =  3.3% (1.3-8.3) | 1 / 0 | 2
+esm     3-4        120 |   0 =  0.0% (-0.0-3.1) |   1 =  0.8% (0.1-4.6) | 0 / 1 | 1
+esm     5-9        120 |   1 =  0.8% (0.1-4.6) |   1 =  0.8% (0.1-4.6) | 0 / 0 | 1
+esm     all        360 |   6 =  1.7% (0.8-3.6) |   6 =  1.7% (0.8-3.6) | 1 / 1 | 4
+maxnet  100-199    159 |   7 =  4.4% (2.1-8.8) |   9 =  5.7% (3.0-10.4) | 2 / 4 | 15
+maxnet  20-29      160 |   6 =  3.8% (1.7-7.9) |   8 =  5.0% (2.6-9.6) | 1 / 3 | 14
+maxnet  200+       159 |  17 = 10.7% (6.8-16.5) |  20 = 12.6% (8.3-18.6) | 1 / 4 | 14
+maxnet  30-49      160 |   7 =  4.4% (2.1-8.8) |   5 =  3.1% (1.3-7.1) | 2 / 0 | 15
+maxnet  50-99      160 |   9 =  5.6% (3.0-10.3) |  10 =  6.2% (3.4-11.1) | 4 / 5 | 15
+maxnet  all        798 |  46 =  5.8% (4.3-7.6) |  52 =  6.5% (5.0-8.4) | 10 / 16 | 73
+rf      100-199    159 |   7 =  4.4% (2.1-8.8) |   9 =  5.7% (3.0-10.4) | 1 / 3 | 9
+rf      20-29      160 |   4 =  2.5% (1.0-6.3) |  11 =  6.9% (3.9-11.9) | 0 / 7 | 15
+rf      200+       160 |  10 =  6.2% (3.4-11.1) |  18 = 11.2% (7.2-17.1) | 1 / 9 | 12
+rf      30-49      160 |   9 =  5.6% (3.0-10.3) |   7 =  4.4% (2.1-8.8) | 3 / 1 | 8
+rf      50-99      160 |   9 =  5.6% (3.0-10.3) |   8 =  5.0% (2.6-9.6) | 3 / 2 | 10
+rf      all        799 |  39 =  4.9% (3.6-6.6) |  53 =  6.6% (5.1-8.6) | 8 / 22 | 54
+
+on the salvage's species: learner | species | 499/25 false pass | new-rule false pass | 499 only / new only
+esm       315 |   6 =  1.9% (0.9-4.1) |   5 =  1.6% (0.7-3.7) | 1 / 0
+maxnet    756 |  43 =  5.7% (4.2-7.6) |  41 =  5.4% (4.0-7.3) | 4 / 2
+rf        757 |  40 =  5.3% (3.9-7.1) |  40 =  5.3% (3.9-7.1) | 3 / 3
+
+unscored learner-species and the bounds they allow (all failed .. all passed):
+  esm     unscored    0 of  360: new-rule false pass 1.7% .. 1.7%; E1 on all 360: 1.7%
+  maxnet  unscored    0 of  798: new-rule false pass 6.5% .. 6.5%; E1 on all 798: 5.8%
+  rf      unscored    0 of  799: new-rule false pass 6.6% .. 6.6%; E1 on all 799: 4.9%
+
+time: 1160 species, 198.4 species-hours (each species' own clock), median 243 s, 90th 1714 s, slowest 6054 s
+  species over 1 h: 25; over 2 h: 0
+  on the 1073 species also in the salvage: 163.6 h vs 499/25 219.9 h
+  against E1 on 1160 species (E1 ran more arms): ratio median 1.1, 90th 2.8, max 9.3
+  band 10-19     120 species: median 153 s, slowest 804 s
+  band 100-199   159 species: median 981 s, slowest 4863 s
+  band 20-29     160 species: median 57 s, slowest 632 s
+  band 200+      160 species: median 1281 s, slowest 6054 s
+  band 3-4       120 species: median 62 s, slowest 1238 s
+  band 30-49     160 species: median 221 s, slowest 1944 s
+  band 5-9       120 species: median 114 s, slowest 742 s
+  band 50-99     160 species: median 420 s, slowest 3675 s
+  band ?           1 species: median 1 s, slowest 1 s
