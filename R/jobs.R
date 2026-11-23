@@ -968,7 +968,7 @@ atlas_job_timing <- function(store = atlas_store(), id, grid = "draft", fits_at_
   )))
   full_models <- length(job$tasks) + (job$deferred %||% 0L)
   cpu_hours <- if (nrow(timed)) mean(timed$seconds) * full_models / 3600 else NA_real_
-  # The full-extent views (strong maps only, R/fullextent.R): their share of
+  # The full-extent views (strong and weak maps, R/fullextent.R): their share of
   # the models, and what they add, in time (included in the seconds above)
   # and storage, scaled to the full job.
   extended <- rows[is.finite(rows$extent_seconds), , drop = FALSE]

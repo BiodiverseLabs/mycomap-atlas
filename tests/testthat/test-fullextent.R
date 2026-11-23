@@ -81,7 +81,7 @@ test_that("a full view only adds ground: the default map, its layer and its pict
   expect_gt(with$metrics$full_map$beyond_reach, 0L)
 })
 
-test_that("only a strong map gets a full view unless a refit job asks", {
+test_that("a strong map gets a full view and an untested one none, unless a refit job asks", {
   skip_if_not_installed("terra")
   skip_if_not_installed("maxnet")
   # With no null test the map is untested: no full view.

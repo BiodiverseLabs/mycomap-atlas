@@ -487,7 +487,7 @@ function(name, grid = "draft", algorithm = "maxnet", res) {
 #* A taxon's suitability map, ready to lay over a slippy map.
 #* @param algorithm maxnet (default), xgboost, rf or esm
 #* @param view accessible (default): within 500 km of records; full: a strong
-#*   map's potential everywhere conditions resemble its known sites
+#*   or weak map's potential everywhere conditions resemble its known sites
 #* @get /api/taxa/<name>/map.png
 #* @serializer contentType list(type = "image/png")
 function(name, grid = "draft", algorithm = "maxnet", view = "accessible", res) {
