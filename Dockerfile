@@ -28,7 +28,7 @@ COPY inst/api /src/inst/api
 RUN pnpm build
 
 # rocker/geospatial:4.6.1
-FROM rocker/geospatial:4.6.1@sha256:e67737e30c66e6d2237570cd647e2bfec59315e533713473ab2ba391992bfa2c
+FROM rocker/geospatial:4.6.2@sha256:2f7aee85361644109bd9772865b02fb48db0ae2ed61183c469dfddcee14881ea
 
 ARG CRAN_SNAPSHOT=2026-09-28
 # The same day in Ubuntu's snapshot of its archive, for the few system
