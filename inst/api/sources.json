@@ -603,7 +603,7 @@
       "name": "Full-extent maps",
       "detail": "A strong or weak map predicted over the whole of North America, not only its 500 km reach, on the same colour scale, with ground the model knows nothing about hatched. Fitted inside the reach as before; only the prediction goes further. A weak map's is drawn faint, as the weak map is, and claims nothing. Failed maps have none.",
       "availability": "published",
-      "where": "The picture, <taxon>.full.png, beside each strong and each weak map in a release; the rasters (.full.tif, .full.di.tif) for strong maps only, in each Zenodo models version"
+      "where": "The picture, <taxon>.full.png, beside each strong and each weak map in a release; the rasters (.full.tif, and the 0/1 area-of-applicability mask .full.aoa.tif) for strong maps only, in each Zenodo models version"
     },
     {
       "stage": "6. Evaluation",

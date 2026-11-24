@@ -487,7 +487,8 @@ nearest training site, divided by the mean distance between training sites.
 The threshold is the upper whisker of the training sites' own index against
 the other folds, as CAST sets it. The index is written beside the map as
 `<taxon>.di.tif`, and the metrics keep the threshold and the share of the
-accessible area inside it.
+accessible area inside it. The index stays with the release, for privacy:
+Zenodo gets each model's 0/1 mask cut at its threshold (`<taxon>.aoa.tif`).
 
 The search is exact. On a loaded PC with all 69 predictors weighted equally
 (the worst case), a widespread taxon's 377,000–456,000 cells took 10–13
@@ -821,6 +822,13 @@ Two records per grid, each a series of versions under one concept DOI:
 |---|---|---|
 | `layers-<grid>` | the predictor GeoTIFFs and their manifest | a layer is rebuilt |
 | `models-<grid>` | per-model map archives, all scores, taxon counts, 0.1° collection cells, the release manifest | a release is archived |
+
+A models version's map archives hold each model's suitability raster, its
+drawn map and its 0/1 area-of-applicability mask (`.aoa.tif`), built from the
+release's index at packing time, so an existing release needs no refit. The
+dissimilarity index itself (`.di.tif`) is never archived
+(`ATLAS_ARCHIVE_EXCLUDE` in R/archive.R), and a bundle that would carry one is
+refused before anything is uploaded.
 
 Every version carries a README and `CHECKSUMS.sha256`. A models version names
 the layers version it was fitted on (matched by the layer builds, not by

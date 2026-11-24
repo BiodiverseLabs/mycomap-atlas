@@ -122,7 +122,65 @@ atlas_archive_algorithm <- function(path, grid) {
 # Release files the models bundle leaves out on purpose: path patterns, each
 # named with why. Everything else a release publishes goes into some bundle
 # file, or the bundle is not built (atlas_archive_plan).
-ATLAS_ARCHIVE_EXCLUDE <- c()
+ATLAS_ARCHIVE_EXCLUDE <- c(
+  "a model's dissimilarity index (.di.tif, .full.di.tif) stays with the release, for privacy; the bundle carries its 0/1 area-of-applicability mask (.aoa.tif, .full.aoa.tif) instead" =
+    "[.]di[.]tif$"
+)
+
+#' The 0/1 area-of-applicability mask a bundle carries in place of a model's
+#' dissimilarity index: 1 where the index is at or below the model's
+#' threshold, 0 where it is above, NA where the map has no cell.
+atlas_aoa_mask <- function(index, threshold) {
+  mask <- terra::ifel(index <= threshold, 1L, 0L)
+  names(mask) <- "aoa"
+  mask
+}
+
+#' Where a model's mask goes, beside its index: <taxon>.aoa.tif for
+#' <taxon>.di.tif, <taxon>.full.aoa.tif for <taxon>.full.di.tif.
+atlas_aoa_mask_path <- function(index_path) {
+  sub("[.]di[.]tif$", ".aoa.tif", index_path)
+}
+
+#' The scores a model's index belongs to, whose applicability threshold its
+#' mask is cut at.
+atlas_aoa_scores_path <- function(index_path) {
+  sub("([.]full)?[.]di[.]tif$", ".json", index_path)
+}
+
+#' Write the mask of every index a release holds into the tree a bundle is
+#' packed from, cut at each model's own threshold (its scores'
+#' applicability$threshold). Returns the release paths of the masks written,
+#' with attr(, "unmasked") the indexes left without one because their model
+#' keeps no threshold. Nothing is refitted: an existing release gets its masks
+#' from the indexes it already holds.
+atlas_archive_write_masks <- function(tree, paths) {
+  indexes <- paths[grepl("[.]di[.]tif$", paths)]
+  written <- character()
+  unmasked <- character()
+  for (path in indexes) {
+    scores <- file.path(tree, atlas_aoa_scores_path(path))
+    threshold <- if (file.exists(scores)) {
+      as.numeric(jsonlite::fromJSON(scores, simplifyVector = FALSE)$applicability$threshold %||% NA)
+    } else {
+      NA_real_
+    }
+    if (length(threshold) != 1L || !is.finite(threshold)) {
+      unmasked <- c(unmasked, path)
+      next
+    }
+    out <- atlas_aoa_mask_path(path)
+    file <- file.path(tree, out)
+    terra::writeRaster(atlas_aoa_mask(terra::rast(file.path(tree, path)), threshold), file,
+                       overwrite = TRUE, datatype = "INT1U", NAflag = 255,
+                       gdal = c("COMPRESS=DEFLATE", "TILED=YES"))
+    # A side file would be a stray file in the bundle, and could make the same
+    # release pack to other bytes.
+    unlink(paste0(file, ".aux.xml"))
+    written <- c(written, out)
+  }
+  structure(written, unmasked = unmasked)
+}
 
 #' Where each of a release's files goes in the models bundle: maps per
 #' algorithm (the combined maps as "ensemble"), every model's scores, single
@@ -136,12 +194,15 @@ atlas_archive_plan <- function(paths, grid = "draft", exclude = ATLAS_ARCHIVE_EX
     stop("a release lists private files, which are never archived: ", paste(utils::head(private, 5), collapse = ", "),
          call. = FALSE)
   }
+  # What is left out is decided first, so nothing left out is packed.
+  excluded <- character()
+  for (pattern in exclude) excluded <- c(excluded, paths[grepl(pattern, paths)])
   placed <- character()
   tars <- list()
   algorithms <- vapply(paths, atlas_archive_algorithm, character(1), grid = grid)
   known <- c(names(ATLAS_ALGORITHMS), "ensemble")
   for (algorithm in known) {
-    mine <- paths[algorithms %in% algorithm & grepl("[.](tif|png)$", paths)]
+    mine <- paths[algorithms %in% algorithm & grepl("[.](tif|png)$", paths) & !paths %in% excluded]
     if (!length(mine)) next
     tars[[paste0("maps-", algorithm, ".tar")]] <- list(paths = mine, compression = "none")
     placed <- c(placed, mine)
@@ -173,8 +234,6 @@ atlas_archive_plan <- function(paths, grid = "draft", exclude = ATLAS_ARCHIVE_EX
   here <- paste0("index/", grid, "/here.rds")
   here <- if (here %in% paths) here
   placed <- c(placed, here)
-  excluded <- character()
-  for (pattern in exclude) excluded <- c(excluded, paths[grepl(pattern, paths)])
   unplaced <- setdiff(paths, c(placed, excluded))
   if (length(unplaced)) {
     stop("the models bundle has no place for ", length(unplaced), " of the release's files (",
@@ -270,13 +329,18 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
   # refits read (R/fingerprint.R).
   taxon_hashes <- atlas_archive_withhold(tree, paths, manifest)
 
+  # Each model's 0/1 area-of-applicability mask, in place of its
+  # dissimilarity index, which the bundle leaves out (ATLAS_ARCHIVE_EXCLUDE).
+  masks <- atlas_archive_write_masks(tree, paths)
+  packed <- c(paths, masks)
+
   # A tar records each file's time. Stamped with the release's own time, the
   # same release always packs to the same bytes, so a resumed upload can see
   # that a file already on Zenodo is the right one.
   stamp <- as.POSIXct(manifest$created_at %||% "2000-01-01T00:00:00Z", format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-  Sys.setFileTime(file.path(tree, paths), stamp)
+  Sys.setFileTime(file.path(tree, packed), stamp)
 
-  plan <- atlas_archive_plan(paths, grid)
+  plan <- atlas_archive_plan(packed, grid)
   names <- character()
   for (name in names(plan$tars)) {
     tar <- plan$tars[[name]]
@@ -294,11 +358,23 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
     names <- c(names, atlas_archive_write_here(file.path(tree, plan$here), out))
   }
   manifest <- atlas_archive_public_manifest(manifest)
+  if (length(plan$excluded)) {
+    manifest$left_out <- list(
+      files = length(plan$excluded),
+      what = "each model's dissimilarity index (.di.tif, .full.di.tif)",
+      why = "Kept with the release, for privacy.",
+      instead = paste("each model's 0/1 area-of-applicability mask (.aoa.tif, .full.aoa.tif): 1 where the index",
+                      "is at or below the model's threshold (its scores' applicability.threshold), 0 above it"),
+      masks = length(masks),
+      without_mask = length(attr(masks, "unmasked"))
+    )
+  }
   atlas_write_json(manifest, file.path(out, "release.json"))
   names <- c(names, "release.json")
   atlas_archive_refuse_withheld(c(file.path(tree, paths[grepl("[.]json$", paths)]),
                                  file.path(out, names[grepl("[.]json$", names)])),
                                taxon_hashes)
+  atlas_archive_refuse_left_out(file.path(out, names), plan$excluded)
 
   # A version made with cells made now is a new version of the same release:
   # its own name, and a key that tells it from the release's first version.
@@ -370,6 +446,21 @@ atlas_archive_refuse_withheld <- function(files, hashes) {
     seeded <- grepl('"seed"\\s*:', text, perl = TRUE, useBytes = TRUE)
     if (any(tokens %in% hashes) || seeded) {
       stop("a per-taxon fingerprint or seed would have been archived, in ", basename(file), call. = FALSE)
+    }
+  }
+  invisible(TRUE)
+}
+
+#' The last word on what is left out: no file the plan left out, and no
+#' dissimilarity index under any name, inside any archive the bundle holds.
+atlas_archive_refuse_left_out <- function(files, excluded) {
+  for (file in unique(files)) {
+    if (!file.exists(file) || !grepl("[.]tar([.]gz)?$", file)) next
+    inside <- utils::untar(file, list = TRUE)
+    bad <- inside[inside %in% excluded | grepl("[.]di[.]tif$", inside)]
+    if (length(bad)) {
+      stop("a file the bundle leaves out would have been archived, in ", basename(file), ": ",
+           paste(utils::head(bad, 3), collapse = ", "), call. = FALSE)
     }
   }
   invisible(TRUE)
@@ -460,10 +551,12 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
     lines <- c(
       lines,
       "`maps-<model>.tar` holds, per taxon, the raw suitability raster (`.tif`) and its area-of-applicability",
-      "dissimilarity (`.di.tif`), both GeoTIFF on North America Albers Equal Area inside the 500 km accessible area,",
+      "mask (`.aoa.tif`: 1 where the model's conditions resemble its training sites, at or below its threshold,",
+      "0 where they do not), both GeoTIFF on North America Albers Equal Area inside the 500 km accessible area,",
       "and the drawn map (PNG, Web Mercator, coloured by percentile); for strong models, the same three beyond",
-      "500 km (`.full.*`). The models are Maxent (`maxnet`), random forest (`rf`), boosted trees (`xgboost`) and",
-      "ensembles of small models (`esm`).",
+      "500 km (`.full.*`). The threshold is in each model's scores (`applicability.threshold`). The dissimilarity",
+      "index itself is kept with the release and not archived. The models are Maxent (`maxnet`), random forest",
+      "(`rf`), boosted trees (`xgboost`) and ensembles of small models (`esm`).",
       "`maps-ensemble.tar` holds the combined maps: each taxon's passing models together, and where they disagree.",
       "`scores.tar.gz` holds each model's scores on every spatial fold, predictors and settings.",
       "Each taxon's record-set fingerprint and each model's seed are withheld for privacy, from these files and",

@@ -152,6 +152,15 @@ changed and what it means for you.
 
 ### Maps
 
+- **Zenodo models versions carry an area-of-applicability mask, not the
+  index.** Each model's `.aoa.tif` (and `.full.aoa.tif` for a full view) is
+  1 where its conditions resemble its training sites, at or below the
+  model's threshold, and 0 where they do not. The threshold is in each
+  model's scores as `applicability.threshold`. The dissimilarity index
+  itself (`.di.tif`, `.full.di.tif`) is kept with the release, for privacy,
+  and no longer archived. Nothing on the site changes: maps are hatched from
+  the same index as before. `release.json` says what was left out under
+  `left_out`.
 - **Weak maps get a full-extent view too.** Like a strong map's, it carries
   the colour scale beyond 500 km wherever conditions resemble the known
   sites, and is drawn faint, as the weak map itself is. It claims nothing:
