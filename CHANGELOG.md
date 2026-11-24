@@ -10,6 +10,12 @@ changed and what it means for you.
 
 ### API
 
+- **`GET /api/status`** gains `pullQa`: whether the nightly's pull QA is
+  letting pulls through. `state` is `ok` or `stopped`. While it is stopped,
+  `pull` is the stopped pull's stamp, `since` when the first stopped pull was
+  made, `nights` how many pulls have stopped since the last one let through,
+  and `checks` the stopped checks' names. Check names, stamps and counts only.
+  Absent when the server holds no QA report. Added field.
 - **`GET /api/downloads`** no longer lists a draft deleted on Zenodo. Each
   version may now carry `drafted_at`, `title` and `published_by`, and each
   file its `md5`. Added fields.

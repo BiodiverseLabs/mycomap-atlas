@@ -2430,6 +2430,43 @@
                 }
               }
             }
+          },
+          "pullQa": {
+            "type": "object",
+            "description": "Whether the nightly's pull QA (R/qa.R) is letting pulls through. While it is stopped, nothing new is fitted and the maps stay on the release above, until the change goes away or the stop is accepted on the server. Check names, stamps and counts only. Absent when this server holds no QA report.",
+            "required": [
+              "state"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "stopped"
+                ],
+                "description": "ok: the current pull passed its QA, or its stops were accepted; stopped: it did not."
+              },
+              "pull": {
+                "type": "string",
+                "description": "When stopped: the stopped pull's stamp, e.g. 20261123T070751Z."
+              },
+              "since": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When stopped: when the first stopped pull since the last one let through was made."
+              },
+              "nights": {
+                "type": "integer",
+                "description": "When stopped: how many pulls have stopped since the last one let through, this one included."
+              },
+              "checks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "When stopped: the names of the current pull's stopped checks, e.g. sources."
+              }
+            }
           }
         }
       },

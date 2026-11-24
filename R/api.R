@@ -237,6 +237,53 @@ atlas_waterfall_checked <- function(w) {
        max_accuracy_m = as.integer(w$max_accuracy_m), steps = steps)
 }
 
+#' Whether the nightly's pull QA (R/qa.R) is letting pulls through, as
+#' /api/status reports it: state "ok" or "stopped"; when stopped, the stopped
+#' pull's stamp, when the first stopped pull since the baseline was made, how
+#' many pulls have stopped since, and the names of the current pull's stopped
+#' checks. Built from check names, stamps and counts alone, never from a
+#' report's free text or details. NULL when this machine holds no QA report.
+atlas_status_pull_qa <- function() {
+  read <- function(path) {
+    if (!file.exists(path)) return(NULL)
+    tryCatch(jsonlite::fromJSON(path, simplifyVector = FALSE), error = function(e) NULL)
+  }
+  latest <- read(atlas_qa_path())
+  if (!is.list(latest)) return(NULL)
+  stamp_ok <- function(x) is.character(x) && length(x) == 1L && grepl("^[0-9]{8}T[0-9]{6}Z$", x)
+  name_ok <- function(x) is.character(x) && length(x) == 1L && grepl("^[a-z][a-z0-9_]*$", x)
+  stops <- Filter(name_ok, lapply(latest$stops %||% list(), function(s) if (is.character(s)) s))
+  baseline <- read(atlas_qa_baseline_path())
+  pull <- latest$pull
+  if (!stamp_ok(pull)) return(NULL)
+  accepted <- is.list(baseline) && identical(baseline$pull, pull)
+  if (!length(stops) || accepted) return(list(state = "ok"))
+  # The stopped pulls: every dated report after the baseline's pull (or, with
+  # no baseline yet, the run of stopped reports ending at this one).
+  files <- list.files(atlas_path("occurrences"), pattern = "^qa-[0-9]{8}T[0-9]{6}Z[.]json$")
+  stamps <- sort(sub("^qa-(.*)[.]json$", "\\1", files))
+  stamps <- stamps[stamps <= pull]
+  if (is.list(baseline) && stamp_ok(baseline$pull)) {
+    stopped <- stamps[stamps > baseline$pull]
+  } else {
+    stopped <- character()
+    for (s in rev(stamps)) {
+      report <- read(atlas_qa_path(s))
+      if (!is.list(report) || !length(report$stops %||% list())) break
+      stopped <- c(s, stopped)
+    }
+  }
+  if (!length(stopped)) stopped <- pull
+  iso <- function(s) sub("^(....)(..)(..)T(..)(..)(..)Z$", "\\1-\\2-\\3T\\4:\\5:\\6Z", s)
+  list(
+    state = "stopped",
+    pull = pull,
+    since = iso(stopped[[1]]),
+    nights = length(stopped),
+    checks = as.list(unlist(stops))
+  )
+}
+
 #' A JSON answer kept for ttl seconds in cache under key, so a route that is
 #' slow to build (reading thousands of model files) is built at most once a
 #' minute however many visitors ask. compute() returns the value; the answer

@@ -243,6 +243,10 @@ function() {
   # Where mycomap.org's records went before the pull kept them, when it adds up.
   waterfall <- atlas_status_waterfall()
   if (!is.null(waterfall)) out$waterfall <- waterfall
+  # Whether the nightly's pull QA is letting pulls through (R/qa.R): check
+  # names, stamps and counts only.
+  pull_qa <- atlas_status_pull_qa()
+  if (!is.null(pull_qa)) out$pullQa <- pull_qa
   out
 }
 
