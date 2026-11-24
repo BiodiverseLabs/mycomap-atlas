@@ -796,7 +796,8 @@ atlas_archive_discard <- function(store, series, z, quiet = FALSE) {
 #'
 #' keep_bundle builds only: the models bundle is kept in that directory with
 #' its checksums (atlas_archive_keep_bundle) and nothing goes to Zenodo.
-#' from_bundle deposits a bundle kept that way instead of building one.
+#' from_bundle deposits a bundle kept that way instead of building one, with
+#' cells_now, when given, in place of the release's cells.
 atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, release = NULL,
                           z, publish = FALSE, dry_run = FALSE, quiet = FALSE, resume_draft = NULL,
                           cells_now = NULL, blocks = TRUE, workers = 1L, keep_bundle = NULL, from_bundle = NULL) {
@@ -808,7 +809,8 @@ atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, re
     bundle <- if (kind == "layers") {
       atlas_archive_layers_bundle(grid)
     } else if (!is.null(from_bundle)) {
-      atlas_archive_read_kept_bundle(from_bundle)
+      kept <- atlas_archive_read_kept_bundle(from_bundle)
+      if (is.null(cells_now)) kept else atlas_archive_bundle_cells_now(kept, cells_now)
     } else {
       atlas_archive_models_bundle(store, grid, release, cells_now = cells_now, blocks = blocks,
                                   workers = workers, quiet = quiet)
@@ -823,6 +825,29 @@ atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, re
                           resume_draft = resume_draft)
   }
   invisible(TRUE)
+}
+
+#' A kept bundle with the cells made now (atlas_read_cells_now) in place of
+#' the release's own, as a bundle built with them is: its cells file is
+#' theirs, and its version, key and README say so. Only the cells file
+#' differs, since a bundle's maps and their counts by state are made with
+#' the release's own cells either way. The kept files are left as they are.
+atlas_archive_bundle_cells_now <- function(bundle, cells_now) {
+  if (!is.null(bundle$cells_now)) {
+    stop("the kept bundle already holds cells made on ", bundle$cells_now$checked_on %||% "?", call. = FALSE)
+  }
+  now <- atlas_read_cells_now(cells_now, bundle$release)
+  name <- "collection-cells-0.1deg.tsv.gz"
+  entry <- Filter(function(f) identical(f$path, "public/cells.tsv.gz"), bundle$release$files %||% list())
+  if (!name %in% names(bundle$sources) || !length(entry) ||
+      !identical(atlas_sha256(bundle$sources[[name]]), entry[[1]]$sha256)) {
+    stop("the kept bundle's cells file is not release ", bundle$release$id, "'s own", call. = FALSE)
+  }
+  bundle$sources[[name]] <- now$path
+  bundle$cells_now <- now$summary
+  bundle$version <- paste0(bundle$release$id, ".", gsub("-", "", now$summary$checked_on))
+  bundle$key <- digest::digest(paste(bundle$key, now$summary$cells_now$sha256), algo = "sha256")
+  bundle
 }
 
 #' Keep a built bundle in dir: its files, SHA256SUMS of them, and
@@ -855,5 +880,9 @@ atlas_archive_read_kept_bundle <- function(dir) {
       stop("the kept bundle's ", name, " does not match its SHA256SUMS", call. = FALSE)
     }
   }
+  # A field kept as null is written as {} and read back as an empty list:
+  # read back as null, so a bundle kept without cells made now is still one.
+  meta <- lapply(meta, function(v) if (is.list(v) && !length(v)) NULL else v)
+  meta <- meta[!vapply(meta, is.null, logical(1))]
   c(meta[setdiff(names(meta), "files")], list(dir = dir, sources = stats::setNames(file.path(dir, files), files)))
 }

@@ -856,7 +856,8 @@ kept row as it was. The stored release is never written. Building a bundle
 draws thousands of maps, so it runs on one EC2 worker (`archive-build-ec2`),
 which keeps the bundle and its `SHA256SUMS` under the store's private prefix
 and is given no Zenodo token; the deposit then runs from the kept files
-(`archive-release --from-build=<release>`), each checked against its sum.
+(`archive-release --from-build=<release> --cells-now=DIR`), each checked
+against its sum, with the cells made now in place of the release's cells.
 
 Every version carries a README and `CHECKSUMS.sha256`. A models version names
 the layers version it was fitted on (matched by the layer builds, not by

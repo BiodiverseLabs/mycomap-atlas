@@ -163,7 +163,8 @@ changed and what it means for you.
   release's bundle on one EC2 worker and keeps it under
   `private/archive-build/`; `archive-release --keep-bundle=DIR` builds only;
   `archive-release --from-build=<release>` or `--from-bundle=DIR` deposits a
-  kept bundle, checked against its `SHA256SUMS`.
+  kept bundle, checked against its `SHA256SUMS`, with `--cells-now=DIR` in
+  place of the release's cells as in a bundle built with them.
 
 - **Maps are drawn in whole 50 km blocks.** A block is drawn only when its
   whole 50 km square, on one fixed grid shared by every map, lies inside the

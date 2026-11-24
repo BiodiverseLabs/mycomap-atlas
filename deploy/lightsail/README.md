@@ -257,7 +257,9 @@ sudo -n systemd-run --unit=atlas-archive-build --collect -p EnvironmentFile=/etc
   --env-file /etc/atlas/atlas.env -e ATLAS_EC2_MAX_HOURS -e ATLAS_EC2_FINISH_MARKET -e ATLAS_EC2_INSTANCE_TYPES \
   -v /srv/atlas/data:/data "$ATLAS_IMAGE" archive-build-ec2 --release=<release>'
 
-# 2. Deposit the kept bundle (a draft unless --publish). A person types the
+# 2. Deposit the kept bundle (a draft unless --publish), with the release's
+#    collection cells made now (cells-now, in /srv/atlas/cells-now-<release>):
+#    a models version is not deposited without them. A person types the
 #    token at the prompt, at an interactive terminal on the box; nobody
 #    pastes it into a chat, a file or a command line. It is never shown, and
 #    goes to the unit on its input. The unit checks its length, writes it into
@@ -274,11 +276,14 @@ read -rsp 'Zenodo token: ' ZT && echo && printf '%s' "$ZT" | \
     chown 10001 /run/atlas-deposit/token; chmod 0400 /run/atlas-deposit/token
     exec docker run --rm --name atlas-deposit --network host --memory 1g --env-file /etc/atlas/atlas.env \
       -e ZENODO_TOKEN_FILE=/run/secrets/zenodo-token -v /run/atlas-deposit/token:/run/secrets/zenodo-token:ro \
-      -v /srv/atlas/data:/data "$ATLAS_IMAGE" archive-release --only=models --from-build=<release>'; unset ZT
+      -v /srv/atlas/data:/data -v /srv/atlas/cells-now-<release>:/cells:ro       "$ATLAS_IMAGE" archive-release --only=models --from-build=<release> --cells-now=/cells'; unset ZT
 ```
 
 The deposit checks each kept file against its `SHA256SUMS` line before
-anything is uploaded, and refuses a bundle whose sums do not match. It stages
+anything is uploaded, and refuses a bundle whose sums do not match. The cells
+made now are checked against their `cells-now.json` and the release, and take
+the place of the kept bundle's cells file, as in a bundle built with them; the
+version is then named `<release>.<YYYYMMDD>` after the day they were made. It stages
 the kept bundle, about 13 GB for a whole release, under
 `/srv/atlas/data/archive-staging/<grid>/<release>/` and removes it when the
 deposit ends, however it ends. It refuses to start unless the disk has the

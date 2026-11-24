@@ -342,6 +342,55 @@ test_that("a version with cells made now has its own name and key, so the first 
   })
 })
 
+test_that("a bundle kept without cells made now is deposited with them exactly as one built with them", {
+  archive_with_later_obscured(function(store, release, dir) {
+    kept <- tempfile("kept-")
+    atlas_archive_keep_bundle(atlas_archive_models_bundle(store, "draft", blocks = FALSE), kept)
+    # Without the cells made now, the kept bundle is refused.
+    zen <- fake_zenodo()
+    expect_error(atlas_archive(store, "draft", "models", z = zen$client(), quiet = TRUE, from_bundle = kept),
+                 "needs its collection cells made as the sources stand now")
+    built <- atlas_archive_models_bundle(store, "draft", blocks = FALSE, cells_now = dir)
+    given <- atlas_archive_bundle_cells_now(atlas_archive_read_kept_bundle(kept), dir)
+    expect_identical(vapply(given$sources, atlas_sha256, ""), vapply(built$sources, atlas_sha256, ""))
+    expect_identical(given$version, built$version)
+    expect_identical(given$key, built$key)
+    expect_identical(given$cells_now, built$cells_now)
+    expect_identical(atlas_archive_readme(given, atlas_archive_file_table(given$sources)),
+                     atlas_archive_readme(built, atlas_archive_file_table(built$sources)))
+    # The kept files are left as they were, and only the cells file's sum differs from the kept sums.
+    expect_silent(atlas_archive_read_kept_bundle(kept))
+    sums <- readLines(file.path(kept, "SHA256SUMS"))
+    listed <- stats::setNames(sub("  .*$", "", sums), sub("^[0-9a-f]+  ", "", sums))
+    now_sums <- vapply(given$sources, atlas_sha256, "")
+    expect_identical(names(now_sums)[now_sums != listed[names(now_sums)]], "collection-cells-0.1deg.tsv.gz")
+    expect_identical(unname(given$sources[names(given$sources) != "collection-cells-0.1deg.tsv.gz"]),
+                     file.path(kept, setdiff(names(given$sources), "collection-cells-0.1deg.tsv.gz")))
+    # With them, it is deposited.
+    atlas_archive(store, "draft", "models", z = zen$client(), quiet = TRUE, from_bundle = kept, cells_now = dir)
+    version <- atlas_archive_ledger(store, "models-draft")$versions[[1]]
+    expect_equal(version$version, built$version)
+  })
+})
+
+test_that("cells made now are not put into a kept bundle of another release, or one that holds cells made now", {
+  archive_with_later_obscured(function(store, release, dir) {
+    kept <- tempfile("kept-")
+    atlas_archive_keep_bundle(atlas_archive_models_bundle(store, "draft", blocks = FALSE), kept)
+    other <- atlas_archive_read_kept_bundle(kept)
+    other$release$id <- "20990101T000000Z-other"
+    expect_error(atlas_archive_bundle_cells_now(other, dir), "made for release")
+    twice <- atlas_archive_bundle_cells_now(atlas_archive_read_kept_bundle(kept), dir)
+    expect_error(atlas_archive_bundle_cells_now(twice, dir), "already holds cells made on 2026-11-08")
+    changed <- atlas_archive_read_kept_bundle(kept)
+    changed$sources[["collection-cells-0.1deg.tsv.gz"]] <- file.path(dir, ATLAS_CELLS_NOW_FILE)
+    expect_error(atlas_archive_bundle_cells_now(changed, dir), "cells file is not release")
+    # Cells whose file does not match their cells-now.json are refused.
+    cat("x", file = file.path(dir, ATLAS_CELLS_NOW_FILE), append = TRUE)
+    expect_error(atlas_archive_bundle_cells_now(atlas_archive_read_kept_bundle(kept), dir), "does not match its summary")
+  })
+})
+
 test_that("a models version is not deposited without cells made now; a dry run still shows it", {
   with_data_dir({
     computed_data()
