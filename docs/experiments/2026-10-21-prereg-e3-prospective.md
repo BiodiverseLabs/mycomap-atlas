@@ -305,3 +305,40 @@ read by any of these jobs.
   - **Unchanged.** The design, the hypotheses, the test finds and the scorer.
     The test finds' training set and known places stay the release's pull,
     which lacks only the 76 erroneous rows.
+- **2026-11-24, before the read-out and before any outcome look: "as
+  published" means the release as built.** A clarification, not a change.
+  - **What it clarifies.** Data says "Maps. Release fa1b4198, as published:
+    grades, area of applicability, 500 km reach." A later deposit of this
+    release's files may hold map files that differ from the release's own,
+    for privacy. E3 reads release 20261013T191324Z-fa1b4198's own maps as
+    stored: the files whose checksums its release.json holds. It reads no
+    deposit copy made after the release. "As published" in Data therefore
+    means the release as built.
+  - **How the registered code reads them.** release.json lists every file
+    the release publishes with its sha256, every map E3 reads among them.
+    The read-out code (study/e3-readout 44d007a) looks up each map's sha256
+    in that list, fetches the stored object by that hash, and refuses it if
+    the download does not hash to it (R/tracker.R:239-252 at 44d007a).
+  - **Unchanged.** The maps, grades, area of applicability and 500 km reach
+    that E3 scores are the ones it was registered on. The design, the
+    hypotheses, the test finds, the kernels, how finds are scored and the
+    read-out date are unchanged. This adds to the entry and changes nothing
+    in it.
+  - **When, and by whom.** Written by the paper lane at 2026-11-24 01:49
+    UTC, before the read-out. No E3 outcome had been looked at: no read-out
+    and no counts-only look has been run, and no rank, share or score of any
+    test find has been seen (the paper lane; the operations lane, from its
+    run log; the method lane). What has run for E3 are the distance-kernel
+    jobs under Runs, which build each taxon's kernel and check it against
+    the release's folds and blocks; they read no test find. The read-out
+    code was deployed with the main kernel job's image on 2026-10-21 and has
+    not been run.
+  - **A check to be added before the read-out.** One gap remains: a map
+    already in the read-out machine's local cache is reused without being
+    hashed again. Before the read-out, the scorer will hash each cached
+    object it is about to read against release.json, stop on any
+    difference, and record the number of files checked in the results'
+    settings. It goes in the scorer, not in the shared tracker code, and
+    does not touch the scorer's arithmetic, the kernels, the test finds or
+    the pull rules. Because it changes read-out code after registration, it
+    gets its own dated Implementation note before the read-out.
