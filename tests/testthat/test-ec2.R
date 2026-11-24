@@ -1066,6 +1066,14 @@ test_that("a job past its deadline still publishes every model its workers saved
   ec2 <- fake_ec2(store, script = function(shard, attempt) if (attempt == 1L) "partial" else "hang")
   expect_error(run_on(setup, ec2, config = test_config(store$uri, ATLAS_EC2_MAX_HOURS = "1")),
                "past its 1 h deadline.*holds every model they saved")
+  # The first worker's saved progress, with any error its one fit gave, so a
+  # failure here says what that worker saved.
+  progress <- atlas_store_text(store, atlas_shard_key(job$id, 1L, progress = TRUE))
+  first <- if (is.list(progress) && length(progress$results)) progress$results[[1]]
+  expect_identical(first$status, "fitted",
+                   info = if (is.null(progress)) "the first worker saved no progress record" else
+                     paste0("the first worker's first model: ", first$status %||% "none", ", ",
+                            first$error %||% "no error"))
   expect_length(still_running(ec2), 0L)
   release <- atlas_current_release(store)
   expect_false(is.null(release))
