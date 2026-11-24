@@ -57,7 +57,7 @@ test_that("a release's continent export is filed privately when it is finished, 
     fit("Taxon B", "f", algorithm = "maxnet", full = TRUE)
     atlas_publish_release(store, quiet = TRUE)
   })
-  record <- on_machine(machine(), atlas_finish_release_work(store, release$id, quiet = TRUE))
+  record <- on_machine(machine(), atlas_finish_release_work(store, release$id, quiet = TRUE, trim = no_trim))
   private <- vapply(record$private, function(e) paste(e$prefix, e$name, sep = "/"), "")
   expect_true(paste(ATLAS_CONTINENT_PREFIX, "taxa.tsv", sep = "/") %in% private)
   expect_false(any(grepl("continent|unpublished", vapply(record$files, `[[`, "", "path"))))

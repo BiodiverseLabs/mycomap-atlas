@@ -752,9 +752,10 @@ export default function Methods() {
 
             <Section id="maps" title="Drawing the maps">
               <p>
-                Each model predicts every cell in the accessible area. Outside it the default map is
-                blank, which is why colour stops in arcs 500 km from the nearest record: the map
-                makes its claim only on the ground it was fitted on.
+                Each model predicts every cell in the accessible area. The map is drawn in whole
+                50 km blocks of one fixed grid: a block is drawn only when its whole 50 km square lies
+                inside the accessible area. So colour stops at a stepped edge within 500 km of the
+                nearest record: the map makes its claim only on the ground it was fitted on.
               </p>
               <p>
                 <B>The full view.</B> A strong or weak map is also predicted over the whole of North America,

@@ -118,5 +118,5 @@ test_that("a card from another release is never served for this one", {
 test_that("drawing cards never needs a release to be written: finishing knows nothing of them", {
   finish <- paste(readLines(testthat::test_path("..", "..", "R", "finish.R"), warn = FALSE), collapse = "\n")
   expect_false(grepl("card", finish, ignore.case = TRUE))
-  expect_equal(ATLAS_FINISH_VERSION, 5L)
+  expect_equal(ATLAS_FINISH_VERSION, 6L)
 })

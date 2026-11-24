@@ -152,6 +152,21 @@ changed and what it means for you.
 
 ### Maps
 
+- **Maps are drawn in whole 50 km blocks.** A block is drawn only when its
+  whole 50 km square, on one fixed grid shared by every map, lies inside the
+  accessible area. Edges are stepped and pull in by up to about 70 km; the map
+  inside them is unchanged. A map's raster is
+  cropped to its blocks, so its `bounds` lie on block lines, and its counts by
+  state (the model's `regions`, and the per-state answers built from them)
+  count only the drawn cells: "within reach" means the kept blocks. Scores,
+  null tests and grades are unchanged, and full views are not trimmed. The
+  current release is finished again under the new rule (finishing version 6),
+  which refits nothing: each map's area is built again from the records its
+  job fitted it on and used only if it gives exactly the map as stored. A map
+  whose area cannot be built again is taken off (`map: false` in the release's
+  index) until it is fitted again, and the finished release counts these
+  under `finished.not_drawn`. `finish-plan` says beforehand how many there
+  will be.
 - **Zenodo models versions carry an area-of-applicability mask, not the
   index.** Each model's `.aoa.tif` (and `.full.aoa.tif` for a full view) is
   1 where its conditions resemble its training sites, at or below the
@@ -321,6 +336,11 @@ changed and what it means for you.
 
 ### The server
 
+- `./atlas finish-current` finishes the current release on EC2 now, as the
+  nightly would. The nightly, a job run on EC2 and `finish-current` hold the
+  box's orchestrator lock, and one refuses to start while another holds it. A
+  release finished under a later finishing rule counts as finished, and the
+  paper's frozen release is never finished again (`ATLAS_FROZEN_RELEASES`).
 - **A pull's QA is compared with the last pull that was let through**
   (`occurrences/qa-baseline.json`), not with the night before. A stop no
   longer clears itself the next night. It holds the site on its last release

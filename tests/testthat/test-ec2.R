@@ -71,7 +71,7 @@ fake_ec2 <- function(store, script = function(shard, attempt) "work",
         # A finishing worker (R/finish.R, tested in test-finish.R), with its
         # counting and index stubbed.
         on_machine(machine(), atlas_finish_release_work(
-          store, sub("^finish-", "", worker$job), quiet = TRUE, count = function(...) 0L,
+          store, sub("^finish-", "", worker$job), quiet = TRUE, count = function(...) 0L, trim = function(...) list(trimmed = 0L),
           build_index = function(grid, quiet) {
             dir.create(dirname(atlas_here_index_path(grid)), recursive = TRUE, showWarnings = FALSE)
             saveRDS(list(stub = TRUE), atlas_here_index_path(grid))

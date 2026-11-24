@@ -1250,6 +1250,19 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
     full_seconds <- as.numeric(difftime(Sys.time(), started_full, units = "secs"))
   }
 
+  # The map is drawn in whole blocks (R/blocks.R). The full view above keeps
+  # the map as predicted, so it is the same with or without blocks.
+  untrimmed_suitability <- suitability
+  untrimmed_dissimilarity <- dissimilarity
+  if (!is.null(suitability)) {
+    land <- atlas_block_land(terra::crop(stack, atlas_block_extent(terra::ext(suitability)), snap = "out"))
+    trimmed <- atlas_block_trim(suitability, dissimilarity, area, land)
+    suitability <- trimmed$suitability
+    dissimilarity <- trimmed$dissimilarity
+    # No kept block holds a drawn cell: no map is drawn.
+    if (is.null(suitability) && isTRUE(write)) atlas_remove_map(name, grid, algo$id)
+  }
+
   # Two names that make the same file name would overwrite each other's map
   # without a word. Refuse instead: it means two spellings need merging.
   if (isTRUE(write)) {
@@ -1296,7 +1309,7 @@ atlas_fit_taxon <- function(name, grid = "draft", n_background = 10000,
       # them), as does one a job asked for whatever the grade (full = TRUE);
       # otherwise a weak map's is the picture alone.
       full_map <- atlas_write_full_map(name, grid, algo$id, full_suitability, full_dissimilarity,
-                                       suitability, dissimilarity, aoa$threshold, full_seconds,
+                                       untrimmed_suitability, untrimmed_dissimilarity, aoa$threshold, full_seconds,
                                        keep_rasters = isTRUE(full) || identical(grade, "strong"))
     } else {
       atlas_remove_full_map(name, grid, algo$id)

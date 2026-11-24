@@ -139,6 +139,58 @@ A pull becomes the baseline when the gate lets it through, before anything is
 fitted, so a night whose QA passes but whose fit then fails has still moved the
 baseline.
 
+### Finishing the current release by hand
+
+Finishing (R/finish.R) is what the nightly does after fitting: it draws every
+map in whole 50 km blocks of its own accessible area (built again from the
+pull its job fitted it on), redraws the pictures, counts by state again and
+rebuilds the combined maps, the Explore index and the prior. It runs on one
+EC2 worker and refits nothing. When finishing changes its rule (a new
+`ATLAS_FINISH_VERSION`), the current release is finished again once, by day
+and under watch, rather than left to a night that a QA stop could cut short:
+
+```bash
+# first, read only: how many maps the finish will take off for want of a pull
+docker run --rm --name atlas-finish-plan --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
+  "$ATLAS_IMAGE" finish-plan
+# after a nightly has ended, with the owner's OK for the EC2 run
+docker run --rm --name atlas-finish --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
+  "$ATLAS_IMAGE" finish-current
+# then, as the nightly does after it
+docker run --rm --name atlas-pull --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
+  "$ATLAS_IMAGE" pull-release --no-rasters && sudo systemctl restart atlas-api
+docker run --rm --name atlas-cards --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
+  "$ATLAS_IMAGE" build-cards --upload
+```
+
+`finish-plan` prints how many of the current release's maps have their record
+set in a pull the store keeps, and how many do not. A map not found is taken
+off by the finish (`map: false` in the index) until it is fitted again; a map
+found can still be taken off if the area built from its pull does not give
+exactly the map as stored. The finished release counts both under
+`finished.not_drawn` (`not_found`, `mismatch`), and the finish's log line
+says them.
+
+The nightly, a job run on EC2 and `finish-current` each hold the box's
+orchestrator lock (`/srv/atlas/data/locks/orchestrator`), and `finish-current`
+refuses to start while a nightly or a job holds it. The next nightly finds the
+release finished and skips the step.
+
+Map pictures and cards are served with a version in their address and cached
+for a year. Once the first release finished under a new rule is live, purge
+the zone's cache in the Cloudflare dashboard, so cached pictures are refreshed.
+
+**Rolling back to an image older than the finishing rule:** promote the
+release before the finish first (`./atlas promote-release --release=<its
+previous>`; the finished release names it as `previous`), then deploy the
+older image. An older image never runs a nightly while a release finished
+under a newer rule is current. The paper's frozen release
+(`ATLAS_FROZEN_RELEASES`) is never finished again.
+
 To check the alerting itself:
 
 ```bash

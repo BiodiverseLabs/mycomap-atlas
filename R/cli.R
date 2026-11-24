@@ -171,6 +171,11 @@ atlas_usage <- function() {
   message("      --job=ID                  which job (required)")
   message("      --no-promote              publish without making it current")
   message("      --partial                 publish what unreported shards saved (a job past its deadline)")
+  message("  finish-current     finish the current release on EC2 now (as the nightly would), holding the")
+  message("                     box's orchestrator lock: refused while a nightly or a job runs")
+  message("  finish-plan        before finish-current, read only: how many of the current release's maps")
+  message("                     have their record set in a pull the store keeps, and how many do not")
+  message("      --release=ID              a particular release (default: the current one)")
   message("  run-job-ec2        run a planned job's shards on EC2 spot workers, then finish it")
   message("      --job=ID                  which job (required)")
   message("      --no-finish               stop when the shards report: no release (a pilot)")
@@ -669,6 +674,9 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "promote-release" = {
       if (is.null(flags$release)) stop("promote-release needs --release=ID", call. = FALSE)
+      if (as.character(flags$release) %in% ATLAS_FROZEN_RELEASES) {
+        message("release ", flags$release, " is frozen (ATLAS_FROZEN_RELEASES): promoted as it is, and never finished again")
+      }
       atlas_promote_release(
         store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
         id = as.character(flags$release),
@@ -781,8 +789,21 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       config <- atlas_ec2_config()
       store <- atlas_store(flags$store %||% config$store)
       grid <- atlas_flag_grid(flags)
-      atlas_run_job_on_ec2(store, atlas_read_job(store, as.character(flags$job), grid), grid,
-                           config = config, finish = !isTRUE(flags$no_finish))
+      atlas_with_orchestrator_lock(paste("run-job-ec2", flags$job), config$max_hours + (config$finish_hours %||% 3),
+                                   atlas_run_job_on_ec2(store, atlas_read_job(store, as.character(flags$job), grid), grid,
+                                                        config = config, finish = !isTRUE(flags$no_finish)))
+      invisible(0L)
+    },
+    "finish-current" = {
+      config <- atlas_ec2_config()
+      atlas_finish_current(atlas_store(flags$store %||% config$store), atlas_flag_grid(flags), config = config)
+      invisible(0L)
+    },
+    "finish-plan" = {
+      store <- atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
+      grid <- atlas_flag_grid(flags)
+      release <- if (is.null(flags$release)) NULL else as.character(flags$release)
+      atlas_block_plan(store, grid, release)
       invisible(0L)
     },
     "trained-ids" = {
@@ -853,13 +874,14 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "nightly" = {
       config <- atlas_ec2_config()
-      atlas_nightly(
+      # One orchestrator on the box at a time (R/blocks.R).
+      atlas_with_orchestrator_lock("nightly", config$max_hours + (config$finish_hours %||% 3), atlas_nightly(
         grid = atlas_flag_grid(flags), algorithms = flags$algorithms %||% "all",
         pull = !isTRUE(flags$no_pull), config = config,
         store = atlas_store(flags$store %||% config$store),
         tasks_per_shard = atlas_flag_number(flags, "tasks_per_shard", 40),
         limit = atlas_flag_number(flags, "limit", Inf)
-      )
+      ))
       invisible(0L)
     },
     "refresh-names" = {

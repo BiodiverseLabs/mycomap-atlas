@@ -55,7 +55,7 @@ fit_synthetic <- function(full) {
          values = if (file.exists(paths[[4]])) {
            full <- terra::rast(paths[[4]])
            list(full = terra::values(full, mat = FALSE),
-                default = terra::values(terra::extend(terra::rast(paths[[1]]), full), mat = FALSE))
+                default = terra::values(terra::extend(terra::crop(terra::rast(paths[[1]]), full), full), mat = FALSE))
          },
          metrics = atlas_read_metrics("Eastern fungus", "draft"))
   })

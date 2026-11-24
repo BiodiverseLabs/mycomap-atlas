@@ -28,13 +28,16 @@
 # export gains the prior's map strength per taxon and models and rank spread
 # per cell, an unknown area of applicability where no model has a threshold
 # (it read as inside), and a .tsv.gz always beside its parquet (Vision,
-# 2026-10-13). Finishing again refits nothing: it reads the release's maps
-# and adds what it builds.
-ATLAS_FINISH_VERSION <- 5L
+# 2026-10-13). 6: every map drawn in whole 50 km blocks (R/blocks.R),
+# redrawn, and counted by state again from the drawn cells. Finishing again
+# refits nothing: it reads the release's maps and adds what it builds.
+ATLAS_FINISH_VERSION <- 6L
 
 #' Whether a release has been finished under the current rule.
+#' A release finished under a later rule than this code knows counts as
+#' finished: an older image never finishes it again.
 atlas_release_finished <- function(release) {
-  identical(as.integer(release$finished$version %||% 0L), ATLAS_FINISH_VERSION)
+  isTRUE(as.integer(release$finished$version %||% 0L) >= ATLAS_FINISH_VERSION)
 }
 
 #' The job id a finishing run goes under: its own, so its worker and record
@@ -50,14 +53,22 @@ atlas_finish_id <- function(release_id) paste0("finish-", release_id)
 atlas_finish_release_work <- function(store = atlas_store(), release, grid = "draft", workers = 1L,
                                       quiet = FALSE, count = atlas_count_regions,
                                       build_index = atlas_build_finish_indexes,
-                                      ensembles = atlas_build_ensembles) {
+                                      ensembles = atlas_build_ensembles, trim = atlas_block_trim_release,
+                                      land = atlas_block_land_file) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
+  atlas_refuse_frozen(release)
   started <- Sys.time()
   manifest <- atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
   # Every raster but the full views of maps that are not strong, which
   # nothing here reads (atlas_pull_release).
   atlas_pull_release(store, grid, release = release, rasters = TRUE, quiet = quiet, full_rasters = "strong")
 
+  # Every map drawn in whole blocks of its own area, built again from the
+  # pull it was fitted on; a trimmed map's counts by state are cleared, so the
+  # count below redoes them from its drawn cells. A map whose area cannot be
+  # built again is taken off, with its reason.
+  trimmed <- trim(store, land(store, grid, manifest$layers_key), grid = grid, index = manifest$index,
+                  workers = workers, quiet = quiet)
   counted <- count(grid = grid, workers = workers, only_missing = TRUE, quiet = quiet)
   # The combined maps: built for each taxon with two or more strong maps,
   # removed for one that has fallen below. The release gets both.
@@ -78,8 +89,11 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
   metrics <- unlist(lapply(names(ATLAS_ALGORITHMS), function(a) {
     list.files(atlas_model_dir(grid, a), pattern = "[.]json$", full.names = TRUE)
   }), use.names = FALSE)
+  # Each map's own files, as trimmed and redrawn (not its full view).
+  maps <- atlas_model_map_rasters(grid)
+  maps <- c(maps, sub("[.]tif$", ".di.tif", maps), sub("[.]tif$", ".png", maps))
   built <- c(atlas_here_index_path(grid), file.path(atlas_prior_dir(grid), ATLAS_PRIOR_FILES),
-             list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE))
+             list.files(ensemble_dir, pattern = "[.](json|tif|png)$", full.names = TRUE), maps)
   candidates <- substring(normalizePath(c(metrics, built), winslash = "/", mustWork = FALSE),
                           nchar(normalizePath(root, winslash = "/")) + 2L)
   candidates <- candidates[file.exists(file.path(root, candidates))]
@@ -93,8 +107,16 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
     started_at = format(started, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     finished_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
     counted = as.integer(counted %||% 0L),
+    trimmed = as.integer(trimmed$trimmed %||% 0L),
+    # Maps taken off because their area could not be built again: "not
+    # found" (no kept pull holds the record set) and "mismatch" (no pull's
+    # area gives the map as stored), each counted and named.
+    not_drawn = list(not_found = as.integer(trimmed$not_found %||% 0L),
+                     mismatch = as.integer(trimmed$mismatch %||% 0L),
+                     none = as.integer(trimmed$none %||% 0L),
+                     models = lapply(trimmed$not_drawn %||% list(), function(m) m[c("taxon", "algorithm", "reason")])),
     files = changed,
-    removed = as.list(setdiff(had, ensemble_files())),
+    removed = as.list(c(setdiff(had, ensemble_files()), atlas_finish_gone_maps(manifest, grid))),
     # Files the box files privately, never in the release: a worker may not
     # write private/ (its IAM policy), so they go up as objects and the box
     # puts them in place (atlas_apply_finish).
@@ -116,6 +138,7 @@ atlas_finish_release_work <- function(store = atlas_store(), release, grid = "dr
 #' another release became current in between: finishing that one is the next
 #' night's work.
 atlas_apply_finish <- function(store = atlas_store(), release, grid = "draft", quiet = FALSE) {
+  atlas_refuse_frozen(release)
   id <- atlas_finish_id(release)
   record <- atlas_store_text(store, atlas_shard_key(id, 1L, grid))
   base <- atlas_store_text(store, paste0("releases/", grid, "/", release, ".json"))
@@ -130,13 +153,15 @@ atlas_apply_finish <- function(store = atlas_store(), release, grid = "draft", q
   for (p in unlist(record$removed)) files[[p]] <- NULL
 
   kept <- base[intersect(names(base), c("job", "job_results", "retired", "partial", "unreported_shards"))]
+  index <- atlas_finish_index(base$index, record$not_drawn$models)
   finished <- atlas_write_release(
-    store, grid, unname(files), base$index,
+    store, grid, unname(files), index,
     previous = base$id, note = paste("finished", base$id),
     pull = base$pull, layers_key = base$layers_key, promote = TRUE, quiet = quiet,
     extra = c(kept, list(finished = list(
       version = ATLAS_FINISH_VERSION, from = base$id, counted = record$counted,
-      changed = length(record$files), at = record$finished_at
+      changed = length(record$files), at = record$finished_at,
+      not_drawn = record$not_drawn[intersect(names(record$not_drawn), c("not_found", "mismatch", "none"))]
     )))
   )
   # Finishing fits nothing: the finished release was trained on what its base was.
@@ -182,6 +207,10 @@ atlas_finish_on_ec2 <- function(store, grid = "draft", ec2 = NULL, config = atla
                                 image_exists = atlas_image_exists, ...) {
   current <- atlas_current_release(store, grid)
   if (is.null(current) || atlas_release_finished(current)) return(invisible(NULL))
+  if (current$id %in% ATLAS_FROZEN_RELEASES) {
+    if (!isTRUE(quiet)) message("release ", current$id, " is frozen: it is not finished again")
+    return(invisible(NULL))
+  }
   atlas_one_worker_on_ec2(
     store, atlas_finish_id(current$id), grid,
     command = sprintf("finish-release --grid=%s --release=%s --workers=$WORKERS", grid, current$id),
@@ -277,4 +306,26 @@ atlas_one_worker_on_ec2 <- function(store, id, grid, command, label, ec2 = NULL,
   done <- TRUE
   terminate_all()
   invisible(TRUE)
+}
+
+#' A release's map files that a finish removed on this machine: a map with no
+#' whole block inside its area is no longer drawn (R/blocks.R).
+atlas_finish_gone_maps <- function(manifest, grid = "draft") {
+  paths <- vapply(manifest$files, function(f) f$path, "")
+  mine <- paths[grepl(paste0("^models/", grid, "/"), paths) & grepl("[.](tif|png)$", paths) &
+                  !grepl("[.]full[.]", paths)]
+  mine[!file.exists(file.path(atlas_data_dir(), mine))]
+}
+
+#' A release's model index with the maps a finish took off marked so: map
+#' false, and no map withheld either. Every other entry is as it was.
+atlas_finish_index <- function(index, taken_off) {
+  off <- vapply(taken_off %||% list(), function(m) paste(m$taxon, m$algorithm %||% "maxnet", sep = "\x1f"), "")
+  lapply(index %||% list(), function(e) {
+    if (paste(e$taxon, e$algorithm %||% "maxnet", sep = "\x1f") %in% off) {
+      e$map <- FALSE
+      e$map_withheld <- NULL
+    }
+    e
+  })
 }

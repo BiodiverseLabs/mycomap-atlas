@@ -49,7 +49,7 @@ test_that("a release no worker has finished is not finished", {
 test_that("a finishing worker counts the maps, builds the index and prior, and reports only what changed", {
   skip_if_not_installed("terra")
   setup <- published()
-  record <- on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
+  record <- on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE, trim = no_trim))
   paths <- vapply(record$files, `[[`, "", "path")
   prior <- paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json", "models.tsv", "aoa.tsv.gz",
                                     if (requireNamespace("nanoparquet", quietly = TRUE)) c("ranks.parquet", "aoa.parquet")))
@@ -63,7 +63,7 @@ test_that("a finishing worker counts the maps, builds the index and prior, and r
 test_that("the box publishes the finished release: the worker's files in, everything else kept", {
   skip_if_not_installed("terra")
   setup <- published()
-  on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
+  on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE, trim = no_trim))
   finished <- on_machine(setup$boss, atlas_apply_finish(setup$store, setup$release$id, quiet = TRUE))
 
   expect_true(atlas_release_finished(finished))
@@ -114,7 +114,7 @@ test_that("finishing builds the combined map of a taxon's strong maps, which no 
     atlas_publish_release(store, quiet = TRUE)
   })
   expect_false(any(grepl("/ensemble/", vapply(release$files, `[[`, "", "path"))))
-  record <- on_machine(machine(), atlas_finish_release_work(store, release$id, quiet = TRUE))
+  record <- on_machine(machine(), atlas_finish_release_work(store, release$id, quiet = TRUE, trim = no_trim))
   expect_true("models/draft/ensemble/taxon-a.json" %in% vapply(record$files, `[[`, "", "path"))
   finished <- on_machine(boss, atlas_apply_finish(store, release$id, quiet = TRUE))
   expect_true(all(paste0("models/draft/ensemble/taxon-a", c(".json", ".tif", ".png")) %in%
@@ -133,7 +133,7 @@ test_that("a combined map a taxon no longer qualifies for leaves the finished re
   base$files <- c(base$files, list(entry))
   with_stale <- atlas_write_release(setup$store, "draft", base$files, base$index, previous = base$id,
                                     pull = base$pull, quiet = TRUE)
-  record <- on_machine(machine(), atlas_finish_release_work(setup$store, with_stale$id, quiet = TRUE))
+  record <- on_machine(machine(), atlas_finish_release_work(setup$store, with_stale$id, quiet = TRUE, trim = no_trim))
   expect_true("models/draft/ensemble/taxon-a.json" %in% unlist(record$removed))
   finished <- on_machine(setup$boss, atlas_apply_finish(setup$store, with_stale$id, quiet = TRUE))
   expect_false("models/draft/ensemble/taxon-a.json" %in% vapply(finished$files, `[[`, "", "path"))
@@ -142,7 +142,7 @@ test_that("a combined map a taxon no longer qualifies for leaves the finished re
 test_that("a finished release is left alone, and a release that moved on is not overwritten", {
   skip_if_not_installed("terra")
   setup <- published()
-  on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE))
+  on_machine(machine(), atlas_finish_release_work(setup$store, setup$release$id, quiet = TRUE, trim = no_trim))
   # Another release became current while the worker ran.
   on_machine(setup$boss, {
     writeLines("newer", atlas_path("occurrences", "name-merges.json"))
@@ -187,7 +187,7 @@ finish_ec2 <- function(store, lose = function(attempt) FALSE) {
         if (!lose(w$attempt)) {
           on_machine(machine(), atlas_finish_release_work(
             store, sub("^finish-", "", w$job), quiet = TRUE,
-            count = function(...) 0L,
+            count = function(...) 0L, trim = function(...) list(trimmed = 0L),
             build_index = function(grid, quiet) {
               dir.create(dirname(atlas_here_index_path(grid)), recursive = TRUE, showWarnings = FALSE)
               saveRDS(list(stub = TRUE), atlas_here_index_path(grid))
@@ -275,7 +275,7 @@ test_that("finishing files the weak maps' ranks privately, through the box, neve
                      atlas_model_path("Taxon A", "draft", ".json", "rf"))
     atlas_publish_release(setup$store, quiet = TRUE)
   })
-  record <- on_machine(machine(), atlas_finish_release_work(setup$store, weak_release$id, quiet = TRUE))
+  record <- on_machine(machine(), atlas_finish_release_work(setup$store, weak_release$id, quiet = TRUE, trim = no_trim))
   expect_equal(vapply(record$private, `[[`, "", "name"), "weak-ranks.tsv.gz")
   expect_false(any(grepl("weak|unpublished", vapply(record$files, `[[`, "", "path"))))
   finished <- on_machine(setup$boss, atlas_apply_finish(setup$store, weak_release$id, quiet = TRUE))

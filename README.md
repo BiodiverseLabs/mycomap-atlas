@@ -232,6 +232,20 @@ species is not absent from Yukon merely because nobody looked there. The seed
 comes from the taxon's record-set fingerprint, so the same records always draw
 the same sites and folds, and changed records draw new ones.
 
+A map is drawn in whole blocks (R/blocks.R): 50 km squares of one fixed grid,
+its origin at the Atlas grid's corner, the same for every map. A block is
+drawn only when its whole 50 km square lies inside the accessible area, and a
+block that runs past the grid's edge is dropped. Inside a kept block every
+cell the predictors cover is drawn as predicted. The map's raster is then
+cropped to its kept blocks, so its extent and the bounds its picture is laid
+at lie on block lines, and its counts by state count only the drawn cells.
+"Within reach" means the kept blocks. Scores are computed on the folds, never
+on the map, so blocks change no score, null test or grade. A full view is not
+trimmed. When a stored map is drawn in blocks (finishing a release again), its
+accessible area is built again from the records it was fitted on, in the pull
+its job used, and is used only if it gives exactly the map as stored; a map
+whose area cannot be built again is taken off until it is fitted again.
+
 ## Fitting and scoring
 
 ```bash
