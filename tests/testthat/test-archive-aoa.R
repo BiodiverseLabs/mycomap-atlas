@@ -13,8 +13,10 @@ aoa_grid <- function(values) {
 
 # computed_data()'s two models, with real rasters: a suitability map, and an
 # index that is 0 at a few cells, above 0 elsewhere and NA off the map.
-# Maxent keeps a threshold and has a full view; the forest keeps no threshold.
-computed_data_with_indexes <- function(threshold = 0.5) {
+# Maxent keeps a threshold and has a full view; the forest keeps no threshold
+# unless combined = TRUE, when both are strong and keep one, and the taxon gets
+# a combined map (R/ensemble.R) as a release's finishing step builds it.
+computed_data_with_indexes <- function(threshold = 0.5, combined = FALSE) {
   computed_data()
   set.seed(7)
   index <- stats::runif(100, 0.0005, 2)
@@ -28,8 +30,12 @@ computed_data_with_indexes <- function(threshold = 0.5) {
     terra::writeRaster(aoa_grid(index), atlas_model_path("Amanita muscaria", "draft", ".di.tif", algorithm),
                        overwrite = TRUE)
     metrics <- list(taxon = "Amanita muscaria", algorithm = algorithm, auc_mean = 0.7)
-    if (identical(algorithm, "maxnet")) metrics$applicability <- list(threshold = threshold)
+    if (identical(algorithm, "maxnet") || isTRUE(combined)) metrics$applicability <- list(threshold = threshold)
+    if (isTRUE(combined)) metrics$grade <- "strong"
     atlas_write_json(metrics, atlas_model_path("Amanita muscaria", "draft", ".json", algorithm))
+  }
+  if (isTRUE(combined)) {
+    expect_false(is.null(atlas_build_ensemble("Amanita muscaria", "draft", force = TRUE)))
   }
   full <- index
   full[c(91L, 92L)] <- 3
@@ -93,24 +99,49 @@ test_that("a mask is the index cut at the model's threshold, cell for cell, and 
   })
 })
 
+# Every layer of every raster in an unpacked bundle: no value is held by
+# exactly the index's zero cells, and the cells at a layer's least value are
+# not them either. Layer by layer, since a combined map holds three.
+expect_no_index_values <- function(dir) {
+  rasters <- list.files(dir, pattern = "[.]tif$", recursive = TRUE, full.names = TRUE)
+  expect_gt(length(rasters), 0L)
+  for (file in rasters) {
+    r <- terra::rast(file)
+    for (layer in seq_len(terra::nlyr(r))) {
+      values <- terra::values(r[[layer]], mat = FALSE)
+      what <- paste(basename(file), names(r)[[layer]])
+      for (v in unique(values[is.finite(values)])) {
+        expect_false(setequal(which(values == v), AOA_ZERO_CELLS), info = paste(what, v))
+      }
+      if (any(is.finite(values))) {
+        least <- which(is.finite(values) & values <= min(values, na.rm = TRUE) + 1e-6)
+        expect_false(setequal(least, AOA_ZERO_CELLS), info = what)
+      }
+    }
+  }
+  invisible(rasters)
+}
+
 test_that("bundle rasters carry no per-cell index values", {
   with_data_dir({
     computed_data_with_indexes()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    dir <- unpack_bundle(atlas_archive_models_bundle(store, "draft"))
-    rasters <- list.files(dir, pattern = "[.]tif$", recursive = TRUE, full.names = TRUE)
-    expect_gt(length(rasters), 0L)
-    for (file in rasters) {
-      values <- terra::values(terra::rast(file), mat = FALSE)
-      # No value is held by exactly the index's zero cells, and the cells at
-      # the raster's least value are not them either.
-      for (v in unique(values[is.finite(values)])) {
-        expect_false(setequal(which(values == v), AOA_ZERO_CELLS), info = paste(basename(file), v))
-      }
-      least <- which(is.finite(values) & values <= min(values, na.rm = TRUE) + 1e-6)
-      expect_false(setequal(least, AOA_ZERO_CELLS), info = basename(file))
-    }
+    expect_no_index_values(unpack_bundle(atlas_archive_models_bundle(store, "draft")))
+  })
+})
+
+test_that("a combined map's layers in the bundle carry no per-cell index values either", {
+  with_data_dir({
+    computed_data_with_indexes(combined = TRUE)
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    bundle <- atlas_archive_models_bundle(store, "draft")
+    expect_true("maps-ensemble.tar" %in% names(bundle$sources))
+    rasters <- expect_no_index_values(unpack_bundle(bundle))
+    combined <- rasters[grepl("/ensemble/", rasters)]
+    expect_length(combined, 1L)
+    expect_equal(terra::nlyr(terra::rast(combined)), 3L)
   })
 })
 
