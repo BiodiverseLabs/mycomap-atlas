@@ -149,22 +149,43 @@ EC2 worker and refits nothing. When finishing changes its rule (a new
 `ATLAS_FINISH_VERSION`), the current release is finished again once, by day
 and under watch, rather than left to a night that a QA stop could cut short:
 
+Before starting, check that nothing else is running on the box: the lock
+below covers the R nightly, a job run on EC2 and `finish-current`, but not
+the nightly's tail (`pull-release`, `build-cards`, `sitemap`), nor
+`build-cards` run by hand, and an orchestrator from an image older than the
+lock holds none. So run `finish-current` only when `atlas-nightly.service`
+is inactive and no `atlas-*` container is running:
+
+```bash
+systemctl is-active atlas-nightly.service   # must say inactive
+docker ps --filter name=atlas- --format '{{.Names}}' | grep -v '^atlas-api$'   # must print nothing
+```
+
+Each step runs under `systemd-run`, so a dropped SSH session does not stop
+it; follow it with `sudo journalctl -fu <unit>`, and start the next only when
+it has ended. The mounts are the nightly's (`nightly.sh`); `finish-plan`
+reads only, so it gets `/data` read-only.
+
 ```bash
 # first, read only: how many maps the finish will take off for want of a pull
-docker run --rm --name atlas-finish-plan --network host --memory 1g \
-  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
-  "$ATLAS_IMAGE" finish-plan
+sudo systemd-run --unit=atlas-finish-plan --collect -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-finish-plan --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data:ro "$ATLAS_IMAGE" finish-plan'
 # after a nightly has ended, with the owner's OK for the EC2 run
-docker run --rm --name atlas-finish --network host --memory 1g \
+sudo systemd-run --unit=atlas-finish --collect -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-finish --network host --memory 1g \
   --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
-  "$ATLAS_IMAGE" finish-current
-# then, as the nightly does after it
-docker run --rm --name atlas-pull --network host --memory 1g \
+  -v /home/atlas/.ssh:/home/atlas/.ssh:ro "$ATLAS_IMAGE" finish-current'
+# then, as the nightly does after it, once atlas-finish has ended
+sudo systemd-run --unit=atlas-pull --collect --wait -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-pull --network host --memory 1g \
   --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
-  "$ATLAS_IMAGE" pull-release --no-rasters && sudo systemctl restart atlas-api
-docker run --rm --name atlas-cards --network host --memory 1g \
+  -v /home/atlas/.ssh:/home/atlas/.ssh:ro "$ATLAS_IMAGE" pull-release --no-rasters' \
+  && sudo systemctl restart atlas-api
+sudo systemd-run --unit=atlas-cards --collect -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-cards --network host --memory 1g \
   --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data \
-  "$ATLAS_IMAGE" build-cards --upload
+  -v /home/atlas/.ssh:/home/atlas/.ssh:ro "$ATLAS_IMAGE" build-cards --upload'
 ```
 
 `finish-plan` prints how many of the current release's maps have their record
@@ -176,9 +197,25 @@ exactly the map as stored. The finished release counts both under
 says them.
 
 The nightly, a job run on EC2 and `finish-current` each hold the box's
-orchestrator lock (`/srv/atlas/data/locks/orchestrator`), and `finish-current`
-refuses to start while a nightly or a job holds it. The next nightly finds the
-release finished and skips the step.
+orchestrator lock (`/srv/atlas/data/locks/orchestrator`, with `held.json`
+saying who holds it and until when), and `finish-current` refuses to start
+while a nightly or a job holds it. The next nightly finds the release
+finished and skips the step. This change is never deployed while an
+orchestrator from an older image is running.
+
+**A lock left behind.** A run that is killed outright (out of memory, or
+`docker kill`) leaves its lock, and the lock is taken over only once its
+hours plus two have passed: about 11 h after a nightly, but up to 25 h after
+a `run-job-ec2` at `ATLAS_EC2_MAX_HOURS=20`, which would stop the next
+nightly. To clear it by hand, first make sure no orchestrator is running,
+then remove the lock:
+
+```bash
+cat /srv/atlas/data/locks/orchestrator/held.json   # who held it, until when
+systemctl is-active atlas-nightly.service           # must say inactive
+docker ps --filter name=atlas- --format '{{.Names}}' | grep -v '^atlas-api$'   # must print nothing
+sudo rm -r /srv/atlas/data/locks/orchestrator
+```
 
 Map pictures and cards are served with a version in their address and cached
 for a year. Once the first release finished under a new rule is live, purge
