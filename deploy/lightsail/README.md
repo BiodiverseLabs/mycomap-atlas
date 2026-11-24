@@ -108,6 +108,37 @@ in its `qa-<stamp>.json` and in the nightly's journal. If one is a fungus, add i
 to `occurrences/kingdom-allow.txt`: it comes back with the next pull. Once read,
 clear the note with `sudo /usr/local/lib/atlas/alert.sh --ok pull-left-out`.
 
+### When the pull's QA stops
+
+A pull whose QA report stops (`R/qa.R`) plans nothing. The nightly fails, so it
+shows as `atlas-nightly failing` in the banner, the journal and the health file,
+each night it stops. The site keeps its last release.
+
+A pull is compared with the **baseline**, `occurrences/qa-baseline.json`: the
+last pull the gate let through. So a stop does not clear itself the next night.
+It stays a stop every night until the change goes away or someone accepts it.
+To see why it stopped, read `occurrences/qa-latest.json` (`stops`, and each
+check's `why`). The failed run's journal gives the exact command. To accept the
+stop:
+
+```bash
+./atlas accept-qa --accept-qa=<pull stamp>:<check>[,<check>...]
+```
+
+This names the current pull's stamp and every stop it holds. It plans nothing:
+the pull becomes the baseline, the next nightly is compared with it and runs as
+usual, and the banner clears on that night's success. To fit from the stopped
+pull itself, `plan-job --accept-qa=...` does the same and plans as well.
+
+While a stop runs for several nights, every check is compared with the same,
+older baseline, so ordinary drift can add further stops night after night. The
+command must name every stop the current pull holds; the stopped run's error
+lists them all, in the form the command takes.
+
+A pull becomes the baseline when the gate lets it through, before anything is
+fitted, so a night whose QA passes but whose fit then fails has still moved the
+baseline.
+
 To check the alerting itself:
 
 ```bash

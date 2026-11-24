@@ -5,15 +5,24 @@
 # cache or grant that quietly failed.
 #
 # Every pull writes occurrences/qa-latest.json (and a dated copy): counts and
-# shares only, never a record or place, each check beside the last pull's
+# shares only, never a record or place, each check beside the baseline's
 # value. A check that crosses its threshold is a stop. A stopped pull is
 # kept, but nothing is planned from it (atlas_qa_gate, called by the nightly
 # and plan-job) unless that pull's stop is accepted by name:
 #
-#   ./atlas plan-job --accept-qa=<pull stamp>:<check>[,<check>...]
+#   ./atlas accept-qa --accept-qa=<pull stamp>:<check>[,<check>...]
+#   ./atlas plan-job  --accept-qa=<pull stamp>:<check>[,<check>...]
 #
-# and the acceptance is written into the job, so a release that went past a
-# stop says so in its lineage.
+# The baseline (occurrences/qa-baseline.json, Steve, 2026-11-23) is the
+# report of the last pull the gate let through: one that stopped nothing, or
+# whose stops were accepted by name. Until there is one, a pull is compared
+# with qa-latest.json, the pull before it. So a stopped pull's change stays a
+# stop every night, never quietly becoming the next night's baseline, until
+# someone accepts it or it goes away. accept-qa accepts a stopped pull without
+# planning from it: the next nightly is compared with that pull and runs as
+# usual. plan-job with --accept-qa plans from it as well, and writes the
+# acceptance into the job, so a release that went past a stop says so in its
+# lineage.
 #
 # Plant specimens from the pool runs leave the pull by themselves (Steve,
 # 2026-11-05): a name GBIF matches exactly, at species rank, in another kingdom
@@ -53,11 +62,16 @@ ATLAS_QA_THRESHOLDS <- list(
   disagree_rise = 0.01,
   # Drop-list rows still in the pull.
   drop_list = 0,
-  # Records by source against the last pull. Neither stops on fewer records
-  # than source_floor (Steve, 2026-11-04): with 43 Sequences records one is
-  # 2.3%, and with 2 GenBank records one is 50%, while a failed cache or grant
-  # moves far more. Smaller moves past a limit stay in the report.
-  source_fall = 0.02, source_rise = 0.15, source_floor = 20,
+  # Records by source against the baseline. Neither stops on fewer records
+  # than source_floor: with 43 Sequences records one is 2.3%, and with 2
+  # GenBank records one is 50%, while a failed cache or grant moves far more.
+  # Smaller moves past a limit stay in the report. The floor was 20 (Steve,
+  # 2026-11-04) and is 50 (Steve, 2026-11-23), so a source under about 330
+  # records does not stop the night on one ordinary batch of newly named
+  # records. MyCoPortal's two labels count as one source here
+  # (atlas_qa_source_label): on 2026-11-23 one label rose 371 -> 520 while
+  # the two together rose under 10%.
+  source_fall = 0.02, source_rise = 0.15, source_floor = 50,
   # The privacy list shrinking against the last pull.
   privacy_fall = 0.05,
   # The newest first validation in the pull, in days before the pull: .org's
@@ -82,6 +96,33 @@ ATLAS_QA_LEFT_OUT_RULE <- "GBIF matches the name exactly, at species rank, in an
 
 atlas_qa_path <- function(stamp = NULL) {
   atlas_path("occurrences", if (is.null(stamp)) "qa-latest.json" else paste0("qa-", stamp, ".json"))
+}
+atlas_qa_baseline_path <- function() atlas_path("occurrences", "qa-baseline.json")
+
+#' The report a new pull is compared with: the baseline (the last pull the
+#' gate let through), or, until there is one, the last pull's report.
+atlas_qa_previous <- function() {
+  path <- if (file.exists(atlas_qa_baseline_path())) atlas_qa_baseline_path() else atlas_qa_path()
+  if (!file.exists(path)) return(NULL)
+  report <- jsonlite::fromJSON(path, simplifyVector = TRUE)
+  attr(report, "file") <- basename(path)
+  report
+}
+
+#' One source as the "sources" check counts it: .org labels MyCoPortal two
+#' ways (ATLAS_MYCOPORTAL_SOURCES), and records moving between the labels are
+#' no change.
+atlas_qa_source_label <- function(source) {
+  source <- as.character(source)
+  ifelse(source %in% ATLAS_MYCOPORTAL_SOURCES, "MyCoPortal", source)
+}
+
+#' Records by source, with the MyCoPortal labels as one.
+atlas_qa_merge_sources <- function(counts) {
+  if (is.null(counts) || !length(counts)) return(counts)
+  values <- vapply(counts, function(x) as.numeric(x %||% 0), numeric(1))
+  merged <- tapply(values, atlas_qa_source_label(names(counts)), sum)
+  as.list(stats::setNames(as.numeric(merged), names(merged)))
 }
 atlas_kingdoms_path <- function() atlas_path("occurrences", "kingdoms.tsv.gz")
 atlas_kingdom_allow_path <- function() atlas_path("occurrences", "kingdom-allow.txt")
@@ -478,15 +519,17 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
     )
   }
 
-  # Records by source against the last pull.
+  # Records by source against the baseline, the MyCoPortal labels as one
+  # source. The report keeps each label's own count.
   now <- as.list(stats::setNames(as.integer(by_source), names(by_source)))
-  before <- previous$detail$by_source
+  before <- atlas_qa_merge_sources(previous$detail$by_source)
+  compared <- atlas_qa_merge_sources(now)
   moved <- character()
   below_floor <- character()
   if (!is.null(before)) {
-    for (s in union(names(now), names(before))) {
+    for (s in union(names(compared), names(before))) {
       a <- as.numeric(before[[s]] %||% 0)
-      b <- as.numeric(now[[s]] %||% 0)
+      b <- as.numeric(compared[[s]] %||% 0)
       if (a > 0 && ((a - b) / a > t$source_fall || (b - a) / a > t$source_rise)) {
         change <- sprintf("%s %d -> %d", s, as.integer(a), as.integer(b))
         if (abs(b - a) >= t$source_floor) moved <- c(moved, change) else below_floor <- c(below_floor, change)
@@ -513,10 +556,11 @@ atlas_qa_report <- function(occurrences, manifest, audit = NULL, privacy = NULL,
 }
 
 #' Make and write this pull's QA report beside it: qa-<stamp>.json and
-#' qa-latest.json, the last report read first as the one to compare with.
+#' qa-latest.json, compared with the baseline (atlas_qa_previous), and saying
+#' which pull that was.
 atlas_pull_qa <- function(occurrences, manifest, audit = NULL, kingdoms = NULL, left_out = NULL, quiet = FALSE,
                           privacy_refreshed = NA) {
-  previous <- if (file.exists(atlas_qa_path())) jsonlite::fromJSON(atlas_qa_path(), simplifyVector = TRUE)
+  previous <- atlas_qa_previous()
   privacy <- if (file.exists(atlas_privacy_path())) {
     utils::read.delim(gzfile(atlas_privacy_path(), encoding = "UTF-8"), sep = "	", quote = "", comment.char = "",
                       na.strings = "", colClasses = "character", stringsAsFactors = FALSE)
@@ -525,6 +569,9 @@ atlas_pull_qa <- function(occurrences, manifest, audit = NULL, kingdoms = NULL, 
   report <- atlas_qa_report(occurrences, manifest, audit, privacy, previous, kingdoms = kingdoms,
                             allow = atlas_kingdom_allow(), exclusions = exclusions, left_out = left_out,
                             privacy_refreshed = privacy_refreshed)
+  report$compared_with <- if (!is.null(previous)) {
+    list(pull = as.character(previous$pull %||% NA_character_), file = attr(previous, "file"))
+  }
   atlas_write_json(report, atlas_qa_path(manifest$stamp))
   atlas_write_json(report, atlas_qa_path())
   if (!is.null(left_out)) {
@@ -555,8 +602,11 @@ atlas_exclusion_keys <- function() {
 
 #' Refuse to plan from a pull whose QA report stops, unless each stop is
 #' accepted by name for that pull (accept: "<stamp>:<check>[,<check>]").
-#' Returns the accepted stops, to be written into the job. A pull with no
-#' report (one made before this gate) is planned as before, and says so.
+#' Returns the accepted stops, to be written into the job. A pull the gate
+#' lets through becomes the baseline the next pull is compared with
+#' (atlas_qa_previous), its accepted stops written into it. A pull with no
+#' report (one made before this gate) is planned as before, says so, and
+#' leaves the baseline as it was.
 atlas_qa_gate <- function(accept = NULL, report = NULL, quiet = FALSE) {
   report <- report %||% if (file.exists(atlas_qa_path())) jsonlite::fromJSON(atlas_qa_path(), simplifyVector = TRUE)
   manifest <- atlas_read_manifest()
@@ -565,7 +615,10 @@ atlas_qa_gate <- function(accept = NULL, report = NULL, quiet = FALSE) {
     return(invisible(list()))
   }
   stops <- as.character(unlist(report$stops))
-  if (!length(stops)) return(invisible(list()))
+  if (!length(stops)) {
+    atlas_qa_write_baseline(report)
+    return(invisible(list()))
+  }
   accepted <- character()
   if (!is.null(accept)) {
     parts <- strsplit(as.character(accept), ":", fixed = TRUE)[[1]]
@@ -577,8 +630,44 @@ atlas_qa_gate <- function(accept = NULL, report = NULL, quiet = FALSE) {
   if (length(left)) {
     why <- vapply(left, function(s) as.character(report$checks[[s]]$why %||% s), "")
     stop("pull ", report$pull, " stopped its QA: ", paste(why, collapse = "; "),
-         ". Nothing is planned; to plan anyway, accept by name: --accept-qa=", report$pull, ":",
+         ". Nothing is planned; to accept it, by name: ./atlas accept-qa --accept-qa=", report$pull, ":",
          paste(left, collapse = ","), call. = FALSE)
   }
-  invisible(list(pull = report$pull, accepted = as.list(intersect(stops, accepted))))
+  accepted <- intersect(stops, accepted)
+  atlas_qa_write_baseline(report, accepted)
+  invisible(list(pull = report$pull, accepted = as.list(accepted)))
+}
+
+#' Make a pull's report the baseline, with the stops accepted on it and when.
+atlas_qa_write_baseline <- function(report, accepted = character(), now = Sys.time()) {
+  report$baseline <- list(
+    since = format(now, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    accepted = as.list(as.character(accepted))
+  )
+  atlas_write_json(report, atlas_qa_baseline_path())
+  invisible(report)
+}
+
+#' Accept a stopped pull by name without planning from it (./atlas accept-qa):
+#' it becomes the baseline, so the next nightly is compared with it and runs
+#' as usual. The same refusals as the gate: the pull must be the current one,
+#' and every one of its stops must be named.
+atlas_qa_accept <- function(accept, quiet = FALSE) {
+  if (is.null(accept) || !nzchar(as.character(accept))) {
+    stop("accept-qa needs --accept-qa=<pull stamp>:<check>[,<check>...]", call. = FALSE)
+  }
+  report <- if (file.exists(atlas_qa_path())) jsonlite::fromJSON(atlas_qa_path(), simplifyVector = TRUE)
+  manifest <- atlas_read_manifest()
+  if (is.null(report) || !identical(as.character(report$pull), as.character(manifest$stamp %||% ""))) {
+    stop("there is no QA report for the current pull, so there is nothing to accept", call. = FALSE)
+  }
+  if (!length(unlist(report$stops))) {
+    stop("pull ", report$pull, " stopped nothing; there is nothing to accept", call. = FALSE)
+  }
+  out <- atlas_qa_gate(accept = accept, report = report, quiet = quiet)
+  if (!isTRUE(quiet)) {
+    message("pull QA: ", report$pull, " accepted (", paste(unlist(out$accepted), collapse = ", "),
+            "); it is the baseline the next pull is compared with -> ", atlas_qa_baseline_path())
+  }
+  invisible(out)
 }

@@ -1,15 +1,5 @@
 # A pull's QA report and its hard stops (R/qa.R).
 
-qa_pull <- function(n_inat = 100, n_mo = 50) {
-  data.frame(
-    id = as.character(seq_len(n_inat + n_mo)),
-    source = c(rep("iNaturalist", n_inat), rep("MO Observations", n_mo)),
-    observation_id = as.character(c(seq_len(n_inat), seq_len(n_mo) + 5000)),
-    scientific_name = rep(c("Amanita muscaria", "Russula emetica"), length.out = n_inat + n_mo),
-    stringsAsFactors = FALSE
-  )
-}
-
 qa_privacy <- function(pull, centres = 2, unknown = 1) {
   mo <- pull[pull$source == "MO Observations", , drop = FALSE]
   data.frame(source = c(mo$source[seq_len(centres)], pull$source[seq_len(unknown)]),
@@ -75,7 +65,7 @@ test_that("MO records at named-place centres stop the pull above 50%, or when th
   expect_true(stops(50, 21, previous = list(checks = list(place_centres = list(value = 0.39)))))
 })
 
-test_that("a source's records stop the pull only when at least 20 moved; a smaller move past a limit is still reported", {
+test_that("a source's records stop the pull only when at least 50 moved; a smaller move past a limit is still reported", {
   check <- function(before, n_mo = 50) {
     pull <- qa_pull(n_mo = n_mo)
     atlas_qa_report(pull, list(stamp = "x"), previous = list(detail = list(by_source = before)))
@@ -84,20 +74,20 @@ test_that("a source's records stop the pull only when at least 20 moved; a small
     report <- check(before, n_mo)
     list(stops = "sources" %in% unlist(report$stops), below = unlist(report$checks$sources$detail$below_floor))
   }
-  # A fall: 19 records is past 2% but under the floor; 20 stops.
-  fell_19 <- moved_by(list(iNaturalist = 100, "MO Observations" = 69))
-  expect_false(fell_19$stops)
-  expect_equal(fell_19$below, "MO Observations 69 -> 50")
-  fell_20 <- moved_by(list(iNaturalist = 100, "MO Observations" = 70))
-  expect_true(fell_20$stops)
-  expect_null(fell_20$below)
+  # A fall: 49 records is past 2% but under the floor; 50 stops.
+  fell_49 <- moved_by(list(iNaturalist = 100, "MO Observations" = 99))
+  expect_false(fell_49$stops)
+  expect_equal(fell_49$below, "MO Observations 99 -> 50")
+  fell_50 <- moved_by(list(iNaturalist = 100, "MO Observations" = 100))
+  expect_true(fell_50$stops)
+  expect_null(fell_50$below)
   # A rise: the same floor.
-  rose_19 <- moved_by(list(iNaturalist = 100, "MO Observations" = 31))
-  expect_false(rose_19$stops)
-  expect_equal(rose_19$below, "MO Observations 31 -> 50")
-  rose_20 <- moved_by(list(iNaturalist = 100, "MO Observations" = 30))
-  expect_true(rose_20$stops)
-  # At least 20 records but inside the percentages: no stop and nothing to report.
+  rose_49 <- moved_by(list(iNaturalist = 100, "MO Observations" = 51), n_mo = 100)
+  expect_false(rose_49$stops)
+  expect_equal(rose_49$below, "MO Observations 51 -> 100")
+  rose_50 <- moved_by(list(iNaturalist = 100, "MO Observations" = 50), n_mo = 100)
+  expect_true(rose_50$stops)
+  # At least 50 records but inside the percentages: no stop and nothing to report.
   large <- moved_by(list(iNaturalist = 100, "MO Observations" = 1020), n_mo = 1000)
   expect_false(large$stops)
   expect_null(large$below)
@@ -136,9 +126,9 @@ test_that("disagreeing sequence names rising a point, a drop-list row, or a sour
   expect_equal(dropped$checks$drop_list$value, 2L)
   expect_true("drop_list" %in% unlist(dropped$stops))
   moved <- atlas_qa_report(pull, list(stamp = "x"),
-                           previous = list(detail = list(by_source = list(iNaturalist = 100, "MO Observations" = 70))))
+                           previous = list(detail = list(by_source = list(iNaturalist = 100, "MO Observations" = 100))))
   expect_true("sources" %in% unlist(moved$stops))
-  expect_match(moved$checks$sources$why, "MO Observations 70 -> 50")
+  expect_match(moved$checks$sources$why, "MO Observations 100 -> 50")
 })
 
 test_that("nothing is planned from a stopped pull unless its stop is accepted by name, for that pull", {
@@ -156,15 +146,17 @@ test_that("nothing is planned from a stopped pull unless its stop is accepted by
   })
 })
 
-test_that("a QA report is written beside each pull and read as the last one by the next", {
+test_that("a QA report is written beside each pull and, with no baseline yet, read as the last one by the next", {
   with_data_dir({
-    pull <- qa_pull()
+    pull <- qa_pull(n_mo = 100)
     first <- atlas_pull_qa(pull, list(stamp = "a"), kingdoms = c("Amanita muscaria" = "Fungi", "Russula emetica" = "Fungi"),
                            quiet = TRUE)
     expect_true(file.exists(atlas_qa_path("a")))
     expect_true(file.exists(atlas_qa_path()))
-    second <- atlas_pull_qa(pull[1:120, ], list(stamp = "b"), quiet = TRUE)
+    expect_false(file.exists(atlas_qa_baseline_path()))
+    second <- atlas_pull_qa(pull[1:140, ], list(stamp = "b"), quiet = TRUE)
     expect_true("sources" %in% unlist(second$stops))
+    expect_equal(second$compared_with, list(pull = "a", file = "qa-latest.json"))
   })
 })
 

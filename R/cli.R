@@ -116,6 +116,9 @@ atlas_usage <- function() {
   message("  exclude-records    leave listed rows out of this pull and every later one, by a private drop")
   message("                     list (--ids=FILE|LIST [--by=id|source_observation] [--reason=...]);")
   message("                     --clear --confirm retires the list")
+  message("  accept-qa          accept a pull whose QA stopped, by name, without planning from it: it")
+  message("                     becomes the baseline the next nightly is compared with (R/qa.R)")
+  message("      --accept-qa=STAMP:CHECK,... the current pull's stamp and every stop it holds")
   message("  plan-job           list what needs refitting and split it into shards")
   message("      --algorithms=maxnet,xgboost,rf|all  models to consider (default all)")
   message("      --shards=N                how many workers will share it (default 4)")
@@ -675,6 +678,10 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "publish-layers" = {
       atlas_publish_layers(atlas_flag_store(flags), grid = atlas_flag_grid(flags))
+      invisible(0L)
+    },
+    "accept-qa" = {
+      atlas_qa_accept(if (is.null(flags$accept_qa)) NULL else as.character(flags$accept_qa))
       invisible(0L)
     },
     "plan-job" = {

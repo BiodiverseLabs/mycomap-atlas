@@ -321,6 +321,14 @@ changed and what it means for you.
 
 ### The server
 
+- **A pull's QA is compared with the last pull that was let through**
+  (`occurrences/qa-baseline.json`), not with the night before. A stop no
+  longer clears itself the next night. It holds the site on its last release
+  every night until the change goes away or someone accepts it with the new
+  `./atlas accept-qa --accept-qa=<stamp>:<check>`, which plans nothing and
+  makes that pull the baseline. Each report says what it was compared with
+  (`compared_with`). The "sources" check counts MyCoPortal's two labels as one
+  source, and stops only on a move of 50 records or more (was 20).
 - A Zenodo draft now publishes itself 3 days after it is made
   (`ATLAS_ZENODO_PUBLISH_AFTER_DAYS`), unless a person deletes it on
   zenodo.org first: `atlas archive-auto-publish`, run daily by
