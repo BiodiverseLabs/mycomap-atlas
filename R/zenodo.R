@@ -9,9 +9,14 @@
 # or removed. So every call that creates something leaves a draft, and
 # publishing is its own step.
 #
-# The token comes from ZENODO_TOKEN (scopes deposit:write and
-# deposit:actions) and is never written anywhere. The sandbox at
-# sandbox.zenodo.org behaves the same and mints test DOIs; use it first.
+# The token (scopes deposit:write and deposit:actions) comes from the file
+# ZENODO_TOKEN_FILE names: a deposit run on the box writes it into its unit's
+# own runtime directory and mounts it read-only, so it never shows in a
+# container's environment. Failing that, from ZENODO_TOKEN, which only the
+# draft auto-publisher (deploy/lightsail/zenodo-publish.sh) and a person's
+# own machine use. It is never written anywhere, and never appears in a
+# message or an error. The sandbox at sandbox.zenodo.org behaves the same and
+# mints test DOIs; use it first.
 
 ATLAS_ZENODO_API <- c(
   zenodo = "https://zenodo.org/api",
@@ -25,17 +30,43 @@ ATLAS_ZENODO_RETRY_WAITS <- c(15, 60, 180)
 ATLAS_ZENODO_MAX_BYTES <- 50 * 1024^3
 ATLAS_ZENODO_MAX_FILES <- 100
 
+#' The token: read from the file ZENODO_TOKEN_FILE names when it is set
+#' (refused if the file is missing, empty, or holds more than one token's
+#' characters), else ZENODO_TOKEN. Nothing of the token is ever put in a
+#' message.
+atlas_zenodo_token <- function(file = Sys.getenv("ZENODO_TOKEN_FILE", unset = ""),
+                               env = Sys.getenv("ZENODO_TOKEN", unset = "")) {
+  if (!nzchar(file)) return(env)
+  if (!file.exists(file)) stop("ZENODO_TOKEN_FILE names a file that is not there; nothing done", call. = FALSE)
+  size <- file.info(file)$size
+  token <- if (is.finite(size) && size > 0) readChar(file, size, useBytes = TRUE) else ""
+  if (!nzchar(token)) stop("the Zenodo token file is empty; nothing done", call. = FALSE)
+  if (grepl("[[:space:][:cntrl:]]", token, useBytes = TRUE)) {
+    stop("the Zenodo token file holds spaces, line ends or other characters a token has not; nothing done",
+         call. = FALSE)
+  }
+  token
+}
+
+#' Text with every occurrence of the token taken out. A real token is 60
+#' characters; anything under 8 (a test's stand-in) is not a token worth
+#' hiding and would only mangle the message.
+atlas_zenodo_scrub <- function(text, token) {
+  if (nchar(token %||% "") < 8L) return(text)
+  gsub(token, "[token]", text, fixed = TRUE)
+}
+
 #' A connection to Zenodo or its sandbox.
 #'
 #' transport(method, url, token, json, file) makes one HTTP call and returns
 #' list(status, body); tests pass a simulated Zenodo.
 atlas_zenodo <- function(target = c("zenodo", "sandbox"),
-                         token = Sys.getenv("ZENODO_TOKEN", unset = ""),
+                         token = atlas_zenodo_token(),
                          transport = atlas_zenodo_http,
                          waits = ATLAS_ZENODO_RETRY_WAITS, sleep = Sys.sleep) {
   target <- match.arg(target)
   if (!nzchar(token)) {
-    stop("set ZENODO_TOKEN to a Zenodo personal access token with deposit:write and ",
+    stop("set ZENODO_TOKEN_FILE (or ZENODO_TOKEN) to a Zenodo personal access token with deposit:write and ",
          "deposit:actions (for the sandbox, a token made on sandbox.zenodo.org)", call. = FALSE)
   }
   base <- ATLAS_ZENODO_API[[target]]
@@ -51,7 +82,7 @@ atlas_zenodo <- function(target = c("zenodo", "sandbox"),
     repeat {
       response <- tryCatch(
         transport(method, url, token, json, file),
-        error = function(e) list(status = 0L, body = list(message = conditionMessage(e)))
+        error = function(e) list(status = 0L, body = list(message = atlas_zenodo_scrub(conditionMessage(e), token)))
       )
       transient <- response$status == 0L || response$status == 429L || response$status >= 500L
       if (response$status %in% expect || !repeatable || !transient || attempt >= length(waits)) break
@@ -61,7 +92,7 @@ atlas_zenodo <- function(target = c("zenodo", "sandbox"),
       sleep(waits[[attempt]])
     }
     if (!response$status %in% expect) {
-      detail <- response$body$message %||% ""
+      detail <- atlas_zenodo_scrub(response$body$message %||% "", token)
       # A gateway's HTML error page says nothing a person needs to read.
       if (grepl("<html", detail, ignore.case = TRUE)) detail <- "the server's gateway failed"
       errors <- response$body$errors
@@ -70,7 +101,8 @@ atlas_zenodo <- function(target = c("zenodo", "sandbox"),
           paste0(e$field %||% "", ": ", paste(unlist(e$messages %||% e$message), collapse = " "))
         }, character(1)), collapse = "; "))
       }
-      stop("Zenodo answered ", response$status, " to ", method, " ", sub("[?].*$", "", url),
+      detail <- atlas_zenodo_scrub(detail, token)
+      stop("Zenodo answered ", response$status, " to ", method, " ", atlas_zenodo_scrub(sub("[?].*$", "", url), token),
            if (nzchar(detail)) paste0(": ", detail) else "", call. = FALSE)
     }
     if (isTRUE(raw)) return(response)

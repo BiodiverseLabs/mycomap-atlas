@@ -873,8 +873,11 @@ never deposited twice.
 
 A run leaves a draft unless given `--publish`, because publishing mints the
 DOI and can never be undone; check the draft on Zenodo, then
-`archive-publish` (or `archive-discard`). The token is `ZENODO_TOKEN`, a
-personal access token with `deposit:write` and `deposit:actions`; the sandbox
+`archive-publish` (or `archive-discard`). The token is a personal access
+token with `deposit:write` and `deposit:actions`, read from the file
+`ZENODO_TOKEN_FILE` names (on the box, a file in the deposit unit's own
+runtime directory: deploy/lightsail/README.md), else from `ZENODO_TOKEN`; it
+never appears in a message or an error. The sandbox
 needs its own token from sandbox.zenodo.org. Which release went to which DOI
 is kept in `archives/<series>.json` in the store, pulled with every release,
 and served at `/api/downloads`. Sandbox series end in `-sandbox` and never

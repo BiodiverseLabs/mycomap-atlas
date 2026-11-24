@@ -247,25 +247,42 @@ instance type only, never a Zenodo token.
 ```bash
 # 1. Build only, on one on-demand worker, by a deadline (the owner's OK for
 #    the run, with its estimate). The bundle and its SHA256SUMS are kept
-#    under private/archive-build/<grid>/<release>/ in the store.
-sudo systemd-run --unit=atlas-archive-build --collect -p EnvironmentFile=/etc/atlas/image.env \
+#    under private/archive-build/<grid>/<release>/ in the store. It holds the
+#    box's orchestrator lock, so check first, as for finish-current, that no
+#    nightly or other atlas container is running. It reads only the store, so
+#    it needs no /home/atlas/.ssh.
+sudo -n systemd-run --unit=atlas-archive-build --collect -p EnvironmentFile=/etc/atlas/image.env \
   -E ATLAS_EC2_MAX_HOURS=3 -E ATLAS_EC2_FINISH_MARKET=on-demand -E ATLAS_EC2_INSTANCE_TYPES=r7i.4xlarge \
   /bin/sh -c 'exec docker run --rm --name atlas-archive-build --network host --memory 1g \
   --env-file /etc/atlas/atlas.env -e ATLAS_EC2_MAX_HOURS -e ATLAS_EC2_FINISH_MARKET -e ATLAS_EC2_INSTANCE_TYPES \
   -v /srv/atlas/data:/data "$ATLAS_IMAGE" archive-build-ec2 --release=<release>'
 
-# 2. Deposit the kept bundle (a draft unless --publish). The token is typed,
-#    never shown, and handed to the unit on its input; it is never written to
-#    the box and leaves no trace once the unit ends.
-read -rsp 'Zenodo token: ' ZT && echo && printf '%s\n' "$ZT" | \
-  sudo systemd-run --unit=atlas-deposit --collect --pipe -p EnvironmentFile=/etc/atlas/image.env \
-  /bin/sh -c 'IFS= read -r ZENODO_TOKEN; export ZENODO_TOKEN; exec docker run --rm --name atlas-deposit \
-  --network host --memory 1g --env-file /etc/atlas/atlas.env -e ZENODO_TOKEN -v /srv/atlas/data:/data \
-  "$ATLAS_IMAGE" archive-release --only=models --from-build=<release>'; unset ZT
+# 2. Deposit the kept bundle (a draft unless --publish). A person types the
+#    token at the prompt, at an interactive terminal on the box; nobody
+#    pastes it into a chat, a file or a command line. It is never shown, and
+#    goes to the unit on its input. The unit checks its length, writes it into
+#    its own runtime directory (/run/atlas-deposit, in memory, mode 0700,
+#    removed by systemd when the unit ends) and mounts that one file read-only
+#    into the container, so it is in no container's environment.
+[ -t 0 ] || { echo "run this at an interactive terminal on the box" >&2; false; } && \
+read -rsp 'Zenodo token: ' ZT && echo && printf '%s' "$ZT" | \
+  sudo -n systemd-run --unit=atlas-deposit --collect --pipe -p EnvironmentFile=/etc/atlas/image.env \
+  -p RuntimeDirectory=atlas-deposit -p RuntimeDirectoryMode=0700 \
+  /bin/sh -c 'IFS= read -r T || [ -n "$T" ]
+    [ "${#T}" -eq 60 ] || { echo "the token is not 60 characters long; nothing done" >&2; exit 2; }
+    umask 077; printf "%s" "$T" > /run/atlas-deposit/token; unset T
+    chown 10001 /run/atlas-deposit/token; chmod 0400 /run/atlas-deposit/token
+    exec docker run --rm --name atlas-deposit --network host --memory 1g --env-file /etc/atlas/atlas.env \
+      -e ZENODO_TOKEN_FILE=/run/secrets/zenodo-token -v /run/atlas-deposit/token:/run/secrets/zenodo-token:ro \
+      -v /srv/atlas/data:/data "$ATLAS_IMAGE" archive-release --only=models --from-build=<release>'; unset ZT
 ```
 
 The deposit checks each kept file against its `SHA256SUMS` line before
-anything is uploaded, and refuses a bundle whose sums do not match.
+anything is uploaded, and refuses a bundle whose sums do not match. It stages
+the kept bundle, about 13 GB for a whole release, under
+`/srv/atlas/data/archive-staging/<grid>/<release>/` and removes it when the
+deposit ends, however it ends. It refuses to start unless the disk has the
+bundle's size times 1.25 plus 2 GB free (about 18 GB of the box's 35 GB).
 
 ## Zenodo drafts that publish themselves
 

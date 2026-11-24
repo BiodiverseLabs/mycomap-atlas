@@ -551,7 +551,10 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
     lines <- c(
       lines,
       paste0("Atlas release: ", r$id, " (", r$created_at, ")"),
-      paste0("Code: https://github.com/BiodiverseLabs/mycomap-atlas", if (!is.null(r$commit) && !is.na(r$commit)) paste0("/tree/", r$commit) else ""),
+      # A release read back from JSON (a kept bundle) may hold its commit as
+      # an empty list: only a single string is a commit.
+      paste0("Code: https://github.com/BiodiverseLabs/mycomap-atlas",
+             if (!is.null(commit <- atlas_json_string(r$commit)) && !is.na(commit)) paste0("/tree/", commit) else ""),
       paste0("Records: ", r$pull$records %||% "?", " DNA-validated collections, ", r$pull$taxa %||% "?",
              " taxa, pulled ", r$pull$pulled_at %||% "?", ", fingerprint ", r$pull$fingerprint %||% "?"),
       paste0("Models: ", paste(sprintf("%s %s", names(r$models), unlist(r$models)), collapse = ", ")),

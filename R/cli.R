@@ -899,6 +899,14 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
     },
     "archive-release" = {
       kinds <- if (is.null(flags$only)) ATLAS_ARCHIVE_KINDS else as.character(flags$only)
+      # A kept bundle is staged under the data directory, and removed when the
+      # deposit ends, however it ends.
+      staged <- NULL
+      if (!is.null(flags$from_build)) {
+        staged <- atlas_archive_fetch_build(atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+                                            as.character(flags$from_build), atlas_flag_grid(flags))
+        on.exit(unlink(staged, recursive = TRUE), add = TRUE)
+      }
       atlas_archive(
         store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
         grid = atlas_flag_grid(flags),
@@ -911,12 +919,7 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         cells_now = if (is.null(flags$cells_now)) NULL else as.character(flags$cells_now),
         workers = atlas_flag_number(flags, "workers", 1L),
         keep_bundle = if (is.null(flags$keep_bundle)) NULL else as.character(flags$keep_bundle),
-        from_bundle = if (!is.null(flags$from_build)) {
-          atlas_archive_fetch_build(atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
-                                    as.character(flags$from_build), atlas_flag_grid(flags))
-        } else if (!is.null(flags$from_bundle)) {
-          as.character(flags$from_bundle)
-        }
+        from_bundle = staged %||% (if (!is.null(flags$from_bundle)) as.character(flags$from_bundle))
       )
       invisible(0L)
     },

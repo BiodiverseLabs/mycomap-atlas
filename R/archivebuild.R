@@ -73,28 +73,55 @@ atlas_archive_place_build <- function(store, release, grid = "draft") {
 #' On the box: build a release's models bundle on one EC2 worker, by hours
 #' (config$max_hours, ATLAS_EC2_MAX_HOURS, unless given), and file it
 #' privately. The worker runs on ATLAS_EC2_FINISH_MARKET and
-#' ATLAS_EC2_INSTANCE_TYPES, as a finishing worker does. Returns the keys.
+#' ATLAS_EC2_INSTANCE_TYPES, as a finishing worker does. It holds the box's
+#' orchestrator lock for its hours, so it never runs beside a nightly, a job
+#' or a finish. Returns the keys.
 atlas_archive_build_on_ec2 <- function(store, release, grid = "draft", config = atlas_ec2_config(),
                                        hours = config$max_hours, quiet = FALSE, ...) {
   if (is.null(atlas_store_text(store, paste0("releases/", grid, "/", release, ".json")))) {
     stop("no release ", release, " on the ", grid, " grid", call. = FALSE)
   }
-  atlas_one_worker_on_ec2(store, atlas_archive_build_id(release), grid,
-                          command = atlas_archive_build_command(release, grid),
-                          label = paste("the models bundle of", release), config = config,
-                          hours = hours, quiet = quiet, ...)
-  keys <- atlas_archive_place_build(store, release, grid)
+  atlas_with_orchestrator_lock("archive-build-ec2", hours, {
+    atlas_one_worker_on_ec2(store, atlas_archive_build_id(release), grid,
+                            command = atlas_archive_build_command(release, grid),
+                            label = paste("the models bundle of", release), config = config,
+                            hours = hours, quiet = quiet, ...)
+    keys <- atlas_archive_place_build(store, release, grid)
+  })
   if (!isTRUE(quiet)) message("models bundle of ", release, " kept under ", atlas_archive_build_prefix(release, grid))
   invisible(keys)
 }
 
+#' Where a kept bundle is staged on the box for its deposit: under the data
+#' directory (/srv/atlas/data on the box), removed once the deposit ends.
+atlas_archive_staging_dir <- function(release, grid = "draft") atlas_path("archive-staging", grid, release)
+
+#' Bytes free on the disk that holds dir, from df; NA where df cannot say.
+atlas_free_bytes <- function(dir) {
+  out <- tryCatch(system2("df", c("-Pk", shQuote(dir)), stdout = TRUE, stderr = FALSE), error = function(e) character())
+  if (length(out) < 2L) return(NA_real_)
+  fields <- strsplit(trimws(out[[length(out)]]), "[[:space:]]+")[[1]]
+  as.numeric(fields[[4]]) * 1024
+}
+
 #' On the box: bring a kept bundle from the store into dir, for
-#' archive-release --from-build.
-atlas_archive_fetch_build <- function(store, release, grid = "draft", dir = tempfile("atlas-kept-")) {
+#' archive-release --from-build. Refuses to start unless the disk holds the
+#' bundle's size (from its build record) with a margin: margin times it plus
+#' 2 GB.
+atlas_archive_fetch_build <- function(store, release, grid = "draft", dir = atlas_archive_staging_dir(release, grid),
+                                      free = atlas_free_bytes, margin = 1.25) {
   prefix <- atlas_archive_build_prefix(release, grid)
   keys <- store$list(prefix)
   if (!length(keys)) stop("no kept bundle of ", release, " in the store", call. = FALSE)
+  record <- atlas_store_text(store, atlas_shard_key(atlas_archive_build_id(release), 1L, grid))
+  needed <- sum(vapply(record$files %||% list(), function(f) as.numeric(f$bytes %||% 0), 0))
   dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  have <- free(dir)
+  if (!is.na(have) && have < needed * margin + 2e9) {
+    unlink(dir, recursive = TRUE)
+    stop(sprintf("the kept bundle needs %.1f GB with its margin and the disk has %.1f GB free; nothing done",
+                 (needed * margin + 2e9) / 1e9, have / 1e9), call. = FALSE)
+  }
   for (key in keys) store$get(key, file.path(dir, sub(prefix, "", key, fixed = TRUE)))
   dir
 }

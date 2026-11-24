@@ -189,6 +189,10 @@ test_that("a bundle kept by a build-only run is deposited later exactly as built
     expect_identical(again$version, bundle$version)
     expect_identical(again$key, bundle$key)
     expect_error(atlas_archive_keep_bundle(bundle, kept), "not empty")
+    # A commit that was null comes back from JSON as an empty list; the README is still written.
+    again$release$commit <- list()
+    readme <- atlas_archive_readme(again, atlas_archive_file_table(again$sources))
+    expect_true(any(grepl("^Code: https://github.com/BiodiverseLabs/mycomap-atlas$", readme)))
     cat("x", file = again$sources[["release.json"]], append = TRUE)
     expect_error(atlas_archive_read_kept_bundle(kept), "release.json does not match its SHA256SUMS")
   })
@@ -249,5 +253,78 @@ test_that("a deposit fetches the release's layers into a directory of its own, n
     path <- atlas_archive_block_land(fresh_store(), "draft", "key", own)
     expect_true(startsWith(normalizePath(path, winslash = "/"), normalizePath(own, winslash = "/")))
     expect_identical(tree_hashes(atlas_data_dir()), before)
+  })
+})
+
+test_that("the Zenodo token is read from the file ZENODO_TOKEN_FILE names, and a missing, empty or odd file refuses", {
+  token <- paste(rep("t0Ken", 12), collapse = "")
+  file <- tempfile()
+  writeBin(charToRaw(token), file)
+  expect_identical(atlas_zenodo_token(file = file, env = "from-env"), token)
+  expect_identical(atlas_zenodo_token(file = "", env = "from-env"), "from-env")
+  expect_error(atlas_zenodo_token(file = tempfile(), env = ""), "names a file that is not there")
+  empty <- tempfile(); file.create(empty)
+  expect_error(atlas_zenodo_token(file = empty, env = ""), "is empty")
+  crlf <- tempfile(); writeBin(charToRaw(paste0(token, "\r\n")), crlf)
+  err <- tryCatch(atlas_zenodo_token(file = crlf, env = ""), error = conditionMessage)
+  expect_match(err, "line ends")
+  expect_false(grepl(token, err, fixed = TRUE))
+  withr::local_envvar(ZENODO_TOKEN_FILE = file, ZENODO_TOKEN = "")
+  expect_false(is.null(atlas_zenodo("sandbox", transport = function(...) list(status = 200L, body = list()))$call))
+})
+
+test_that("the token never appears in a message or an error, whatever Zenodo or the network answers", {
+  token <- paste(rep("s3cr", 15), collapse = "")
+  echo <- function(method, url, token, json, file) list(status = 400L, body = list(message = paste("bad token", token),
+                                                                                    errors = list(list(field = token, messages = list(token)))))
+  boom <- function(method, url, token, json, file) stop("could not connect with Authorization: Bearer ", token)
+  for (transport in list(echo, boom)) {
+    z <- atlas_zenodo("sandbox", token = token, transport = transport, waits = c(0, 0), sleep = function(s) NULL)
+    said <- character()
+    err <- withCallingHandlers(
+      tryCatch(z$call("GET", "/deposit/depositions"), error = conditionMessage),
+      message = function(m) { said <<- c(said, conditionMessage(m)); invokeRestart("muffleMessage") }
+    )
+    expect_false(grepl(token, err, fixed = TRUE))
+    expect_false(any(grepl(token, said, fixed = TRUE)))
+    expect_match(err, "Zenodo answered")
+  }
+})
+
+test_that("a kept bundle is staged only where the disk has room for it, and the archive build holds the orchestrator lock", {
+  skip_if_not_installed("terra")
+  setup <- deposit_published()
+  local_mocked_bindings(atlas_one_worker_on_ec2 = function(store, id, grid, ...) {
+    on_machine(machine(), atlas_archive_build_work(store, setup$release$id, grid, quiet = TRUE))
+  })
+  on_machine(setup$boss, {
+    # A second orchestrator is refused while one holds the lock.
+    held <- tryCatch(atlas_with_orchestrator_lock("nightly", 6, {
+      atlas_archive_build_on_ec2(setup$store, setup$release$id, "draft", config = list(max_hours = 3), quiet = TRUE)
+    }), error = conditionMessage)
+    expect_match(held, "nightly has held the box's orchestrator lock")
+    atlas_archive_build_on_ec2(setup$store, setup$release$id, "draft", config = list(max_hours = 3), quiet = TRUE)
+    dir <- tempfile("staged-")
+    expect_error(atlas_archive_fetch_build(setup$store, setup$release$id, "draft", dir = dir, free = function(d) 1e6),
+                 "needs .* GB with its margin and the disk has 0.0 GB free; nothing done")
+    expect_false(dir.exists(dir))
+    staged <- atlas_archive_fetch_build(setup$store, setup$release$id, "draft", dir = dir, free = function(d) 1e12)
+    expect_true(file.exists(file.path(staged, "SHA256SUMS")))
+  })
+})
+
+test_that("a deposit from a kept build removes its staged copy when it ends", {
+  skip_if_not_installed("terra")
+  setup <- deposit_published()
+  local_mocked_bindings(atlas_one_worker_on_ec2 = function(store, id, grid, ...) {
+    on_machine(machine(), atlas_archive_build_work(store, setup$release$id, grid, quiet = TRUE))
+  })
+  on_machine(setup$boss, {
+    atlas_archive_build_on_ec2(setup$store, setup$release$id, "draft", config = list(max_hours = 3), quiet = TRUE)
+    with_env(c(ATLAS_STORE = setup$store$uri), {
+      suppressMessages(atlas_main(c("archive-release", "--only=models", paste0("--from-build=", setup$release$id),
+                                    "--dry-run")))
+    })
+    expect_false(dir.exists(atlas_archive_staging_dir(setup$release$id)))
   })
 })
