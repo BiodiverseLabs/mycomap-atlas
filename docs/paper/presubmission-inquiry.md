@@ -1,6 +1,6 @@
 # Presubmission inquiry: Ecological Monographs, Method
 
-**READY TO SEND (Steve, 2026-10-30; header and one word refreshed 2026-11-20; related-work line added 2026-11-20, Steve). Steve sends it himself; no agent sends it.**
+**READY TO SEND (Steve, 2026-10-30; header and one word refreshed 2026-11-20; related-work line added 2026-11-20, Steve; four fixes and two wording corrections 2026-11-24, Steve). Steve sends it himself; no agent sends it.**
 
 **Route** (Ecological Monographs Author Guidelines, revised September 2026,
 "Presubmission Inquiries"; https://esajournals.onlinelibrary.wiley.com/hub/journal/15577015/author-guidelines):
@@ -41,24 +41,24 @@ at the real survey sites of a continental community-science programme:
 scattered nulls passed 75–82% of species whose records followed no habitat
 at all, and nearly every such species with 100 or more sites. Nulls that
 keep each species' own clustering, restricted to surveyed sites, cut false
-passes more than tenfold, to 5–6%, close to the 5% we had
-pre-registered but not within its bound, and still picked out maps much closer to the true habitat,
-at a large cost in power that we quantify.
+passes more than tenfold, to 5–6%, close to the 5% we had pre-registered but
+not within its bound, and still picked out maps much closer to the true
+habitat, at a large cost in power that we quantify.
 
-We use this null to grade every map of MycoMap Atlas, habitat
-models for 6,369 taxa, nearly all macrofungi, defined by DNA barcodes rather than morphological
-names, rebuilt nightly from validated community-science collections. In a
-hindcast, maps graded strong placed 91% of records validated after the
-training cutoff in their top half, against 78% for failed maps (95%
-interval of the difference 9–17 points), and beat a map of distance to
-known records by a modest 4 points (1–8), an advantage that appeared at
-finds more than 100 km away; weak maps did no better than distance. A bar against
-chance, which even failed maps clear, cannot judge such maps; distance to
-known records can. The paper gives best-practice guidance for null
-tests in target-group designs, compares the approach with default practice,
-and documents the atlas as an open,
-versioned resource (code, layers and models on Zenodo; training-record
-identifiers will be deposited).
+We use this null to grade every map of MycoMap Atlas, habitat models for
+6,369 taxa, nearly all macrofungi, defined by DNA barcodes rather than
+morphological names, rebuilt nightly from validated community-science
+collections. In a hindcast, maps graded strong placed 91% of records
+validated after the training cutoff in their top half, against 78% for
+failed maps (95% interval of the difference 9–17 points), and beat a map of
+distance to known records by a modest 4 points (1–8), an advantage that
+appeared at finds more than 100 km away (descriptive); weak maps did no
+better than distance. A bar against chance, which even failed maps clear,
+cannot judge such maps; distance to known records can. The paper gives
+best-practice guidance for null tests in target-group designs, compares the
+approach with default practice, and documents the atlas as an open,
+versioned resource (code on GitHub; layers and models on Zenodo, with a
+revised models version and the training-record identifiers to be deposited).
 
 **References:** Phillips et al. 2009 (Ecological Applications); Raes & ter
 Steege 2007 (Ecography); Beale et al. 2008 (PNAS); Osborne et al. 2022
@@ -68,4 +68,4 @@ et al. 2022 (Ecological Monographs); Zurell et al. 2020 (Ecography).
 
 **Related work:** A separate data descriptor of a later Atlas release, under a different DOI, is planned; please tell us if the journal has a view.
 
-*Words in the inquiry body: about 280.*
+*Words in the inquiry body: about 290.*
