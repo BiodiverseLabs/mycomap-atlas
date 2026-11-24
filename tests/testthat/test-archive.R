@@ -16,7 +16,7 @@ archive_quietly <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, 
   if (is.null(cells_now) && "models" %in% kinds && !is.null(atlas_current_release(store, grid))) {
     cells_now <- planted_cells_now(store, grid)
   }
-  atlas_archive(store, grid, kinds, ..., cells_now = cells_now, quiet = TRUE)
+  atlas_archive(store, blocks = FALSE, grid, kinds, ..., cells_now = cells_now, quiet = TRUE)
 }
 
 test_that("a first archive leaves a draft on Zenodo and publishes nothing", {
@@ -118,7 +118,7 @@ test_that("the bundle holds maps per model, scores, counts, cells and regions, a
     computed_data()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_setequal(names(bundle$sources), c(
       "maps-maxnet.tar", "maps-rf.tar", "scores.tar.gz", "taxa.json",
       "collection-cells-0.1deg.tsv.gz", "taxa-by-state-province.tsv.gz", "pull.json", "release.json"
@@ -217,7 +217,7 @@ test_that("a dry run builds the bundle but calls nobody and records nothing", {
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
     offline <- list(target = "zenodo", base = "", call = function(...) stop("no calls in a dry run"))
-    expect_silent(atlas_archive(store, "draft", "models", z = offline, dry_run = TRUE, quiet = TRUE))
+    expect_silent(atlas_archive(store, blocks = FALSE, "draft", "models", z = offline, dry_run = TRUE, quiet = TRUE))
     expect_length(atlas_archive_ledger(store, "models-draft")$versions, 0)
   })
 })
@@ -396,9 +396,9 @@ test_that("the same release always packs to the same bytes", {
     computed_data()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    first <- atlas_archive_models_bundle(store, "draft")
+    first <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     Sys.sleep(1.1)
-    second <- atlas_archive_models_bundle(store, "draft")
+    second <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     hashes <- function(b) vapply(b$sources, atlas_sha256, character(1))
     expect_equal(hashes(first), hashes(second))
   })

@@ -116,7 +116,7 @@ test_that("the list is never published: not in a release, its files, the API, or
     dir.create(atlas_path("private", "trained-ids"), recursive = TRUE, showWarnings = FALSE)
     file.copy(file, atlas_path("private", "trained-ids", "copy.tsv.gz"))
     expect_false(any(grepl("trained|^private/", atlas_release_files("draft"))))
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_false(any(grepl("trained|private", names(bundle$sources))))
     bundle_shas <- vapply(bundle$sources, atlas_sha256, "")
     expect_false(private_sha %in% bundle_shas)

@@ -288,9 +288,12 @@ atlas_archive_write_here <- function(path, out) {
 
 #' Build the models bundle for one release: fetch its files from the store,
 #' check each against its hash, and pack them into a handful of files, since
-#' a Zenodo record holds at most 100.
+#' a Zenodo record holds at most 100. With blocks (the default), the bundle's
+#' maps are drawn in whole 50 km blocks in its own tree (R/archiveblocks.R);
+#' blocks = FALSE packs the release's maps as they are, for tests of the rest.
 atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
-                                        dir = tempfile("atlas-archive-"), cells_now = NULL) {
+                                        dir = tempfile("atlas-archive-"), cells_now = NULL,
+                                        blocks = TRUE, workers = 1L, quiet = TRUE) {
   manifest <- if (is.null(release)) {
     atlas_current_release(store, grid)
   } else {
@@ -315,6 +318,11 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
       stop("the store's copy of ", entry$path, " does not match its hash", call. = FALSE)
     }
   }
+
+  # The maps drawn in whole blocks, in the tree only, counted by state with
+  # the release's own collection cells (so before the cells made now).
+  trimmed <- if (isTRUE(blocks)) atlas_archive_block_tree(store, tree, manifest, grid, workers = workers,
+                                                           quiet = quiet, dir = dir)
 
   # The cells as the sources stand now (R/cellsnow.R), in place of the
   # release's own; the release's file stays as it is.
@@ -369,6 +377,17 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
       without_mask = length(attr(masks, "unmasked"))
     )
   }
+  if (!is.null(trimmed)) {
+    manifest$trimmed <- list(
+      blocks_km = ATLAS_BLOCK_KM,
+      what = paste("maps are drawn in whole 50 km blocks of a fixed grid: a block is drawn only when its whole",
+                   "50 km square lies inside the accessible area"),
+      scores = paste("in each model's scores, bounds and regions (counts of the trimmed map's cells by state) are",
+                     "the trimmed map's; every other field, md5 among them, is the release's as published"),
+      tables = "the prior and Explore tables keep the rows of 20 km cells wholly inside a map's kept blocks",
+      maps = trimmed$maps, combined_maps = trimmed$ensembles
+    )
+  }
   atlas_write_json(manifest, file.path(out, "release.json"))
   names <- c(names, "release.json")
   atlas_archive_refuse_withheld(c(file.path(tree, paths[grepl("[.]json$", paths)]),
@@ -379,7 +398,7 @@ atlas_archive_models_bundle <- function(store, grid = "draft", release = NULL,
   # A version made with cells made now is a new version of the same release:
   # its own name, and a key that tells it from the release's first version.
   list(
-    kind = "models", grid = grid, dir = out,
+    kind = "models", grid = grid, dir = out, trimmed = trimmed,
     version = if (is.null(now)) release_id else paste0(release_id, ".", gsub("-", "", now$summary$checked_on)),
     key = if (is.null(now)) files_key else digest::digest(paste(files_key, now$summary$cells_now$sha256), algo = "sha256"),
     cells_now = now$summary,
@@ -771,19 +790,67 @@ atlas_archive_discard <- function(store, series, z, quiet = FALSE) {
 }
 
 #' Archive a release, the layers, or both, as the next versions of their series.
+#'
+#' keep_bundle builds only: the models bundle is kept in that directory with
+#' its checksums (atlas_archive_keep_bundle) and nothing goes to Zenodo.
+#' from_bundle deposits a bundle kept that way instead of building one.
 atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, release = NULL,
                           z, publish = FALSE, dry_run = FALSE, quiet = FALSE, resume_draft = NULL,
-                          cells_now = NULL) {
+                          cells_now = NULL, blocks = TRUE, workers = 1L, keep_bundle = NULL, from_bundle = NULL) {
+  if (!is.null(keep_bundle) && !identical(as.character(kinds), "models")) {
+    stop("a kept bundle is a models bundle: pass --only=models with --keep-bundle", call. = FALSE)
+  }
   # Layers first: a models version records which layers version it was fitted on.
   for (kind in intersect(c("layers", "models"), kinds)) {
     bundle <- if (kind == "layers") {
       atlas_archive_layers_bundle(grid)
+    } else if (!is.null(from_bundle)) {
+      atlas_archive_read_kept_bundle(from_bundle)
     } else {
-      atlas_archive_models_bundle(store, grid, release, cells_now = cells_now)
+      atlas_archive_models_bundle(store, grid, release, cells_now = cells_now, blocks = blocks,
+                                  workers = workers, quiet = quiet)
     }
-    on.exit(unlink(dirname(bundle$dir), recursive = TRUE), add = TRUE)
+    if (is.null(from_bundle)) on.exit(unlink(dirname(bundle$dir), recursive = TRUE), add = TRUE)
+    if (!is.null(keep_bundle)) {
+      atlas_archive_keep_bundle(bundle, keep_bundle)
+      if (!isTRUE(quiet)) message("models bundle for ", bundle$version, " kept in ", keep_bundle, "; nothing deposited")
+      next
+    }
     atlas_archive_deposit(bundle, store, z, publish = publish, dry_run = dry_run, quiet = quiet,
                           resume_draft = resume_draft)
   }
   invisible(TRUE)
+}
+
+#' Keep a built bundle in dir: its files, SHA256SUMS of them, and
+#' bundle.json, which says what atlas_archive_read_kept_bundle needs to
+#' deposit it later.
+atlas_archive_keep_bundle <- function(bundle, dir) {
+  dir.create(dir, recursive = TRUE, showWarnings = FALSE)
+  if (length(list.files(dir))) stop(dir, " is not empty: a bundle is kept in an empty directory", call. = FALSE)
+  for (name in names(bundle$sources)) {
+    if (!file.copy(bundle$sources[[name]], file.path(dir, name))) stop("could not keep ", name, call. = FALSE)
+  }
+  sums <- vapply(names(bundle$sources), function(n) atlas_sha256(file.path(dir, n)), "")
+  writeLines(paste0(sums, "  ", names(sums)), file.path(dir, "SHA256SUMS"), useBytes = TRUE)
+  keep <- bundle[setdiff(names(bundle), c("dir", "sources"))]
+  keep$files <- as.list(names(bundle$sources))
+  atlas_write_json(keep, file.path(dir, "bundle.json"))
+  invisible(dir)
+}
+
+#' A bundle kept by atlas_archive_keep_bundle, each file checked against its
+#' SHA256SUMS line before it is used.
+atlas_archive_read_kept_bundle <- function(dir) {
+  meta <- jsonlite::fromJSON(file.path(dir, "bundle.json"), simplifyVector = FALSE)
+  sums <- readLines(file.path(dir, "SHA256SUMS"), warn = FALSE)
+  listed <- stats::setNames(sub("  .*$", "", sums), sub("^[0-9a-f]+  ", "", sums))
+  files <- unlist(meta$files)
+  if (!setequal(names(listed), files)) stop("the kept bundle's SHA256SUMS does not list its files", call. = FALSE)
+  for (name in files) {
+    if (!identical(atlas_sha256(file.path(dir, name)), listed[[name]])) {
+      stop("the kept bundle's ", name, " does not match its SHA256SUMS", call. = FALSE)
+    }
+  }
+  c(meta[setdiff(names(meta), "files")], list(dir = dir, sources = stats::setNames(file.path(dir, files), files)))
 }

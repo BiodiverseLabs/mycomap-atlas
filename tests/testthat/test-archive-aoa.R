@@ -63,7 +63,7 @@ test_that("a release's indexes stay out of the bundle, and every model with a th
     released <- vapply(atlas_current_release(store, "draft")$files, function(f) f$path, character(1))
     expect_true(any(grepl("[.]di[.]tif$", released)))
 
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     maxnet <- utils::untar(bundle$sources[["maps-maxnet.tar"]], list = TRUE)
     rf <- utils::untar(bundle$sources[["maps-rf.tar"]], list = TRUE)
     expect_false(any(grepl("[.]di[.]tif$", c(maxnet, rf))))
@@ -89,7 +89,7 @@ test_that("a mask is the index cut at the model's threshold, cell for cell, and 
     made <- computed_data_with_indexes(threshold = 0.5)
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    dir <- unpack_bundle(atlas_archive_models_bundle(store, "draft"))
+    dir <- unpack_bundle(atlas_archive_models_bundle(store, "draft", blocks = FALSE))
     for (case in list(list(path = "models/draft/amanita-muscaria.aoa.tif", index = made$index),
                       list(path = "models/draft/amanita-muscaria.full.aoa.tif", index = made$full))) {
       mask <- terra::values(terra::rast(file.path(dir, case$path)), mat = FALSE)
@@ -127,7 +127,7 @@ test_that("bundle rasters carry no per-cell index values", {
     computed_data_with_indexes()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    expect_no_index_values(unpack_bundle(atlas_archive_models_bundle(store, "draft")))
+    expect_no_index_values(unpack_bundle(atlas_archive_models_bundle(store, "draft", blocks = FALSE)))
   })
 })
 
@@ -136,7 +136,7 @@ test_that("a combined map's layers in the bundle carry no per-cell index values 
     computed_data_with_indexes(combined = TRUE)
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_true("maps-ensemble.tar" %in% names(bundle$sources))
     rasters <- expect_no_index_values(unpack_bundle(bundle))
     combined <- rasters[grepl("/ensemble/", rasters)]
@@ -159,9 +159,9 @@ test_that("a release with indexes always packs to the same bytes, masks included
     computed_data_with_indexes()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    first <- atlas_archive_models_bundle(store, "draft")
+    first <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     Sys.sleep(1.1)
-    second <- atlas_archive_models_bundle(store, "draft")
+    second <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     hashes <- function(b) vapply(b$sources, atlas_sha256, character(1))
     expect_equal(hashes(first), hashes(second))
   })

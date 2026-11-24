@@ -10,7 +10,7 @@ DAY <- 86400
 draft_one <- function(zen, store, target = "zenodo") {
   computed_data()
   atlas_publish_release(store, quiet = TRUE)
-  atlas_archive(store, "draft", "models", z = zen$client(target), cells_now = planted_cells_now(store), quiet = TRUE)
+  atlas_archive(store, blocks = FALSE, "draft", "models", z = zen$client(target), cells_now = planted_cells_now(store), quiet = TRUE)
   series <- atlas_archive_series("models", "draft", target)
   ledger <- atlas_archive_ledger(store, series)
   list(series = series, entry = ledger$versions[[length(ledger$versions)]])
@@ -21,7 +21,7 @@ draft_next <- function(zen, store) {
   atlas_write_json(list(taxon = "Amanita muscaria", algorithm = "rf", auc_mean = 0.8),
                    atlas_model_path("Amanita muscaria", "draft", ".json", "rf"))
   atlas_publish_release(store, quiet = TRUE)
-  atlas_archive(store, "draft", "models", z = zen$client(), cells_now = planted_cells_now(store), quiet = TRUE)
+  atlas_archive(store, blocks = FALSE, "draft", "models", z = zen$client(), cells_now = planted_cells_now(store), quiet = TRUE)
   ledger <- atlas_archive_ledger(store, "models-draft")
   ledger$versions[[length(ledger$versions)]]
 }
@@ -99,7 +99,7 @@ test_that("a draft deleted on zenodo.org is marked discarded, leaves the site's 
     expect_equal(published_calls(zen), 0L)
     expect_length(atlas_archive_ledgers()[[1]]$versions, 0)
     # The next archive is not held back by it.
-    atlas_archive(store, "draft", "models", z = zen$client(), cells_now = planted_cells_now(store), quiet = TRUE)
+    atlas_archive(store, blocks = FALSE, "draft", "models", z = zen$client(), cells_now = planted_cells_now(store), quiet = TRUE)
     states <- vapply(atlas_archive_ledger(store, "models-draft")$versions, function(v) v$state, character(1))
     expect_equal(states, c("discarded", "draft"))
   })

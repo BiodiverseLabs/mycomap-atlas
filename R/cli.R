@@ -194,6 +194,14 @@ atlas_usage <- function() {
   message("      --dry-run                 build the bundles and show what would be uploaded")
   message("      --publish                 mint the DOIs now; otherwise a draft is left to check")
   message("      --resume-draft=ID         carry on in an existing unpublished Zenodo draft")
+  message("      --keep-bundle=DIR         build only: keep the models bundle and its SHA256SUMS in DIR,")
+  message("                                deposit nothing and read no token (with --only=models)")
+  message("      --from-bundle=DIR         deposit a bundle kept with --keep-bundle, checked against its sums")
+  message("      --workers=N               processes for drawing the bundle's maps in blocks (default 1)")
+  message("      --from-build=ID           deposit the bundle archive-build-ec2 kept for release ID")
+  message("  archive-build-ec2  build a release's models bundle on one EC2 worker (ATLAS_EC2_MAX_HOURS,")
+  message("                     ATLAS_EC2_FINISH_MARKET, ATLAS_EC2_INSTANCE_TYPES) and keep it privately")
+  message("      --release=ID              which release (required)")
   message("  archive-publish    publish the waiting draft of a series (--series=models-production)")
   message("  archive-discard    throw away the waiting draft of a series")
   message("  archive-auto-publish  publish each series' waiting draft once its grace period is over, if it")
@@ -339,8 +347,9 @@ atlas_flag_grid <- function(flags) {
 
 #' Zenodo, or its sandbox with --sandbox, using ZENODO_TOKEN.
 atlas_flag_zenodo <- function(flags) {
-  if (isTRUE(flags$dry_run)) {
-    # A dry run talks to nobody, so it needs no token.
+  if (isTRUE(flags$dry_run) || !is.null(flags$keep_bundle)) {
+    # A dry run, and a build that only keeps its bundle, talk to nobody, so
+    # they need no token and never read one.
     return(list(target = if (isTRUE(flags$sandbox)) "sandbox" else "zenodo", base = "", call = NULL))
   }
   atlas_zenodo(if (isTRUE(flags$sandbox)) "sandbox" else "zenodo")
@@ -899,8 +908,29 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         publish = isTRUE(flags$publish),
         dry_run = isTRUE(flags$dry_run),
         resume_draft = if (is.null(flags$resume_draft)) NULL else as.character(flags$resume_draft),
-        cells_now = if (is.null(flags$cells_now)) NULL else as.character(flags$cells_now)
+        cells_now = if (is.null(flags$cells_now)) NULL else as.character(flags$cells_now),
+        workers = atlas_flag_number(flags, "workers", 1L),
+        keep_bundle = if (is.null(flags$keep_bundle)) NULL else as.character(flags$keep_bundle),
+        from_bundle = if (!is.null(flags$from_build)) {
+          atlas_archive_fetch_build(atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+                                    as.character(flags$from_build), atlas_flag_grid(flags))
+        } else if (!is.null(flags$from_bundle)) {
+          as.character(flags$from_bundle)
+        }
       )
+      invisible(0L)
+    },
+    "archive-build" = {
+      if (is.null(flags$release)) stop("archive-build needs --release=ID", call. = FALSE)
+      atlas_archive_build_work(atlas_flag_store(flags), as.character(flags$release), atlas_flag_grid(flags),
+                               workers = as.integer(atlas_flag_number(flags, "workers", 1)))
+      invisible(0L)
+    },
+    "archive-build-ec2" = {
+      if (is.null(flags$release)) stop("archive-build-ec2 needs --release=ID", call. = FALSE)
+      config <- atlas_ec2_config()
+      atlas_archive_build_on_ec2(atlas_store(flags$store %||% config$store), as.character(flags$release),
+                                 atlas_flag_grid(flags), config = config)
       invisible(0L)
     },
     "cells-now" = {

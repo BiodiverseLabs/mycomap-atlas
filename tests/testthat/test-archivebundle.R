@@ -95,7 +95,7 @@ test_that("the bundle carries the combined maps, renames, name merges and the Ex
     every_kind_data()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_true(all(c("maps-ensemble.tar", "renames.json", "name-merges.json", "explore-index-20km.tsv.gz",
                       "explore-index-20km.json") %in% names(bundle$sources)))
     expect_setequal(utils::untar(bundle$sources[["maps-ensemble.tar"]], list = TRUE),
@@ -118,9 +118,9 @@ test_that("a release with every kind of file still packs to the same bytes every
     every_kind_data()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    first <- atlas_archive_models_bundle(store, "draft")
+    first <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     Sys.sleep(1.1)
-    second <- atlas_archive_models_bundle(store, "draft")
+    second <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     hashes <- function(b) vapply(b$sources, atlas_sha256, character(1))
     expect_equal(hashes(first), hashes(second))
   })

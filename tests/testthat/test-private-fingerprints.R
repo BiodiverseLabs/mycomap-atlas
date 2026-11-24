@@ -137,7 +137,7 @@ test_that("a release's archive holds no per-taxon fingerprint or seed, in any fi
   with_planted_hashes({
     store <- new_store()
     release <- atlas_publish_release(store, quiet = TRUE)
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     texts <- bundle_texts(bundle)
     expect_true(all(c("amanita-muscaria.json", "taxa.json", "release.json", "benchmark.json") %in% names(texts)))
     for (name in names(texts)) {
@@ -176,7 +176,7 @@ test_that("what the public notes say of the removal is that it was for privacy, 
   with_planted_hashes({
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     archived <- jsonlite::fromJSON(bundle_texts(bundle)[["release.json"]], simplifyVector = FALSE)
     expect_equal(archived$withheld$why, "Withheld for privacy.")
     readme <- atlas_archive_readme(bundle, atlas_archive_file_table(bundle$sources))
@@ -195,7 +195,7 @@ test_that("a per-taxon hash under any other name, or a seed, stops the bundle", 
     atlas_write_json(list(list(from = "x", to = "y", record_hash = PLANTED)), atlas_renames_path())
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    expect_error(atlas_archive_models_bundle(store, "draft"), "would have been archived, in renames.json")
+    expect_error(atlas_archive_models_bundle(store, "draft", blocks = FALSE), "would have been archived, in renames.json")
   })
   with_planted_hashes({
     private <- tempfile(fileext = ".json")
@@ -212,9 +212,9 @@ test_that("a release's archive still packs to the same bytes every time", {
   with_planted_hashes({
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    first <- atlas_archive_models_bundle(store, "draft")
+    first <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     Sys.sleep(1.1)
-    second <- atlas_archive_models_bundle(store, "draft")
+    second <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     hashes <- function(b) vapply(b$sources, atlas_sha256, character(1))
     expect_equal(hashes(first), hashes(second))
   })
@@ -243,7 +243,7 @@ test_that("the release's own files keep what refits read, byte for byte, after e
     }
     store <- new_store()
     release <- atlas_publish_release(store, quiet = TRUE)
-    atlas_archive_models_bundle(store, "draft")
+    atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     after <- vapply(atlas_release_files("draft"), function(p) atlas_sha256(file.path(atlas_data_dir(), p)), "")
     expect_equal(after[names(before)], before)
     # The private release keeps both, and its index the fingerprint planning reads.
@@ -265,7 +265,7 @@ test_that("with this rule in place, a finished job leaves nothing to refit", {
   on_machine(boss, {
     api <- test_api(c(ATLAS_DATA_DIR = atlas_data_dir(), ATLAS_PUBLIC_ORIGIN = "https://atlas.example.org"))
     expect_false(carries_private(call_api(api, "/api/taxa")$body))
-    atlas_archive_models_bundle(store, "draft")
+    atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_null(atlas_plan_job(store, algorithms = c("maxnet", "rf"), quiet = TRUE))
   })
 })

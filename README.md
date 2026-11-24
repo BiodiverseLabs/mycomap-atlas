@@ -844,6 +844,20 @@ dissimilarity index itself (`.di.tif`) is never archived
 (`ATLAS_ARCHIVE_EXCLUDE` in R/archive.R), and a bundle that would carry one is
 refused before anything is uploaded.
 
+A models version's maps are drawn in whole 50 km blocks in the bundle's own
+tree (R/archiveblocks.R), as the live maps are: each map's accessible area is
+built again from the pull its job fitted it on and used only if it gives
+exactly the stored map, and a bundle with a map whose area cannot be built
+again is refused. In each model's scores `bounds` and `regions` are the
+trimmed map's and every other field is the release's as published; a
+combined map is drawn in its taxon's kept blocks; the prior and Explore
+tables keep the rows of 20 km cells wholly inside a map's kept blocks, each
+kept row as it was. The stored release is never written. Building a bundle
+draws thousands of maps, so it runs on one EC2 worker (`archive-build-ec2`),
+which keeps the bundle and its `SHA256SUMS` under the store's private prefix
+and is given no Zenodo token; the deposit then runs from the kept files
+(`archive-release --from-build=<release>`), each checked against its sum.
+
 Every version carries a README and `CHECKSUMS.sha256`. A models version names
 the layers version it was fitted on (matched by the layer builds, not by
 date) and links it as `isDerivedFrom`. An unchanged release or layer build is

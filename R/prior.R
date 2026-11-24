@@ -258,20 +258,8 @@ atlas_build_prior <- function(grid = "draft", quiet = FALSE, strong = NULL) {
   grid_def <- c(atlas_prior_grid(strong$cell_km), list(taxa = nrow(taxa), rows = nrow(ranks)))
   atlas_write_json(grid_def, atlas_prior_path("grid.json", grid))
   if (requireNamespace("nanoparquet", quietly = TRUE)) {
-    schema <- nanoparquet::parquet_schema(
-      taxon_id = list("INT", bit_width = 16L, is_signed = FALSE),
-      cell_id = "INT32",
-      rank = list("INT", bit_width = 8L, is_signed = FALSE),
-      models = list("INT", bit_width = 8L, is_signed = FALSE),
-      rank_sd = list("INT", bit_width = 8L, is_signed = FALSE)
-    )
-    nanoparquet::write_parquet(ranks, atlas_prior_path("ranks.parquet", grid), schema = schema,
-                               compression = "zstd")
-    nanoparquet::write_parquet(aoa, atlas_prior_path("aoa.parquet", grid), compression = "zstd",
-                               schema = nanoparquet::parquet_schema(
-                                 model_id = list("INT", bit_width = 16L, is_signed = FALSE),
-                                 cell_id = "INT32",
-                                 dissimilarity = list("INT", bit_width = 16L, is_signed = FALSE)))
+    atlas_prior_write_parquet(ranks, atlas_prior_path("ranks.parquet", grid), "ranks")
+    atlas_prior_write_parquet(aoa, atlas_prior_path("aoa.parquet", grid), "aoa")
   } else {
     say("nanoparquet is not installed: the prior has no Parquet file this time")
   }
@@ -346,4 +334,25 @@ atlas_build_weak_ranks <- function(grid = "draft", quiet = FALSE, workers = NULL
   atlas_write_tsv_gz(table, path)
   if (!isTRUE(quiet)) message("weak maps: ", length(unique(table$taxon)), " taxa, ", nrow(table), " rows, kept private")
   invisible(table)
+}
+
+#' Write one of the prior's Parquet tables, "ranks" or "aoa", with its column
+#' types.
+atlas_prior_write_parquet <- function(table, path, name) {
+  schema <- switch(name,
+    ranks = nanoparquet::parquet_schema(
+      taxon_id = list("INT", bit_width = 16L, is_signed = FALSE),
+      cell_id = "INT32",
+      rank = list("INT", bit_width = 8L, is_signed = FALSE),
+      models = list("INT", bit_width = 8L, is_signed = FALSE),
+      rank_sd = list("INT", bit_width = 8L, is_signed = FALSE)
+    ),
+    aoa = nanoparquet::parquet_schema(
+      model_id = list("INT", bit_width = 16L, is_signed = FALSE),
+      cell_id = "INT32",
+      dissimilarity = list("INT", bit_width = 16L, is_signed = FALSE)
+    ),
+    stop("no Parquet table ", name, " in the prior", call. = FALSE)
+  )
+  nanoparquet::write_parquet(table, path, schema = schema, compression = "zstd")
 }

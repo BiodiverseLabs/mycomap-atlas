@@ -192,7 +192,7 @@ test_that("a release and its Zenodo bundle carry the prior", {
     release <- atlas_publish_release(store, quiet = TRUE)
     paths <- vapply(release$files, `[[`, "", "path")
     expect_true(all(paste0("prior/draft/", c("ranks.tsv.gz", "taxa.tsv", "grid.json")) %in% paths))
-    bundle <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_true(all(c("prior-ranks.tsv.gz", "prior-taxa.tsv", "prior-grid.json") %in% names(bundle$sources)))
   })
 })

@@ -236,6 +236,37 @@ sudo /usr/local/lib/atlas/alert.sh --summary      # the banner's line
 sudo /usr/local/lib/atlas/alert.sh --ok atlas-nightly
 ```
 
+## Depositing a models version
+
+A models version's bundle draws every map of the release in whole 50 km
+blocks (R/archiveblocks.R), which is too much for the box, so it is built on
+one EC2 worker and deposited from the box afterwards, in two steps, each
+with the owner's OK. The worker is given the store, the region and its
+instance type only, never a Zenodo token.
+
+```bash
+# 1. Build only, on one on-demand worker, by a deadline (the owner's OK for
+#    the run, with its estimate). The bundle and its SHA256SUMS are kept
+#    under private/archive-build/<grid>/<release>/ in the store.
+sudo systemd-run --unit=atlas-archive-build --collect -p EnvironmentFile=/etc/atlas/image.env \
+  -E ATLAS_EC2_MAX_HOURS=3 -E ATLAS_EC2_FINISH_MARKET=on-demand -E ATLAS_EC2_INSTANCE_TYPES=r7i.4xlarge \
+  /bin/sh -c 'exec docker run --rm --name atlas-archive-build --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -e ATLAS_EC2_MAX_HOURS -e ATLAS_EC2_FINISH_MARKET -e ATLAS_EC2_INSTANCE_TYPES \
+  -v /srv/atlas/data:/data "$ATLAS_IMAGE" archive-build-ec2 --release=<release>'
+
+# 2. Deposit the kept bundle (a draft unless --publish). The token is typed,
+#    never shown, and handed to the unit on its input; it is never written to
+#    the box and leaves no trace once the unit ends.
+read -rsp 'Zenodo token: ' ZT && echo && printf '%s\n' "$ZT" | \
+  sudo systemd-run --unit=atlas-deposit --collect --pipe -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'IFS= read -r ZENODO_TOKEN; export ZENODO_TOKEN; exec docker run --rm --name atlas-deposit \
+  --network host --memory 1g --env-file /etc/atlas/atlas.env -e ZENODO_TOKEN -v /srv/atlas/data:/data \
+  "$ATLAS_IMAGE" archive-release --only=models --from-build=<release>'; unset ZT
+```
+
+The deposit checks each kept file against its `SHA256SUMS` line before
+anything is uploaded, and refuses a bundle whose sums do not match.
+
 ## Zenodo drafts that publish themselves
 
 An archive version is still made by hand (`archive-release`, after

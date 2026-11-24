@@ -70,6 +70,30 @@ atlas_block_keep <- function(r, area, block_km = ATLAS_BLOCK_KM) {
   terra::disagg(blocks, fact = per)
 }
 
+#' The kept blocks of a keep raster (atlas_block_keep) as numbers: row *
+#' 100000 + col, counted in blocks from the grid's origin.
+atlas_block_ids <- function(keep, block_km = ATLAS_BLOCK_KM) {
+  size <- block_km * 1000
+  kept <- which(!is.na(terra::values(keep, mat = FALSE)))
+  if (!length(kept)) return(numeric())
+  xy <- terra::xyFromCell(keep, kept)
+  col <- floor((xy[, 1] - ATLAS_GRID_EXTENT[["xmin"]]) / size + 1e-9)
+  row <- floor((ATLAS_GRID_EXTENT[["ymax"]] - xy[, 2]) / size + 1e-9)
+  sort(unique(row * 100000 + col))
+}
+
+#' A keep raster on r's cells from block numbers (atlas_block_ids).
+atlas_block_keep_from_ids <- function(r, ids, block_km = ATLAS_BLOCK_KM) {
+  size <- block_km * 1000
+  whole <- atlas_block_extent(terra::ext(r), block_km)
+  blocks <- terra::rast(whole, resolution = size, crs = terra::crs(r))
+  xy <- terra::xyFromCell(blocks, seq_len(terra::ncell(blocks)))
+  id <- floor((ATLAS_GRID_EXTENT[["ymax"]] - xy[, 2]) / size + 1e-9) * 100000 +
+    floor((xy[, 1] - ATLAS_GRID_EXTENT[["xmin"]]) / size + 1e-9)
+  terra::values(blocks) <- ifelse(id %in% ids, 1, NA_real_)
+  terra::disagg(blocks, fact = round(size / terra::res(r)[[1]]))
+}
+
 #' A raster drawn only in the kept blocks: masked to them and cropped to
 #' their extent, which lies on block lines. NULL when no kept block holds a
 #' drawn cell.
@@ -167,8 +191,19 @@ atlas_block_withdraw_stored <- function(raster_path, block_km = ATLAS_BLOCK_KM) 
 #' map. The area must first give exactly the map as stored
 #' (atlas_block_area_matches). Returns "already" (drawn in blocks of this
 #' size before), "mismatch" (left as it is, for the caller), "none" (no kept
-#' block holds a drawn cell: taken off) or "trimmed".
-atlas_block_trim_stored <- function(raster_path, area, land, block_km = ATLAS_BLOCK_KM) {
+#' block holds a drawn cell: taken off) or "trimmed". With blocks TRUE,
+#' list(status, blocks): the kept blocks' numbers (atlas_block_ids) when it
+#' was trimmed.
+atlas_block_trim_stored <- function(raster_path, area, land, block_km = ATLAS_BLOCK_KM, blocks = FALSE) {
+  if (isTRUE(blocks)) {
+    ids <- NULL
+    status <- atlas_block_trim_stored_(raster_path, area, land, block_km, function(keep) ids <<- atlas_block_ids(keep))
+    return(list(status = status, blocks = if (identical(status, "trimmed")) ids))
+  }
+  atlas_block_trim_stored_(raster_path, area, land, block_km)
+}
+
+atlas_block_trim_stored_ <- function(raster_path, area, land, block_km = ATLAS_BLOCK_KM, kept = NULL) {
   metrics_path <- sub("[.]tif$", ".json", raster_path)
   metrics <- if (file.exists(metrics_path)) jsonlite::fromJSON(metrics_path, simplifyVector = FALSE)
   if (is.list(metrics) && identical(as.numeric(metrics$blocks_km %||% NA), as.numeric(block_km))) {
@@ -179,6 +214,7 @@ atlas_block_trim_stored <- function(raster_path, area, land, block_km = ATLAS_BL
   if (is.null(area) || !atlas_block_area_matches(map, area, land)) return("mismatch")
   index <- if (file.exists(index_path)) terra::rast(index_path)
   trimmed <- atlas_block_trim(map, index, area, land, block_km)
+  if (is.function(kept)) kept(trimmed$keep)
   if (is.null(trimmed$suitability)) {
     rm(map, index, trimmed)
     atlas_block_withdraw_stored(raster_path, block_km)
@@ -249,7 +285,8 @@ atlas_block_job_pulls <- function(store, grid = "draft") {
 #' their area needs: path, taxon, algorithm, record-set fingerprint (the
 #' release's index entry first, the metrics' own besides), when it was built,
 #' and its buffer and thinning distances.
-atlas_block_pending <- function(grid = "draft", index = list(), block_km = ATLAS_BLOCK_KM) {
+atlas_block_pending <- function(grid = "draft", index = list(), block_km = ATLAS_BLOCK_KM,
+                                rasters = atlas_model_map_rasters(grid)) {
   fingerprints <- list()
   for (e in index) {
     if (is.character(e$fingerprint) && length(e$fingerprint) == 1L) {
@@ -257,7 +294,7 @@ atlas_block_pending <- function(grid = "draft", index = list(), block_km = ATLAS
     }
   }
   rows <- list()
-  for (path in atlas_model_map_rasters(grid)) {
+  for (path in rasters) {
     metrics <- tryCatch(jsonlite::fromJSON(sub("[.]tif$", ".json", path), simplifyVector = FALSE),
                         error = function(e) NULL)
     if (!is.list(metrics)) next
@@ -282,9 +319,9 @@ atlas_block_pending <- function(grid = "draft", index = list(), block_km = ATLAS
 
 #' One map's trim as a worker runs it: item is list(path, area), the area
 #' packed (terra::wrap) so it can be sent to another process.
-atlas_block_trim_item <- function(item, land_path) {
+atlas_block_trim_item <- function(item, land_path, blocks = FALSE) {
   area <- if (!is.null(item$area)) terra::unwrap(item$area)
-  atlas_block_trim_stored(item$path, area, terra::rast(land_path))
+  atlas_block_trim_stored(item$path, area, terra::rast(land_path), blocks = blocks)
 }
 
 #' A job's pull from the store, read and projected once: list(occurrences,
@@ -313,15 +350,22 @@ atlas_block_read_pull <- function(store, sha256, grid = "draft") {
 #' The areas are built here, one pull at a time; the trims run on workers
 #' processes when workers > 1, in one pool started once.
 #'
+#' rasters are the maps to trim (by default every map of the grid on this
+#' machine; a deposit passes its tree's). With blocks TRUE the result also
+#' holds blocks: each trimmed map's kept blocks (atlas_block_ids), by path,
+#' kept in memory only.
+#'
 #' Returns list(trimmed, already, not_found, mismatch, none, not_drawn = a
 #' list of {path, taxon, algorithm, reason}).
 atlas_block_trim_release <- function(store, land_path, grid = "draft", index = list(), workers = 1L,
                                      quiet = FALSE, pulls = atlas_block_job_pulls(store, grid),
-                                     read_pull = atlas_block_read_pull) {
+                                     read_pull = atlas_block_read_pull, rasters = atlas_model_map_rasters(grid),
+                                     blocks = FALSE) {
   say <- function(...) if (!isTRUE(quiet)) message(...)
   land <- terra::rast(land_path)
-  all_maps <- length(atlas_model_map_rasters(grid))
-  pending <- atlas_block_pending(grid, index)
+  all_maps <- length(rasters)
+  pending <- atlas_block_pending(grid, index, rasters = rasters)
+  kept <- list()
   status <- rep("not found", length(pending))
   # The pulls each map tries, in order: its fitting job's first.
   plan <- lapply(pending, function(p) {
@@ -335,10 +379,10 @@ atlas_block_trim_release <- function(store, land_path, grid = "draft", index = l
     on.exit(parallel::stopCluster(pool), add = TRUE)
   }
   trim_all <- function(items) {
-    if (is.null(pool)) return(lapply(items, atlas_block_trim_item, land_path = land_path))
-    run <- function(item, land_path) atlas_block_trim_item(item, land_path)
+    if (is.null(pool)) return(lapply(items, atlas_block_trim_item, land_path = land_path, blocks = blocks))
+    run <- function(item, land_path, blocks) atlas_block_trim_item(item, land_path, blocks)
     environment(run) <- globalenv()
-    parallel::clusterApplyLB(pool, items, run, land_path = land_path)
+    parallel::clusterApplyLB(pool, items, run, land_path = land_path, blocks = blocks)
   }
   for (round in seq_along(pulls)) {
     waiting <- which(status %in% c("not found", "mismatch"))
@@ -356,7 +400,15 @@ atlas_block_trim_release <- function(store, land_path, grid = "draft", index = l
         area <- atlas_block_area(p$taxon, pull$points, land, p$buffer_km, p$thin_km)
         list(path = p$path, area = if (!is.null(area)) terra::wrap(area))
       })
-      if (length(items)) status[same] <- unlist(trim_all(items))
+      if (length(items)) {
+        results <- trim_all(items)
+        status[same] <- vapply(results, function(r) if (is.list(r)) r$status else r, "")
+        if (isTRUE(blocks)) {
+          for (k in seq_along(same)) {
+            if (!is.null(results[[k]]$blocks)) kept[[pending[[same[[k]]]]$path]] <- results[[k]]$blocks
+          }
+        }
+      }
       rm(pull)
       gc(verbose = FALSE)
     }
@@ -370,6 +422,7 @@ atlas_block_trim_release <- function(store, land_path, grid = "draft", index = l
   out <- list(trimmed = sum(status == "trimmed"), already = all_maps - length(pending),
               not_found = sum(status == "not found"), mismatch = sum(status == "mismatch"),
               none = sum(status == "none"), not_drawn = not_drawn)
+  if (isTRUE(blocks)) out$blocks <- kept
   say("drawn in whole ", ATLAS_BLOCK_KM, " km blocks: ", out$trimmed, " of ", all_maps, " maps (",
       out$already, " already); not drawn: ", out$not_found, " whose record set no kept pull holds, ",
       out$mismatch, " whose area did not give the map as stored",

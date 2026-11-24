@@ -287,10 +287,10 @@ bundle_cells <- function(bundle) {
 test_that("a record obscured since the release leaves the archive's cells, and the release's own file stays", {
   archive_with_later_obscured(function(store, release, dir) {
     before <- atlas_sha256(atlas_public_cells_path())
-    bundle <- atlas_archive_models_bundle(store, "draft", cells_now = dir)
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE, cells_now = dir)
     cells <- bundle_cells(bundle)
     expect_equal(sum(as.integer(cells$records)), 2L)
-    plain <- atlas_archive_models_bundle(store, "draft")
+    plain <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     expect_equal(sum(as.integer(bundle_cells(plain)$records)), 3L)
     expect_equal(atlas_sha256(atlas_public_cells_path()), before)
   })
@@ -298,8 +298,8 @@ test_that("a record obscured since the release leaves the archive's cells, and t
 
 test_that("the archive's models are the release's, byte for byte", {
   archive_with_later_obscured(function(store, release, dir) {
-    bundle <- atlas_archive_models_bundle(store, "draft", cells_now = dir)
-    plain <- atlas_archive_models_bundle(store, "draft")
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE, cells_now = dir)
+    plain <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
     models <- setdiff(names(bundle$sources), c("collection-cells-0.1deg.tsv.gz", "release.json"))
     models <- models[grepl("^maps-|^scores", models)]
     expect_gt(length(models), 0)
@@ -311,7 +311,7 @@ test_that("the archive's models are the release's, byte for byte", {
 
 test_that("no JSON in a version with cells made now holds a per-taxon hash or a seed", {
   archive_with_later_obscured(function(store, release, dir) {
-    bundle <- atlas_archive_models_bundle(store, "draft", cells_now = dir)
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE, cells_now = dir)
     jsons <- bundle$sources[grepl("[.]json$", names(bundle$sources))]
     expect_gt(length(jsons), 0)
     for (name in names(jsons)) {
@@ -328,14 +328,14 @@ test_that("no JSON in a version with cells made now holds a per-taxon hash or a 
 
 test_that("a version with cells made now has its own name and key, so the first version's key does not stop it", {
   archive_with_later_obscured(function(store, release, dir) {
-    bundle <- atlas_archive_models_bundle(store, "draft", cells_now = dir)
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE, cells_now = dir)
     expect_equal(bundle$version, paste0(release$id, ".20261108"))
     expect_false(identical(bundle$key, release$files_key))
     zen <- fake_zenodo()
-    atlas_archive(store, "draft", "models", z = zen$client(), publish = TRUE, quiet = TRUE, cells_now = dir)
+    atlas_archive(store, blocks = FALSE, "draft", "models", z = zen$client(), publish = TRUE, quiet = TRUE, cells_now = dir)
     later <- planted_cells_now(store, status = planted_status(atlas_read_occurrences(), inat_hidden = c("b", "c"),
                                                               checked_at = "2026-11-09T10:00:00Z"))
-    atlas_archive(store, "draft", "models", z = zen$client(), publish = TRUE, quiet = TRUE, cells_now = later)
+    atlas_archive(store, blocks = FALSE, "draft", "models", z = zen$client(), publish = TRUE, quiet = TRUE, cells_now = later)
     ledger <- atlas_archive_ledger(store, "models-draft")
     expect_equal(vapply(ledger$versions, function(v) v$version, ""),
                  paste0(release$id, c(".20261108", ".20261109")))
@@ -347,15 +347,15 @@ test_that("a models version is not deposited without cells made now; a dry run s
     computed_data()
     store <- new_store()
     atlas_publish_release(store, quiet = TRUE)
-    expect_error(atlas_archive(store, "draft", "models", z = fake_zenodo()$client(), quiet = TRUE),
+    expect_error(atlas_archive(store, blocks = FALSE, "draft", "models", z = fake_zenodo()$client(), quiet = TRUE),
                  "needs its collection cells made as the sources stand now")
-    expect_silent(atlas_archive(store, "draft", "models", z = fake_zenodo()$client(), dry_run = TRUE, quiet = TRUE))
+    expect_silent(atlas_archive(store, blocks = FALSE, "draft", "models", z = fake_zenodo()$client(), dry_run = TRUE, quiet = TRUE))
   })
 })
 
 test_that("the README says of the cells what Steve approved, word for word", {
   archive_with_later_obscured(function(store, release, dir) {
-    bundle <- atlas_archive_models_bundle(store, "draft", cells_now = dir)
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE, cells_now = dir)
     readme <- atlas_archive_readme(bundle, atlas_archive_file_table(bundle$sources))
     short <- sub("^.*-", "", release$id)
     expect_true(paste0("This version holds the models of release ", short, " unchanged. Two things differ from that release's own files: each taxon's record-set fingerprint and each model's seed are withheld for privacy, and the collection cells (`collection-cells-0.1deg.tsv.gz`) also leave out records whose source has hidden or obscured their location since the release was made, and Mushroom Observer records the source no longer holds, as the sources said on 2026-11-08. `release.json` keeps the release's original checksums, so the cells file here differs from its entry there.") %in% readme)

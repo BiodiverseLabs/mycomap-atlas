@@ -152,6 +152,19 @@ changed and what it means for you.
 
 ### Maps
 
+- **A models version on Zenodo has its maps drawn in whole 50 km blocks, as
+  the live maps are.** The bundle's own tree is trimmed; the stored release
+  is never written. Scores change in `bounds` and `regions` only (`md5`
+  stays the stored raster's), combined maps are drawn in their taxon's
+  blocks, and the prior and Explore tables keep only the rows of 20 km cells
+  wholly inside a map's kept blocks (`prior-grid.json` counts the rows
+  kept). `release.json` says so under `trimmed`. A map whose area cannot be
+  built again stops the bundle. New commands: `archive-build-ec2` builds a
+  release's bundle on one EC2 worker and keeps it under
+  `private/archive-build/`; `archive-release --keep-bundle=DIR` builds only;
+  `archive-release --from-build=<release>` or `--from-bundle=DIR` deposits a
+  kept bundle, checked against its `SHA256SUMS`.
+
 - **Maps are drawn in whole 50 km blocks.** A block is drawn only when its
   whole 50 km square, on one fixed grid shared by every map, lies inside the
   accessible area. Edges are stepped and pull in by up to about 70 km; the map
