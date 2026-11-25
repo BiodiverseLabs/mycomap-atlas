@@ -144,3 +144,37 @@ test_that("a plan on the cleaned pull refits only the taxon that lost a row, ret
   # It never had a model to retire: one site is no candidate.
   expect_false("Anas platyrhynchos" %in% vapply(main$index, function(e) e$taxon, ""))
 })
+
+test_that("counting removals by the day an entry was added keeps the same rows, fingerprint and counts as before", {
+  with_data_dir({
+    base <- fake_occurrences()
+    occ <- do.call(rbind, lapply(1:4, function(k) {
+      d <- base
+      d$id <- as.character(as.integer(d$id) + 3L * (k - 1L))
+      d$observation_id <- paste0(d$observation_id, k)
+      d$scientific_name <- paste("Taxon", k)
+      d
+    }))
+    dir.create(atlas_path("occurrences"), recursive = TRUE)
+    list <- data.frame(
+      by = c("id", "id", "source_observation", "id", "source_observation", "id"),
+      id = c("1", "5", atlas_record_key("iNaturalist", "b2"), "8", atlas_record_key("iNaturalist", "c4"), "999"),
+      reason = "r", added_at = c("2026-10-13T06:15:00Z", "2026-11-14T21:21:00Z", "2026-10-13T13:34:00Z", "",
+                                 "2026-11-14T21:21:00Z", "2026-10-13T06:15:00Z"),
+      stringsAsFactors = FALSE)
+    utils::write.table(list, atlas_exclude_path(), sep = "\t", quote = FALSE, row.names = FALSE)
+    # The rule as it was before the counts by day: a row is left out when any entry names it.
+    drop <- rep(FALSE, nrow(occ))
+    for (by in unique(list$by)) drop <- drop | atlas_exclude_keys(occ, by) %in% list$id[list$by == by]
+    before <- occ[!drop, , drop = FALSE]
+    rownames(before) <- NULL
+    applied <- atlas_apply_exclusions(occ)
+    expect_identical(applied$kept, before)
+    expect_identical(atlas_fingerprint(applied$kept), atlas_fingerprint(before))
+    expect_identical(applied$removed, occ[drop, , drop = FALSE])
+    expect_identical(applied$info[c("list", "sha256", "listed", "removed")],
+                     list(list = "exclude.tsv", sha256 = atlas_sha256(atlas_exclude_path()), listed = 6L,
+                          removed = sum(drop)))
+    expect_equal(sum(unlist(applied$info$removed_by_day_added)), sum(drop))
+  })
+})
