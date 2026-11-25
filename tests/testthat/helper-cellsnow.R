@@ -27,3 +27,21 @@ planted_cells_now <- function(store, grid = "draft", status = NULL) {
   atlas_write_cells_now(result, dir)
   dir
 }
+
+# The guards stop a status answer that reads as too much left out; the
+# planted pull is tiny, so for the cases below they are lifted.
+without_guards <- function(code) {
+  old <- c(ATLAS_CELLS_NOW_MAX_UNANSWERED, ATLAS_CELLS_NOW_MAX_BEYOND)
+  ns <- asNamespace("mycomapatlas")
+  unlockBinding("ATLAS_CELLS_NOW_MAX_UNANSWERED", ns)
+  unlockBinding("ATLAS_CELLS_NOW_MAX_BEYOND", ns)
+  assign("ATLAS_CELLS_NOW_MAX_UNANSWERED", 1, envir = ns)
+  assign("ATLAS_CELLS_NOW_MAX_BEYOND", 1, envir = ns)
+  on.exit({
+    assign("ATLAS_CELLS_NOW_MAX_UNANSWERED", old[[1]], envir = ns)
+    assign("ATLAS_CELLS_NOW_MAX_BEYOND", old[[2]], envir = ns)
+    lockBinding("ATLAS_CELLS_NOW_MAX_UNANSWERED", ns)
+    lockBinding("ATLAS_CELLS_NOW_MAX_BEYOND", ns)
+  }, add = TRUE)
+  force(code)
+}

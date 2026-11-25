@@ -589,6 +589,7 @@ atlas_archive_readme <- function(bundle, files, layers_version = NULL) {
       "`prior-*` is the location prior: every strong map's ranks by 20 km cell (`prior-ranks.parquet`,",
       "`prior-ranks.tsv.gz`), its taxa (`prior-taxa.tsv`), and the grid with a Python cell lookup (`prior-grid.json`).",
       atlas_archive_cells_lines(bundle),
+      atlas_archive_tables_lines(bundle),
       ""
     )
   } else {
@@ -797,10 +798,13 @@ atlas_archive_discard <- function(store, series, z, quiet = FALSE) {
 #' keep_bundle builds only: the models bundle is kept in that directory with
 #' its checksums (atlas_archive_keep_bundle) and nothing goes to Zenodo.
 #' from_bundle deposits a bundle kept that way instead of building one, with
-#' cells_now, when given, in place of the release's cells.
+#' cells_now, when given, in place of the release's cells. tables adds the
+#' training-record and lineage tables made by training-tables
+#' (R/trainingtables.R), for the release they are made for only.
 atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, release = NULL,
                           z, publish = FALSE, dry_run = FALSE, quiet = FALSE, resume_draft = NULL,
-                          cells_now = NULL, blocks = TRUE, workers = 1L, keep_bundle = NULL, from_bundle = NULL) {
+                          cells_now = NULL, blocks = TRUE, workers = 1L, keep_bundle = NULL, from_bundle = NULL,
+                          tables = NULL) {
   if (!is.null(keep_bundle) && !identical(as.character(kinds), "models")) {
     stop("a kept bundle is a models bundle: pass --only=models with --keep-bundle", call. = FALSE)
   }
@@ -816,6 +820,7 @@ atlas_archive <- function(store, grid = "draft", kinds = ATLAS_ARCHIVE_KINDS, re
                                   workers = workers, quiet = quiet)
     }
     if (is.null(from_bundle)) on.exit(unlink(dirname(bundle$dir), recursive = TRUE), add = TRUE)
+    if (kind == "models" && !is.null(tables)) bundle <- atlas_archive_bundle_tables(bundle, tables)
     if (!is.null(keep_bundle)) {
       atlas_archive_keep_bundle(bundle, keep_bundle)
       if (!isTRUE(quiet)) message("models bundle for ", bundle$version, " kept in ", keep_bundle, "; nothing deposited")

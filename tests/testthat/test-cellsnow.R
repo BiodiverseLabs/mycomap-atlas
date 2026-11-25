@@ -48,24 +48,6 @@ release_cells_file <- function(pull = cells_now_pull(), listed = cells_now_liste
   path
 }
 
-# The guards stop a status answer that reads as too much left out; the
-# planted pull is tiny, so for the cases below they are lifted.
-without_guards <- function(code) {
-  old <- c(ATLAS_CELLS_NOW_MAX_UNANSWERED, ATLAS_CELLS_NOW_MAX_BEYOND)
-  ns <- asNamespace("mycomapatlas")
-  unlockBinding("ATLAS_CELLS_NOW_MAX_UNANSWERED", ns)
-  unlockBinding("ATLAS_CELLS_NOW_MAX_BEYOND", ns)
-  assign("ATLAS_CELLS_NOW_MAX_UNANSWERED", 1, envir = ns)
-  assign("ATLAS_CELLS_NOW_MAX_BEYOND", 1, envir = ns)
-  on.exit({
-    assign("ATLAS_CELLS_NOW_MAX_UNANSWERED", old[[1]], envir = ns)
-    assign("ATLAS_CELLS_NOW_MAX_BEYOND", old[[2]], envir = ns)
-    lockBinding("ATLAS_CELLS_NOW_MAX_UNANSWERED", ns)
-    lockBinding("ATLAS_CELLS_NOW_MAX_BEYOND", ns)
-  }, add = TRUE)
-  force(code)
-}
-
 cells_now_result <- function(pull = cells_now_pull(), status = cells_now_status(pull)) {
   without_guards(atlas_cells_now(pull, cells_now_listed(), release_cells_file(pull), status, release = "r1"))
 }

@@ -9,6 +9,8 @@
 # published: it is written only under the store's private/ prefix, and never
 # to a release's files, the API, the site, Zenodo or this repository (Steve,
 # 8 Oct 2026). Vision's box reads it from there with access of its own.
+# The archive's training-record table is built from the release's training
+# records (R/trainingtables.R).
 #
 # A release's models were fitted on different pulls (a model stays while its
 # record set is unchanged), so a release's list is put together model by

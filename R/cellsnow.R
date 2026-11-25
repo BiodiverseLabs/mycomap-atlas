@@ -279,3 +279,137 @@ atlas_read_cells_now <- function(dir, manifest) {
   }
   list(path = path, summary = summary)
 }
+
+# ---- the frozen release -----------------------------------------------------
+
+# For the frozen release (ATLAS_FROZEN_RELEASES), whose privacy list a later
+# pull has replaced on the box: cells-now --release=ID --privacy-list=PATH
+# takes the release's own list from PATH, and makes nothing unless that list
+# alone gives exactly the release's own cells, fetched from the store. The
+# status is asked a window of record ids at a time (atlas_status_sql), the
+# same answer atlas_cells_now_status gives, for the records .org holds now.
+
+#' The status of one window of .org's iNaturalist and Mushroom Observer
+#' records: for each, whether .org holds a cached iNaturalist answer and
+#' whether it says obscured or coarser than max_m metres; whether it holds a
+#' cached MO answer and whether it shows a point; and whether .org marks it
+#' as deleted at the source. One line, like every statement sent to the SQL
+#' route.
+atlas_status_sql <- function(from_id, to_id, max_m = ATLAS_MAX_ACCURACY_M) {
+  stopifnot(is.numeric(from_id), is.numeric(to_id), from_id >= 0, to_id > from_id)
+  inat <- "FROM observation_cache c WHERE c.source = 'inat' AND c.source_observation_id = o.observation_id"
+  mo <- sprintf("FROM %s m WHERE m.source_observation_id = o.observation_id", ATLAS_MO_POINTS)
+  atlas_one_line(sprintf(paste(
+    "SELECT o.source, o.observation_id,",
+    "EXISTS (SELECT 1 %s) AS inat_answered,",
+    "(SELECT bool_or(c.coordinates_obscured = true OR c.positional_accuracy > %d) %s) AS inat_hidden,",
+    "EXISTS (SELECT 1 %s) AS mo_answered,",
+    "(SELECT bool_or(m.latitude IS NOT NULL AND m.longitude IS NOT NULL) %s) AS mo_shown,",
+    "(o.source = '%s' AND %s IS NOT NULL) AS deleted",
+    "FROM observations o WHERE o.id > %d AND o.id <= %d AND o.source IN ('%s', '%s') ORDER BY o.id"
+  ), inat, as.integer(max_m), inat, mo, mo, ATLAS_MO_SOURCE, ATLAS_SOURCE_DELETED,
+  as.integer(from_id), as.integer(to_id), ATLAS_INAT_SOURCE, ATLAS_MO_SOURCE))
+}
+
+# The pace of the status pages: a pause between pages, a longer one after a
+# slow page, and a stop when a page comes near the read-only route's limit
+# on one statement. In seconds.
+ATLAS_STATUS_PACE <- list(pause = 5, slow = 10, slow_pause = 30, stop = 30)
+
+#' How the sources stand now, asked a window of record ids at a time, in the
+#' shape atlas_cells_now_status gives. Each page is timed: the next waits
+#' pace$pause seconds, or pace$slow_pause after a page that took longer than
+#' pace$slow, and a page that takes pace$stop or longer stops the step before
+#' anything is written. clock and sleep stand in for the tests.
+atlas_status_paged <- function(run = atlas_run_sql, host = atlas_sql_host(), max_m = ATLAS_MAX_ACCURACY_M,
+                               window = 100000, pace = ATLAS_STATUS_PACE, clock = Sys.time, sleep = Sys.sleep) {
+  top <- atlas_parse_tsv(run("SELECT max(id) AS top FROM observations", host = host))
+  top <- suppressWarnings(as.numeric(top$top[[1]]))
+  if (!length(top) || !is.finite(top)) stop("could not read the highest record id", call. = FALSE)
+  columns <- c("source", "observation_id", "inat_answered", "inat_hidden", "mo_answered", "mo_shown", "deleted")
+  rows <- list()
+  wait <- 0
+  for (from in seq(0, top, by = window)) {
+    if (wait > 0) sleep(wait)
+    started <- clock()
+    answer <- run(atlas_status_sql(from, from + window, max_m), host = host)
+    took <- as.numeric(difftime(clock(), started, units = "secs"))
+    if (took >= pace$stop) {
+      stop(sprintf(paste("the status page of ids %d to %d took %.0f s, near the read-only route's limit;",
+                         "stopped, nothing written"), as.integer(from) + 1L, as.integer(from + window), took),
+           call. = FALSE)
+    }
+    wait <- if (took > pace$slow) pace$slow_pause else pace$pause
+    page <- atlas_parse_tsv(answer)
+    if (!nrow(page)) next
+    missing <- setdiff(columns, names(page))
+    if (length(missing)) stop("the status query is missing columns: ", paste(missing, collapse = ", "), call. = FALSE)
+    rows[[length(rows) + 1L]] <- page[, columns, drop = FALSE]
+  }
+  all <- do.call(rbind, rows)
+  if (is.null(all)) all <- stats::setNames(as.data.frame(rep(list(character()), length(columns))), columns)
+  yes <- atlas_cells_now_true
+  inat <- all[all$source == ATLAS_INAT_SOURCE & yes(all$inat_answered), , drop = FALSE]
+  mo <- all[all$source == ATLAS_MO_SOURCE & yes(all$mo_answered), , drop = FALSE]
+  list(
+    inat = data.frame(number = inat$observation_id, hidden = ifelse(yes(inat$inat_hidden), "t", "f"),
+                      stringsAsFactors = FALSE),
+    mo = data.frame(number = mo$observation_id, shown = ifelse(yes(mo$mo_shown), "t", "f"), stringsAsFactors = FALSE),
+    deleted = unique(all$observation_id[all$source == ATLAS_MO_SOURCE & yes(all$deleted)]),
+    max_accuracy_m = max_m,
+    checked_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  )
+}
+
+#' Whether a privacy list (record keys) alone gives exactly a release's cells
+#' file from its pull.
+atlas_cells_now_list_alone <- function(pull, listed, release_cells) {
+  keys <- atlas_record_key(pull$source, pull$observation_id)
+  check <- tempfile(fileext = ".tsv.gz")
+  on.exit(unlink(check), add = TRUE)
+  atlas_write_tsv_gz(atlas_public_cells_table(pull, hidden = keys[keys %in% listed]), check)
+  identical(atlas_gz_bytes(check), atlas_gz_bytes(release_cells))
+}
+
+#' A frozen release's cells as the sources stand now, from its own privacy
+#' list at privacy_list. Refused for any other release.
+atlas_cells_now_frozen_run <- function(dir, release, privacy_list, store = atlas_store(), grid = "draft",
+                                       run = atlas_run_sql, host = atlas_sql_host(), status = NULL,
+                                       frozen = ATLAS_FROZEN_RELEASES) {
+  if (!as.character(release %||% "") %in% frozen) {
+    stop("cells-now takes --release and --privacy-list only for the frozen release (",
+         paste(frozen, collapse = ", "), "), not ", release %||% "?", call. = FALSE)
+  }
+  if (is.null(privacy_list) || !file.exists(privacy_list)) {
+    stop("cells-now --release needs --privacy-list=PATH, the release's own list", call. = FALSE)
+  }
+  key <- paste0("releases/", grid, "/", release, ".json")
+  manifest <- if (store$exists(key)) atlas_store_text(store, key)
+  if (is.null(manifest)) stop("no release ", release, " in the store for the ", grid, " grid", call. = FALSE)
+  entry <- Filter(function(f) identical(f$path, "public/cells.tsv.gz"), manifest$files)
+  if (!length(entry)) stop("release ", release, " has no cells file", call. = FALSE)
+  release_cells <- tempfile(fileext = ".tsv.gz")
+  on.exit(unlink(release_cells), add = TRUE)
+  store$get(atlas_object_key(entry[[1]]$sha256), release_cells)
+  if (!identical(atlas_sha256(release_cells), entry[[1]]$sha256)) {
+    stop("the store's copy of release ", release, "'s cells does not match its hash", call. = FALSE)
+  }
+  pull_file <- manifest$pull$file
+  if (is.null(pull_file) || !file.exists(atlas_path("occurrences", pull_file))) {
+    stop("this machine does not hold release ", release, "'s pull", call. = FALSE)
+  }
+  pull <- atlas_read_occurrences(atlas_path("occurrences", pull_file))
+  listed <- atlas_read_privacy(privacy_list)
+  max_m <- atlas_pull_max_accuracy(manifest$pull)
+  # The list alone must give the release's own cells before anyone is asked
+  # how the sources stand now.
+  if (!atlas_cells_now_list_alone(pull, listed, release_cells)) {
+    stop("the list at ", privacy_list, " alone does not give release ", release, "'s cells; nothing asked, nothing written",
+         call. = FALSE)
+  }
+  status <- status %||% atlas_status_paged(run, host, max_m = max_m)
+  result <- atlas_cells_now(pull, listed, release_cells, status, release = release)
+  result$summary$privacy_list <- list(sha256 = atlas_sha256(privacy_list), records = length(listed))
+  result$summary$status_asked <- "by record id windows (atlas_status_sql)"
+  atlas_write_cells_now(result, dir)
+}

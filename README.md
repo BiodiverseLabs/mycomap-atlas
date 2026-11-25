@@ -859,6 +859,35 @@ and is given no Zenodo token; the deposit then runs from the kept files
 (`archive-release --from-build=<release> --cells-now=DIR`), each checked
 against its sum, with the cells made now in place of the release's cells.
 
+One models version also carries the training-record and lineage tables: the
+archive's training-record table is built from the release's training
+records, for release `20261013T191324Z-fa1b4198` only
+(`ATLAS_TRAINING_TABLE_RELEASES` in R/trainingtables.R). A model's training
+records are its presence records in the pull its job fitted it on, in its
+detection sites the predictors cover. The table has one row per record
+(`source`, `source_id`, `taxon`, `sequence_id`, `site_id`); site numbers are
+the table's own, given in the table's order, and say nothing of where a site
+is. `site_id` is blank where the source hides, obscures or may hide the
+location, and Mushroom Observer records the source no longer holds are left
+out, both judged as the collection cells made now judge them. The lineage
+tables (`lineage-models.tsv`, `lineage-pulls.tsv`) give each model's fitting
+job, its pull and when it was built, and each pull's jobs with how many
+models each fitted. `removed-records.tsv` lists the records the 13 October
+2026 cleaning removed from the pull under non-fungal sequence names, taken
+from the two pulls and checked against the drop list's entries of that
+cleaning. `contributors.tsv`, made when a private names file is given,
+counts each contributor's rows by source, with one `anonymous` row per
+source. `sequence_id` is given only where the sequence is approved at its
+source, from a private approvals file with its export date.
+`training-tables --release=ID --out=DIR` makes them on the box, read-only on
+the store and on .org (whose status it asks a window of record ids at a
+time, paced, and stopping if a window nears the route's limit), beside the cells made now for the same release (`cells-now
+--release=ID --privacy-list=PATH`, which first checks that the release's own
+list alone gives its cells), with a summary of counts and the files' sums
+(`training-records.json`). `archive-release --tables=DIR` adds them, each
+checked against its sum, and only with cells made within a day of them. Any
+other release's version is as it was.
+
 Every version carries a README and `CHECKSUMS.sha256`. A models version names
 the layers version it was fitted on (matched by the layer builds, not by
 date) and links it as `isDerivedFrom`. An unchanged release or layer build is

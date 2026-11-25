@@ -257,9 +257,55 @@ sudo -n systemd-run --unit=atlas-archive-build --collect -p EnvironmentFile=/etc
   --env-file /etc/atlas/atlas.env -e ATLAS_EC2_MAX_HOURS -e ATLAS_EC2_FINISH_MARKET -e ATLAS_EC2_INSTANCE_TYPES \
   -v /srv/atlas/data:/data "$ATLAS_IMAGE" archive-build-ec2 --release=<release>'
 
+# Steps 1b and 1c run in one sitting on deposit day (--tables refuses cells
+# and tables made more than a day apart), each only while no nightly and no
+# atlas container but atlas-api runs; each also holds the orchestrator lock.
+# <date> is that day (YYYYMMDD); <list> is the release's own privacy list.
+busy() { systemctl is-active --quiet atlas-nightly.service ||
+  sudo -n docker ps --format '{{.Names}}' | grep '^atlas-' | grep -qvx atlas-api; }
+
+# 1b. The frozen release's collection cells as the sources stand now, from its
+#     own privacy list: nothing is asked of .org unless that list alone gives
+#     the release's own cells, and cells-now.json records the list's sha256.
+#     It asks .org's status the same paced way as step 1c.
+sudo install -d -o 10001 -g 10001 -m 0700 /srv/atlas/cells-now-<release>-<date>
+busy && echo "the nightly or another atlas container is running; nothing started" >&2 || \
+sudo -n systemd-run --unit=atlas-cells-now --collect -p RuntimeMaxSec=2h -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-cells-now --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data -v /home/atlas/.ssh:/home/atlas/.ssh:ro \
+  -v <list>:/inputs/privacy-list.tsv.gz:ro -v /srv/atlas/cells-now-<release>-<date>:/out \
+  "$ATLAS_IMAGE" cells-now --release=<release> --privacy-list=/inputs/privacy-list.tsv.gz --out=/out'
+
+# 1c. Release 20261013T191324Z-fa1b4198 only: its training-record, lineage,
+#     removed-records and contributors tables, as the sources stand now
+#     (R/trainingtables.R). It reads the store and asks .org through the
+#     read-only route, a window of record ids at a time, so it needs
+#     /home/atlas/.ssh. It pauses 5 s between windows and 30 s after one that
+#     took more than 10 s, and stops, writing nothing, if one takes 30 s
+#     (ATLAS_STATUS_PACE): check .org's load by hand before launching it. It works in a folder of its own under
+#     /srv/atlas/data/work/, removed when it ends, and writes only into its
+#     output folder, which stays private (mode 0700) until the version is
+#     published. /srv/atlas/deposit-inputs/ holds the private inputs, owned
+#     by the container's user (10001) and readable by no one else: the
+#     sequence approvals (sequence_id, approved) and the names file (source,
+#     source_id, contributor), with the opt-out list (source, contributor).
+#     --printed-pulls takes the pull values as the paper prints them.
+sudo install -d -o 10001 -g 10001 -m 0700 /srv/atlas/training-tables-<release>
+busy && echo "the nightly or another atlas container is running; nothing started" >&2 || \
+sudo -n systemd-run --unit=atlas-training-tables --collect -p RuntimeMaxSec=2h -p EnvironmentFile=/etc/atlas/image.env \
+  /bin/sh -c 'exec docker run --rm --name atlas-training-tables --network host --memory 1g \
+  --env-file /etc/atlas/atlas.env -v /srv/atlas/data:/data -v /home/atlas/.ssh:/home/atlas/.ssh:ro \
+  -v <list>:/inputs/privacy-list.tsv.gz:ro -v /srv/atlas/deposit-inputs:/inputs/private:ro \
+  -v /srv/atlas/cells-now-<release>-<date>:/cells:ro -v /srv/atlas/training-tables-<release>:/out \
+  "$ATLAS_IMAGE" training-tables --release=<release> --out=/out --cells-now=/cells \
+  --privacy-list=/inputs/privacy-list.tsv.gz --printed-pulls=<a>,<b>,<c> \
+  --sequences=/inputs/private/sequence-approvals.tsv --sequences-exported-on=<YYYY-MM-DD> \
+  --names=/inputs/private/names.tsv --opt-outs=/inputs/private/opt-outs.tsv'
+
 # 2. Deposit the kept bundle (a draft unless --publish), with the release's
-#    collection cells made now (cells-now, in /srv/atlas/cells-now-<release>):
-#    a models version is not deposited without them. A person types the
+#    collection cells made now (step 1b, in /srv/atlas/cells-now-<release>-<date>):
+#    a models version is not deposited without them. For the release above,
+#    --tables adds the tables from step 1c. A person types the
 #    token at the prompt, at an interactive terminal on the box; nobody
 #    pastes it into a chat, a file or a command line. It is never shown, and
 #    goes to the unit on its input. The unit checks its length, writes it into
@@ -276,8 +322,16 @@ read -rsp 'Zenodo token: ' ZT && echo && printf '%s' "$ZT" | \
     chown 10001 /run/atlas-deposit/token; chmod 0400 /run/atlas-deposit/token
     exec docker run --rm --name atlas-deposit --network host --memory 1g --env-file /etc/atlas/atlas.env \
       -e ZENODO_TOKEN_FILE=/run/secrets/zenodo-token -v /run/atlas-deposit/token:/run/secrets/zenodo-token:ro \
-      -v /srv/atlas/data:/data -v /srv/atlas/cells-now-<release>:/cells:ro       "$ATLAS_IMAGE" archive-release --only=models --from-build=<release> --cells-now=/cells'; unset ZT
+      -v /srv/atlas/data:/data -v /srv/atlas/cells-now-<release>-<date>:/cells:ro \
+      -v /srv/atlas/training-tables-<release>:/tables:ro \
+      "$ATLAS_IMAGE" archive-release --only=models --from-build=<release> --cells-now=/cells --tables=/tables'
+unset ZT
 ```
+
+The tables go only into the models version of the release they were made
+for: `--tables` refuses any other release, each table is checked against
+the sum in `training-records.json`, and again for its columns and for any
+value shaped like a coordinate.
 
 The deposit checks each kept file against its `SHA256SUMS` line before
 anything is uploaded, and refuses a bundle whose sums do not match. The cells

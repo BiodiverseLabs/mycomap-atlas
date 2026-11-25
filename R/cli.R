@@ -199,9 +199,29 @@ atlas_usage <- function() {
   message("      --from-bundle=DIR         deposit a bundle kept with --keep-bundle, checked against its sums")
   message("      --workers=N               processes for drawing the bundle's maps in blocks (default 1)")
   message("      --from-build=ID           deposit the bundle archive-build-ec2 kept for release ID")
+  message("      --cells-now=DIR           the collection cells made now by cells-now (a models version needs them)")
+  message("      --tables=DIR              add the tables training-tables made (their release only)")
   message("  archive-build-ec2  build a release's models bundle on one EC2 worker (ATLAS_EC2_MAX_HOURS,")
   message("                     ATLAS_EC2_FINISH_MARKET, ATLAS_EC2_INSTANCE_TYPES) and keep it privately")
   message("      --release=ID              which release (required)")
+  message("  training-tables    the training-record and lineage tables of a models version, as the sources")
+  message("                     stand now (read-only on the store and .org); see R/trainingtables.R")
+  message("      --release=ID              which release (required; only the one they are made for)")
+  message("      --out=DIR                 an empty directory to write them into (required)")
+  message("      --privacy-list=PATH       the release's own privacy list (required; as cells-now took it)")
+  message("      --cells-now=DIR           the cells made now beside them, within a day (required)")
+  message("      --sequences=PATH          sequence approvals (sequence_id, approved); without it, none is given")
+  message("      --sequences-exported-on=YYYY-MM-DD  the day they were exported (required with --sequences)")
+  message("      --names=PATH              the private names file (source, source_id, contributor): makes the")
+  message("                                contributors table")
+  message("      --opt-outs=PATH           the private list (source, contributor) of people not to be named")
+  message("      --printed-pulls=A,B,...   the pull values as printed elsewhere: the lineage names a pull by")
+  message("                                the hash they begin")
+  message("  cells-now          a release's collection cells as the sources stand now, for its next models")
+  message("                     version (read-only on .org); see R/cellsnow.R")
+  message("      --out=DIR                 where to write them (required)")
+  message("      --release=ID              the frozen release only, with --privacy-list (default: the current one)")
+  message("      --privacy-list=PATH       that release's own privacy list; it must alone give the release's cells")
   message("  archive-publish    publish the waiting draft of a series (--series=models-production)")
   message("  archive-discard    throw away the waiting draft of a series")
   message("  archive-auto-publish  publish each series' waiting draft once its grace period is over, if it")
@@ -919,7 +939,8 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
         cells_now = if (is.null(flags$cells_now)) NULL else as.character(flags$cells_now),
         workers = atlas_flag_number(flags, "workers", 1L),
         keep_bundle = if (is.null(flags$keep_bundle)) NULL else as.character(flags$keep_bundle),
-        from_bundle = staged %||% (if (!is.null(flags$from_bundle)) as.character(flags$from_bundle))
+        from_bundle = staged %||% (if (!is.null(flags$from_bundle)) as.character(flags$from_bundle)),
+        tables = if (is.null(flags$tables)) NULL else as.character(flags$tables)
       )
       invisible(0L)
     },
@@ -936,15 +957,61 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
                                  atlas_flag_grid(flags), config = config)
       invisible(0L)
     },
+    "training-tables" = {
+      if (is.null(flags$release) || is.null(flags$out)) stop("training-tables needs --release=ID and --out=DIR", call. = FALSE)
+      printed <- if (is.null(flags$printed_pulls)) NULL else
+        trimws(strsplit(as.character(flags$printed_pulls), ",", fixed = TRUE)[[1]])
+      if (is.null(flags$privacy_list) || is.null(flags$cells_now)) {
+        stop("training-tables needs --privacy-list=PATH and --cells-now=DIR", call. = FALSE)
+      }
+      summary <- atlas_training_tables_run(
+        dir = as.character(flags$out), release = as.character(flags$release),
+        privacy_list = as.character(flags$privacy_list), cells_now = as.character(flags$cells_now),
+        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+        grid = atlas_flag_grid(flags), printed = printed,
+        sequences = if (is.null(flags$sequences)) NULL else as.character(flags$sequences),
+        sequences_exported_on = if (is.null(flags$sequences_exported_on)) NA_character_ else
+          as.character(flags$sequences_exported_on),
+        names = if (is.null(flags$names)) NULL else as.character(flags$names),
+        opt_outs = if (is.null(flags$opt_outs)) NULL else as.character(flags$opt_outs)
+      )
+      message(sprintf("training records: %d rows, %d taxa, %d models (%d found by their own job), %d sites, %d rows without a site; %d left out as deleted at the source",
+                      summary$rows, summary$taxa, summary$models, summary$models_found_by_their_job, summary$sites,
+                      summary$rows_without_site, summary$deleted_at_source$left_out))
+      message(sprintf("lineage: %d models, %d pull and job rows, pulls named by %s", summary$lineage$models,
+                      summary$lineage$pulls, summary$lineage$pull_column))
+      message(sprintf("removed records: %d, from %s, under %d names", summary$removed_records$records,
+                      paste(summary$removed_records$source, collapse = ", "), summary$removed_records$names))
+      s <- summary$sequence_ids
+      message(sprintf("sequence ids: %d given, %d not approved, %d not in the approvals, %d with none",
+                      s$filled, s$blank_not_approved, s$blank_not_in_the_approvals, s$blank_no_sequence))
+      invisible(0L)
+    },
     "cells-now" = {
       # The current release's collection cells as the sources stand now, for
       # its next archive version (R/cellsnow.R). Read-only on .org.
       if (is.null(flags$out)) stop("cells-now needs --out=DIR", call. = FALSE)
-      summary <- atlas_cells_now_run(
-        dir = as.character(flags$out),
-        store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
-        grid = atlas_flag_grid(flags)
-      )
+      summary <- if (is.null(flags$release) && is.null(flags$privacy_list)) {
+        atlas_cells_now_run(
+          dir = as.character(flags$out),
+          store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+          grid = atlas_flag_grid(flags)
+        )
+      } else {
+        # The frozen release, from its own privacy list (R/cellsnow.R).
+        release <- as.character(flags$release %||% "")
+        if (!release %in% ATLAS_FROZEN_RELEASES) {
+          stop("cells-now takes --release and --privacy-list only for the frozen release (",
+               paste(ATLAS_FROZEN_RELEASES, collapse = ", "), "), not ", if (nzchar(release)) release else "none",
+               call. = FALSE)
+        }
+        atlas_with_orchestrator_lock("cells-now", 2, atlas_cells_now_frozen_run(
+          dir = as.character(flags$out), release = release,
+          privacy_list = if (is.null(flags$privacy_list)) NULL else as.character(flags$privacy_list),
+          store = atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = "")),
+          grid = atlas_flag_grid(flags)
+        ))
+      }
       for (g in summary$groups) {
         message(sprintf("  %-72s %7d  (%d not in an earlier group)", g$group, g$records, g$not_in_an_earlier_group))
       }

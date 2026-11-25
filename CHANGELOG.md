@@ -165,6 +165,22 @@ changed and what it means for you.
   `archive-release --from-build=<release>` or `--from-bundle=DIR` deposits a
   kept bundle, checked against its `SHA256SUMS`, with `--cells-now=DIR` in
   place of the release's cells as in a bundle built with them.
+- **One models version carries the training-record and lineage tables.**
+  The archive's training-record table is built from the release's training
+  records, for release `20261013T191324Z-fa1b4198` only
+  (`ATLAS_TRAINING_TABLE_RELEASES`): one row per record with its source,
+  its number there, its taxon and a site number of the table's own, blank
+  where the source hides the location, with records the source no longer
+  holds left out. The lineage tables give each model's fitting job and pull,
+  and each pull's jobs; `removed-records.tsv` the records removed under
+  non-fungal sequence names on 13 October 2026; `contributors.tsv`, when a
+  names file is given, each contributor's rows by source.
+  `training-tables --release=ID --out=DIR` makes them as the sources stand
+  now; `archive-release --tables=DIR` adds them. Every other version is as it
+  was.
+- **`cells-now --release=ID --privacy-list=PATH`** makes the frozen release's
+  cells as the sources stand now from its own privacy list, once that list
+  alone gives the release's cells, and records the list's sha256.
 
 - **Maps are drawn in whole 50 km blocks.** A block is drawn only when its
   whole 50 km square, on one fixed grid shared by every map, lies inside the
