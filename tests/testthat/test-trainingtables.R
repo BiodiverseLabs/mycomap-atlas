@@ -409,3 +409,93 @@ test_that("the status pages are paced: a pause between pages, a longer one after
   expect_error(atlas_status_paged(run, "sql", window = 100000, clock = function() now, sleep = function(s) NULL),
                "ids 100001 to 200000 took 31 s, near the read-only route's limit; stopped, nothing written")
 })
+
+# A published release's models bundle given the frozen release's id, cells
+# made now and the tables, in this data directory; with its store.
+tables_bundle <- function(fx) {
+  tables <- tempfile("tables-")
+  make_tables(fx, fixture_status(fx), tables)
+  computed_data()
+  store <- new_store()
+  atlas_publish_release(store, quiet = TRUE)
+  bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
+  bundle$release$id <- fx$manifest$id
+  bundle$cells_now <- list(checked_at = "2026-11-08T09:00:00Z", checked_on = "2026-11-08")
+  list(bundle = atlas_archive_bundle_tables(bundle, tables), store = store)
+}
+
+test_that("a version with the tables is not published until its second licence is seen on the draft or confirmed", {
+  fx <- frozen_fixture()
+  with_data_dir({
+    b <- tables_bundle(fx)
+    zen <- fake_zenodo()
+    said <- testthat::capture_messages(atlas_archive_deposit(b$bundle, b$store, zen$client(), quiet = TRUE))
+    expect_true(any(grepl("Before publishing: add CC0 1.0 as a second licence on the draft at", said, fixed = TRUE)))
+    entry <- atlas_archive_ledger(b$store, "models-draft")$versions[[1]]
+    expect_identical(unlist(entry$licences), ATLAS_TABLES_LICENCES)
+    # Zenodo's deposit API reads the draft back with one licence: a typed confirmation is needed.
+    expect_error(atlas_archive_publish(b$store, "models-draft", zen$client(), quiet = TRUE),
+                 "shows one licence for the draft [(]cc-by-sa-4.0[)].*--licences-confirmed=.both licences are on the draft: yes.")
+    expect_error(atlas_archive_publish(b$store, "models-draft", zen$client(), quiet = TRUE, licences_confirmed = "yes"),
+                 "cannot be read back")
+    expect_identical(atlas_archive_ledger(b$store, "models-draft")$versions[[1]]$state, "draft")
+    atlas_archive_publish(b$store, "models-draft", zen$client(), quiet = TRUE,
+                          licences_confirmed = "both licences are on the draft: yes")
+    done <- atlas_archive_ledger(b$store, "models-draft")$versions[[1]]
+    expect_identical(done$state, "published")
+    expect_identical(done$licences_check, "the second licence confirmed by the person publishing")
+  })
+})
+
+test_that("a draft whose licences Zenodo lists is published only when both are on it", {
+  fx <- frozen_fixture()
+  with_data_dir({
+    b <- tables_bundle(fx)
+    zen <- fake_zenodo()
+    suppressMessages(atlas_archive_deposit(b$bundle, b$store, zen$client(), quiet = TRUE))
+    id <- as.character(atlas_archive_ledger(b$store, "models-draft")$versions[[1]]$deposition_id)
+    zen$records[[id]]$metadata$rights <- list(list(id = "cc-by-sa-4.0"))
+    expect_error(atlas_archive_publish(b$store, "models-draft", zen$client(), quiet = TRUE,
+                                       licences_confirmed = "both licences are on the draft: yes"),
+                 "lacks the licence cc0-1.0")
+    # The deposit API's old name for CC0 counts as CC0 1.0.
+    zen$records[[id]]$metadata$rights <- list(list(id = "cc-by-sa-4.0"), list(id = "cc-zero"))
+    atlas_archive_publish(b$store, "models-draft", zen$client(), quiet = TRUE)
+    done <- atlas_archive_ledger(b$store, "models-draft")$versions[[1]]
+    expect_identical(done$licences_check, "both licences read back from the draft")
+  })
+})
+
+test_that("a version without the tables needs no second licence", {
+  with_data_dir({
+    computed_data()
+    store <- new_store()
+    atlas_publish_release(store, quiet = TRUE)
+    bundle <- atlas_archive_models_bundle(store, "draft", blocks = FALSE)
+    bundle$cells_now <- list(checked_at = "2026-11-08T09:00:00Z", checked_on = "2026-11-08")
+    zen <- fake_zenodo()
+    said <- testthat::capture_messages(atlas_archive_deposit(bundle, store, zen$client(), quiet = TRUE))
+    expect_false(any(grepl("second licence", said)))
+    expect_null(atlas_archive_ledger(store, "models-draft")$versions[[1]]$licences)
+    atlas_archive_publish(store, "models-draft", zen$client(), quiet = TRUE)
+    expect_identical(atlas_archive_ledger(store, "models-draft")$versions[[1]]$state, "published")
+  })
+})
+
+test_that("a version with the tables keeps CC BY-SA 4.0 as its licence and its description names the CC0 file", {
+  fx <- frozen_fixture()
+  with_data_dir({
+    b <- tables_bundle(fx)
+    given <- b$bundle
+    bundle <- atlas_archive_models_bundle(b$store, "draft", blocks = FALSE)
+    readme <- atlas_archive_readme(given, atlas_archive_file_table(given$sources))
+    metadata <- atlas_archive_metadata(given, readme)
+    expect_identical(metadata$license, "cc-by-sa-4.0")
+    expect_match(metadata$description, "The training-record table (`training-records.tsv.gz`) is released under CC0 1.0",
+                 fixed = TRUE)
+    expect_match(metadata$description, "every other file in this version under CC BY-SA 4.0", fixed = TRUE)
+    # A version without the tables says nothing of CC0.
+    plain <- atlas_archive_metadata(bundle, atlas_archive_readme(bundle, atlas_archive_file_table(bundle$sources)))
+    expect_false(grepl("CC0", plain$description, fixed = TRUE))
+  })
+})

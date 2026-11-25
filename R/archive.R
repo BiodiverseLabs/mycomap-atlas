@@ -731,7 +731,10 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
     description = metadata$description,
     files = lapply(seq_len(nrow(files)), function(i) {
       list(name = files$name[i], bytes = files$bytes[i], sha256 = files$sha256[i], md5 = md5[i])
-    })
+    }),
+    # A version with the training-record table carries a second licence,
+    # which a person adds on the draft (R/trainingtables.R).
+    licences = if (length(bundle$tables)) as.list(ATLAS_TABLES_LICENCES)
   )
   entry <- Filter(Negate(is.null), entry)
   # Written before a byte is uploaded, so a run that dies leaves a draft
@@ -749,6 +752,7 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
   ledger$versions[[index]]$drafted_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   atlas_archive_save_ledger(store, ledger)
   say(series, " version ", bundle$version, ": draft ready at ", entry$url)
+  if (length(bundle$tables)) message(atlas_archive_licence_step(entry$url))
 
   if (isTRUE(publish)) {
     ledger <- atlas_archive_publish(store, series, z, quiet = quiet)
@@ -756,13 +760,16 @@ atlas_archive_deposit <- function(bundle, store, z, publish = FALSE, dry_run = F
   invisible(ledger)
 }
 
-#' Publish the waiting draft of a series: mints its DOI, permanently.
-atlas_archive_publish <- function(store, series, z, quiet = FALSE) {
+#' Publish the waiting draft of a series: mints its DOI, permanently. A
+#' draft that needs a second licence is published only once it is seen on
+#' the draft or confirmed (atlas_archive_check_licences).
+atlas_archive_publish <- function(store, series, z, quiet = FALSE, licences_confirmed = NULL) {
   ledger <- atlas_archive_ledger(store, series)
   index <- which(vapply(ledger$versions, function(v) identical(v$state, "draft"), logical(1)))
   if (!length(index)) stop(series, " has no draft waiting to be published", call. = FALSE)
   index <- index[[1]]
   entry <- ledger$versions[[index]]
+  if (length(entry$licences)) entry$licences_check <- atlas_archive_check_licences(z, entry, licences_confirmed)
   record <- atlas_zenodo_publish(z, entry$deposition_id)
   entry$state <- "published"
   entry$doi <- record$doi

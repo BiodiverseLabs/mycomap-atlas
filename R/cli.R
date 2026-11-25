@@ -223,6 +223,8 @@ atlas_usage <- function() {
   message("      --release=ID              the frozen release only, with --privacy-list (default: the current one)")
   message("      --privacy-list=PATH       that release's own privacy list; it must alone give the release's cells")
   message("  archive-publish    publish the waiting draft of a series (--series=models-production)")
+  message("      --licences-confirmed=TEXT  for a version with the training-record table, when Zenodo cannot")
+  message("                                show its second licence: \"both licences are on the draft: yes\"")
   message("  archive-discard    throw away the waiting draft of a series")
   message("  archive-auto-publish  publish each series' waiting draft once its grace period is over, if it")
   message("                     reads back as made; record drafts deleted or published on zenodo.org")
@@ -1026,7 +1028,13 @@ atlas_main <- function(args = commandArgs(trailingOnly = TRUE)) {
       store <- atlas_store(flags$store %||% Sys.getenv("ATLAS_STORE", unset = ""))
       series <- as.character(flags$series)
       z <- atlas_flag_zenodo(list(sandbox = endsWith(series, "-sandbox")))
-      if (command == "archive-publish") atlas_archive_publish(store, series, z) else atlas_archive_discard(store, series, z)
+      if (command == "archive-publish") {
+        atlas_archive_publish(store, series, z,
+                              licences_confirmed = if (is.null(flags$licences_confirmed)) NULL else
+                                as.character(flags$licences_confirmed))
+      } else {
+        atlas_archive_discard(store, series, z)
+      }
       invisible(0L)
     },
     "archive-auto-publish" = {

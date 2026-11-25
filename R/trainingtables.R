@@ -409,3 +409,58 @@ atlas_contributors_table <- function(training, names, opt_outs = NULL) {
   )
   list(table = counts, summary = summary)
 }
+
+# ---- the second licence ---------------------------------------------------------
+
+# The licences of a version with the training-record table (Steve,
+# 2026-10-25): CC BY-SA 4.0 for every file and CC0 1.0 for the table.
+# Zenodo's deposit API takes one licence, so the code writes the first and a
+# person adds the second on the draft at zenodo.org before it is published.
+ATLAS_TABLES_LICENCES <- c("cc-by-sa-4.0", "cc0-1.0")
+ATLAS_TABLES_LICENCE_CONFIRMATION <- "both licences are on the draft: yes"
+
+#' The line the depositor is shown once such a draft is made.
+atlas_archive_licence_step <- function(url) {
+  paste0("Before publishing: add CC0 1.0 as a second licence on the draft at ", url,
+         " (CC BY-SA 4.0 is already on it).")
+}
+
+#' The licences a draft read back from Zenodo shows: list(ids, listed), where
+#' listed is FALSE when it shows only the deposit API's single licence, from
+#' which a second cannot be read. Legacy ids are read as the current ones.
+atlas_archive_draft_licences <- function(metadata) {
+  id_of <- function(x) {
+    value <- if (is.list(x)) x$id %||% x$identifier %||% NA else x
+    value <- tolower(trimws(as.character(value %||% NA)))
+    if (value %in% c("cc-zero", "cc0", "cc0-1.0")) "cc0-1.0" else value
+  }
+  lists <- Filter(function(x) is.list(x) && length(x) && is.null(names(x)), list(metadata$rights, metadata$licenses))
+  if (length(lists)) return(list(ids = unique(vapply(unlist(lists, recursive = FALSE), id_of, "")), listed = TRUE))
+  single <- metadata$license
+  list(ids = if (is.null(single)) character() else id_of(single), listed = FALSE)
+}
+
+#' Before a draft that needs two licences is published: refuse unless the
+#' draft, read back, lists both; when Zenodo shows only one licence, refuse
+#' unless the person typed ATLAS_TABLES_LICENCE_CONFIRMATION. Returns how it
+#' was checked, for the ledger.
+atlas_archive_check_licences <- function(z, entry, confirmed = NULL) {
+  needed <- unlist(entry$licences)
+  draft <- z$call("GET", paste0("/deposit/depositions/", entry$deposition_id))
+  shown <- atlas_archive_draft_licences(draft$metadata %||% list())
+  if (isTRUE(shown$listed)) {
+    missing <- setdiff(needed, shown$ids)
+    if (length(missing)) {
+      stop("not published: the draft at ", entry$url, " lacks the licence ", paste(missing, collapse = " and "),
+           "; add it there, then publish again", call. = FALSE)
+    }
+    return("both licences read back from the draft")
+  }
+  if (identical(trimws(as.character(confirmed %||% "")), ATLAS_TABLES_LICENCE_CONFIRMATION)) {
+    return("the second licence confirmed by the person publishing")
+  }
+  stop("not published: Zenodo's deposit API shows one licence for the draft (",
+       if (length(shown$ids)) shown$ids else "none", "), so the second cannot be read back. Check on ", entry$url,
+       " that it carries both CC BY-SA 4.0 and CC0 1.0, then publish again with --licences-confirmed=\"",
+       ATLAS_TABLES_LICENCE_CONFIRMATION, "\"", call. = FALSE)
+}

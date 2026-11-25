@@ -333,6 +333,24 @@ for: `--tables` refuses any other release, each table is checked against
 the sum in `training-records.json`, and again for its columns and for any
 value shaped like a coordinate.
 
+For the release with the tables, two more steps come between the draft and
+its DOI, both with the owner:
+
+3. **The second licence.** Zenodo's deposit API takes one licence, so the
+   draft is made with CC BY-SA 4.0 and the deposit ends by printing
+   "Before publishing: add CC0 1.0 as a second licence on the draft at
+   <url>". The owner opens the draft at zenodo.org, adds CC0 1.0 beside CC
+   BY-SA 4.0 (the training-record table is CC0; every other file stays CC
+   BY-SA, as the README and description say), saves it without publishing,
+   and checks that both are shown.
+4. **Publish**, with the owner's OK: `archive-publish --series=models-draft`,
+   run the way step 2 runs (the token typed at the prompt and handed to the
+   unit). For this version it reads the draft back first and refuses unless
+   Zenodo shows both licences; when Zenodo shows only one, as its deposit API
+   does, it refuses unless the person adds
+   `--licences-confirmed="both licences are on the draft: yes"`, having
+   checked the draft. The ledger records which.
+
 The deposit checks each kept file against its `SHA256SUMS` line before
 anything is uploaded, and refuses a bundle whose sums do not match. The cells
 made now are checked against their `cells-now.json` and the release, and take

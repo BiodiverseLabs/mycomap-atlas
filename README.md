@@ -886,7 +886,12 @@ time, paced, and stopping if a window nears the route's limit), beside the cells
 list alone gives its cells), with a summary of counts and the files' sums
 (`training-records.json`). `archive-release --tables=DIR` adds them, each
 checked against its sum, and only with cells made within a day of them. Any
-other release's version is as it was.
+other release's version is as it was. The training-record table is released
+under CC0 1.0 and every other file under CC BY-SA 4.0; Zenodo's deposit API
+takes one licence, so the draft is made with CC BY-SA 4.0, a person adds CC0
+1.0 on it at zenodo.org, and `archive-publish` refuses that version until
+both are seen on the draft or the person confirms them
+(`--licences-confirmed`).
 
 Every version carries a README and `CHECKSUMS.sha256`. A models version names
 the layers version it was fitted on (matched by the layer builds, not by

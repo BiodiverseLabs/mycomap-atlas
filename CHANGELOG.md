@@ -177,7 +177,9 @@ changed and what it means for you.
   names file is given, each contributor's rows by source.
   `training-tables --release=ID --out=DIR` makes them as the sources stand
   now; `archive-release --tables=DIR` adds them. Every other version is as it
-  was.
+  was. That version's record lists CC BY-SA 4.0, and a person adds CC0 1.0
+  for the training-record table on the draft; `archive-publish` refuses it
+  until both are seen there or confirmed (`--licences-confirmed`).
 - **`cells-now --release=ID --privacy-list=PATH`** makes the frozen release's
   cells as the sources stand now from its own privacy list, once that list
   alone gives the release's cells, and records the list's sha256.
