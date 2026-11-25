@@ -311,16 +311,18 @@ atlas_status_sql <- function(from_id, to_id, max_m = ATLAS_MAX_ACCURACY_M) {
   as.integer(from_id), as.integer(to_id), ATLAS_INAT_SOURCE, ATLAS_MO_SOURCE))
 }
 
-# The pace of the status pages: a pause between pages, a longer one after a
-# slow page, and a stop when a page comes near the read-only route's limit
-# on one statement. In seconds.
-ATLAS_STATUS_PACE <- list(pause = 5, slow = 10, slow_pause = 30, stop = 30)
+# The pace of the status pages (the operations lane's numbers, 2026-11-25): a
+# pause between pages, doubled after each page slower than `slow`, up to
+# `max_pause`, and back to `pause` after a page that was not; and a stop
+# when a page takes `stop` or longer. In seconds.
+ATLAS_STATUS_PACE <- list(pause = 5, slow = 10, max_pause = 60, stop = 30)
 
 #' How the sources stand now, asked a window of record ids at a time, in the
 #' shape atlas_cells_now_status gives. Each page is timed: the next waits
-#' pace$pause seconds, or pace$slow_pause after a page that took longer than
-#' pace$slow, and a page that takes pace$stop or longer stops the step before
-#' anything is written. clock and sleep stand in for the tests.
+#' pace$pause seconds, twice the last wait (up to pace$max_pause) after a page
+#' that took longer than pace$slow, and a page that takes pace$stop or longer
+#' stops the step before anything is written. clock and sleep stand in for
+#' the tests.
 atlas_status_paged <- function(run = atlas_run_sql, host = atlas_sql_host(), max_m = ATLAS_MAX_ACCURACY_M,
                                window = 100000, pace = ATLAS_STATUS_PACE, clock = Sys.time, sleep = Sys.sleep) {
   top <- atlas_parse_tsv(run("SELECT max(id) AS top FROM observations", host = host))
@@ -339,7 +341,7 @@ atlas_status_paged <- function(run = atlas_run_sql, host = atlas_sql_host(), max
                          "stopped, nothing written"), as.integer(from) + 1L, as.integer(from + window), took),
            call. = FALSE)
     }
-    wait <- if (took > pace$slow) pace$slow_pause else pace$pause
+    wait <- if (took > pace$slow) min(2 * max(wait, pace$pause), pace$max_pause) else pace$pause
     page <- atlas_parse_tsv(answer)
     if (!nrow(page)) next
     missing <- setdiff(columns, names(page))
@@ -383,6 +385,9 @@ atlas_cells_now_frozen_run <- function(dir, release, privacy_list, store = atlas
   if (is.null(privacy_list) || !file.exists(privacy_list)) {
     stop("cells-now --release needs --privacy-list=PATH, the release's own list", call. = FALSE)
   }
+  # What it writes is readable by its own user only (files 0600, folders 0700).
+  old_mask <- Sys.umask("077")
+  on.exit(Sys.umask(old_mask), add = TRUE)
   key <- paste0("releases/", grid, "/", release, ".json")
   manifest <- if (store$exists(key)) atlas_store_text(store, key)
   if (is.null(manifest)) stop("no release ", release, " in the store for the ", grid, " grid", call. = FALSE)

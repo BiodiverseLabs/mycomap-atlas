@@ -53,3 +53,15 @@ test_that("cells made now for the frozen release record its list's hash and leav
     expect_silent(atlas_read_cells_now(dir, release))
   })
 })
+
+test_that("the frozen release's cells made now are readable by their own user only, and the mask is put back", {
+  skip_on_os("windows")
+  frozen_cells_setup(function(store, release, pull, own) {
+    before <- Sys.umask()
+    dir <- tempfile("cells-now-")
+    atlas_cells_now_frozen_run(dir, release$id, own, store, frozen = release$id, status = planted_status(pull))
+    expect_identical(as.character(file.info(dir)$mode), "700")
+    for (f in list.files(dir, full.names = TRUE)) expect_identical(as.character(file.info(f)$mode), "600", info = basename(f))
+    expect_identical(Sys.umask(), before)
+  })
+})

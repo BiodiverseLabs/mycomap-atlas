@@ -239,6 +239,10 @@ atlas_training_tables_run <- function(dir, release, privacy_list, cells_now, sto
   if (!is.null(sequences) && !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", sequences_exported_on %||% "")) {
     stop("the sequence approvals need the date they were exported (--sequences-exported-on=YYYY-MM-DD)", call. = FALSE)
   }
+  # Everything it writes is readable by its own user only: files 0600,
+  # folders 0700, its working folder included.
+  old_mask <- Sys.umask("077")
+  on.exit(Sys.umask(old_mask), add = TRUE)
   work <- file.path(work_root, basename(tempfile("training-tables-")))
   dir.create(work, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(work, recursive = TRUE), add = TRUE)

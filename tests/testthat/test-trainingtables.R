@@ -390,20 +390,21 @@ test_that("the box step holds terra to its own memory while it builds the predic
   })
 })
 
-test_that("the status pages are paced: a pause between pages, a longer one after a slow page, and a stop near the limit", {
+test_that("the status pages are paced: a pause between pages, doubled after each slow page up to a minute, and a stop near the limit", {
   now <- as.POSIXct("2026-11-25 00:00:00", tz = "UTC")
   slept <- numeric()
-  takes <- c(2, 12, 3, 4)
+  takes <- c(2, 12, 12, 12, 12, 3, 4)
   page <- 0L
   run <- function(sql, host) {
-    if (grepl("max(id)", sql, fixed = TRUE)) return("top\n350000")
+    if (grepl("max(id)", sql, fixed = TRUE)) return("top\n650000")
     page <<- page + 1L
     now <<- now + takes[[page]]
     "source\tobservation_id\tinat_answered\tinat_hidden\tmo_answered\tmo_shown\tdeleted"
   }
   atlas_status_paged(run, "sql", window = 100000, clock = function() now, sleep = function(s) slept <<- c(slept, s))
-  # No wait before the first page; 5 s after a 2 s page, 30 s after the 12 s one.
-  expect_identical(slept, c(5, 30, 5))
+  # No wait before the first page; 5 s after a 2 s page; 10, 20, 40, then 60 (not 80)
+  # after slow pages in a row; and 5 again after a page that was not slow.
+  expect_identical(slept, c(5, 10, 20, 40, 60, 5))
   takes <- c(2, 31)
   page <- 0L
   expect_error(atlas_status_paged(run, "sql", window = 100000, clock = function() now, sleep = function(s) NULL),
@@ -498,4 +499,30 @@ test_that("a version with the tables keeps CC BY-SA 4.0 as its licence and its d
     plain <- atlas_archive_metadata(bundle, atlas_archive_readme(bundle, atlas_archive_file_table(bundle$sources)))
     expect_false(grepl("CC0", plain$description, fixed = TRUE))
   })
+})
+
+test_that("the box step writes its files and folders readable by its own user only, and puts the mask back", {
+  skip_on_os("windows")
+  fx <- frozen_fixture()
+  before <- Sys.umask()
+  seen <- NULL
+  list_file <- tempfile(fileext = ".tsv.gz")
+  atlas_write_tsv_gz(data.frame(source = character(), observation_id = character(), privacy = character()), list_file)
+  local_mocked_bindings(
+    atlas_training_tables_release = function(...) {
+      seen <<- Sys.umask()
+      stop("released")
+    }
+  )
+  expect_error(atlas_training_tables_run(tempfile(), ATLAS_TRAINING_TABLE_RELEASES[[1]], list_file, tempfile(),
+                                         store = fx$store, work_root = tempfile("work-")), "released")
+  expect_identical(as.character(seen), "77")
+  expect_identical(Sys.umask(), before)
+  # Under that mask, the tables and their folder are their user's alone.
+  dir <- tempfile("tables-")
+  old <- Sys.umask("077")
+  make_tables(fx, fixture_status(fx), dir)
+  Sys.umask(old)
+  expect_identical(as.character(file.info(dir)$mode), "700")
+  for (f in list.files(dir, full.names = TRUE)) expect_identical(as.character(file.info(f)$mode), "600", info = basename(f))
 })

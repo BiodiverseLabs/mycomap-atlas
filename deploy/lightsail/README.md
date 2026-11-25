@@ -280,15 +280,20 @@ sudo -n systemd-run --unit=atlas-cells-now --collect -p RuntimeMaxSec=2h -p Envi
 #     removed-records and contributors tables, as the sources stand now
 #     (R/trainingtables.R). It reads the store and asks .org through the
 #     read-only route, a window of record ids at a time, so it needs
-#     /home/atlas/.ssh. It pauses 5 s between windows and 30 s after one that
-#     took more than 10 s, and stops, writing nothing, if one takes 30 s
-#     (ATLAS_STATUS_PACE): check .org's load by hand before launching it. It works in a folder of its own under
-#     /srv/atlas/data/work/, removed when it ends, and writes only into its
-#     output folder, which stays private (mode 0700) until the version is
-#     published. /srv/atlas/deposit-inputs/ holds the private inputs, owned
-#     by the container's user (10001) and readable by no one else: the
-#     sequence approvals (sequence_id, approved) and the names file (source,
-#     source_id, contributor), with the opt-out list (source, contributor).
+#     /home/atlas/.ssh. One statement runs at a time. It pauses 5 s between
+#     windows, doubling the pause after each window that took more than
+#     10 s, up to 60 s, and stops, writing nothing, if one takes 30 s
+#     (ATLAS_STATUS_PACE). Check /proc/pressure/io on the .org host by hand
+#     before launching it and every 2 minutes while it runs. It works in a
+#     folder of its own under /srv/atlas/data/work/, removed when it ends,
+#     and writes only into its output folder, which stays private until the
+#     version is published. It runs with umask 077: every file it writes is
+#     0600 and every folder 0700, its working folder included.
+#     /srv/atlas/deposit-inputs/ holds the private inputs, owned by the
+#     container's user (10001), directories 0700 and files 0600, readable by
+#     no one else: the sequence approvals (sequence_id, approved) and the
+#     names file (source, source_id, contributor), with the opt-out list
+#     (source, contributor).
 #     --printed-pulls takes the pull values as the paper prints them.
 sudo install -d -o 10001 -g 10001 -m 0700 /srv/atlas/training-tables-<release>
 busy && echo "the nightly or another atlas container is running; nothing started" >&2 || \
