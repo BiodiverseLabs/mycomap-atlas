@@ -62,7 +62,10 @@ atlas_read_exclusions <- function(path = atlas_exclude_path()) {
 
 #' Leave the listed rows out: the rows kept, those removed, and what the
 #' pull's manifest says about it (the list's hash, how many it listed and
-#' removed). With no list, nothing is left out and the manifest says so.
+#' removed, and how many rows the entries added on each day removed: a row an
+#' entry of each of two days names counts under the earlier day, and entries
+#' with no date under "undated"). With no list, nothing is left out and the
+#' manifest says so.
 atlas_apply_exclusions <- function(occurrences, exclusions = atlas_read_exclusions(), path = atlas_exclude_path()) {
   if (is.null(exclusions) || !nrow(exclusions)) {
     return(list(kept = occurrences, removed = occurrences[0, , drop = FALSE],
@@ -72,14 +75,27 @@ atlas_apply_exclusions <- function(occurrences, exclusions = atlas_read_exclusio
   unknown <- setdiff(unique(exclusions$by), ATLAS_EXCLUDE_BY)
   if (length(unknown)) stop("the drop list names rows by ", paste(unknown, collapse = ", "),
                             "; only ", paste(ATLAS_EXCLUDE_BY, collapse = " or "), call. = FALSE)
+  # The day each entry was added ("undated" sorts after every date).
+  day <- substr(as.character(exclusions$added_at %||% rep(NA_character_, nrow(exclusions))), 1, 10)
+  day[is.na(day) | !grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", day)] <- "undated"
+  first_day <- rep(NA_character_, nrow(occurrences))
   for (by in unique(exclusions$by)) {
-    drop <- drop | atlas_exclude_keys(occurrences, by) %in% exclusions$id[exclusions$by == by]
+    listed <- exclusions$by == by
+    at <- match(atlas_exclude_keys(occurrences, by), exclusions$id[listed])
+    hit <- !is.na(at)
+    drop <- drop | hit
+    # The earliest day of the entries that name a row (match finds the first
+    # of a repeated id; an id is listed once per way of naming it).
+    this <- day[listed][at[hit]]
+    first_day[hit] <- ifelse(is.na(first_day[hit]) | this < first_day[hit], this, first_day[hit])
   }
   kept <- occurrences[!drop, , drop = FALSE]
   rownames(kept) <- NULL
+  by_day <- table(first_day[drop])
   list(kept = kept, removed = occurrences[drop, , drop = FALSE],
        info = list(list = basename(path), sha256 = atlas_sha256(path), listed = nrow(exclusions),
-                   removed = sum(drop)))
+                   removed = sum(drop),
+                   removed_by_day_added = as.list(stats::setNames(as.integer(by_day), names(by_day)))))
 }
 
 #' Add ids to the drop list (once each), then rewrite this machine's current

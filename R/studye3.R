@@ -22,6 +22,11 @@
 # finds, places and ranked places by grade, and no rank or score at all.
 #
 # Everything written is counts and shares: no record, place or coordinate.
+#
+# Before it scores, the read-out checks that what it reads from this
+# machine's cache is the release as built (atlas_e3_check_cache), and it
+# reports the drop list's removals split at the day the study was registered
+# (atlas_e3_exclusion_split).
 
 # Why a fresh-pull record is not a test find, in the order they are decided.
 ATLAS_E3_APART <- c("in_release_pull", "undated", "green_before_pull", "before_live", "after_until",
@@ -233,6 +238,8 @@ atlas_e3_study <- function(store = atlas_store(), release, from, until, finds_pu
   if (identical(view$manifest$purpose, "hindcast")) {
     stop(release, " is a hindcast: score it with study-score --hindcast", call. = FALSE)
   }
+  # The release as built, before anything is read for scoring.
+  cache_check <- atlas_e3_check_cache(store, view, grid)
   pulled_on <- substr(as.character(view$pulled_at), 1, 10)
   if (is.na(pulled_on) || !nzchar(pulled_on)) stop("release ", release, " records no pull date", call. = FALSE)
   release_pull <- release_pull %||% atlas_tracker_release_pull(store, view$manifest, grid)
@@ -262,6 +269,8 @@ atlas_e3_study <- function(store = atlas_store(), release, from, until, finds_pu
     until = as.character(until), grid = grid, reps = as.integer(reps), seed = as.integer(seed),
     counts_only = isTRUE(counts_only), kernels_from = if (!is.null(kernels_from)) as.list(kernels_from),
     image_commit = Sys.getenv("ATLAS_COMMIT", unset = NA),
+    # What the cache check found (atlas_e3_check_cache).
+    cache_check = cache_check,
     # Each pull rule's own count, as the pull recorded it (the pre-registration
     # asks for them): the drop list's hash and removed rows, the Mushroom
     # Observer records left out and why, and how the pull named its records
@@ -269,6 +278,7 @@ atlas_e3_study <- function(store = atlas_store(), release, from, until, finds_pu
     fresh_pull = list(file = manifest$file %||% NA, pulled_at = manifest$pulled_at %||% NA,
                       records = manifest$records %||% NA, exclusions = manifest$exclusions,
                       mo_left_out = manifest$mo_left_out, names = manifest$names,
+                      exclusions_by_registration = atlas_e3_exclusion_split(manifest$exclusions),
                       name_change_cursor = fresh$changes$cursor %||% NA, staged_at = finds_pull)
   )
   finds <- list(test_finds = split$test_finds, kept_apart = split$kept_apart, names_undone = split$names_undone,
@@ -302,4 +312,90 @@ atlas_e3_study <- function(store = atlas_store(), release, from, until, finds_pu
   say(sprintf("E3 %s on %s: %d test finds, %d places -> %s", if (isTRUE(counts_only)) "counts" else "read-out",
               release, split$test_finds, nrow(places), path))
   invisible(c(result, list(path = path)))
+}
+
+# ---- what the read-out checks before it scores --------------------------------
+
+# The day the E3 entry was registered: the drop list's entries added after it
+# are counted apart from those it already held.
+ATLAS_E3_REGISTERED_ON <- "2026-10-21"
+
+#' The fresh pull's drop-list removals, split at the registration day: rows
+#' removed by entries the list held on that day, rows removed by entries
+#' added after it, and rows removed by entries with no date. From the counts
+#' the pull recorded (atlas_apply_exclusions); NA where a pull made before it
+#' recorded them by day. Stops when the parts do not add up to the total.
+atlas_e3_exclusion_split <- function(exclusions, registered_on = ATLAS_E3_REGISTERED_ON) {
+  if (is.null(exclusions) || identical(exclusions$list, "none")) {
+    return(list(list = "none", removed = 0L, registered_on = registered_on, removed_by_entries_at_registration = 0L,
+                removed_by_entries_added_after = 0L, removed_by_undated_entries = 0L))
+  }
+  removed <- as.integer(exclusions$removed %||% NA)
+  out <- list(list = exclusions$list, list_sha256 = exclusions$sha256 %||% NA, listed = exclusions$listed %||% NA,
+              removed = removed, registered_on = registered_on)
+  by_day <- exclusions$removed_by_day_added
+  if (is.null(by_day)) {
+    return(c(out, list(removed_by_entries_at_registration = NA_integer_, removed_by_entries_added_after = NA_integer_,
+                       removed_by_undated_entries = NA_integer_, why = "the pull did not record its removals by day")))
+  }
+  days <- names(by_day)
+  n <- as.integer(unlist(by_day))
+  dated <- days != "undated"
+  parts <- list(removed_by_entries_at_registration = sum(n[dated & days <= registered_on]),
+                removed_by_entries_added_after = sum(n[dated & days > registered_on]),
+                removed_by_undated_entries = sum(n[!dated]))
+  if (!identical(sum(unlist(parts)), removed)) {
+    stop("the pull's drop-list removals by day (", sum(unlist(parts)), ") do not add up to its total (", removed, ")",
+         call. = FALSE)
+  }
+  c(out, parts)
+}
+
+#' Check, before anything is scored, that what the read-out will read from
+#' this machine's cache is the release as built: its cached release.json and
+#' job record are the store's, and every cached object the release lists, and
+#' its pull, has the sha256 they give. An object not cached yet is checked as
+#' it is fetched (atlas_tracker_object). Stops on any difference, before
+#' scoring. Returns the counts for the results' settings.
+atlas_e3_check_cache <- function(store, view, grid = "draft") {
+  cache <- view$cache
+  if (is.null(cache) || !nzchar(cache)) stop("the read-out's view has no cache to check", call. = FALSE)
+  same_as_store <- function(cached, key) {
+    if (!file.exists(cached)) return(NA)
+    fresh <- tempfile(fileext = ".json")
+    on.exit(unlink(fresh), add = TRUE)
+    store$get(key, fresh)
+    identical(atlas_sha256(cached), atlas_sha256(fresh))
+  }
+  manifest_ok <- same_as_store(file.path(cache, "releases", grid, paste0(view$id, ".json")),
+                               paste0("releases/", grid, "/", view$id, ".json"))
+  job <- atlas_json_string(view$manifest$job)
+  job_ok <- if (!is.null(job)) {
+    same_as_store(file.path(cache, "jobs", grid, paste0(job, ".json")), paste0("jobs/", grid, "/", job, "/job.json"))
+  }
+  if (isFALSE(manifest_ok)) stop("the cached release.json of ", view$id, " is not the store's; nothing scored", call. = FALSE)
+  if (isFALSE(job_ok)) stop("the cached job record of ", view$id, " is not the store's; nothing scored", call. = FALSE)
+  shas <- unique(unname(view$shas))
+  if (!is.null(job) && file.exists(file.path(cache, "jobs", grid, paste0(job, ".json")))) {
+    inputs <- jsonlite::fromJSON(file.path(cache, "jobs", grid, paste0(job, ".json")), simplifyVector = FALSE)$inputs
+    shas <- unique(c(shas, vapply(Filter(function(e) grepl("^occurrences/occurrences-", e$path %||% ""), inputs %||% list()),
+                                  function(e) e$sha256, "")))
+  }
+  checked <- 0L
+  differ <- 0L
+  for (sha in shas) {
+    dir <- file.path(cache, "objects", substr(sha, 1, 2))
+    if (!dir.exists(dir)) next
+    for (path in list.files(dir, pattern = paste0("^", sha, "([.][A-Za-z0-9.]+)?$"), full.names = TRUE)) {
+      checked <- checked + 1L
+      if (!identical(atlas_sha256(path), sha)) differ <- differ + 1L
+    }
+  }
+  if (differ) {
+    stop(differ, " of the ", checked, " cached objects of release ", view$id, " do not match the sha256 its ",
+         "release.json gives; nothing scored. Remove them from ", file.path(cache, "objects"), " and run again",
+         call. = FALSE)
+  }
+  list(objects_checked = checked, objects_listed = length(shas), release_json_matches_store = manifest_ok,
+       job_record_matches_store = job_ok)
 }

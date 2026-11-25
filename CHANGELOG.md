@@ -249,6 +249,16 @@ changed and what it means for you.
 
 ### Methods and studies (no change to production fits)
 
+- **The prospective read-out checks the release it reads before it
+  scores.** Its cached release.json and job record must be the store's, and
+  every cached object the release lists, and its pull, must have the
+  sha256 the release gives; any difference stops it with nothing scored.
+  Its settings record the counts (`cache_check`). It also reports the drop
+  list's removals split at the day the study was registered (2026-10-21):
+  those by entries the list held then, by entries added after, and by
+  undated entries (`exclusions_by_registration`), from the counts each pull
+  now records by the day an entry was added (`removed_by_day_added`).
+
 - `study-virtual`: virtual species with a known habitat, collected at the
   real survey sites with their real effort, to compare Maxent's effort
   handling, a detection model and the forest against the truth. Result:
